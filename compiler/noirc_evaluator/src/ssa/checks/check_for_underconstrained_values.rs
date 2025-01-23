@@ -531,29 +531,26 @@ impl DependencyContext {
 
     /// Update sets of value ids that can be traced back to the Brillig calls being tracked
     fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
-        // Don't update sets for the calls not yet being tracked
-        let mut tracked =
-            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
-        if tracked.peek().is_some() {
+        if !self.tainted.is_empty() {
             let mut parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
 
             // Also include the current EnableSideEffectsIf condition in parents
             // (as it would affect every following statement)
             self.side_effects_condition.map(|v| parents.insert(v));
 
-            tracked.for_each(|(_, tainted_ids)| {
-                tainted_ids.update_children(&parents, children);
-            });
+            // Don't update sets for the calls not yet being tracked
+            for (_, tainted_ids) in self.tainted.iter_mut() {
+                if tainted_ids.tracking {
+                    tainted_ids.update_children(&parents, children);
+                }
+            }
         }
     }
 
     /// Check if any of the recorded Brillig calls have been properly constrained
     /// by given values after recording partial constraints, if so stop tracking them
     fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
-        // Skip untracked calls
-        let mut tracked =
-            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
-        if tracked.peek().is_some() {
+        if !self.tainted.is_empty() {
             // Remove numeric constants
             let constrained_values: HashSet<_> = constrained_values
                 .iter()
@@ -561,9 +558,13 @@ impl DependencyContext {
                 .copied()
                 .collect();
 
-            tracked.for_each(|(_, tainted_ids)| {
-                tainted_ids.store_partial_constraints(&constrained_values);
-            });
+            // Skip untracked calls
+            for (_, tainted_ids) in self.tainted.iter_mut() {
+                if tainted_ids.tracking {
+                    tainted_ids.store_partial_constraints(&constrained_values);
+                }
+            }
+
             self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
         }
     }
@@ -578,16 +579,16 @@ impl DependencyContext {
     ) {
         use acvm::acir::AcirField;
 
-        // Skip untracked calls
-        let mut tracked =
-            self.tainted.iter_mut().filter(|(_, tainted_ids)| tainted_ids.tracking).peekable();
-        if tracked.peek().is_some() {
+        if !self.tainted.is_empty() {
             // Only allow numeric constant indices
             if let Some(value) = function.dfg.get_numeric_constant(index) {
                 if let Some(index) = value.try_to_u32() {
-                    tracked.for_each(|(_, tainted_ids)| {
-                        tainted_ids.process_array_get(array, index as usize, element_results);
-                    });
+                    // Skip untracked calls
+                    for (_, tainted_ids) in self.tainted.iter_mut() {
+                        if tainted_ids.tracking {
+                            tainted_ids.process_array_get(array, index as usize, element_results);
+                        }
+                    }
                 }
             }
         }
