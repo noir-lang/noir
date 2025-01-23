@@ -185,7 +185,7 @@ pub(super) struct InlineInfo {
     is_brillig_entry_point: bool,
     is_acir_entry_point: bool,
     is_recursive: bool,
-    pub(super) should_inline: bool,
+    should_inline: bool,
     weight: i64,
     cost: i64,
 }
