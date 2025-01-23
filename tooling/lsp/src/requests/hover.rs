@@ -491,14 +491,24 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
+        let is_self = pattern_is_self(pattern, args.interner);
+
+        // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+        if is_self && matches!(typ, Type::MutableReference(..)) {
+            string.push_str("&mut ");
+        }
+
         format_pattern(pattern, args.interner, &mut string);
-        if !pattern_is_self(pattern, args.interner) {
+
+        // Don't add type for `self` param
+        if !is_self {
             string.push_str(": ");
             if matches!(visibility, Visibility::Public) {
                 string.push_str("pub ");
             }
             string.push_str(&format!("{}", typ));
         }
+
         if index != parameters.len() - 1 {
             string.push_str(", ");
         }
@@ -1237,5 +1247,13 @@ mod hover_tests {
             get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })
                 .await;
         assert!(hover_text.contains("Some docs"));
+    }
+
+    #[test]
+    async fn hover_on_function_with_mut_self() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 96, character: 10 })
+                .await;
+        assert!(hover_text.contains("fn mut_self(&mut self)"));
     }
 }

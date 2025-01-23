@@ -63,6 +63,7 @@ pub(crate) fn gen_brillig_for(
         FunctionContext::return_values(func),
         func.id(),
         true,
+        brillig.globals_memory_size,
     );
     entry_point.name = func.name().to_string();
 

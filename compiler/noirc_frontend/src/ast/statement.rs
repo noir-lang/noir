@@ -308,6 +308,7 @@ pub struct ModuleDeclaration {
     pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
+    pub has_semicolon: bool,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
