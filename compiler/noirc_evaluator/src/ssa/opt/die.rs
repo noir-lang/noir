@@ -26,20 +26,14 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true, false)
+        self.dead_instruction_elimination_inner(true)
     }
 
-    fn dead_instruction_elimination_inner(
-        mut self,
-        flattened: bool,
-        keep_rcs_of_parameters: bool,
-    ) -> Ssa {
+    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
         let mut used_global_values: HashSet<_> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| {
-                func.dead_instruction_elimination(true, flattened, keep_rcs_of_parameters)
-            })
+            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
             .collect();
 
         let globals = &self.functions[&self.main_id].dfg.globals;
@@ -75,7 +69,6 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
-        keep_rcs_of_parameters: bool,
     ) -> HashSet<ValueId> {
         let mut context = Context { flattened, ..Default::default() };
 
@@ -91,7 +84,6 @@ impl Function {
                 self,
                 *block,
                 insert_out_of_bounds_checks,
-                keep_rcs_of_parameters,
             );
         }
 
@@ -99,7 +91,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened, keep_rcs_of_parameters);
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -148,20 +140,14 @@ impl Context {
         function: &mut Function,
         block_id: BasicBlockId,
         insert_out_of_bounds_checks: bool,
-        keep_rcs_of_parameters: bool,
     ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
         let mut rc_tracker = RcTracker::default();
+        rc_tracker.mark_terminator_arrays_as_used(function, block);
 
-        // During the preprocessing of functions in isolation we don't want to
-        // get rid of IncRCs arrays that can potentially be mutated outside.
-        if keep_rcs_of_parameters {
-            rc_tracker.track_function_parameters(function);
-        }
+        let instructions_len = block.instructions().len();
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
@@ -613,17 +599,13 @@ struct RcTracker {
 }
 
 impl RcTracker {
-    /// Mark any array parameters to the function itself as possibly mutated,
-    /// so we don't get rid of RC instructions just because we don't mutate
-    /// them in this function, which could potentially cause them to be
-    /// mutated outside the function without our consent.
-    fn track_function_parameters(&mut self, function: &Function) {
-        for parameter in function.parameters() {
-            let typ = function.dfg.type_of_value(*parameter);
-            if typ.contains_an_array() {
+    fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
+        block.unwrap_terminator().for_each_value(|value| {
+            let typ = function.dfg.type_of_value(value);
+            if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
                 self.mutated_array_types.insert(typ);
             }
-        }
+        });
     }
 
     fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
@@ -686,6 +668,8 @@ impl RcTracker {
             }
             Instruction::Call { arguments, .. } => {
                 // Treat any array-type arguments to calls as possible sources of mutation.
+                // During the preprocessing of functions in isolation we don't want to
+                // get rid of IncRCs arrays that can potentially be mutated outside.
                 for arg in arguments {
                     let typ = function.dfg.type_of_value(*arg);
                     if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
@@ -949,42 +933,6 @@ mod test {
     }
 
     #[test]
-    fn not_remove_inc_rcs_for_input_parameters() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            inc_rc v0
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-
-        let expected = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ";
-
-        // We want to be able to switch this on during preprocessing.
-        let keep_rcs_of_parameters = true;
-        let ssa = ssa.dead_instruction_elimination_inner(true, keep_rcs_of_parameters);
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
     fn remove_inc_rcs_that_are_never_mutably_borrowed() {
         let src = "
         brillig(inline) fn main f0 {
@@ -1009,6 +957,36 @@ mod test {
           b0(v0: [Field; 2]):
             v2 = array_get v0, index u32 0 -> Field
             return v2
+        }
+        ";
+
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_remove_inc_rcs_for_arrays_in_terminator() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            v2 = array_get v0, index u32 0 -> Field
+            inc_rc v0
+            return v0, v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v2 = array_get v0, index u32 0 -> Field
+            inc_rc v0
+            return v0, v2
         }
         ";
 
@@ -1075,7 +1053,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let ssa = ssa.dead_instruction_elimination_inner(false, false);
+        let ssa = ssa.dead_instruction_elimination_inner(false);
 
         let expected = "
           acir(inline) fn main f0 {
