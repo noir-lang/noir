@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737648709308,
+  "lastUpdate": 1737648845022,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11863,6 +11863,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 209.07,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dce2c7d07dac91c293d0074a60f46a8ae676ce37",
+          "message": "chore: add compile-time assertions on generic arguments of stdlib functions (#6981)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-23T15:31:52Z",
+          "tree_id": "e12ac2c3148e718b726a3980a7f455bbd8a09e78",
+          "url": "https://github.com/noir-lang/noir/commit/dce2c7d07dac91c293d0074a60f46a8ae676ce37"
+        },
+        "date": 1737648844136,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.87,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.73,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.15,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 516.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 491.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 516.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 747.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 609.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.66,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 209.74,
             "unit": "MB"
           }
         ]
