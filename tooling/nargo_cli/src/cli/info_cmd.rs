@@ -13,11 +13,11 @@ use prettytable::{row, table, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
+use crate::errors::CliError;
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
-    fs::program::read_program_from_file,
+    fs::{inputs::read_inputs_from_file, program::read_program_from_file},
     NargoConfig, PackageOptions,
 };
 
@@ -243,7 +243,7 @@ fn profile_brillig_execution(
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
-        // Parse the initial witness values from Prover.toml
+        // Parse the initial witness values from Prover.toml or Prover.json
         let (inputs_map, _) = read_inputs_from_file(
             &package.root_dir,
             prover_name,
