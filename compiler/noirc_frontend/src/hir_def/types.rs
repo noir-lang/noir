@@ -464,32 +464,19 @@ impl DataType {
 
     /// Retrieve the fields of this type with no modifications.
     /// Returns None if this is not a struct type.
-    pub fn try_fields_raw(&self) -> Option<&[StructField]> {
+    pub fn fields_raw(&self) -> Option<&[StructField]> {
         match &self.body {
             TypeBody::Struct(fields) => Some(fields),
             _ => None,
         }
     }
 
-    /// Retrieve the fields of this type with no modifications.
-    /// Panics if this is not a struct type.
-    fn fields_raw(&self) -> &[StructField] {
-        match &self.body {
-            TypeBody::Struct(fields) => fields,
-            // Turns out we call `fields_raw` in a few places before a type may be fully finished.
-            // One of these is when checking for nested slices, so that check will have false
-            // negatives.
-            TypeBody::None => &[],
-            _ => panic!("Called DataType::fields_raw on a non-struct type: {}", self.name),
-        }
-    }
-
     /// Retrieve the variants of this type with no modifications.
     /// Panics if this is not an enum type.
-    fn variants_raw(&self) -> &[EnumVariant] {
+    fn variants_raw(&self) -> Option<&[EnumVariant]> {
         match &self.body {
-            TypeBody::Enum(variants) => variants,
-            _ => panic!("Called DataType::variants_raw on a non-enum type: {}", self.name),
+            TypeBody::Enum(variants) => Some(variants),
+            _ => None,
         }
     }
 
@@ -501,7 +488,7 @@ impl DataType {
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
-    /// Panics if this is not a struct type.
+    /// Always returns None if this is not a struct type.
     pub fn get_field(
         &self,
         field_name: &str,
@@ -509,7 +496,7 @@ impl DataType {
     ) -> Option<(Type, ItemVisibility, usize)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
-        let mut fields = self.fields_raw().iter().enumerate();
+        let mut fields = self.fields_raw()?.iter().enumerate();
         fields.find(|(_, field)| field.name.0.contents == field_name).map(|(i, field)| {
             let generics = self.generics.iter().zip(generic_args);
             let substitutions = generics
@@ -523,38 +510,38 @@ impl DataType {
     }
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
-    /// Panics if this is not a struct type.
+    /// Returns None if this is not a struct type.
     pub fn get_fields_with_visibility(
         &self,
         generic_args: &[Type],
-    ) -> Vec<(String, ItemVisibility, Type)> {
+    ) -> Option<Vec<(String, ItemVisibility, Type)>> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
-        vecmap(self.fields_raw(), |field| {
+        Some(vecmap(self.fields_raw()?, |field| {
             let name = field.name.0.contents.clone();
             (name, field.visibility, field.typ.substitute(&substitutions))
-        })
+        }))
     }
 
-    /// Retrieve the fields of this type. Panics if this is not a struct type
-    pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
+    /// Retrieve the fields of this type. Returns None if this is not a field type
+    pub fn get_fields(&self, generic_args: &[Type]) -> Option<Vec<(String, Type)>> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
-        vecmap(self.fields_raw(), |field| {
+        Some(vecmap(self.fields_raw()?, |field| {
             let name = field.name.0.contents.clone();
             (name, field.typ.substitute(&substitutions))
-        })
+        }))
     }
 
-    /// Retrieve the variants of this type. Panics if this is not an enum type
-    pub fn get_variants(&self, generic_args: &[Type]) -> Vec<(String, Vec<Type>)> {
+    /// Retrieve the variants of this type. Returns None if this is not an enum type
+    pub fn get_variants(&self, generic_args: &[Type]) -> Option<Vec<(String, Vec<Type>)>> {
         let substitutions = self.get_fields_substitutions(generic_args);
 
-        vecmap(self.variants_raw(), |variant| {
+        Some(vecmap(self.variants_raw()?, |variant| {
             let name = variant.name.to_string();
             let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
             (name, args)
-        })
+        }))
     }
 
     fn get_fields_substitutions(
@@ -579,34 +566,35 @@ impl DataType {
     /// This method is almost never what is wanted for type checking or monomorphization,
     /// prefer to use `get_fields` whenever possible.
     ///
-    /// Panics if this is not a struct type.
-    pub fn get_fields_as_written(&self) -> Vec<StructField> {
-        self.fields_raw().to_vec()
+    /// Returns None if this is not a struct type.
+    pub fn get_fields_as_written(&self) -> Option<Vec<StructField>> {
+        Some(self.fields_raw()?.to_vec())
     }
 
     /// Returns the name and raw parameters of each variant of this type.
     /// This will not substitute any generic arguments so a generic variant like `X`
     /// in `enum Foo<T> { X(T) }` will return a `("X", Vec<T>)` pair.
     ///
-    /// Panics if this is not an enum type.
-    pub fn get_variants_as_written(&self) -> Vec<EnumVariant> {
-        self.variants_raw().to_vec()
+    /// Returns None if this is not an enum type.
+    pub fn get_variants_as_written(&self) -> Option<Vec<EnumVariant>> {
+        Some(self.variants_raw()?.to_vec())
     }
 
     /// Returns the field at the given index. Panics if no field exists at the given index or this
     /// is not a struct type.
     pub fn field_at(&self, index: usize) -> &StructField {
-        &self.fields_raw()[index]
+        &self.fields_raw().unwrap()[index]
     }
 
     /// Returns the enum variant at the given index. Panics if no field exists at the given index
     /// or this is not an enum type.
     pub fn variant_at(&self, index: usize) -> &EnumVariant {
-        &self.variants_raw()[index]
+        &self.variants_raw().unwrap()[index]
     }
 
-    pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields_raw().iter().map(|field| field.name.clone()).collect()
+    /// Returns each of this type's field names. Returns None if this is not a struct type.
+    pub fn field_names(&self) -> Option<BTreeSet<Ident>> {
+        Some(self.fields_raw()?.iter().map(|field| field.name.clone()).collect())
     }
 
     /// Instantiate this struct type, returning a Vec of the new generic args (in
@@ -1258,11 +1246,14 @@ impl Type {
             }
             Type::String(length) => length.is_valid_for_program_input(),
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
-            Type::DataType(definition, generics) => definition
-                .borrow()
-                .get_fields(generics)
-                .into_iter()
-                .all(|(_, field)| field.is_valid_for_program_input()),
+            Type::DataType(definition, generics) => {
+                if let Some(fields) = definition.borrow().get_fields(generics) {
+                    fields.into_iter().all(|(_, field)| field.is_valid_for_program_input())
+                } else {
+                    // Arbitrarily disallow enums from program input, though we may support them later
+                    false
+                }
+            }
 
             Type::InfixExpr(lhs, _, rhs, _) => {
                 lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
@@ -1313,11 +1304,14 @@ impl Type {
             }
             Type::String(length) => length.is_valid_non_inlined_function_input(),
             Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
-            Type::DataType(definition, generics) => definition
-                .borrow()
-                .get_fields(generics)
-                .into_iter()
-                .all(|(_, field)| field.is_valid_non_inlined_function_input()),
+            Type::DataType(definition, generics) => {
+                if let Some(fields) = definition.borrow().get_fields(generics) {
+                    fields.into_iter()
+                    .all(|(_, field)| field.is_valid_non_inlined_function_input())
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -1365,11 +1359,13 @@ impl Type {
             Type::Tuple(elements) => {
                 elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
             }
-            Type::DataType(definition, generics) => definition
-                .borrow()
-                .get_fields(generics)
-                .into_iter()
-                .all(|(_, field)| field.is_valid_for_unconstrained_boundary()),
+            Type::DataType(definition, generics) => {
+                if let Some(fields) = definition.borrow().get_fields(generics) {
+                    fields.into_iter().all(|(_, field)| field.is_valid_for_unconstrained_boundary())
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -1513,8 +1509,19 @@ impl Type {
             }
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count(location))
+                if let Some(fields) = struct_type.get_fields(args) {
+                    fields.iter().map(|(_, field_type)| field_type.field_count(location)).sum()
+                } else if let Some(variants) = struct_type.get_variants(args) {
+                    let mut size = 1; // start with the tag size
+                    for (_, args) in variants {
+                        for arg in args {
+                            size += arg.field_count(location);
+                        }
+                    }
+                    size
+                } else {
+                    0
+                }
             }
             Type::CheckedCast { to, .. } => to.field_count(location),
             Type::Alias(def, generics) => def.borrow().get_type(generics).field_count(location),
@@ -1552,10 +1559,14 @@ impl Type {
     pub(crate) fn contains_slice(&self) -> bool {
         match self {
             Type::Slice(_) => true,
-            Type::DataType(struct_typ, generics) => {
-                let fields = struct_typ.borrow().get_fields(generics);
-                for field in fields.iter() {
-                    if field.1.contains_slice() {
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field)| field.contains_slice()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants.iter().flat_map(|(_, args)| args).any(|typ| typ.contains_slice()) {
                         return true;
                     }
                 }
@@ -2851,10 +2862,19 @@ impl From<&Type> for PrintableType {
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
             Type::DataType(def, ref args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
-                PrintableType::Struct { fields, name: struct_type.name.to_string() }
+                let data_type = def.borrow();
+                let name = data_type.name.to_string();
+
+                if let Some(fields) = data_type.get_fields(args) {
+                    let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
+                    PrintableType::Struct { fields, name }
+                } else if let Some(variants) = data_type.get_variants(args) {
+                    let variants =
+                        vecmap(variants, |(name, args)| (name, vecmap(args, Into::into)));
+                    PrintableType::Enum { name, variants }
+                } else {
+                    unreachable!()
+                }
             }
             Type::Alias(alias, args) => alias.borrow().get_type(args).into(),
             Type::TraitAsType(..) => unreachable!(),

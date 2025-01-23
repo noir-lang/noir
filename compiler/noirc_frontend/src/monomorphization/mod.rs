@@ -1212,20 +1212,22 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                if def.borrow().is_struct() {
-                    let fields = def.borrow().get_fields(args);
+                let def = def.borrow();
+                if let Some(fields) = def.get_fields(args) {
                     let fields =
                         try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
                     ast::Type::Tuple(fields)
-                } else {
+                } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
                     let mut fields = vec![ast::Type::Field];
-                    for (_, variant_fields) in def.borrow().get_variants(args) {
+                    for (_, variant_fields) in variants {
                         let variant_fields =
                             try_vecmap(variant_fields, |typ| Self::convert_type(&typ, location))?;
                         fields.push(ast::Type::Tuple(variant_fields));
                     }
                     ast::Type::Tuple(fields)
+                } else {
+                    unreachable!("Data type has no body")
                 }
             }
 
@@ -2198,7 +2200,7 @@ fn unwrap_struct_type(
                 Monomorphizer::check_type(arg, location)?;
             }
 
-            Ok(def.borrow().get_fields(&args))
+            Ok(def.borrow().get_fields(&args).unwrap())
         }
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
     }
@@ -2215,7 +2217,7 @@ fn unwrap_enum_type(
                 Monomorphizer::check_type(arg, location)?;
             }
 
-            Ok(def.borrow().get_variants(&args))
+            Ok(def.borrow().get_variants(&args).unwrap())
         }
         other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
     }
