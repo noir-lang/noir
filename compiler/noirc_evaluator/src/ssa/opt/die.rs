@@ -965,6 +965,36 @@ mod test {
     }
 
     #[test]
+    fn do_not_remove_inc_rcs_for_arrays_in_terminator() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            inc_rc v0
+            inc_rc v0
+            v2 = array_get v0, index u32 0 -> Field
+            inc_rc v0
+            return v0, v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v2 = array_get v0, index u32 0 -> Field
+            inc_rc v0
+            return v0, v2
+        }
+        ";
+
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
     fn do_not_remove_inc_rc_if_used_as_call_arg() {
         // We do not want to remove inc_rc instructions on values
         // that are passed as call arguments.
