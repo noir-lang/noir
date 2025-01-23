@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737656961153,
+  "lastUpdate": 1737656974483,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3625,6 +3625,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 540.8,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 270.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b3a8f3953e5ceb48cdc534cb21ba638637c0ead7",
+          "message": "chore(refactor): Remove globals field on Ssa object and use only the shared globals graph (#7156)",
+          "timestamp": "2025-01-23T18:06:20Z",
+          "tree_id": "c0beba4ecb007ea9f6ca6ae1bb9465631d41e3f1",
+          "url": "https://github.com/noir-lang/noir/commit/b3a8f3953e5ceb48cdc534cb21ba638637c0ead7"
+        },
+        "date": 1737656973596,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.73,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.22,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.87,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 613.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 496.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 500.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6260,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 613.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.79,
             "unit": "MB"
           },
           {
