@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737661654069,
+  "lastUpdate": 1737661656080,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3892,6 +3892,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 500.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6260,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 613.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.79,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 270.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc",
+          "message": "feat(ssa): Expand feature set of the Brillig constraint check (#7060)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-23T19:10:44Z",
+          "tree_id": "06af55b3709d97b47e52f026ce80202392f9bbae",
+          "url": "https://github.com/noir-lang/noir/commit/2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc"
+        },
+        "date": 1737661654739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.72,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.01,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 424.87,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 613.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 496.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 500.58,
             "unit": "MB"
           },
           {
