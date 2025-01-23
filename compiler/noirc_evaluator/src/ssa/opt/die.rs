@@ -148,7 +148,7 @@ impl Context {
         function: &mut Function,
         block_id: BasicBlockId,
         insert_out_of_bounds_checks: bool,
-        keep_rcs_of_parameters: bool,
+        _keep_rcs_of_parameters: bool,
     ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
@@ -157,11 +157,7 @@ impl Context {
 
         let mut rc_tracker = RcTracker::default();
 
-        // During the preprocessing of functions in isolation we don't want to
-        // get rid of IncRCs arrays that can potentially be mutated outside.
-        if keep_rcs_of_parameters {
-            rc_tracker.track_function_parameters(function);
-        }
+        rc_tracker.track_function_parameters(function);
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
@@ -686,9 +682,11 @@ impl RcTracker {
             }
             Instruction::Call { arguments, .. } => {
                 // Treat any array-type arguments to calls as possible sources of mutation.
+                // During the preprocessing of functions in isolation we don't want to
+                // get rid of IncRCs arrays that can potentially be mutated outside.
                 for arg in arguments {
                     let typ = function.dfg.type_of_value(*arg);
-                    if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
+                    if typ.contains_an_array() {
                         self.mutated_array_types.insert(typ);
                     }
                 }
