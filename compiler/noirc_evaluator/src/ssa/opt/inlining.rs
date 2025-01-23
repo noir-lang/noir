@@ -64,25 +64,26 @@ impl Ssa {
         let inline_targets =
             inline_infos.iter().filter_map(|(id, info)| info.is_inline_target().then_some(*id));
 
+        let should_inline_call = |callee: &Function| -> bool {
+            match callee.runtime() {
+                RuntimeType::Acir(_) => {
+                    // If we have not already finished the flattening pass, functions marked
+                    // to not have predicates should be preserved.
+                    let preserve_function =
+                        !inline_no_predicates_functions && callee.is_no_predicates();
+                    !preserve_function
+                }
+                RuntimeType::Brillig(_) => {
+                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
+                    InlineInfo::should_inline(inline_infos, callee.id())
+                }
+            }
+        };
+
         // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
         // instead of inlining the "leaf" functions, moving up towards the entry point.
         self.functions = btree_map(inline_targets, |entry_point| {
             let function = &self.functions[&entry_point];
-            let should_inline_call = |callee: &Function| -> bool {
-                match callee.runtime() {
-                    RuntimeType::Acir(_) => {
-                        // If we have not already finished the flattening pass, functions marked
-                        // to not have predicates should be preserved.
-                        let preserve_function =
-                            !inline_no_predicates_functions && callee.is_no_predicates();
-                        !preserve_function
-                    }
-                    RuntimeType::Brillig(_) => {
-                        // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                        InlineInfo::should_inline(inline_infos, callee.id())
-                    }
-                }
-            };
             let new_function = function.inlined(&self, &should_inline_call);
             (entry_point, new_function)
         });
