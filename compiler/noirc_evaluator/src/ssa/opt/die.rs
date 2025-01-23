@@ -157,8 +157,6 @@ impl Context {
 
         let mut rc_tracker = RcTracker::default();
 
-        rc_tracker.track_function_parameters(function);
-
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
         let mut possible_index_out_of_bounds_indexes = Vec::new();
