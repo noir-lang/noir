@@ -243,11 +243,10 @@ fn profile_brillig_execution(
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
-        // Parse the initial witness values from Prover.toml
-        let (inputs_map, _) = read_inputs_from_file(
+        // Parse the initial witness values from Prover.toml or Prover.json
+        let (inputs_map, _) = read_inputs_from_file_any_format(
             &package.root_dir,
             prover_name,
-            Format::Toml,
             &program_artifact.abi,
         )?;
         let initial_witness = program_artifact.abi.encode(&inputs_map, None)?;
