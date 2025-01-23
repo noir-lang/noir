@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737666257927,
+  "lastUpdate": 1737666259273,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10960,6 +10960,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ff55a77b809cf40f747d79048639a8c544d733b5",
+          "message": "fix(docs): Update broken links to EC lib (#7141)",
+          "timestamp": "2025-01-23T20:45:01Z",
+          "tree_id": "b95dcc33b2e44b72acceac9d0dfb66d41c4c86eb",
+          "url": "https://github.com/noir-lang/noir/commit/ff55a77b809cf40f747d79048639a8c544d733b5"
+        },
+        "date": 1737666257401,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.051,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.599,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.105,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 41.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.103,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.311,
             "unit": "s"
           },
           {
