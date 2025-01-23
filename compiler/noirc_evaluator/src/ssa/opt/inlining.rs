@@ -91,9 +91,16 @@ impl Ssa {
     }
 
     pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
-        let should_inline_call = |function: &Function| {
-            let entry_block_id = function.entry_block();
-            let entry_block = &function.dfg[entry_block_id];
+        let should_inline_call = |callee: &Function| {
+            if let RuntimeType::Acir(_) = callee.runtime() {
+                // Functions marked to not have predicates should be preserved.
+                if callee.is_no_predicates() {
+                    return false;
+                }
+            }
+
+            let entry_block_id = callee.entry_block();
+            let entry_block = &callee.dfg[entry_block_id];
 
             // Only inline functions with a single block
             if entry_block.successors().next().is_some() {
