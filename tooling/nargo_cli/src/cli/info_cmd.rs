@@ -6,18 +6,17 @@ use nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
-use noirc_abi::input_parser::Format;
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use prettytable::{row, table, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
+use crate::errors::CliError;
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
-    fs::program::read_program_from_file,
+    fs::{inputs::read_inputs_from_file_any_format, program::read_program_from_file},
     NargoConfig, PackageOptions,
 };
 
