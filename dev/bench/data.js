@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737660323022,
+  "lastUpdate": 1737660325253,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7194,6 +7194,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.002,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "39af02fc618822fe0bca7df8ddb95f96413b2299",
+          "message": "fix(ssa): Resolve value before fetching from DFG in a couple cases (#7169)",
+          "timestamp": "2025-01-23T18:59:47Z",
+          "tree_id": "25b5468871051b0fe8005c8aa53cbacb75421ca0",
+          "url": "https://github.com/noir-lang/noir/commit/39af02fc618822fe0bca7df8ddb95f96413b2299"
+        },
+        "date": 1737660324686,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.968,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.777,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 18.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.608,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.042,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 92.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.086,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 93.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.584,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 27.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.34,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.966,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 5.996,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.006,
             "unit": "s"
           }
         ]
