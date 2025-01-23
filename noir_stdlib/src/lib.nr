@@ -132,10 +132,9 @@ pub fn as_witness(x: Field) {}
 /// that is implemented using constrained and (an optimized) unconstrained versions.
 pub(crate) fn for_loop<let Max: u32, Env>(start: u32, end: u32, f: fn[Env](u32) -> ()) {
     if crate::runtime::is_unconstrained() {
-        if end < Max {
-            for i in start..end {
-                f(i);
-            }
+        assert(end <= Max);
+        for i in start..end {
+            f(i);
         }
     } else {
         let mut exceeded_len = false;
