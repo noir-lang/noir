@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737648968415,
+  "lastUpdate": 1737648972015,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12150,6 +12150,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 209.74,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2da0a4f129bbd2183e87a7e5dd07127527fc2195",
+          "message": "chore: let `Function::inlined` take a `should_inline_call` function (#7149)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-23T15:53:36Z",
+          "tree_id": "a66af6b1f66bc88e1ae0e5609c548a1256ad48ea",
+          "url": "https://github.com/noir-lang/noir/commit/2da0a4f129bbd2183e87a7e5dd07127527fc2195"
+        },
+        "date": 1737648970632,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 74.87,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 123.98,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.15,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 516.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 491.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 516.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 747.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 609.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.66,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 209.75,
             "unit": "MB"
           }
         ]
