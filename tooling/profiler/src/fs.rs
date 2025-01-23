@@ -6,6 +6,7 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
 };
 use noirc_artifacts::program::ProgramArtifact;
+use strum::IntoEnumIterator;
 
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(
     circuit_path: P,
@@ -52,7 +53,7 @@ pub(crate) fn read_inputs_from_file_any_format(
     let format = file_path
         .extension()
         .and_then(|ext| ext.to_str())
-        .and_then(|ext| [Format::Toml, Format::Json].into_iter().find(|fmt| fmt.ext() == ext))
+        .and_then(|ext| Format::iter().find(|fmt| fmt.ext() == ext))
         .unwrap_or(Format::Toml);
 
     read_inputs_from_file(file_path, format, abi)

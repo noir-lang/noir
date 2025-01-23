@@ -76,7 +76,6 @@ fn check_package(
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(false)
     } else {
-        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
         if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
 

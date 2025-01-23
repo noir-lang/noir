@@ -48,6 +48,7 @@ bn254_blackbox_solver.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+strum.workspace = true
 prettytable-rs = "0.10"
 rayon.workspace = true
 thiserror.workspace = true

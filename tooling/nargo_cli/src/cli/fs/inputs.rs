@@ -3,6 +3,7 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
 };
 use std::{collections::BTreeMap, path::Path};
+use strum::IntoEnumIterator;
 
 use crate::errors::FilesystemError;
 
@@ -50,7 +51,7 @@ pub(crate) fn read_inputs_from_file_any_format(
     abi: &Abi,
 ) -> Result<(InputMap, Option<InputValue>), FilesystemError> {
     let mut first_missing = None;
-    for format in [Format::Toml, Format::Json] {
+    for format in Format::iter() {
         match read_inputs_from_file(path, file_name, format, abi) {
             Err(e @ FilesystemError::MissingTomlFile(..)) => {
                 if first_missing.is_none() {
