@@ -153,9 +153,10 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        let instructions_len = block.instructions().len();
-
         let mut rc_tracker = RcTracker::default();
+        rc_tracker.mark_terminator_arrays_as_used(function, block);
+
+        let instructions_len = block.instructions().len();
 
         // Indexes of instructions that might be out of bounds.
         // We'll remove those, but before that we'll insert bounds checks for them.
@@ -607,6 +608,15 @@ struct RcTracker {
 }
 
 impl RcTracker {
+    fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
+        block.unwrap_terminator().for_each_value(|value| {
+            let typ = function.dfg.type_of_value(value);
+            if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
+                self.mutated_array_types.insert(typ);
+            }
+        });
+    }
+
     fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
         let instruction = &function.dfg[instruction_id];
 
@@ -671,7 +681,7 @@ impl RcTracker {
                 // get rid of IncRCs arrays that can potentially be mutated outside.
                 for arg in arguments {
                     let typ = function.dfg.type_of_value(*arg);
-                    if typ.contains_an_array() {
+                    if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
                         self.mutated_array_types.insert(typ);
                     }
                 }
