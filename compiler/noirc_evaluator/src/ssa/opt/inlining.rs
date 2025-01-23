@@ -89,6 +89,35 @@ impl Ssa {
         });
         self
     }
+
+    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
+        let callers = compute_callers(&self);
+        let times_called = compute_times_called(&callers);
+
+        let should_inline_call = |function: &Function| {
+            let entry_block_id = function.entry_block();
+            let entry_block = &function.dfg[entry_block_id];
+
+            // If a function is only called once, inline it
+            if times_called.get(&function.id()) == Some(&1) {
+                return true;
+            }
+
+            // Only inline functions with a single block
+            if entry_block.successors().next().is_some() {
+                return false;
+            }
+
+            // Only inline functions with 0 or 1 instructions
+            entry_block.instructions().len() <= 1
+        };
+
+        self.functions = btree_map(self.functions.iter(), |(id, function)| {
+            (*id, function.inlined(&self, &should_inline_call))
+        });
+
+        self
+    }
 }
 
 impl Function {
