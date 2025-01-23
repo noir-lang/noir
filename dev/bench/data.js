@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737660474368,
+  "lastUpdate": 1737661479615,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7387,6 +7387,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.006,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc",
+          "message": "feat(ssa): Expand feature set of the Brillig constraint check (#7060)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-23T19:10:44Z",
+          "tree_id": "06af55b3709d97b47e52f026ce80202392f9bbae",
+          "url": "https://github.com/noir-lang/noir/commit/2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc"
+        },
+        "date": 1737661478241,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.824,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 19,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.742,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.396,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 89.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.084,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 87.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.596,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 33.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 13.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.995,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.922,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.16,
             "unit": "s"
           }
         ]
