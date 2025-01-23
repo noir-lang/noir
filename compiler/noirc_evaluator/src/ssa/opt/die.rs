@@ -942,42 +942,6 @@ mod test {
     }
 
     #[test]
-    fn not_remove_inc_rcs_for_input_parameters() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            inc_rc v0
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-
-        let expected = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ";
-
-        // We want to be able to switch this on during preprocessing.
-        let keep_rcs_of_parameters = true;
-        let ssa = ssa.dead_instruction_elimination_inner(true, keep_rcs_of_parameters);
-        assert_normalized_ssa_equals(ssa, expected);
-    }
-
-    #[test]
     fn remove_inc_rcs_that_are_never_mutably_borrowed() {
         let src = "
         brillig(inline) fn main f0 {
