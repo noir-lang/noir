@@ -607,19 +607,6 @@ struct RcTracker {
 }
 
 impl RcTracker {
-    /// Mark any array parameters to the function itself as possibly mutated,
-    /// so we don't get rid of RC instructions just because we don't mutate
-    /// them in this function, which could potentially cause them to be
-    /// mutated outside the function without our consent.
-    fn track_function_parameters(&mut self, function: &Function) {
-        for parameter in function.parameters() {
-            let typ = function.dfg.type_of_value(*parameter);
-            if typ.contains_an_array() {
-                self.mutated_array_types.insert(typ);
-            }
-        }
-    }
-
     fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
         let instruction = &function.dfg[instruction_id];
 
