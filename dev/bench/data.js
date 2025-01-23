@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737661656080,
+  "lastUpdate": 1737662916779,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10594,6 +10594,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.067,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c17e228f98e5714fb3a2b56ff4c0a2aa469e77c4",
+          "message": "feat: inline simple functions (#7160)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-23T19:45:12Z",
+          "tree_id": "17abbd06d6427b547d80629e8f1031c81a3d5f12",
+          "url": "https://github.com/noir-lang/noir/commit/c17e228f98e5714fb3a2b56ff4c0a2aa469e77c4"
+        },
+        "date": 1737662916055,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.051,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 41.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.455,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
             "unit": "s"
           }
         ]
