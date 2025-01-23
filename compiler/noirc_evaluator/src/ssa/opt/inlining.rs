@@ -13,7 +13,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_stack::CallStackId,
-        dfg::InsertInstructionResult,
+        dfg::{GlobalsGraph, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -150,7 +150,7 @@ struct PerFunctionContext<'function> {
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
 
-    globals: &'function Function,
+    globals: &'function GlobalsGraph,
 }
 
 /// Utility function to find out the direct calls of a function.
@@ -562,8 +562,8 @@ impl InlineContext {
     ) -> Function {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let mut context =
-            PerFunctionContext::new(&mut self, entry_point, entry_point, &ssa.globals);
+        let globals = &entry_point.dfg.globals;
+        let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point, globals);
         context.inlining_entry = true;
 
         for (_, value) in entry_point.dfg.globals.values_iter() {
@@ -615,7 +615,8 @@ impl InlineContext {
         }
 
         let entry_point = &ssa.functions[&self.entry_point];
-        let mut context = PerFunctionContext::new(self, entry_point, source_function, &ssa.globals);
+        let globals = &source_function.dfg.globals;
+        let mut context = PerFunctionContext::new(self, entry_point, source_function, globals);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -639,7 +640,7 @@ impl<'function> PerFunctionContext<'function> {
         context: &'function mut InlineContext,
         entry_function: &'function Function,
         source_function: &'function Function,
-        globals: &'function Function,
+        globals: &'function GlobalsGraph,
     ) -> Self {
         Self {
             context,
@@ -667,8 +668,7 @@ impl<'function> PerFunctionContext<'function> {
             value @ Value::Instruction { instruction, .. } => {
                 if self.source_function.dfg.is_global(id) {
                     if self.context.builder.current_function.dfg.runtime().is_acir() {
-                        let Instruction::MakeArray { elements, typ } =
-                            &self.globals.dfg[*instruction]
+                        let Instruction::MakeArray { elements, typ } = &self.globals[*instruction]
                         else {
                             panic!("Only expect Instruction::MakeArray for a global");
                         };
