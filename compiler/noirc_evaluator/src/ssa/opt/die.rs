@@ -33,8 +33,29 @@ impl Ssa {
         let mut used_global_values: HashSet<_> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
+            .flat_map(|(id, func)| {
+                // let set
+                let set = func.dead_instruction_elimination(true, flattened);
+                // dbg!(id);
+                // dbg!(set.clone());
+                // used_globals_map.insert(*id, set.clone());
+                set
+            })
             .collect();
+
+        let mut used_globals_map: HashMap<_, _> = self
+            .functions
+            .par_iter_mut()
+            .map(|(id, func)| {
+                // let set
+                let set = func.dead_instruction_elimination(true, flattened);
+                dbg!(id);
+                dbg!(set.clone());
+                // used_globals_map.insert(*id, set.clone());
+                (*id, set)
+            })
+            .collect();
+        dbg!(used_globals_map.clone());
 
         // Check which globals are used across all functions
         for (id, value) in self.globals.dfg.values_iter().rev() {

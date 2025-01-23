@@ -14,13 +14,11 @@ use self::{
 };
 use crate::ssa::{
     ir::{
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        value::ValueId,
+        dfg::DataFlowGraph, function::{Function, FunctionId}, instruction::Instruction, value::{Value, ValueId}
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -82,6 +80,27 @@ impl Ssa {
             .iter()
             .filter_map(|(id, func)| func.runtime().is_brillig().then_some(*id))
             .collect::<BTreeSet<_>>();
+
+        // TODO: combine this with the reachable brillig functions set above
+        let mut brillig_entry_points = HashSet::default();
+        for (_, function) in self.functions.iter() {
+            if function.runtime().is_acir() {
+                for block_id in function.reachable_blocks() {
+                    for instruction_id in function.dfg[block_id].instructions() {
+                        let instruction = &function.dfg[*instruction_id];
+                        let Instruction::Call { func: func_id, arguments: _ } = instruction else {
+                            continue;
+                        };
+    
+                        let func_value = &function.dfg[*func_id];
+                        let Value::Function(func_id) = func_value else { continue };
+
+                        brillig_entry_points.insert(*func_id);
+                    }
+                }
+            } 
+        }
+        dbg!(&brillig_entry_points);
 
         let mut brillig = Brillig::default();
 
