@@ -7,7 +7,7 @@ use crate::{
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType, Visibility,
+        UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
     graph::CrateId,
     hir::{
@@ -37,7 +37,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
-    token::{Attributes, SecondaryAttribute},
+    token::SecondaryAttribute,
     EnumVariant, Shared, Type, TypeVariable,
 };
 use crate::{
@@ -50,6 +50,7 @@ use crate::{
 };
 
 mod comptime;
+mod enums;
 mod expressions;
 mod lints;
 mod path_resolution;
@@ -1823,70 +1824,24 @@ impl<'context> Elaborator<'context> {
                 span: typ.enum_def.span,
             };
 
-            // Define a function for each variant to construct it
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
 
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
-
                 let name = variant.item.name.clone();
-                let name_string = name.to_string();
-                datatype.borrow_mut().push_variant(EnumVariant::new(name.clone(), types));
-                let datatype_ref = datatype.borrow();
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone()));
 
-                let location = Location::new(variant.item.name.span(), self.file);
-
-                let id = self.interner.push_empty_fn();
-
-                let modifiers = FunctionModifiers {
-                    name: name_string.clone(),
-                    visibility: typ.enum_def.visibility,
-                    attributes: Attributes { function: None, secondary: Vec::new() },
-                    is_unconstrained: false,
-                    generic_count: datatype_ref.generics.len(),
-                    is_comptime: false,
-                    name_location: location,
-                };
-                let definition_id = self.interner.push_function_definition(
-                    id,
-                    modifiers,
-                    type_id.module_id(),
-                    location,
+                // Define a function for each variant to construct it
+                self.define_enum_variant_function(
+                    &typ.enum_def,
+                    *type_id,
+                    &variant.item,
+                    types,
+                    i,
+                    &datatype,
+                    &self_type,
+                    unresolved.clone(),
                 );
-
-                let hir_name = HirIdent::non_trait_method(definition_id, location);
-
-                let meta = FuncMeta {
-                    name: hir_name,
-                    kind: FunctionKind::Builtin,
-                    parameters: crate::hir_def::function::Parameters(Vec::new()),
-                    parameter_idents: Vec::new(),
-                    return_type: crate::ast::FunctionReturnType::Ty(unresolved.clone()),
-                    return_visibility: Visibility::Private,
-                    typ: datatype_ref.variant_function_type_with_forall(i, datatype.clone()),
-                    direct_generics: datatype_ref.generics.clone(),
-                    all_generics: datatype_ref.generics.clone(),
-                    location,
-                    has_body: false,
-                    trait_constraints: Vec::new(),
-                    type_id: Some(*type_id),
-                    trait_id: None,
-                    trait_impl: None,
-                    is_entry_point: false,
-                    has_inline_attribute: false,
-                    function_body: FunctionBody::Resolved,
-                    source_crate: self.crate_id,
-                    source_module: type_id.local_module_id(),
-                    source_file: self.file,
-                    self_type: None,
-                };
-
-                self.interner.push_fn_meta(meta, id);
-                self.interner.add_method(&self_type, name_string, id, None);
-
-                Self::get_module_mut(self.def_maps, type_id.module_id())
-                    .declare_function(name, typ.enum_def.visibility, id)
-                    .ok();
             }
         }
     }
