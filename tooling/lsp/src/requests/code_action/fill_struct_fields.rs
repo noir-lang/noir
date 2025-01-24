@@ -27,21 +27,14 @@ impl<'a> CodeActionFinder<'a> {
         let typ = self.interner.get_type(type_id);
         let typ = typ.borrow();
 
-        // Might be an enum
-        if !typ.is_struct() {
-            return;
-        }
-
         // First get all of the struct's fields
-        let mut fields = typ.get_fields_as_written();
+        let Some(mut fields) = typ.get_fields_as_written() else {
+            return;
+        };
 
         // Remove the ones that already exists in the constructor
         for (constructor_field, _) in &constructor.fields {
             fields.retain(|field| field.name.0.contents != constructor_field.0.contents);
-        }
-
-        if fields.is_empty() {
-            return;
         }
 
         // Some fields are missing. Let's suggest a quick fix that adds them.

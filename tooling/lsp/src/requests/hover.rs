@@ -16,7 +16,8 @@ use noirc_frontend::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
-    DataType, Generics, Shared, Type, TypeAlias, TypeBinding, TypeVariable,
+    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    TypeVariable,
 };
 
 use crate::{
@@ -128,14 +129,20 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
 fn format_type(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
     let typ = args.interner.get_type(id);
     let typ = typ.borrow();
-    if typ.is_struct() {
-        format_struct(&typ, args)
+    if let Some(fields) = typ.get_fields_as_written() {
+        format_struct(&typ, fields, args)
+    } else if let Some(variants) = typ.get_variants_as_written() {
+        format_enum(&typ, variants, args)
     } else {
-        format_enum(&typ, args)
+        unreachable!("Type should either be a struct or an enum")
     }
 }
 
-fn format_struct(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
+fn format_struct(
+    typ: &DataType,
+    fields: Vec<StructField>,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
     let mut string = String::new();
     if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
         string.push('\n');
@@ -145,7 +152,7 @@ fn format_struct(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&typ.name.0.contents);
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
-    for field in typ.get_fields_as_written() {
+    for field in fields {
         string.push_str("        ");
         string.push_str(&field.name.0.contents);
         string.push_str(": ");
@@ -159,7 +166,11 @@ fn format_struct(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
-fn format_enum(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
+fn format_enum(
+    typ: &DataType,
+    variants: Vec<EnumVariant>,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
     let mut string = String::new();
     if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
         string.push('\n');
@@ -169,7 +180,7 @@ fn format_enum(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&typ.name.0.contents);
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
-    for field in typ.get_variants_as_written() {
+    for field in variants {
         string.push_str("        ");
         string.push_str(&field.name.0.contents);
 

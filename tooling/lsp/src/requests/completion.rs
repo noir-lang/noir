@@ -207,8 +207,11 @@ impl<'a> NodeFinder<'a> {
         let struct_type = struct_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields: Vec<_> =
-            struct_type.get_fields_as_written().into_iter().enumerate().collect();
+        let Some(fields) = struct_type.get_fields_as_written() else {
+            return;
+        };
+
+        let mut fields = fields.into_iter().enumerate().collect::<Vec<_>>();
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
@@ -805,9 +808,11 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, visibility, typ)) in
-            struct_type.get_fields_with_visibility(generics).iter().enumerate()
-        {
+        let Some(fields) = struct_type.get_fields_with_visibility(generics) else {
+            return;
+        };
+
+        for (field_index, (name, visibility, typ)) in fields.iter().enumerate() {
             if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
             {
                 continue;
