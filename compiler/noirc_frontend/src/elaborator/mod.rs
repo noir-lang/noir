@@ -1839,7 +1839,6 @@ impl<'context> Elaborator<'context> {
             };
 
             datatype.borrow_mut().init_variants();
-
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
