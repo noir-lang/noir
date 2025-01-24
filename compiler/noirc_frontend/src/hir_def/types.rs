@@ -493,6 +493,13 @@ impl DataType {
         })
     }
 
+    /// Return the generics on this type as a vector of types
+    pub fn generic_types(&self) -> Vec<Type> {
+        vecmap(&self.generics, |generic| {
+            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
+        })
+    }
+
     /// Returns the field matching the given field name, as well as its visibility and field index.
     /// Always returns None if this is not a struct type.
     pub fn get_field(
@@ -548,6 +555,17 @@ impl DataType {
             let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
             (name, args)
         }))
+    }
+
+    /// Retrieve the variants of this type. Panics if this is not an enum type
+    pub fn get_variants(&self, generic_args: &[Type]) -> Vec<(String, Vec<Type>)> {
+        let substitutions = self.get_fields_substitutions(generic_args);
+
+        vecmap(self.variants_raw(), |variant| {
+            let name = variant.name.to_string();
+            let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
+            (name, args)
+        })
     }
 
     fn get_fields_substitutions(
