@@ -102,5 +102,6 @@ enum EmptyColor {}
 
 /// Red, blue, etc.
 enum Color {
+    /// Like a tomato
     Red,
 }

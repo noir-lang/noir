@@ -1292,4 +1292,19 @@ mod hover_tests {
  Red, blue, etc."
         ));
     }
+
+    #[test]
+    async fn hover_on_enum_variant() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 105, character: 6 })
+                .await;
+        assert!(hover_text.contains(
+            "    two::Color
+    Red
+
+---
+
+ Like a tomato"
+        ));
+    }
 }
