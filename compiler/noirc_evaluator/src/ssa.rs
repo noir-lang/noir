@@ -38,7 +38,7 @@ use crate::acir::{Artifacts, GeneratedAcir};
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;
-mod opt;
+pub(crate) mod opt;
 #[cfg(test)]
 pub(crate) mod parser;
 pub mod ssa_gen;

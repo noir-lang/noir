@@ -202,7 +202,7 @@ fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
 }
 
 /// Utility function to find out the deduplicated direct calls made from a function.
-fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
+pub(crate) fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
 
