@@ -32,9 +32,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_le_bits)]
-    // docs:start:to_le_bits
     fn _to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_le_bits
 
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
