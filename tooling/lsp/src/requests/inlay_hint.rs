@@ -173,6 +173,11 @@ impl<'a> InlayHintCollector<'a> {
         if let Some(ReferenceId::Function(func_id)) = referenced {
             let func_meta = self.interner.function_meta(&func_id);
 
+            // No hints for enum variants
+            if func_meta.enum_variant_index.is_some() {
+                return;
+            }
+
             let mut parameters = func_meta.parameters.iter().peekable();
             let mut parameters_count = func_meta.parameters.len();
 
