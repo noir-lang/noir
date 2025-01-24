@@ -288,10 +288,10 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
+        let description = func_meta_type_to_string(func_meta, name, func_self_type.is_some());
         let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
         let name = if is_macro_call { format!("{}!", name) } else { name };
         let name = &name;
-        let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
         let mut has_arguments = false;
 
         let completion_item = match function_completion_kind {
@@ -351,7 +351,16 @@ impl<'a> NodeFinder<'a> {
 
         self.auto_import_trait_if_trait_method(func_id, trait_info, &mut completion_item);
 
-        self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item)
+        if let (Some(type_id), Some(variant_index)) =
+            (func_meta.type_id, func_meta.enum_variant_index)
+        {
+            self.completion_item_with_doc_comments(
+                ReferenceId::EnumVariant(type_id, variant_index),
+                completion_item,
+            )
+        } else {
+            self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item)
+        }
     }
 
     fn auto_import_trait_if_trait_method(
@@ -512,18 +521,25 @@ pub(super) fn trait_impl_method_completion_item(
     snippet_completion_item(label, CompletionItemKind::METHOD, insert_text, None)
 }
 
-fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String {
+fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: bool) -> String {
     let mut typ = &func_meta.typ;
     if let Type::Forall(_, typ_) = typ {
         typ = typ_;
     }
 
+    let is_enum_variant = func_meta.enum_variant_index.is_some();
+
     if let Type::Function(args, ret, _env, unconstrained) = typ {
         let mut string = String::new();
-        if *unconstrained {
-            string.push_str("unconstrained ");
+        if is_enum_variant {
+            string.push_str(name);
+            string.push('(');
+        } else {
+            if *unconstrained {
+                string.push_str("unconstrained ");
+            }
+            string.push_str("fn(");
         }
-        string.push_str("fn(");
         for (index, arg) in args.iter().enumerate() {
             if index > 0 {
                 string.push_str(", ");
@@ -536,13 +552,16 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String
         }
         string.push(')');
 
-        let ret: &Type = ret;
-        if let Type::Unit = ret {
-            // Nothing
-        } else {
-            string.push_str(" -> ");
-            string.push_str(&ret.to_string());
+        if !is_enum_variant {
+            let ret: &Type = ret;
+            if let Type::Unit = ret {
+                // Nothing
+            } else {
+                string.push_str(" -> ");
+                string.push_str(&ret.to_string());
+            }
         }
+
         string
     } else {
         typ.to_string()

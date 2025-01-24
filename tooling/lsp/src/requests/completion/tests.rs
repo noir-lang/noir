@@ -20,8 +20,8 @@ mod completion_tests {
 
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, PartialResultParams, Position,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
+        CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
+        Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,
     };
     use tokio::test;
@@ -3076,5 +3076,34 @@ fn main() {
 }
         "#;
         assert_eq!(new_code, expected);
+    }
+
+    #[test]
+    async fn test_suggests_enum_variant_differently_than_a_function_call() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant(Field, i32)
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.label, "Variant(…)".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant(Field, i32)".to_string()));
+
+        assert_eq!(item.detail, Some("Variant(Field, i32)".to_string()));
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
     }
 }

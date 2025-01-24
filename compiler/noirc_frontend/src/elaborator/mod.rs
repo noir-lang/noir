@@ -1006,6 +1006,7 @@ impl<'context> Elaborator<'context> {
             type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
+            enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
             return_type: func.def.return_type.clone(),
@@ -1840,7 +1841,7 @@ impl<'context> Elaborator<'context> {
                 self.define_enum_variant_function(
                     &typ.enum_def,
                     *type_id,
-                    &variant.item,
+                    &variant,
                     types,
                     i,
                     &datatype,
