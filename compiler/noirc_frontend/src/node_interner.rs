@@ -299,9 +299,8 @@ pub enum DependencyId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ReferenceId {
     Module(ModuleId),
-    Struct(TypeId),
+    Type(TypeId),
     StructMember(TypeId, usize),
-    Enum(TypeId),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
     Global(GlobalId),
