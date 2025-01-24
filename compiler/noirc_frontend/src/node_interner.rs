@@ -56,7 +56,7 @@ pub struct ModuleAttributes {
     pub visibility: ItemVisibility,
 }
 
-type StructAttributes = Vec<SecondaryAttribute>;
+type TypeAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -113,7 +113,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     data_types: HashMap<TypeId, Shared<DataType>>,
 
-    type_attributes: HashMap<TypeId, StructAttributes>,
+    type_attributes: HashMap<TypeId, TypeAttributes>,
 
     // Maps TypeAliasId -> Shared<TypeAlias>
     //
@@ -793,7 +793,8 @@ impl NodeInterner {
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
     }
-    pub fn update_struct(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
+
+    pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
         let mut value = self.data_types.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
     }
@@ -803,11 +804,7 @@ impl NodeInterner {
         f(value);
     }
 
-    pub fn update_struct_attributes(
-        &mut self,
-        type_id: TypeId,
-        f: impl FnOnce(&mut StructAttributes),
-    ) {
+    pub fn update_type_attributes(&mut self, type_id: TypeId, f: impl FnOnce(&mut TypeAttributes)) {
         let value = self.type_attributes.get_mut(&type_id).unwrap();
         f(value);
     }
@@ -1098,7 +1095,7 @@ impl NodeInterner {
         &self.function_modifiers[func_id].attributes
     }
 
-    pub fn struct_attributes(&self, struct_id: &TypeId) -> &StructAttributes {
+    pub fn type_attributes(&self, struct_id: &TypeId) -> &TypeAttributes {
         &self.type_attributes[struct_id]
     }
 

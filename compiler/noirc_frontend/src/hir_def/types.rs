@@ -370,6 +370,12 @@ pub struct EnumVariant {
     pub params: Vec<Type>,
 }
 
+impl EnumVariant {
+    pub fn new(name: Ident, params: Vec<Type>) -> EnumVariant {
+        Self { name, params }
+    }
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source program.
 /// Used mainly for resolved types which no longer need information such
 /// as names or kinds
@@ -442,6 +448,16 @@ impl DataType {
         self.body = TypeBody::Struct(fields);
     }
 
+    pub(crate) fn push_variant(&mut self, variant: EnumVariant) {
+        match &mut self.body {
+            TypeBody::None => {
+                self.body = TypeBody::Enum(vec![variant]);
+            }
+            TypeBody::Enum(variants) => variants.push(variant),
+            TypeBody::Struct(_) => panic!("Called push_variant on a non-variant type {self}"),
+        }
+    }
+
     pub fn is_struct(&self) -> bool {
         matches!(&self.body, TypeBody::Struct(_))
     }
@@ -475,6 +491,13 @@ impl DataType {
             TypeBody::Enum(variants) => variants,
             _ => panic!("Called DataType::variants_raw on a non-enum type: {}", self.name),
         }
+    }
+
+    /// Return the generics on this type as a vector of types
+    pub fn generic_types(&self) -> Vec<Type> {
+        vecmap(&self.generics, |generic| {
+            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
+        })
     }
 
     /// Returns the field matching the given field name, as well as its visibility and field index.
@@ -520,6 +543,17 @@ impl DataType {
         vecmap(self.fields_raw(), |field| {
             let name = field.name.0.contents.clone();
             (name, field.typ.substitute(&substitutions))
+        })
+    }
+
+    /// Retrieve the variants of this type. Panics if this is not an enum type
+    pub fn get_variants(&self, generic_args: &[Type]) -> Vec<(String, Vec<Type>)> {
+        let substitutions = self.get_fields_substitutions(generic_args);
+
+        vecmap(self.variants_raw(), |variant| {
+            let name = variant.name.to_string();
+            let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
+            (name, args)
         })
     }
 
@@ -592,11 +626,22 @@ impl DataType {
         let variant = self.variant_at(variant_index);
         let args = variant.params.clone();
         assert_eq!(this.borrow().id, self.id);
-        let generics = vecmap(&self.generics, |generic| {
-            Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
-        });
+        let generics = self.generic_types();
         let ret = Box::new(Type::DataType(this, generics));
         Type::Function(args, ret, Box::new(Type::Unit), false)
+    }
+
+    /// Returns the function type of the variant at the given index of this enum.
+    /// Requires the `Shared<DataType>` handle of self to create the given function type.
+    /// Panics if this is not an enum.
+    pub fn variant_function_type_with_forall(
+        &self,
+        variant_index: usize,
+        this: Shared<DataType>,
+    ) -> Type {
+        let function_type = self.variant_function_type(variant_index, this);
+        let typevars = vecmap(&self.generics, |generic| generic.type_var.clone());
+        Type::Forall(typevars, Box::new(function_type))
     }
 }
 

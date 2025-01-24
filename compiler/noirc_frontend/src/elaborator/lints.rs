@@ -320,6 +320,7 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Lambda(_)
         | HirExpression::Literal(_)
         | HirExpression::Constructor(_)
+        | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
         | HirExpression::Comptime(_)

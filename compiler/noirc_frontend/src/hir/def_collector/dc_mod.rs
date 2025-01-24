@@ -94,6 +94,8 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_structs(context, ast.structs, crate_id));
 
+    errors.extend(collector.collect_enums(context, ast.enums, crate_id));
+
     errors.extend(collector.collect_type_aliases(context, ast.type_aliases, crate_id));
 
     errors.extend(collector.collect_functions(context, ast.functions, crate_id));
@@ -319,6 +321,33 @@ impl<'a> ModCollector<'a> {
                 &mut definition_errors,
             ) {
                 self.def_collector.items.structs.insert(id, the_struct);
+            }
+        }
+        definition_errors
+    }
+
+    /// Collect any enum definitions declared within the ast.
+    /// Returns a vector of errors if any enums were already defined,
+    /// or if an enum has duplicate variants in it.
+    fn collect_enums(
+        &mut self,
+        context: &mut Context,
+        types: Vec<Documented<NoirEnumeration>>,
+        krate: CrateId,
+    ) -> Vec<(CompilationError, FileId)> {
+        let mut definition_errors = vec![];
+        for enum_definition in types {
+            if let Some((id, the_enum)) = collect_enum(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                &mut context.usage_tracker,
+                enum_definition,
+                self.file_id,
+                self.module_id,
+                krate,
+                &mut definition_errors,
+            ) {
+                self.def_collector.items.enums.insert(id, the_enum);
             }
         }
         definition_errors

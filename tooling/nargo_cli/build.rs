@@ -66,11 +66,13 @@ const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 3] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "macros_in_comptime",
+    // We issue a "experimental feature" warning for all enums until they're stabilized
+    "enums",
 ];
 
 fn read_test_cases(

@@ -15,7 +15,10 @@ use crate::{
             filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
             UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
         },
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
+        def_collector::{
+            dc_crate::{CollectedItems, UnresolvedEnum},
+            errors::DefCollectorErrorKind,
+        },
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
@@ -35,7 +38,7 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::SecondaryAttribute,
-    Shared, Type, TypeVariable,
+    EnumVariant, Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{ItemVisibility, UnresolvedType},
@@ -47,6 +50,7 @@ use crate::{
 };
 
 mod comptime;
+mod enums;
 mod expressions;
 mod lints;
 mod path_resolution;
@@ -324,8 +328,9 @@ impl<'context> Elaborator<'context> {
             self.define_type_alias(alias_id, alias);
         }
 
-        // Must resolve structs before we resolve globals.
+        // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
+        self.collect_enum_definitions(&items.enums);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
@@ -998,7 +1003,7 @@ impl<'context> Elaborator<'context> {
             typ,
             direct_generics,
             all_generics: self.generics.clone(),
-            struct_id,
+            type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
             parameters: parameters.into(),
@@ -1624,7 +1629,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
         // Public struct functions should not expose private types.
-        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+        if let Some(struct_visibility) = func_meta.type_id.and_then(|id| {
             let struct_def = self.get_type(id);
             let struct_def = struct_def.borrow();
             self.find_struct_visibility(&struct_def)
@@ -1750,7 +1755,7 @@ impl<'context> Elaborator<'context> {
             }
 
             let fields_len = fields.len();
-            self.interner.update_struct(*type_id, |struct_def| {
+            self.interner.update_type(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
             });
 
@@ -1807,6 +1812,45 @@ impl<'context> Elaborator<'context> {
 
             fields
         })
+    }
+
+    fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
+        for (type_id, typ) in enums {
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+            self.generics.clear();
+
+            let datatype = self.interner.get_type(*type_id);
+            let generics = datatype.borrow().generic_types();
+            self.add_existing_generics(&typ.enum_def.generics, &datatype.borrow().generics);
+
+            let self_type = Type::DataType(datatype.clone(), generics);
+            let self_type_id = self.interner.push_quoted_type(self_type.clone());
+            let unresolved = UnresolvedType {
+                typ: UnresolvedTypeData::Resolved(self_type_id),
+                span: typ.enum_def.span,
+            };
+
+            for (i, variant) in typ.enum_def.variants.iter().enumerate() {
+                let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
+                let name = variant.item.name.clone();
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone()));
+
+                // Define a function for each variant to construct it
+                self.define_enum_variant_function(
+                    &typ.enum_def,
+                    *type_id,
+                    &variant.item,
+                    types,
+                    i,
+                    &datatype,
+                    &self_type,
+                    unresolved.clone(),
+                );
+
+                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
+            }
+        }
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {

@@ -437,13 +437,13 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         format_generics(&trait_.generics, &mut string);
 
         true
-    } else if let Some(struct_id) = func_meta.struct_id {
-        let struct_type = args.interner.get_type(struct_id);
-        let struct_type = struct_type.borrow();
+    } else if let Some(type_id) = func_meta.type_id {
+        let data_type = args.interner.get_type(type_id);
+        let data_type = data_type.borrow();
         if formatted_parent_module {
             string.push_str("::");
         }
-        string.push_str(&struct_type.name.0.contents);
+        string.push_str(&data_type.name.0.contents);
         string.push('\n');
         string.push_str("    ");
         string.push_str("impl");
@@ -457,7 +457,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         format_generics(&impl_generics, &mut string);
 
         string.push(' ');
-        string.push_str(&struct_type.name.0.contents);
+        string.push_str(&data_type.name.0.contents);
         format_generic_names(&impl_generics, &mut string);
 
         true
@@ -765,8 +765,8 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(typ);
                 }
             }
-            Type::DataType(struct_type, generics) => {
-                self.gather_struct_type_links(struct_type);
+            Type::DataType(data_type, generics) => {
+                self.gather_struct_type_links(data_type);
                 for generic in generics {
                     self.gather_type_links(generic);
                 }
