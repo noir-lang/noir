@@ -1477,7 +1477,7 @@ impl<'context> Elaborator<'context> {
             let datatype = datatype.borrow();
             let mut has_field_with_function_type = false;
 
-            if let Some(fields) = datatype.try_fields_raw() {
+            if let Some(fields) = datatype.fields_raw() {
                 has_field_with_function_type = fields
                     .iter()
                     .any(|field| field.name.0.contents == method_name && field.typ.is_function());

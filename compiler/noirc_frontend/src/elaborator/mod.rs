@@ -1034,13 +1034,21 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used(typ);
                 }
             }
-            Type::DataType(struct_type, generics) => {
-                self.mark_struct_as_constructed(struct_type.clone());
+            Type::DataType(datatype, generics) => {
+                self.mark_struct_as_constructed(datatype.clone());
                 for generic in generics {
                     self.mark_type_as_used(generic);
                 }
-                for (_, typ) in struct_type.borrow().get_fields(generics) {
-                    self.mark_type_as_used(&typ);
+                if let Some(fields) = datatype.borrow().get_fields(generics) {
+                    for (_, typ) in fields {
+                        self.mark_type_as_used(&typ);
+                    }
+                } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                    for (_, variant_types) in variants {
+                        for typ in variant_types {
+                            self.mark_type_as_used(&typ);
+                        }
+                    }
                 }
             }
             Type::Alias(alias_type, generics) => {
@@ -1775,7 +1783,7 @@ impl<'context> Elaborator<'context> {
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
-                let fields = struct_type.borrow().get_fields(&[]);
+                let fields = struct_type.borrow().get_fields(&[]).unwrap();
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
