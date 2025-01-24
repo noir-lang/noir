@@ -12,13 +12,11 @@ use crate::{
     graph::CrateId,
     hir::{
         def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
-            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
+            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+            UnresolvedTypeAlias,
         },
-        def_collector::{
-            dc_crate::{CollectedItems, UnresolvedEnum},
-            errors::DefCollectorErrorKind,
-        },
+        def_collector::errors::DefCollectorErrorKind,
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
@@ -26,11 +24,10 @@ use crate::{
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
     },
-    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitImpl},
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
@@ -1006,6 +1003,7 @@ impl<'context> Elaborator<'context> {
             type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
+            enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
             return_type: func.def.return_type.clone(),
@@ -1035,13 +1033,21 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used(typ);
                 }
             }
-            Type::DataType(struct_type, generics) => {
-                self.mark_struct_as_constructed(struct_type.clone());
+            Type::DataType(datatype, generics) => {
+                self.mark_struct_as_constructed(datatype.clone());
                 for generic in generics {
                     self.mark_type_as_used(generic);
                 }
-                for (_, typ) in struct_type.borrow().get_fields(generics) {
-                    self.mark_type_as_used(&typ);
+                if let Some(fields) = datatype.borrow().get_fields(generics) {
+                    for (_, typ) in fields {
+                        self.mark_type_as_used(&typ);
+                    }
+                } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                    for (_, variant_types) in variants {
+                        for typ in variant_types {
+                            self.mark_type_as_used(&typ);
+                        }
+                    }
                 }
             }
             Type::Alias(alias_type, generics) => {
@@ -1776,7 +1782,7 @@ impl<'context> Elaborator<'context> {
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
-                let fields = struct_type.borrow().get_fields(&[]);
+                let fields = struct_type.borrow().get_fields(&[]).unwrap();
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
@@ -1831,6 +1837,9 @@ impl<'context> Elaborator<'context> {
                 span: typ.enum_def.span,
             };
 
+            datatype.borrow_mut().init_variants();
+            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
+
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
                 let name = variant.item.name.clone();
@@ -1848,7 +1857,8 @@ impl<'context> Elaborator<'context> {
                     unresolved.clone(),
                 );
 
-                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
+                let reference_id = ReferenceId::EnumVariant(*type_id, i);
+                self.interner.add_definition_location(reference_id, Some(module_id));
             }
         }
     }

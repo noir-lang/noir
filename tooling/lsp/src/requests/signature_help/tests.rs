@@ -240,4 +240,31 @@ mod signature_help_tests {
 
         assert_eq!(signature.active_parameter, Some(0));
     }
+
+    #[test]
+    async fn test_signature_help_for_enum_variant() {
+        let src = r#"
+            enum Enum {
+                Variant(Field, i32)
+            }
+
+            fn bar() {
+                Enum::Variant(>|<(), ());
+            }
+        "#;
+
+        let signature_help = get_signature_help(src).await;
+        assert_eq!(signature_help.signatures.len(), 1);
+
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "enum Enum::Variant(Field, i32)");
+
+        let params = signature.parameters.as_ref().unwrap();
+        assert_eq!(params.len(), 2);
+
+        check_label(&signature.label, &params[0].label, "Field");
+        check_label(&signature.label, &params[1].label, "i32");
+
+        assert_eq!(signature.active_parameter, Some(0));
+    }
 }

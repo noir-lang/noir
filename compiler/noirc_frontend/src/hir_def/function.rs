@@ -141,6 +141,9 @@ pub struct FuncMeta {
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
 
+    /// If this function is the one related to an enum variant, this holds its index (relative to `type_id`)
+    pub enum_variant_index: Option<usize>,
+
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.
     pub is_entry_point: bool,

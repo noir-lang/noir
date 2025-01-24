@@ -622,7 +622,9 @@ impl<'context> Elaborator<'context> {
             (typ, generics)
         } else {
             match self.lookup_type_or_error(path) {
-                Some(Type::DataType(r#type, struct_generics)) => (r#type, struct_generics),
+                Some(Type::DataType(r#type, struct_generics)) if r#type.borrow().is_struct() => {
+                    (r#type, struct_generics)
+                }
                 Some(typ) => {
                     self.push_err(ResolverError::NonStructUsedInConstructor {
                         typ: typ.to_string(),
@@ -649,7 +651,11 @@ impl<'context> Elaborator<'context> {
         let generics = struct_generics.clone();
 
         let fields = constructor.fields;
-        let field_types = r#type.borrow().get_fields_with_visibility(&struct_generics);
+        let field_types = r#type
+            .borrow()
+            .get_fields_with_visibility(&struct_generics)
+            .expect("This type should already be validated to be a struct");
+
         let fields =
             self.resolve_constructor_expr_fields(struct_type.clone(), field_types, fields, span);
         let expr = HirExpression::Constructor(HirConstructorExpression {
@@ -660,7 +666,7 @@ impl<'context> Elaborator<'context> {
 
         let struct_id = struct_type.borrow().id;
         let reference_location = Location::new(last_segment.ident.span(), self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::DataType(struct_type, generics))
     }
@@ -683,7 +689,10 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(Ident, ExprId)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let mut unseen_fields = struct_type.borrow().field_names();
+        let mut unseen_fields = struct_type
+            .borrow()
+            .field_names()
+            .expect("This type should already be validated to be a struct");
 
         for (field_name, field) in fields {
             let expected_field_with_index = field_types
