@@ -1841,11 +1841,9 @@ impl<'context> Elaborator<'context> {
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
-                let types = variant
-                    .item
-                    .parameters
-                    .as_ref()
-                    .map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
+                let parameters = variant.item.parameters.as_ref();
+                let types =
+                    parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
                 let name = variant.item.name.clone();
 
                 let variant_arg_types = types.clone().unwrap_or_default();
