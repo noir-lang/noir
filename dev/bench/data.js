@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737742679762,
+  "lastUpdate": 1737742681793,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16176,6 +16176,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 210.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "60076d56938b9ed90f9d66300bd9b9fa8396e191",
+          "message": "chore(experimental): Prevent enum panics by returning Options where possible instead of panicking (#7180)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-01-24T17:54:54Z",
+          "tree_id": "aa280e7529a1a0fb07ab42b619b35f105a3541b4",
+          "url": "https://github.com/noir-lang/noir/commit/60076d56938b9ed90f9d66300bd9b9fa8396e191"
+        },
+        "date": 1737742678876,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.09,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.89,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.09,
             "unit": "MB"
           }
         ]
