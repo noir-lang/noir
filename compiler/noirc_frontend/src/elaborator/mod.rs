@@ -11,18 +11,12 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::{
-            dc_crate::{
-                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-                UnresolvedTypeAlias,
-            },
-            errors::DefCollectorErrorKind,
+        def_collector::dc_crate::{
+            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+            UnresolvedTypeAlias,
         },
-        def_collector::{
-            dc_crate::{CollectedItems, UnresolvedEnum},
-            errors::DefCollectorErrorKind,
-        },
+        def_collector::errors::DefCollectorErrorKind,
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
