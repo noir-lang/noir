@@ -199,7 +199,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let location = Location::new(span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
@@ -1953,8 +1953,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
     match reference_id {
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
-        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
-        ReferenceId::Enum(enum_id) => Some(ModuleDefId::TypeId(enum_id)),
+        ReferenceId::Type(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),

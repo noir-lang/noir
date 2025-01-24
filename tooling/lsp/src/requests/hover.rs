@@ -73,11 +73,10 @@ pub(crate) fn on_hover_request(
 fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     match reference {
         ReferenceId::Module(id) => format_module(id, args),
-        ReferenceId::Struct(id) => Some(format_struct(id, args)),
+        ReferenceId::Type(id) => Some(format_type(id, args)),
         ReferenceId::StructMember(id, field_index) => {
             Some(format_struct_member(id, field_index, args))
         }
-        ReferenceId::Enum(id) => Some(format_enum(id, args)),
         ReferenceId::EnumVariant(id, variant_index) => {
             Some(format_enum_variant(id, variant_index, args))
         }
@@ -126,20 +125,27 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     Some(string)
 }
 
-fn format_struct(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
-    let struct_type = args.interner.get_type(id);
-    let struct_type = struct_type.borrow();
+fn format_type(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let typ = args.interner.get_type(id);
+    let typ = typ.borrow();
+    if typ.is_struct() {
+        format_struct(&typ, args)
+    } else {
+        format_enum(&typ, args)
+    }
+}
 
+fn format_struct(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
     string.push_str("struct ");
-    string.push_str(&struct_type.name.0.contents);
-    format_generics(&struct_type.generics, &mut string);
+    string.push_str(&typ.name.0.contents);
+    format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
-    for field in struct_type.get_fields_as_written() {
+    for field in typ.get_fields_as_written() {
         string.push_str("        ");
         string.push_str(&field.name.0.contents);
         string.push_str(": ");
@@ -148,17 +154,14 @@ fn format_struct(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ReferenceId::Struct(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
 
     string
 }
 
-fn format_enum(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
-    let typ = args.interner.get_type(id);
-    let typ = typ.borrow();
-
+fn format_enum(typ: &DataType, args: &ProcessRequestCallbackArgs) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -181,7 +184,7 @@ fn format_enum(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ReferenceId::Enum(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
 
     string
 }
@@ -196,7 +199,7 @@ fn format_struct_member(
     let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(&struct_type.name.0.contents);
@@ -222,7 +225,7 @@ fn format_enum_variant(
     let variant = enum_type.variant_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Enum(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(&enum_type.name.0.contents);

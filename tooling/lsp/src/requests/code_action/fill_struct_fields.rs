@@ -20,15 +20,20 @@ impl<'a> CodeActionFinder<'a> {
         };
 
         let location = Location::new(path.span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
-        let struct_type = self.interner.get_type(struct_id);
-        let struct_type = struct_type.borrow();
+        let typ = self.interner.get_type(type_id);
+        let typ = typ.borrow();
+
+        // Might be an enum
+        if !typ.is_struct() {
+            return;
+        }
 
         // First get all of the struct's fields
-        let mut fields = struct_type.get_fields_as_written();
+        let mut fields = typ.get_fields_as_written();
 
         // Remove the ones that already exists in the constructor
         for (constructor_field, _) in &constructor.fields {

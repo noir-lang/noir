@@ -113,7 +113,7 @@ impl<'a> NodeFinder<'a> {
     fn struct_completion_item(&self, name: String, struct_id: TypeId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Struct(struct_id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Type(struct_id), completion_item)
     }
 
     pub(super) fn struct_field_completion_item(

@@ -109,8 +109,7 @@ impl<'a> InlayHintCollector<'a> {
                         self.push_type_hint(lsp_location, &variant_type, false, include_colon);
                     }
                     ReferenceId::Module(_)
-                    | ReferenceId::Struct(_)
-                    | ReferenceId::Enum(_)
+                    | ReferenceId::Type(_)
                     | ReferenceId::Trait(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)

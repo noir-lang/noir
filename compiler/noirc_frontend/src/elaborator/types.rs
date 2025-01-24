@@ -158,7 +158,7 @@ impl<'context> Elaborator<'context> {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(resolved_type.clone(), location);
                 if !is_synthetic {
-                    self.interner.add_struct_reference(
+                    self.interner.add_type_reference(
                         data_type.borrow().id,
                         location,
                         is_self_type_name,
