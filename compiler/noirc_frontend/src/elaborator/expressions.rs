@@ -666,7 +666,7 @@ impl<'context> Elaborator<'context> {
 
         let struct_id = struct_type.borrow().id;
         let reference_location = Location::new(last_segment.ident.span(), self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         (expr, Type::DataType(struct_type, generics))
     }

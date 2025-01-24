@@ -70,6 +70,7 @@ impl Elaborator<'_> {
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,
+            enum_variant_index: Some(variant_index),
             is_entry_point: false,
             has_inline_attribute: false,
             function_body: FunctionBody::Resolved,

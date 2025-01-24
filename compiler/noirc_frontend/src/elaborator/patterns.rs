@@ -238,7 +238,7 @@ impl<'context> Elaborator<'context> {
         let struct_id = struct_type.borrow().id;
 
         let reference_location = Location::new(name_span, self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
             let reference_location = Location::new(field.0.span(), self.file);

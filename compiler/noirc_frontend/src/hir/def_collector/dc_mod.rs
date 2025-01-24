@@ -336,12 +336,12 @@ impl<'a> ModCollector<'a> {
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
-        for struct_definition in types {
+        for enum_definition in types {
             if let Some((id, the_enum)) = collect_enum(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
-                struct_definition,
+                enum_definition,
                 self.file_id,
                 self.module_id,
                 krate,
@@ -1072,7 +1072,7 @@ pub fn collect_struct(
         }
     };
 
-    interner.set_doc_comments(ReferenceId::Struct(id), doc_comments);
+    interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
 
     for (index, field) in unresolved.struct_def.fields.iter().enumerate() {
         if !field.doc_comments.is_empty() {
@@ -1106,7 +1106,7 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_struct(id, name.to_string(), visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), visibility, parent_module_id);
     }
 
     Some((id, unresolved))
@@ -1167,7 +1167,7 @@ pub fn collect_enum(
         }
     };
 
-    interner.set_doc_comments(ReferenceId::Enum(id), doc_comments);
+    interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
 
     for (index, variant) in unresolved.enum_def.variants.iter().enumerate() {
         if !variant.doc_comments.is_empty() {
@@ -1201,7 +1201,7 @@ pub fn collect_enum(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_enum(id, name.to_string(), visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), visibility, parent_module_id);
     }
 
     Some((id, unresolved))
