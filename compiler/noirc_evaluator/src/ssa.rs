@@ -152,6 +152,8 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
     Ok(builder
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
+        .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
+        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
             |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
@@ -159,7 +161,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         )
         .run_pass(|ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining (1st)")
         // Run mem2reg with the CFG separated into blocks
-        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (1st)")
         .run_pass(Ssa::as_slice_optimization, "`as_slice` optimization")
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (2nd)")
@@ -173,11 +175,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Unrolling",
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
-        .run_pass(Ssa::mem2reg, "Mem2Reg (2nd)")
+        .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
         .run_pass(Ssa::flatten_cfg, "Flattening")
         .run_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")
+        .run_pass(Ssa::mem2reg, "Mem2Reg (4th)")
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
