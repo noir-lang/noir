@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Documented, EnumVariant, FunctionKind, NoirEnumeration, UnresolvedType, Visibility},
+    ast::{EnumVariant, FunctionKind, NoirEnumeration, UnresolvedType, Visibility},
     hir_def::{
         expr::{HirEnumConstructorExpression, HirExpression, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
@@ -21,14 +21,13 @@ impl Elaborator<'_> {
         &mut self,
         enum_: &NoirEnumeration,
         type_id: TypeId,
-        documented_variant: &Documented<EnumVariant>,
+        variant: &EnumVariant,
         variant_arg_types: Vec<Type>,
         variant_index: usize,
         datatype: &Shared<DataType>,
         self_type: &Type,
         self_type_unresolved: UnresolvedType,
     ) {
-        let variant = &documented_variant.item;
         let name_string = variant.name.to_string();
         let datatype_ref = datatype.borrow();
         let location = Location::new(variant.name.span(), self.file);

@@ -11,26 +11,24 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
-            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
-        },
         def_collector::{
-            dc_crate::{CollectedItems, UnresolvedEnum},
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
             errors::DefCollectorErrorKind,
         },
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
     },
-    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitImpl},
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
@@ -1834,6 +1832,8 @@ impl<'context> Elaborator<'context> {
 
             datatype.borrow_mut().init_variants();
 
+            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
+
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
                 let name = variant.item.name.clone();
@@ -1843,7 +1843,7 @@ impl<'context> Elaborator<'context> {
                 self.define_enum_variant_function(
                     &typ.enum_def,
                     *type_id,
-                    &variant,
+                    &variant.item,
                     types,
                     i,
                     &datatype,
@@ -1851,7 +1851,8 @@ impl<'context> Elaborator<'context> {
                     unresolved.clone(),
                 );
 
-                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
+                let reference_id = ReferenceId::EnumVariant(*type_id, i);
+                self.interner.add_definition_location(reference_id, Some(module_id));
             }
         }
     }

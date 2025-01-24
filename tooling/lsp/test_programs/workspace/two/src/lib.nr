@@ -103,5 +103,9 @@ enum EmptyColor {}
 /// Red, blue, etc.
 enum Color {
     /// Like a tomato
-    Red,
+    Red(Field),
+}
+
+fn test_enum() -> Color {
+    Color::Red(1)
 }

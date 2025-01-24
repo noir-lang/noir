@@ -380,9 +380,19 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
 
+    let enum_variant = match (func_meta.type_id, func_meta.enum_variant_index) {
+        (Some(type_id), Some(index)) => Some((type_id, index)),
+        _ => None,
+    };
+
+    let reference_id = if let Some((type_id, variant_index)) = enum_variant {
+        ReferenceId::EnumVariant(type_id, variant_index)
+    } else {
+        ReferenceId::Function(id)
+    };
+
     let mut string = String::new();
-    let formatted_parent_module =
-        format_parent_module(ReferenceId::Function(id), args, &mut string);
+    let formatted_parent_module = format_parent_module(reference_id, args, &mut string);
 
     let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
         let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
@@ -447,21 +457,23 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("::");
         }
         string.push_str(&data_type.name.0.contents);
-        string.push('\n');
-        string.push_str("    ");
-        string.push_str("impl");
+        if enum_variant.is_none() {
+            string.push('\n');
+            string.push_str("    ");
+            string.push_str("impl");
 
-        let impl_generics: Vec<_> = func_meta
-            .all_generics
-            .iter()
-            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-            .cloned()
-            .collect();
-        format_generics(&impl_generics, &mut string);
+            let impl_generics: Vec<_> = func_meta
+                .all_generics
+                .iter()
+                .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
+                .cloned()
+                .collect();
+            format_generics(&impl_generics, &mut string);
 
-        string.push(' ');
-        string.push_str(&data_type.name.0.contents);
-        format_generic_names(&impl_generics, &mut string);
+            string.push(' ');
+            string.push_str(&data_type.name.0.contents);
+            format_generic_names(&impl_generics, &mut string);
+        }
 
         true
     } else {
@@ -488,7 +500,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     let func_name = &func_name_definition_id.name;
 
-    string.push_str("fn ");
+    if enum_variant.is_none() {
+        string.push_str("fn ");
+    }
     string.push_str(func_name);
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
@@ -501,15 +515,19 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("&mut ");
         }
 
-        format_pattern(pattern, args.interner, &mut string);
-
-        // Don't add type for `self` param
-        if !is_self {
-            string.push_str(": ");
-            if matches!(visibility, Visibility::Public) {
-                string.push_str("pub ");
-            }
+        if enum_variant.is_some() {
             string.push_str(&format!("{}", typ));
+        } else {
+            format_pattern(pattern, args.interner, &mut string);
+
+            // Don't add type for `self` param
+            if !is_self {
+                string.push_str(": ");
+                if matches!(visibility, Visibility::Public) {
+                    string.push_str("pub ");
+                }
+                string.push_str(&format!("{}", typ));
+            }
         }
 
         if index != parameters.len() - 1 {
@@ -519,28 +537,34 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push(')');
 
-    let return_type = func_meta.return_type();
-    match return_type {
-        Type::Unit => (),
-        _ => {
-            string.push_str(" -> ");
-            string.push_str(&format!("{}", return_type));
+    if enum_variant.is_none() {
+        let return_type = func_meta.return_type();
+        match return_type {
+            Type::Unit => (),
+            _ => {
+                string.push_str(" -> ");
+                string.push_str(&format!("{}", return_type));
+            }
         }
+
+        string.push_str(&go_to_type_links(return_type, args.interner, args.files));
     }
 
-    string.push_str(&go_to_type_links(return_type, args.interner, args.files));
-
-    let had_doc_comments =
-        append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
-    if !had_doc_comments {
-        // If this function doesn't have doc comments, but it's a trait impl method,
-        // use the trait method doc comments.
-        if let Some(trait_impl_id) = func_meta.trait_impl {
-            let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
-            let trait_impl = trait_impl.borrow();
-            let trait_ = args.interner.get_trait(trait_impl.trait_id);
-            if let Some(func_id) = trait_.method_ids.get(func_name) {
-                append_doc_comments(args.interner, ReferenceId::Function(*func_id), &mut string);
+    if enum_variant.is_some() {
+        append_doc_comments(args.interner, reference_id, &mut string);
+    } else {
+        let had_doc_comments = append_doc_comments(args.interner, reference_id, &mut string);
+        if !had_doc_comments {
+            // If this function doesn't have doc comments, but it's a trait impl method,
+            // use the trait method doc comments.
+            if let Some(trait_impl_id) = func_meta.trait_impl {
+                let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                let trait_ = args.interner.get_trait(trait_impl.trait_id);
+                if let Some(func_id) = trait_.method_ids.get(func_name) {
+                    let reference_id = ReferenceId::Function(*func_id);
+                    append_doc_comments(args.interner, reference_id, &mut string);
+                }
             }
         }
     }
@@ -1284,7 +1308,7 @@ mod hover_tests {
         assert!(hover_text.contains(
             "    two
     enum Color {
-        Red,
+        Red(Field),
     }
 
 ---
@@ -1300,7 +1324,22 @@ mod hover_tests {
                 .await;
         assert!(hover_text.contains(
             "    two::Color
-    Red
+    Red(Field)
+
+---
+
+ Like a tomato"
+        ));
+    }
+
+    #[test]
+    async fn hover_on_enum_variant_in_call() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 109, character: 12 })
+                .await;
+        assert!(hover_text.contains(
+            "    two::Color
+    Red(Field)
 
 ---
 

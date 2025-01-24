@@ -3101,6 +3101,8 @@ fn main() {
 
         assert_eq!(item.detail, Some("Variant(Field, i32)".to_string()));
 
+        assert_eq!(item.insert_text, Some("Variant(${1:()}, ${2:()})".to_string()));
+
         let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
             panic!("Expected markdown docs");
         };

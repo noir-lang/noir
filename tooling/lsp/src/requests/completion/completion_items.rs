@@ -428,6 +428,8 @@ impl<'a> NodeFinder<'a> {
         function_kind: FunctionKind,
         skip_first_argument: bool,
     ) -> String {
+        let is_enum_variant = func_meta.enum_variant_index.is_some();
+
         let mut text = String::new();
         text.push_str(name);
         text.push('(');
@@ -457,7 +459,11 @@ impl<'a> NodeFinder<'a> {
             text.push_str("${");
             text.push_str(&index.to_string());
             text.push(':');
-            self.hir_pattern_to_argument(pattern, &mut text);
+            if is_enum_variant {
+                text.push_str("()");
+            } else {
+                self.hir_pattern_to_argument(pattern, &mut text);
+            }
             text.push('}');
 
             index += 1;
