@@ -325,6 +325,7 @@ fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 }
 
 /// Compute for each function the set of functions called by it, and how many times it does so.
+#[cfg(test)]
 fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
     ssa.functions
         .iter()
@@ -351,7 +352,8 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 ///
 /// Returns the functions paired with their own as well as transitive weight,
 /// which accumulates the weight of all the functions they call, as well as own.
-pub(super) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, (usize, usize))> {
+#[cfg(test)]
+fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, (usize, usize))> {
     let mut order = Vec::new();
     let mut visited = HashSet::new();
 
