@@ -3845,9 +3845,16 @@ global EXPONENTIATE: [[Field; 257]; 257] = [
 fn main(x: Field, y: pub Field) {
     /// Safety: testing context
     unsafe {
+        assert(entry_point_no_globals(x) == 2);
         check_acc_entry_point(x, y);
         assert(entry_point_no_globals(x) == 2);
         entry_point_inner_func_globals(x as Field, y);
+        assert(entry_point_no_globals(x) == 2);
+        assert(entry_point_no_globals(x) == 2);
+        assert(entry_point_no_globals(x) == 2);
+        assert(entry_point_no_globals(x) == 2);
+        assert(entry_point_no_globals(x) == 2);
+        assert(entry_point_no_globals(x) == 2);
     }
 }
 
