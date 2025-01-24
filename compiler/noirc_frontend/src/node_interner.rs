@@ -954,7 +954,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id), None);
+            self.add_definition_location(ReferenceId::Local(id), location, None);
         }
 
         id
@@ -979,6 +979,7 @@ impl NodeInterner {
         module: ModuleId,
         location: Location,
     ) -> DefinitionId {
+        let name_location = Location::new(function.name.span(), location.file);
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
             visibility: function.visibility,
@@ -986,14 +987,10 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
-            name_location: Location::new(function.name.span(), location.file),
+            name_location,
         };
         let definition_id = self.push_function_definition(id, modifiers, module, location);
-
-        // This needs to be done after pushing the definition since it will reference the
-        // location that was stored
-        self.add_definition_location(ReferenceId::Function(id), Some(module));
-
+        self.add_definition_location(ReferenceId::Function(id), name_location, Some(module));
         definition_id
     }
 
