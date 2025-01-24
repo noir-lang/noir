@@ -336,12 +336,12 @@ impl<'a> ModCollector<'a> {
         krate: CrateId,
     ) -> Vec<(CompilationError, FileId)> {
         let mut definition_errors = vec![];
-        for struct_definition in types {
+        for enum_definition in types {
             if let Some((id, the_enum)) = collect_enum(
                 &mut context.def_interner,
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
-                struct_definition,
+                enum_definition,
                 self.file_id,
                 self.module_id,
                 krate,

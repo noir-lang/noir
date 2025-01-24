@@ -31,7 +31,7 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    /// True if this module is actually a struct
+    /// True if this module is actually a type
     pub is_type: bool,
 
     pub attributes: Vec<SecondaryAttribute>,
@@ -44,7 +44,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
-        is_struct: bool,
+        is_type: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -57,7 +57,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            is_type: is_struct,
+            is_type,
             attributes,
         }
     }

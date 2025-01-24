@@ -1832,8 +1832,6 @@ impl<'context> Elaborator<'context> {
             };
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
-                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
-
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
                 let name = variant.item.name.clone();
                 datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone()));
@@ -1849,6 +1847,8 @@ impl<'context> Elaborator<'context> {
                     &self_type,
                     unresolved.clone(),
                 );
+
+                self.interner.add_definition_location(ReferenceId::EnumVariant(*type_id, i), None);
             }
         }
     }
