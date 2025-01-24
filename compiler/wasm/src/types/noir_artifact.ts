@@ -137,9 +137,8 @@ export interface SourceCodeLocation {
 
 /**
  * The location of an opcode in the bytecode.
- * It's a string of the form `{acirIndex}` or `{acirIndex}:{brilligIndex}`.
  */
-export type OpcodeLocation = string;
+export type OpcodeLocation = number;
 
 export type BrilligFunctionId = number;
 

@@ -155,19 +155,6 @@ impl std::fmt::Display for AcirOpcodeLocation {
         write!(f, "{}", self.0)
     }
 }
-/// The implementation of display and FromStr allows serializing and deserializing a OpcodeLocation to a string.
-/// This is useful when used as key in a map that has to be serialized to JSON/TOML, for example when mapping an opcode to its metadata.
-impl FromStr for AcirOpcodeLocation {
-    type Err = OpcodeLocationFromStrError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        fn parse_index(input: &str) -> Result<AcirOpcodeLocation, ParseIntError> {
-            let index = input.parse()?;
-            Ok(AcirOpcodeLocation::new(index))
-        }
-        parse_index(s)
-            .map_err(|_| OpcodeLocationFromStrError::InvalidOpcodeLocationString(s.to_string()))
-    }
-}
 
 impl AcirOpcodeLocation {
     pub fn new(index: usize) -> Self {
