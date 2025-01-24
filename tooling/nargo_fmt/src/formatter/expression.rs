@@ -1,9 +1,9 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
-        ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
-        InfixExpression, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
-        PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
+        ConstructorExpression, EnumConstructorExpression, Expression, ExpressionKind, IfExpression,
+        IndexExpression, InfixExpression, Lambda, Literal, MemberAccessExpression,
+        MethodCallExpression, PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -41,6 +41,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             ExpressionKind::Constructor(constructor) => {
                 group.group(self.format_constructor(*constructor));
+            }
+            ExpressionKind::EnumConstructor(constructor) => {
+                group.group(self.format_enum_constructor(*constructor));
             }
             ExpressionKind::MemberAccess(member_access) => {
                 group.group(self.format_member_access(*member_access));
@@ -553,6 +556,47 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 
     fn format_constructor(&mut self, constructor: ConstructorExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.text(self.chunk(|formatter| {
+            formatter.format_type(constructor.typ);
+            formatter.write_space();
+            formatter.write_left_brace();
+        }));
+
+        if constructor.fields.is_empty() {
+            if let Some(inner_group) = self.empty_block_contents_chunk() {
+                group.group(inner_group);
+            }
+        } else {
+            self.format_items_separated_by_comma(
+                constructor.fields,
+                false, // force trailing comma
+                true,  // surround with spaces
+                &mut group,
+                |formatter, (name, value), chunks| {
+                    chunks.text(formatter.chunk(|formatter| {
+                        formatter.write_identifier(name);
+                        formatter.skip_comments_and_whitespace();
+                    }));
+
+                    if formatter.is_at(Token::Colon) {
+                        chunks.text(formatter.chunk(|formatter| {
+                            formatter.write_token(Token::Colon);
+                            formatter.write_space();
+                        }));
+                        formatter.format_expression(value, chunks);
+                    }
+                },
+            );
+        }
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_brace();
+        }));
+
+        group
+    }
+
+    fn format_enum_constructor(&mut self, constructor: EnumConstructorExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
             formatter.format_type(constructor.typ);

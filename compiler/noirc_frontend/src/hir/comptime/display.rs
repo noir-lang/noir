@@ -6,11 +6,11 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
-        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
-        MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        CastExpression, ConstrainStatement, ConstructorExpression, EnumConstructorExpression,
+        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs,
+        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
+        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
+        StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -365,6 +365,22 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
+            Value::Enum(tag, args, typ) => {
+                let args = vecmap(args, |arg| arg.display(self.interner).to_string()).join(", ");
+
+                match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(def, _) => {
+                        let def = def.borrow();
+                        let variant = def.variant_at(*tag);
+                        if variant.is_function {
+                            write!(f, "{}::{}({args})", def.name, variant.name)
+                        } else {
+                            write!(f, "{}::{}", def.name, variant.name)
+                        }
+                    }
+                    other => write!(f, "{other}(args)"),
+                }
+            }
             Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
@@ -560,6 +576,14 @@ fn remove_interned_in_expression_kind(
             ExpressionKind::Constructor(Box::new(ConstructorExpression {
                 fields: vecmap(constructor.fields, |(name, expr)| {
                     (name, remove_interned_in_expression(interner, expr))
+                }),
+                ..*constructor
+            }))
+        }
+        ExpressionKind::EnumConstructor(constructor) => {
+            ExpressionKind::EnumConstructor(Box::new(EnumConstructorExpression {
+                args: vecmap(constructor.args, |expr| {
+                    remove_interned_in_expression(interner, expr)
                 }),
                 ..*constructor
             }))

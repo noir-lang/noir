@@ -1843,7 +1843,11 @@ impl<'context> Elaborator<'context> {
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
                 let name = variant.item.name.clone();
-                datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone()));
+
+                // false here is for the eventual change to allow enum "constants" rather than
+                // always having them be called as functions. This can be replaced with an actual
+                // check once #7172 is implemented.
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone(), false));
 
                 // Define a function for each variant to construct it
                 self.define_enum_variant_function(
