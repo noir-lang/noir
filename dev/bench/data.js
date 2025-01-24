@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737750000125,
+  "lastUpdate": 1737750004370,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16853,6 +16853,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 124.48,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.77,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.89,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.09,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c44b62615f1c8ee657eedd82f2b80e2ec76c9078",
+          "message": "chore: let `add_definition_location` take a Location (#7185)",
+          "timestamp": "2025-01-24T19:57:23Z",
+          "tree_id": "5361a8f3c68767d911a766002dda45a9f79eb3de",
+          "url": "https://github.com/noir-lang/noir/commit/c44b62615f1c8ee657eedd82f2b80e2ec76c9078"
+        },
+        "date": 1737750002951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.01,
             "unit": "MB"
           },
           {
