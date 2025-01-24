@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737735697705,
+  "lastUpdate": 1737735698863,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8545,6 +8545,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.198,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e33895248ccfbfaf728fe12b8c430420b7bf7468",
+          "message": "feat(experimental): Construct enum variants in expressions (#7174)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-01-24T16:02:09Z",
+          "tree_id": "2cdd606b4c8b5ca72f5b14dd2b1c32c447849efa",
+          "url": "https://github.com/noir-lang/noir/commit/e33895248ccfbfaf728fe12b8c430420b7bf7468"
+        },
+        "date": 1737735697891,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.12,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 18.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.926,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.066,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 82.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 84.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.624,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 34.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 13.08,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.04,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.328,
             "unit": "s"
           }
         ]
