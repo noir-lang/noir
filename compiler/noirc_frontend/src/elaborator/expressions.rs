@@ -75,10 +75,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
-                (HirExpression::Error, Type::Error)
-            }
+            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
