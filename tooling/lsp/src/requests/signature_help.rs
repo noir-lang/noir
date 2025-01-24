@@ -240,7 +240,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert",
-            &["predicate: bool", "[failure_message: str<N>]"],
+            &["predicate: bool", "[failure_message: T]"],
         )
     }
 
@@ -251,7 +251,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert_eq",
-            &["lhs: T", "rhs: T", "[failure_message: str<N>]"],
+            &["lhs: T", "rhs: T", "[failure_message: U]"],
         )
     }
 
