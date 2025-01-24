@@ -650,7 +650,12 @@ fn constant_to_radix(
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
-    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
+    let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+    if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
+        // NOTE: expect an error to be thrown later in
+        // acir::generated_acir::radix_le_decompose
+        return SimplifyResult::None;
+    }
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.

@@ -144,7 +144,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Making the assumption that the block ID passed in belongs to this
     /// function.
     fn create_block_label_for_current_function(&self, block_id: BasicBlockId) -> Label {
-        Self::create_block_label(self.function_context.function_id, block_id)
+        Self::create_block_label(self.function_context.function_id(), block_id)
     }
     /// Creates a unique label for a block using the function Id and the block ID.
     ///
@@ -1348,8 +1348,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         result_variable: SingleAddrVariable,
     ) {
         let binary_type = type_of_binary_operation(
-            dfg[binary.lhs].get_type().as_ref(),
-            dfg[binary.rhs].get_type().as_ref(),
+            dfg[dfg.resolve(binary.lhs)].get_type().as_ref(),
+            dfg[dfg.resolve(binary.rhs)].get_type().as_ref(),
             binary.operator,
         );
 

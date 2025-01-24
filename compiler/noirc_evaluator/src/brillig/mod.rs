@@ -34,6 +34,7 @@ pub struct Brillig {
 
     pub call_stacks: CallStackHelper,
     globals: BrilligArtifact<FieldElement>,
+    globals_memory_size: usize,
 }
 
 impl Brillig {
@@ -118,12 +119,17 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
 
-        let (artifact, brillig_globals) = brillig.convert_ssa_globals(
-            enable_debug_trace,
-            &self.globals,
-            &self.used_global_values,
-        );
+        if brillig_reachable_function_ids.is_empty() {
+            return brillig;
+        }
+
+        // Globals are computed once at compile time and shared across all functions,
+        // thus we can just fetch globals from the main function.
+        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+        let (artifact, brillig_globals, globals_size) =
+            brillig.convert_ssa_globals(enable_debug_trace, globals, &self.used_global_values);
         brillig.globals = artifact;
+        brillig.globals_memory_size = globals_size;
 
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];

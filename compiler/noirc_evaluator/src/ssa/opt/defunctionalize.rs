@@ -287,7 +287,8 @@ fn create_apply_function(
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
 
-        // We want to push for apply functions to be inlined more aggressively.
+        // We want to push for apply functions to be inlined more aggressively;
+        // they are expected to be optimized away by constants visible at the call site.
         let runtime = match caller_runtime {
             RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
             RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),

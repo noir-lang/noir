@@ -95,6 +95,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     /// Whether this context can call procedures or not.
     /// This is used to prevent a procedure from calling another procedure.
     can_call_procedures: bool,
+
+    globals_memory_size: Option<usize>,
 }
 
 /// Regular brillig context to codegen user defined functions
@@ -108,6 +110,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: true,
+            globals_memory_size: None,
         }
     }
 }
@@ -211,6 +214,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: false,
+            globals_memory_size: None,
         }
     }
 }
@@ -226,7 +230,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: false,
+            globals_memory_size: None,
         }
+    }
+
+    pub(crate) fn global_space_size(&self) -> usize {
+        // `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
+        (self.registers.max_memory_address() + 1) - GlobalSpace::start()
     }
 }
 
@@ -321,6 +331,7 @@ pub(crate) mod tests {
             returns,
             FunctionId::test_new(0),
             false,
+            0,
         );
         entry_point_artifact.link_with(&artifact);
         while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()

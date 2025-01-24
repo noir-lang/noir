@@ -16,8 +16,8 @@ use crate::hir::Context;
 
 use crate::ast::{Expression, NoirEnumeration};
 use crate::node_interner::{
-    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, StructId, TraitId, TraitImplId,
-    TypeAliasId,
+    FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
+    TypeAliasId, TypeId,
 };
 
 use crate::ast::{
@@ -147,8 +147,8 @@ pub struct DefCollector {
 #[derive(Default)]
 pub struct CollectedItems {
     pub functions: Vec<UnresolvedFunctions>,
-    pub(crate) structs: BTreeMap<StructId, UnresolvedStruct>,
-    pub(crate) enums: BTreeMap<StructId, UnresolvedEnum>,
+    pub(crate) structs: BTreeMap<TypeId, UnresolvedStruct>,
+    pub(crate) enums: BTreeMap<TypeId, UnresolvedEnum>,
     pub(crate) type_aliases: BTreeMap<TypeAliasId, UnresolvedTypeAlias>,
     pub(crate) traits: BTreeMap<TraitId, UnresolvedTrait>,
     pub globals: Vec<UnresolvedGlobal>,
