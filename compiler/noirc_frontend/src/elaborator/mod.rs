@@ -1832,6 +1832,8 @@ impl<'context> Elaborator<'context> {
                 span: typ.enum_def.span,
             };
 
+            datatype.borrow_mut().init_variants();
+
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
                 let name = variant.item.name.clone();

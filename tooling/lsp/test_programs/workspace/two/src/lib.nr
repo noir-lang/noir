@@ -96,3 +96,11 @@ impl TraitWithDocs for Field {
 impl<U> Foo<U> {
     fn mut_self(&mut self) {}
 }
+
+/// Red, blue, etc.
+enum EmptyColor {}
+
+/// Red, blue, etc.
+enum Color {
+    Red,
+}

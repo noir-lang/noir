@@ -1259,4 +1259,37 @@ mod hover_tests {
                 .await;
         assert!(hover_text.contains("fn mut_self(&mut self)"));
     }
+
+    #[test]
+    async fn hover_on_empty_enum_type() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 100, character: 8 })
+                .await;
+        assert!(hover_text.contains(
+            "    two
+    enum EmptyColor {
+    }
+
+---
+
+ Red, blue, etc."
+        ));
+    }
+
+    #[test]
+    async fn hover_on_non_empty_enum_type() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 103, character: 8 })
+                .await;
+        assert!(hover_text.contains(
+            "    two
+    enum Color {
+        Red,
+    }
+
+---
+
+ Red, blue, etc."
+        ));
+    }
 }

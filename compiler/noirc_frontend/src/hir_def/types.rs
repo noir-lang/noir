@@ -448,13 +448,19 @@ impl DataType {
         self.body = TypeBody::Struct(fields);
     }
 
-    pub(crate) fn push_variant(&mut self, variant: EnumVariant) {
+    pub(crate) fn init_variants(&mut self) {
         match &mut self.body {
             TypeBody::None => {
-                self.body = TypeBody::Enum(vec![variant]);
+                self.body = TypeBody::Enum(vec![]);
             }
+            _ => panic!("Called init_variants but body was None"),
+        }
+    }
+
+    pub(crate) fn push_variant(&mut self, variant: EnumVariant) {
+        match &mut self.body {
             TypeBody::Enum(variants) => variants.push(variant),
-            TypeBody::Struct(_) => panic!("Called push_variant on a non-variant type {self}"),
+            _ => panic!("Called push_variant on {self} but body wasn't an enum"),
         }
     }
 
