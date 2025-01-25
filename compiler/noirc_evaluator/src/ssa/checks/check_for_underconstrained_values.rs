@@ -42,7 +42,10 @@ impl Ssa {
 
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
-    pub(crate) fn check_for_missing_brillig_constraints(&mut self) -> Vec<SsaReport> {
+    pub(crate) fn check_for_missing_brillig_constraints(
+        &mut self,
+        enable_lookback: bool,
+    ) -> Vec<SsaReport> {
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
@@ -56,7 +59,10 @@ impl Ssa {
                 let function_to_process = &self.functions[&fid];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => {
-                        let mut context = DependencyContext::default();
+                        let mut context = DependencyContext {
+                            enable_lookback,
+                            ..Default::default()
+                        };
                         context.build(function_to_process, &self.functions);
                         context.collect_warnings(function_to_process)
                     }
@@ -117,6 +123,11 @@ struct DependencyContext {
     // Map of block indices to Brillig call ids that should not be
     // followed after meeting them
     search_limits: HashMap<usize, InstructionId>,
+    // Opt-in to use the lookback feature (tracking the argument values
+    // of a Brillig call before the call happens if their usage precedes
+    // it). Can prevent certain false negatives, at the cost of
+    // slowing down checking large functions considerably
+    enable_lookback: bool,
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
@@ -375,15 +386,17 @@ impl DependencyContext {
                 }
             });
 
-            // Start tracking calls when their argument value ids first appear,
-            // or when their instruction id comes up (in case there were
-            // no non-constant arguments)
-            for argument in &arguments {
-                if let Some(calls) = self.call_arguments.get(argument) {
-                    for call in calls {
-                        if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                            tainted_ids.tracking = true;
-                            self.tracking_count += 1;
+            // If the lookback feature is enabled, start tracking calls when
+            // their argument value ids first appear, or when their
+            // instruction id comes up (in case there were no non-constant arguments)
+            if self.enable_lookback {
+                for argument in &arguments {
+                    if let Some(calls) = self.call_arguments.get(argument) {
+                        for call in calls {
+                            if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                                tainted_ids.tracking = true;
+                                self.tracking_count += 1;
+                            }
                         }
                     }
                 }
@@ -1034,7 +1047,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1065,7 +1078,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1095,7 +1108,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1124,7 +1137,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1179,7 +1192,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1208,7 +1221,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 2);
     }
 
@@ -1240,7 +1253,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1267,7 +1280,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1296,7 +1309,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1367,7 +1380,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1393,7 +1406,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }

@@ -71,6 +71,11 @@ pub struct SsaEvaluatorOptions {
     /// Skip the missing Brillig call constraints check
     pub skip_brillig_constraints_check: bool,
 
+    /// Enable the lookback feature of the Brillig call constraints
+    /// check (potentially discovers more bugs, leads to a slowdown
+    /// on large rollout functions)
+    pub enable_brillig_constraints_check_lookback: bool,
+
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
@@ -116,7 +121,11 @@ pub(crate) fn optimize_into_acir(
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
-            || ssa.check_for_missing_brillig_constraints(),
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.enable_brillig_constraints_check_lookback,
+                )
+            },
         ));
     };
 
