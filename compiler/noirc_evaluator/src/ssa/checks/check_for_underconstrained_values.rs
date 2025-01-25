@@ -59,10 +59,8 @@ impl Ssa {
                 let function_to_process = &self.functions[&fid];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => {
-                        let mut context = DependencyContext {
-                            enable_lookback,
-                            ..Default::default()
-                        };
+                        let mut context =
+                            DependencyContext { enable_lookback, ..Default::default() };
                         context.build(function_to_process, &self.functions);
                         context.collect_warnings(function_to_process)
                     }
@@ -125,7 +123,7 @@ struct DependencyContext {
     search_limits: HashMap<usize, InstructionId>,
     // Opt-in to use the lookback feature (tracking the argument values
     // of a Brillig call before the call happens if their usage precedes
-    // it). Can prevent certain false negatives, at the cost of
+    // it). Can prevent certain false positives, at the cost of
     // slowing down checking large functions considerably
     enable_lookback: bool,
 }

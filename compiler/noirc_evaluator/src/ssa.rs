@@ -72,7 +72,7 @@ pub struct SsaEvaluatorOptions {
     pub skip_brillig_constraints_check: bool,
 
     /// Enable the lookback feature of the Brillig call constraints
-    /// check (potentially discovers more bugs, leads to a slowdown
+    /// check (prevents some rare false positives, leads to a slowdown
     /// on large rollout functions)
     pub enable_brillig_constraints_check_lookback: bool,
 

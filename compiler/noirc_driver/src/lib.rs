@@ -142,8 +142,8 @@ pub struct CompileOptions {
     pub skip_brillig_constraints_check: bool,
 
     /// Flag to turn on the lookback feature of the Brillig call constraints
-    /// check, allowing tracking argument values before the call happens
-    /// preventing certain false negatives (leads to a slowdown on large rollout functions)
+    /// check, allowing tracking argument values before the call happens preventing
+    /// certain rare false positives (leads to a slowdown on large rollout functions)
     #[arg(long)]
     pub enable_brillig_constraints_check_lookback: bool,
 
