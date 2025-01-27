@@ -8,7 +8,7 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression, EnumConstructorExpression,
+        ArrayLiteral, BlockExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IntegerBitSize, LValue, Literal, Path, Pattern,
         Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
@@ -248,18 +248,9 @@ impl Value {
                     struct_type,
                 }))
             }
-            Value::Enum(variant_index, args, typ) => {
-                let enum_type = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(def, _) => def.clone(),
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
-                };
-
-                ExpressionKind::EnumConstructor(Box::new(EnumConstructorExpression {
-                    args: try_vecmap(args, |arg| arg.into_expression(elaborator, location))?,
-                    typ,
-                    enum_type,
-                    variant_index,
-                }))
+            value @ Value::Enum(..) => {
+                let hir = value.into_hir_expression(elaborator.interner, location)?;
+                ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
                 let elements =

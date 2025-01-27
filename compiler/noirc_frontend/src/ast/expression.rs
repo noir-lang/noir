@@ -11,7 +11,7 @@ use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, TypeId,
 };
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
-use crate::{DataType, Kind, Shared, Type};
+use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -27,7 +27,6 @@ pub enum ExpressionKind {
     Call(Box<CallExpression>),
     MethodCall(Box<MethodCallExpression>),
     Constructor(Box<ConstructorExpression>),
-    EnumConstructor(Box<EnumConstructorExpression>),
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
@@ -563,17 +562,6 @@ pub struct ConstructorExpression {
     pub struct_type: Option<TypeId>,
 }
 
-/// These expressions are only inserted by the compiler when converting a comptime
-/// enum into an Expression. In source code, an expression like `Foo::Bar(x)` will
-/// be represented as an ordinary function call.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct EnumConstructorExpression {
-    pub args: Vec<Expression>,
-    pub enum_type: Shared<DataType>,
-    pub variant_index: usize,
-    pub typ: Type,
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MemberAccessExpression {
     pub lhs: Expression,
@@ -626,7 +614,6 @@ impl Display for ExpressionKind {
             If(if_expr) => if_expr.fmt(f),
             Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
-            EnumConstructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -755,20 +742,6 @@ impl Display for ConstructorExpression {
         let fields = vecmap(&self.fields, |(ident, expr)| format!("{ident}: {expr}"));
 
         write!(f, "({} {{ {} }})", self.typ, fields.join(", "))
-    }
-}
-
-impl Display for EnumConstructorExpression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let typ = self.enum_type.borrow();
-        let variant = typ.variant_at(self.variant_index);
-        write!(f, "{}::{}", typ.name, variant.name)?;
-
-        if variant.is_function {
-            let args = vecmap(&self.args, ToString::to_string).join(", ");
-            write!(f, "({args})")?;
-        }
-        Ok(())
     }
 }
 

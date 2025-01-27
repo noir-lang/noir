@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        EnumConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
+        Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal, MemberAccessExpression,
         MethodCallExpression, Path, PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData,
         UnresolvedTypeExpression,
@@ -21,7 +21,7 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirEnumConstructorExpression, HirExpression, HirIdent,
+            HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
@@ -45,9 +45,6 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
-            ExpressionKind::EnumConstructor(constructor) => {
-                self.elaborate_enum_constructor(*constructor)
-            }
             ExpressionKind::MemberAccess(access) => {
                 return self.elaborate_member_access(*access, expr.span)
             }
@@ -763,20 +760,6 @@ impl<'context> Elaborator<'context> {
         }
 
         ret
-    }
-
-    /// These expressions can only be from already-resolved comptime code using enums which was
-    /// lowered back into unresolved code.
-    fn elaborate_enum_constructor(
-        &mut self,
-        constructor: EnumConstructorExpression,
-    ) -> (HirExpression, Type) {
-        let expr = HirExpression::EnumConstructor(HirEnumConstructorExpression {
-            r#type: constructor.enum_type,
-            variant_index: constructor.variant_index,
-            arguments: vecmap(constructor.args, |expr| self.elaborate_expression(expr).0),
-        });
-        (expr, constructor.typ)
     }
 
     fn elaborate_member_access(

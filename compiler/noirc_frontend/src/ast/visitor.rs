@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    EnumConstructorExpression, ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize,
     ItemVisibility, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -203,14 +203,6 @@ pub trait Visitor {
     }
 
     fn visit_constructor_expression(&mut self, _: &ConstructorExpression, _: Span) -> bool {
-        true
-    }
-
-    fn visit_enum_constructor_expression(
-        &mut self,
-        _: &EnumConstructorExpression,
-        _: Span,
-    ) -> bool {
         true
     }
 
@@ -860,9 +852,6 @@ impl Expression {
             ExpressionKind::Constructor(constructor_expression) => {
                 constructor_expression.accept(self.span, visitor);
             }
-            ExpressionKind::EnumConstructor(constructor_expression) => {
-                constructor_expression.accept(self.span, visitor);
-            }
             ExpressionKind::MemberAccess(member_access_expression) => {
                 member_access_expression.accept(self.span, visitor);
             }
@@ -1024,20 +1013,6 @@ impl ConstructorExpression {
         self.typ.accept(visitor);
 
         for (_field_name, expression) in &self.fields {
-            expression.accept(visitor);
-        }
-    }
-}
-
-impl EnumConstructorExpression {
-    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
-        if visitor.visit_enum_constructor_expression(self, span) {
-            self.accept_children(visitor);
-        }
-    }
-
-    pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        for expression in &self.args {
             expression.accept(visitor);
         }
     }

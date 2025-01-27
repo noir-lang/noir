@@ -6,7 +6,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, EnumConstructorExpression,
+        CastExpression, ConstrainStatement, ConstructorExpression,
         Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs,
         IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
@@ -576,14 +576,6 @@ fn remove_interned_in_expression_kind(
             ExpressionKind::Constructor(Box::new(ConstructorExpression {
                 fields: vecmap(constructor.fields, |(name, expr)| {
                     (name, remove_interned_in_expression(interner, expr))
-                }),
-                ..*constructor
-            }))
-        }
-        ExpressionKind::EnumConstructor(constructor) => {
-            ExpressionKind::EnumConstructor(Box::new(EnumConstructorExpression {
-                args: vecmap(constructor.args, |expr| {
-                    remove_interned_in_expression(interner, expr)
                 }),
                 ..*constructor
             }))
