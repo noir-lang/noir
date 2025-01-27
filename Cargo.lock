@@ -3034,6 +3034,7 @@ dependencies = [
  "noir_lsp",
  "noirc_abi",
  "noirc_artifacts",
+ "noirc_artifacts_info",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
@@ -3177,6 +3178,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_inspector"
+version = "1.0.0-beta.1"
+dependencies = [
+ "acir",
+ "clap",
+ "color-eyre",
+ "const_format",
+ "noirc_artifacts",
+ "noirc_artifacts_info",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "noir_lsp"
 version = "1.0.0-beta.1"
 dependencies = [
@@ -3307,6 +3322,21 @@ dependencies = [
  "noirc_printable_type",
  "serde",
  "tempfile",
+]
+
+[[package]]
+name = "noirc_artifacts_info"
+version = "1.0.0-beta.1"
+dependencies = [
+ "acir",
+ "acvm",
+ "clap",
+ "iter-extended",
+ "noirc_artifacts",
+ "prettytable-rs",
+ "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

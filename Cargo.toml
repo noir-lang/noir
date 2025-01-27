@@ -19,10 +19,12 @@ members = [
     "tooling/nargo_cli",
     "tooling/nargo_toml",
     "tooling/noirc_artifacts",
+    "tooling/noirc_artifacts_info",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
     "tooling/acvm_cli",
     "tooling/profiler",
+    "tooling/inspector",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -35,7 +37,12 @@ members = [
     # Utility crates
     "utils/iter-extended",
 ]
-default-members = ["tooling/nargo_cli", "tooling/acvm_cli", "tooling/profiler"]
+default-members = [
+    "tooling/nargo_cli",
+    "tooling/acvm_cli",
+    "tooling/profiler",
+    "tooling/inspector",
+]
 resolver = "2"
 
 [workspace.package]
@@ -83,6 +90,7 @@ noir_lsp = { path = "tooling/lsp" }
 noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
+noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [

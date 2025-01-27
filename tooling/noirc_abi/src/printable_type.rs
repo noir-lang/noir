@@ -74,5 +74,15 @@ pub fn decode_value<F: AcirField>(
             decode_value(field_iterator, typ)
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
+        PrintableType::Enum { name: _, variants } => {
+            let tag = field_iterator.next().unwrap();
+            let tag_value = tag.to_u128() as usize;
+
+            let (_name, variant_types) = &variants[tag_value];
+            PrintableValue::Vec {
+                array_elements: vecmap(variant_types, |typ| decode_value(field_iterator, typ)),
+                is_slice: false,
+            }
+        }
     }
 }
