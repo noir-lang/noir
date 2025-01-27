@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738002149051,
+  "lastUpdate": 1738002368970,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17175,6 +17175,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 210.09,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25",
+          "message": "feat(experimental): Support enums in comptime code (#7194)",
+          "timestamp": "2025-01-27T17:56:37Z",
+          "tree_id": "051660cfc1e47e1bf7febf96047b20ae4174a1c6",
+          "url": "https://github.com/noir-lang/noir/commit/4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25"
+        },
+        "date": 1738002367662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.51,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.12,
             "unit": "MB"
           }
         ]
