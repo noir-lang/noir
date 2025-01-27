@@ -152,7 +152,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
     Ok(builder
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
-        .run_pass(Ssa::purity_analysis, "Purity Analysis")
         .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
         .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
@@ -170,6 +169,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         )?
+        .run_pass(Ssa::purity_analysis, "Purity Analysis")
         .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
@@ -190,6 +190,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Inlining (2nd)",
         )
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
+        .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
