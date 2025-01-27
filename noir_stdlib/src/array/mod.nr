@@ -255,4 +255,12 @@ mod test {
     fn map_empty() {
         assert_eq([].map(|x| x + 1), []);
     }
+
+    #[test]
+    fn concat() {
+        let arr1 = [1, 2, 3, 4];
+        let arr2 = [6, 7, 8, 9, 10, 11];
+        let concatenated_arr = arr1.concat(arr2);
+        assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    }   
 }
