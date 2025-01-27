@@ -489,7 +489,7 @@ impl Instruction {
                     Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
                     Some(Purity::Impure) => false,
                     None => false,
-                }
+                },
                 _ => false,
             },
 
