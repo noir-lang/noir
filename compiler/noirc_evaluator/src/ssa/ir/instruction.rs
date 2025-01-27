@@ -414,6 +414,9 @@ impl Instruction {
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
 
@@ -480,6 +483,12 @@ impl Instruction {
             Call { func, .. } => match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
+                }
+                Value::Function(id) => match function.dfg.purity_of(id) {
+                    Some(Purity::Pure) => true,
+                    Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
+                    Some(Purity::Impure) => false,
+                    None => false,
                 }
                 _ => false,
             },

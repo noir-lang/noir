@@ -59,7 +59,7 @@ impl Ssa {
 
 pub(crate) type FunctionPurities = HashMap<FunctionId, Purity>;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Purity {
     /// Function is completely pure and doesn't rely on a predicate at all.
     /// Pure functions can be freely deduplicated or even removed from the program.
