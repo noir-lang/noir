@@ -157,10 +157,10 @@ impl Function {
                                 Purity::PureWithPredicate => result = Purity::PureWithPredicate,
                                 Purity::Impure => return (Purity::Impure, BTreeSet::new()),
                             },
+                            Value::ForeignFunction(_) => return (Purity::Impure, BTreeSet::new()),
                             // The function we're calling is unknown in the remaining cases,
                             // so just assume the worst.
-                            Value::ForeignFunction(_)
-                            | Value::Global(_)
+                            Value::Global(_)
                             | Value::Instruction { .. }
                             | Value::Param { .. }
                             | Value::NumericConstant { .. } => {
