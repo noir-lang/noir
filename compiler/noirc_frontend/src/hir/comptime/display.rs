@@ -6,11 +6,11 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression,
-        Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs,
-        IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData,
+        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
+        MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
+        UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},

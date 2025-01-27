@@ -1,9 +1,9 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
-        ConstructorExpression, Expression, ExpressionKind, IfExpression,
-        IndexExpression, InfixExpression, Lambda, Literal, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
+        ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
+        InfixExpression, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };

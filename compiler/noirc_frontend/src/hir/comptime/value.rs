@@ -8,9 +8,9 @@ use strum_macros::Display;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IntegerBitSize, LValue, Literal, Path, Pattern,
-        Signedness, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
+        IntegerBitSize, LValue, Literal, Path, Pattern, Signedness, Statement, StatementKind,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},

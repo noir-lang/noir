@@ -6,10 +6,9 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression,
-        IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal, MemberAccessExpression,
-        MethodCallExpression, Path, PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData,
-        UnresolvedTypeExpression,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
+        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -21,9 +20,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent,
-            HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
+            HirPrefixExpression,
         },
         stmt::HirStatement,
         traits::{ResolvedTraitBound, TraitConstraint},
