@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738002146713,
+  "lastUpdate": 1738002149051,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9317,6 +9317,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.148,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25",
+          "message": "feat(experimental): Support enums in comptime code (#7194)",
+          "timestamp": "2025-01-27T17:56:37Z",
+          "tree_id": "051660cfc1e47e1bf7febf96047b20ae4174a1c6",
+          "url": "https://github.com/noir-lang/noir/commit/4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25"
+        },
+        "date": 1738002148094,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.14,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.793,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 18.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.57,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.05,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 93.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 82.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.716,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 33.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 12.98,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.046,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.276,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.218,
             "unit": "s"
           }
         ]
