@@ -57,7 +57,12 @@ impl Display for Function {
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    if let Some(purity) = function.dfg.purity_of(function.id()) {
+        writeln!(f, "{} fn {} {} {purity} {{", function.runtime(), function.name(), function.id())?;
+    } else {
+        writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    }
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, f)?;
     }

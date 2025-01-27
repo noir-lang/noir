@@ -10,7 +10,7 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::flatten_cfg::value_merger::ValueMerger;
+use crate::ssa::opt::{flatten_cfg::value_merger::ValueMerger, pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -156,6 +156,14 @@ impl Intrinsic {
     /// Intrinsics which only have a side effect due to the chance that
     /// they can fail a constraint can be deduplicated.
     pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
+        match self.purity() {
+            Purity::Pure => true,
+            Purity::PureWithPredicate => deduplicate_with_predicate,
+            Purity::Impure => false,
+        }
+    }
+
+    pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
             // if the inputs are the same. If they depend on a side effect variable (e.g. because
@@ -170,19 +178,20 @@ impl Intrinsic {
                 BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::EmbeddedCurveAdd
                 | BlackBoxFunc::RecursiveAggregation,
-            ) => deduplicate_with_predicate,
+            ) => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
             Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                deduplicate_with_predicate
+                Purity::PureWithPredicate
             }
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            | Intrinsic::AsWitness => deduplicate_with_predicate,
+            | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ => !self.has_side_effects(),
+            _ if self.has_side_effects() => Purity::Impure,
+            _ => Purity::Pure,
         }
     }
 
