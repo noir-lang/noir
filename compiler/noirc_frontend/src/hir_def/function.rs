@@ -132,14 +132,17 @@ pub struct FuncMeta {
 
     pub trait_constraints: Vec<TraitConstraint>,
 
-    /// The struct this function belongs to, if any
-    pub struct_id: Option<TypeId>,
+    /// The type this method belongs to, if any
+    pub type_id: Option<TypeId>,
 
     // The trait this function belongs to, if any
     pub trait_id: Option<TraitId>,
 
     /// The trait impl this function belongs to, if any
     pub trait_impl: Option<TraitImplId>,
+
+    /// If this function is the one related to an enum variant, this holds its index (relative to `type_id`)
+    pub enum_variant_index: Option<usize>,
 
     /// True if this function is an entry point to the program.
     /// For non-contracts, this means the function is `main`.

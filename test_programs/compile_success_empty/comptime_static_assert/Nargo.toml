@@ -1,0 +1,6 @@
+[package]
+name = "comptime_static_assert"
+type = "bin"
+authors = [""]
+
+[dependencies]

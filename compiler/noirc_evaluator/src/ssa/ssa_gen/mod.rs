@@ -48,9 +48,10 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
 
     let return_location = program.return_location;
-    let context = SharedContext::new(program);
+    let mut context = SharedContext::new(program);
 
-    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+    let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
+    let globals = GlobalsGraph::from_dfg(globals_dfg);
 
     let main_id = Program::main_id();
     let main = context.program.main();
@@ -124,9 +125,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    let mut ssa = function_context.builder.finish();
-    ssa.globals = context.globals_context;
-    Ok(ssa)
+    Ok(function_context.builder.finish())
 }
 
 impl<'a> FunctionContext<'a> {

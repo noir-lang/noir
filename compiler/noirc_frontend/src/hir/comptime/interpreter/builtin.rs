@@ -66,7 +66,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
             "array_refcount" => Ok(Value::U32(0)),
-            "assert_constant" => Ok(Value::Bool(true)),
+            "assert_constant" => Ok(Value::Unit),
             "as_slice" => as_slice(interner, arguments, location),
             "ctstring_eq" => ctstring_eq(arguments, location),
             "ctstring_hash" => ctstring_hash(arguments, location),
@@ -175,6 +175,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "slice_push_front" => slice_push_front(interner, arguments, location),
             "slice_refcount" => Ok(Value::U32(0)),
             "slice_remove" => slice_remove(interner, arguments, location, call_stack),
+            "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
             "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
@@ -327,6 +328,28 @@ fn slice_push_back(
     Ok(Value::Slice(values, typ))
 }
 
+// static_assert<let N: u32>(predicate: bool, message: str<N>)
+fn static_assert(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    call_stack: &im::Vector<Location>,
+) -> IResult<Value> {
+    let (predicate, message) = check_two_arguments(arguments, location)?;
+    let predicate = get_bool(predicate)?;
+    let message = get_str(interner, message)?;
+
+    if predicate {
+        Ok(Value::Unit)
+    } else {
+        failing_constraint(
+            format!("static_assert failed: {}", message).clone(),
+            location,
+            call_stack,
+        )
+    }
+}
+
 fn str_as_bytes(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -370,7 +393,7 @@ fn struct_def_add_attribute(
     };
 
     let struct_id = get_struct(self_argument)?;
-    interner.update_struct_attributes(struct_id, |attributes| {
+    interner.update_type_attributes(struct_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -512,7 +535,7 @@ fn struct_def_has_named_attribute(
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&struct_id))))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
@@ -546,9 +569,11 @@ fn struct_def_fields(
 
     let mut fields = im::Vector::new();
 
-    for (field_name, field_type) in struct_def.get_fields(&generic_args) {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
-        fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+    if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
+        for (field_name, field_type) in struct_fields {
+            let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+            fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+        }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
@@ -574,10 +599,12 @@ fn struct_def_fields_as_written(
 
     let mut fields = im::Vector::new();
 
-    for field in struct_def.get_fields_as_written() {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
-        let typ = Value::Type(field.typ);
-        fields.push_back(Value::Tuple(vec![name, typ]));
+    if let Some(struct_fields) = struct_def.get_fields_as_written() {
+        for field in struct_fields {
+            let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+            let typ = Value::Type(field.typ);
+            fields.push_back(Value::Tuple(vec![name, typ]));
+        }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
@@ -1433,7 +1460,8 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
         Type::DataType(struct_type, generics) => {
-            let fields = struct_type.borrow().get_fields(&generics);
+            // TODO: Handle enums
+            let fields = struct_type.borrow().get_fields(&generics).unwrap();
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {

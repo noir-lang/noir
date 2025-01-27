@@ -4076,6 +4076,28 @@ fn regression_7088() {
 }
 
 #[test]
+fn error_with_duplicate_enum_variant() {
+    let src = r#"
+    enum Foo {
+        Bar(i32),
+        Bar(u8),
+    }
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 2);
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate { .. })
+    ));
+    assert!(matches!(
+        &errors[1].0,
+        CompilationError::ResolverError(ResolverError::UnusedItem { .. })
+    ));
+}
+
+#[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {

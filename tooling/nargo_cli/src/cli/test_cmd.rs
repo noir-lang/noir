@@ -26,7 +26,7 @@ use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
 use super::{NargoConfig, PackageOptions};
 
-mod formatters;
+pub(crate) mod formatters;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
