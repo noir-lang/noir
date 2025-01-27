@@ -129,7 +129,6 @@ impl Elaborator<'_> {
         let enum_generics = self_type.borrow().generic_types();
         let construct_variant = HirExpression::EnumConstructor(HirEnumConstructorExpression {
             r#type: self_type.clone(),
-            enum_generics: enum_generics.clone(),
             arguments,
             variant_index,
         });
