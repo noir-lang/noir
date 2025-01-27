@@ -110,7 +110,7 @@ pub(crate) struct DataFlowGraph {
     pub(crate) globals: Arc<GlobalsGraph>,
 
     #[serde(skip)]
-    function_purities: Arc<FunctionPurities>,
+    pub(crate) function_purities: Arc<FunctionPurities>,
 }
 
 /// The GlobalsGraph contains the actual global data.

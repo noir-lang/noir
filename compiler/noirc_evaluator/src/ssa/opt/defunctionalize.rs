@@ -282,10 +282,12 @@ fn create_apply_function(
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
-    let globals = ssa.functions[&function_ids[0]].dfg.globals.clone();
+    let globals = ssa.main().dfg.globals.clone();
+    let purities = ssa.main().dfg.function_purities.clone();
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
+        function_builder.set_purities(purities);
 
         // We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.

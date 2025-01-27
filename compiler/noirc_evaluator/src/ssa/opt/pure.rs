@@ -1,7 +1,4 @@
-use std::cell::Cell;
-use std::cell::RefCell;
 use std::collections::BTreeSet;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use fxhash::FxHashMap as HashMap;
@@ -47,6 +44,9 @@ impl Ssa {
         // impure.
         let purities = analyze_call_graph(called_functions, purities, self.main_id);
         let purities = Arc::new(purities);
+        for (f, p) in purities.iter() {
+            eprintln!("{f}: {p}");
+        }
 
         // We're done, now store purities somewhere every dfg can find it.
         for function in self.functions.values_mut() {
@@ -96,7 +96,7 @@ impl std::fmt::Display for Purity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Purity::Pure => write!(f, "pure"),
-            Purity::PureWithPredicate => write!(f, "(pure with predicate)"),
+            Purity::PureWithPredicate => write!(f, "predicate_pure"),
             Purity::Impure => write!(f, "impure"),
         }
     }
