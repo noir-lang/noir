@@ -84,7 +84,7 @@ mod tests {
 
         // After Array Set Optimizations:
         let expected = "
-          acir(inline) fn main f0 {
+          acir(inline) impure fn main f0 {
             b0(v0: u32):
               constrain u32 50 == v0
               v4 = call black_box(u32 10) -> u32

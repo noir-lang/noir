@@ -44,9 +44,6 @@ impl Ssa {
         // impure.
         let purities = analyze_call_graph(called_functions, purities, self.main_id);
         let purities = Arc::new(purities);
-        for (f, p) in purities.iter() {
-            eprintln!("{f}: {p}");
-        }
 
         // We're done, now store purities somewhere every dfg can find it.
         for function in self.functions.values_mut() {
@@ -230,7 +227,12 @@ fn analyze_call_graph(
                 // We could handle these but would need a different, much slower algorithm
                 // to detect strongly connected components. Instead, since this should be
                 // a rare case, we bail and assume impure for now.
-                Purity::Impure
+                if neighbor == id {
+                    // If the recursive call is to the same function we can ignore it
+                    purity
+                } else {
+                    Purity::Impure
+                }
             });
             purity = purity.unify(neighbor_purity);
         }
@@ -266,4 +268,93 @@ fn build_call_graph(
     }
 
     (graph, ids_to_indices, indices_to_ids)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa};
+
+    #[test]
+    fn classify_functions() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                call f1(v0)
+                v1 = call f2() -> &mut Field
+                call f3(Field 0)
+                call f4()
+                call f5()
+                call f6()
+                v2 = call f7(u32 2) -> u32
+                return
+            }
+
+            acir(inline) fn impure_take_ref f1 {
+              b0(v0: &mut Field):
+                return
+            }
+
+            acir(inline) fn impure_returns_ref f2 {
+              b0():
+                v0 = allocate -> &mut Field
+                return v0
+            }
+
+            acir(inline) fn predicate_constrain f3 {
+              b0(v0: Field):
+                constrain v0 == Field 0
+                return
+            }
+
+            acir(inline) fn predicate_calls_predicate f4 {
+              b0():
+                call f3(Field 0)
+                return
+            }
+
+            acir(inline) fn predicate_oob f5 {
+              b0():
+                v0 = make_array [Field 0, Field 1] : [Field; 2]
+                v1 = array_get v0, index u32 2 -> Field
+                return
+            }
+
+            acir(inline) fn pure_basic f6 {
+              b0():
+                v0 = make_array [Field 0, Field 1] : [Field; 2]
+                v1 = array_get v0, index u32 1 -> Field
+                v2 = allocate -> &mut Field
+                store Field 0 at v2
+                return
+            }
+
+            acir(inline) fn pure_recursive f7 {
+              b0(v0: u32):
+                v1 = lt v0, u32 1
+                jmpif v1 then: b1, else: b2
+              b1():
+                jmp b3(Field 0)
+              b2():
+                v3 = call f7(v0) -> u32
+                call f6()
+                jmp b3(v3)
+              b3(v4: u32):
+                return v4
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(4)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(6)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(7)], Purity::Pure);
+    }
 }
