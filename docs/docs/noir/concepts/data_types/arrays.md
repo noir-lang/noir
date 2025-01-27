@@ -272,6 +272,24 @@ fn main() {
 }
 ```
 
+### concat3
+
+Concatenates this array with another array.
+
+```rust
+fn concat3<let M: u32, let L: u32>(self, array2: [T; M], array3: [T; L]) -> [T; N + M + L]
+```
+
+```rust
+fn main() {
+    let arr1 = [1, 2, 3];
+    let arr2 = [4, 5, 6];
+    let arr3 = [7, 8, 9];
+    let concatenated_arr = arr1.concat3(arr2, arr3);
+    assert(concatenated_arr == [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+}
+```
+
 ### as_str_unchecked
 
 Converts a byte array of type `[u8; N]` to a string. Note that this performs no UTF-8 validation -

@@ -159,6 +159,38 @@ impl<T, let N: u32> [T; N] {
         }
         result
     }
+
+    /// Concatenates this array with two other arrays.
+    ///
+    /// For unconstrained functions, this is more efficient than calling
+    /// `arr1.concat(arr2.concat(arr3))`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// fn main() {
+    ///     let arr1 = [1, 2, 3];
+    ///     let arr2 = [4, 5, 6];
+    ///     let arr3 = [7, 8, 9];
+    ///     let concatenated_arr = arr1.concat3(arr2, arr3);
+    ///     assert(concatenated_arr == [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    /// }
+    /// ```
+    pub fn concat3<let M: u32, let L: u32>(self, array2: [T; M], array3: [T; L]) -> [T; N + M + L] {
+        let mut result = [self[0]; N + M + L];
+        for i in 1..N {
+            result[i] = self[i];
+        }
+        let mut offset = N;
+        for i in 0..M {
+            result[offset + i] = array2[i];
+        }
+        offset += M;
+        for i in 0..L {
+            result[offset + i] = array3[i];
+        }
+        result
+    }
 }
 
 impl<T, let N: u32> [T; N]
@@ -262,5 +294,14 @@ mod test {
         let arr2 = [6, 7, 8, 9, 10, 11];
         let concatenated_arr = arr1.concat(arr2);
         assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
-    }   
+    }
+
+    #[test]
+    fn concat3() {
+        let arr1 = [1, 2, 3];
+        let arr2 = [4, 5, 6];
+        let arr3 = [7, 8, 9];
+        let concatenated_arr = arr1.concat3(arr2, arr3);
+        assert(concatenated_arr == [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    }
 }
