@@ -4,7 +4,7 @@ pub(crate) mod brillig_block_variables;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
 pub(crate) mod brillig_slice_ops;
-mod constant_allocation;
+pub(crate) mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
@@ -20,7 +20,7 @@ use super::{
 };
 use crate::{
     errors::InternalError,
-    ssa::ir::{call_stack::CallStack, function::Function},
+    ssa::ir::{call_stack::CallStack, function::Function, types::NumericType},
 };
 
 /// Converting an SSA function into Brillig bytecode.
@@ -28,6 +28,7 @@ pub(crate) fn convert_ssa_function(
     func: &Function,
     enable_debug_trace: bool,
     globals: &HashMap<ValueId, BrilligVariable>,
+    hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
 ) -> BrilligArtifact<FieldElement> {
     let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
@@ -44,6 +45,7 @@ pub(crate) fn convert_ssa_function(
             block,
             &func.dfg,
             globals,
+            hoisted_global_constants,
         );
     }
 

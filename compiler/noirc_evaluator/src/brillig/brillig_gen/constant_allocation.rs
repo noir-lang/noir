@@ -24,7 +24,7 @@ pub(crate) enum InstructionLocation {
 
 #[derive(Default)]
 pub(crate) struct ConstantAllocation {
-    constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
+    pub(crate) constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
     dominator_tree: DominatorTree,
     blocks_within_loops: HashSet<BasicBlockId>,

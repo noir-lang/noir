@@ -27,7 +27,7 @@ use num_bigint::BigUint;
 use std::sync::Arc;
 
 use super::brillig_black_box::convert_black_box_call;
-use super::brillig_block_variables::BlockVariables;
+use super::brillig_block_variables::{allocate_value_with_type, BlockVariables};
 use super::brillig_fn::FunctionContext;
 use super::constant_allocation::InstructionLocation;
 
@@ -44,6 +44,8 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 
     pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
+    pub(crate) hoisted_global_constants:
+        &'block HashMap<(FieldElement, NumericType), BrilligVariable>,
 
     pub(crate) building_globals: bool,
 }
@@ -56,11 +58,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
         globals: &'block HashMap<ValueId, BrilligVariable>,
+        hoisted_global_constants: &'block HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
+            // TODO: Move this check into a helper function
+            if let Value::NumericConstant { constant, typ } = dfg[*value] {
+                if hoisted_global_constants.get(&(constant, typ)).is_some() {
+                    continue;
+                }
+            }
             if !dfg.is_global(*value) {
                 live_in_no_globals.insert(*value);
             }
@@ -84,6 +93,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             variables,
             last_uses,
             globals,
+            hoisted_global_constants,
             building_globals: false,
         };
 
@@ -94,7 +104,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         &mut self,
         globals: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
-    ) {
+        hoisted_global_consts: &HashSet<(FieldElement, NumericType)>,
+    ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -113,6 +124,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 }
             }
         }
+
+        let mut hoisted_global_constants = HashMap::default();
+        for (constant, typ) in hoisted_global_consts {
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(*typ));
+
+            self.brillig_context.const_instruction(new_variable.extract_single_addr(), *constant);
+
+            if hoisted_global_constants.insert((*constant, *typ), new_variable).is_some() {
+                unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
+            }
+        }
+        hoisted_global_constants
     }
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
@@ -903,6 +926,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 .expect("Last uses for instruction should have been computed");
 
             for dead_variable in dead_variables {
+                if let Value::NumericConstant { constant, typ } = &dfg[*dead_variable] {
+                    if self.hoisted_global_constants.get(&(*constant, *typ)).is_some() {
+                        continue;
+                    }
+                }
                 // Globals are reserved throughout the entirety of the program
                 if !dfg.is_global(*dead_variable) {
                     self.variables.remove_variable(
@@ -1609,6 +1637,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
         for &constant_id in constants {
+            // if let Value::NumericConstant { constant, typ } = dfg[constant_id] {
+            //     if let Some(variable) = self.hoisted_global_constants.get(&(constant, typ)) {
+            //         if self.function_context.ssa_value_allocations.insert(constant_id, *variable).is_some() {
+            //             unreachable!("ICE: ValueId {constant:?} was already in cache");
+            //         }
+            //         self.variables.available_variables.insert(constant_id);
+            //     }
+            // }
             self.convert_ssa_value(constant_id, dfg);
         }
     }
@@ -1621,6 +1657,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ) -> BrilligVariable {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
+
+        if !self.building_globals {
+            if let Value::NumericConstant { constant, typ } = value {
+                if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
+                    // if self.function_context.ssa_value_allocations.insert(value_id, *variable).is_some() {
+                    //     unreachable!("ICE: ValueId {constant:?} was already in cache");
+                    // }
+                    // self.variables.available_variables.insert(value_id);
+                    return *variable;
+                }
+                // else {
+                //     panic!("ICE: should have variable already allocated");
+                // }
+            }
+        }
 
         match value {
             Value::Global(_) => {

@@ -82,8 +82,12 @@ impl Ssa {
                         let globals = (*function.dfg.globals).clone();
                         // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
                         let used_globals = &globals.values_iter().map(|(id, _)| id).collect();
-                        let (_, brillig_globals, _) =
-                            convert_ssa_globals(false, globals, used_globals);
+                        let (_, brillig_globals, _, _) = convert_ssa_globals(
+                            false,
+                            globals,
+                            used_globals,
+                            &fxhash::FxHashSet::default(),
+                        );
                         global_cache = Some(brillig_globals);
                     }
                     let brillig_globals = global_cache.as_ref().unwrap();
@@ -1037,7 +1041,7 @@ fn brillig_bytecode_size(
     // This is to try to prevent hitting ICE.
     temp.dead_instruction_elimination(false, true);
 
-    convert_ssa_function(&temp, false, globals).byte_code.len()
+    convert_ssa_function(&temp, false, globals, &HashMap::default()).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.

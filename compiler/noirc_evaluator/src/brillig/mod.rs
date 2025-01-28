@@ -2,7 +2,7 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_gen::brillig_globals::convert_ssa_globals;
+use brillig_gen::{brillig_globals::convert_ssa_globals, constant_allocation::ConstantAllocation};
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 
 use self::{
@@ -16,11 +16,12 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        types::NumericType,
         value::ValueId,
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -42,8 +43,9 @@ impl Brillig {
         func: &Function,
         enable_debug_trace: bool,
         globals: &HashMap<ValueId, BrilligVariable>,
+        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) {
-        let obj = convert_ssa_function(func, enable_debug_trace, globals);
+        let obj = convert_ssa_function(func, enable_debug_trace, globals, hoisted_global_constants);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -89,17 +91,37 @@ impl Ssa {
             return brillig;
         }
 
+        // We can potentially have multiple local constants with the same value and type
+        let mut hoisted_global_consts: HashSet<(FieldElement, NumericType)> = HashSet::default();
+        for brillig_function_id in brillig_reachable_function_ids.iter() {
+            let function = &self.functions[brillig_function_id];
+            let constants = ConstantAllocation::from_function(function);
+            for (constant, _) in constants.constant_usage {
+                let value = function.dfg.get_numeric_constant(constant);
+                let value = value.unwrap();
+                let typ = function.dfg.type_of_value(constant);
+                if !function.dfg.is_global(constant) {
+                    hoisted_global_consts.insert((value, typ.unwrap_numeric()));
+                }
+            }
+        }
+
         // Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
-        let (artifact, brillig_globals, globals_size) =
-            convert_ssa_globals(enable_debug_trace, globals, &self.used_global_values);
+        let (artifact, brillig_globals, globals_size, hoisted_global_constants) =
+            convert_ssa_globals(
+                enable_debug_trace,
+                globals,
+                &self.used_global_values,
+                &hoisted_global_consts,
+            );
         brillig.globals = artifact;
         brillig.globals_memory_size = globals_size;
 
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, enable_debug_trace, &brillig_globals);
+            brillig.compile(func, enable_debug_trace, &brillig_globals, &hoisted_global_constants);
         }
 
         brillig
