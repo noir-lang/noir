@@ -208,7 +208,7 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug)]
 pub(super) struct InlineInfo {
     is_brillig_entry_point: bool,
     is_acir_entry_point: bool,

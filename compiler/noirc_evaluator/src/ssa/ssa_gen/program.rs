@@ -20,7 +20,6 @@ use super::ValueId;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
-    // pub(crate) used_global_values: HashSet<ValueId>,
     pub(crate) used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
@@ -60,7 +59,6 @@ impl Ssa {
             error_selector_to_type: error_types,
             // This field is set only after running DIE and is utilized
             // for optimizing implementation of globals post-SSA.
-            // used_global_values: HashSet::default(),
             used_globals: HashMap::default(),
         }
     }

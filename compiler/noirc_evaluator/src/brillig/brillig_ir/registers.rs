@@ -153,16 +153,13 @@ impl RegisterAllocator for ScratchSpace {
 #[derive(Default)]
 pub(crate) struct GlobalSpace {
     storage: DeallocationListAllocator,
-    // start_address: usize,
     max_memory_address: usize,
 }
 
 impl GlobalSpace {
     pub(crate) fn new() -> Self {
-        // let start_address = start_memory_address;
         Self {
             storage: DeallocationListAllocator::new(Self::start()),
-            // start_address,
             max_memory_address: Self::start(),
         }
     }
