@@ -224,10 +224,6 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     pub(crate) fn new_for_global_init(
         enable_debug_trace: bool,
         entry_point: FunctionId,
-        // start_memory_address: usize,
-        // Global registers are declared externally as to be shared across
-        // multiple Brillig contexts
-        // registers: GlobalSpace,
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
