@@ -15,7 +15,11 @@ use crate::brillig::{
 /// it stores globals related data required for code generation of regular Brillig functions.
 #[derive(Default)]
 pub(crate) struct BrilligGlobals {
-    /// Maps a Brillig function to the globals used in that function,
+    /// Both `used_globals` and `brillig_entry_points` need to be built
+    /// from a function call graph.
+    /// 
+    /// Maps a Brillig function to the globals used in that function.
+    /// This includes all globals used in functions called internally.
     used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     /// Maps a Brillig entry point to all functions called in that entry point.
     /// This includes any nested calls as well, as we want to be able to associate
