@@ -404,7 +404,7 @@ impl<'brillig> Context<'brillig> {
         instruction.map_values_mut(|value_id| {
             resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
         });
-        instruction
+        instruction.map_values(|v| dfg.resolve(v))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -764,6 +764,7 @@ impl ResultCache {
     }
 }
 
+#[derive(Debug)]
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId),
@@ -1633,6 +1634,41 @@ mod test {
         }
         ";
         let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn pure_call_is_deduplicated() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            constrain v1 == Field 0
+            constrain v2 == Field 0
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+
+        let expected = "
+        acir(inline) pure fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            constrain v1 == Field 0
+            return
+        }
+        acir(inline) pure fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis().fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, expected);
     }
 }

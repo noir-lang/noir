@@ -4,7 +4,7 @@ use std::sync::Arc;
 use fxhash::FxHashMap as HashMap;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
-use petgraph::visit::Dfs;
+use petgraph::visit::DfsPostOrder;
 
 use crate::ssa::{
     ir::{
@@ -208,7 +208,7 @@ fn analyze_call_graph(
     // Now we can analyze it: a function is only as pure as all of
     // its called functions
     let main_index = ids_to_indices[&main];
-    let mut dfs = Dfs::new(&graph, main_index);
+    let mut dfs = DfsPostOrder::new(&graph, main_index);
 
     // The `starting_purities` are the preliminary results from `is_pure`
     // that don't take into account function calls. These finished purities do.
