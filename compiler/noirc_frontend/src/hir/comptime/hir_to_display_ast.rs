@@ -5,8 +5,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -212,6 +212,19 @@ impl HirExpression {
 
             // A macro was evaluated here: return the quoted result
             HirExpression::Unquote(block) => ExpressionKind::Quote(block.clone()),
+
+            // Convert this back into a function call `Enum::Foo(args)`
+            HirExpression::EnumConstructor(constructor) => {
+                let typ = constructor.r#type.borrow();
+                let variant = &typ.variant_at(constructor.variant_index);
+                let segment1 = PathSegment { ident: typ.name.clone(), span, generics: None };
+                let segment2 = PathSegment { ident: variant.name.clone(), span, generics: None };
+                let path = Path { segments: vec![segment1, segment2], kind: PathKind::Plain, span };
+                let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
+                let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
+                let call = CallExpression { func, arguments, is_macro_call: false };
+                ExpressionKind::Call(Box::new(call))
+            }
         };
 
         Expression::new(kind, span)
