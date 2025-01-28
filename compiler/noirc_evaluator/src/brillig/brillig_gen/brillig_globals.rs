@@ -17,10 +17,16 @@ use crate::brillig::{
 pub(crate) struct BrilligGlobals {
     /// Maps a Brillig function to the globals used in that function,
     used_globals: HashMap<FunctionId, HashSet<ValueId>>,
+    /// Maps a Brillig entry point to all functions called in that entry point.
+    /// This includes any nested calls as well, as we want to be able to associate
+    /// any Brillig function with the appropriate global allocations.
     brillig_entry_points: HashMap<FunctionId, HashSet<FunctionId>>,
 
-    /// Maps an inner call to its Brillig entry point,
+    /// Maps an inner call to its Brillig entry point
+    /// This is simply used to simplify fetching global allocations when compiling
+    /// individual Brillig functions.
     inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>>,
+    /// Final map that associated an entry point with its Brillig global allocations
     entry_point_globals_map: HashMap<FunctionId, SsaToBrilligGlobals>,
 }
 
@@ -51,6 +57,9 @@ impl BrilligGlobals {
                             continue;
                         }
 
+                        // We have now found a Brillig entry point.
+                        // Let's recursively build a call graph to determine any functions
+                        // whose parent is this entry point and any globals used in those internal calls.
                         brillig_entry_points.insert(*func_id, HashSet::default());
                         Self::mark_entry_points_calls_recursive(
                             functions,
@@ -65,6 +74,8 @@ impl BrilligGlobals {
             }
         }
 
+        // If main has been marked as Brillig, it is itself an entry point.
+        // Run the same analysis from above on main.
         let main_func = &functions[&main_id];
         if main_func.runtime().is_brillig() {
             brillig_entry_points.insert(main_id, HashSet::default());
@@ -81,6 +92,10 @@ impl BrilligGlobals {
         Self { used_globals, brillig_entry_points, ..Default::default() }
     }
 
+    /// Recursively mark any functions called in an entry point as well as
+    /// any globals used in those functions.
+    /// Using the information collected we can determine which globals
+    /// an entry point must initialize.
     fn mark_entry_points_calls_recursive(
         functions: &BTreeMap<FunctionId, Function>,
         entry_point: FunctionId,
@@ -143,14 +158,9 @@ impl BrilligGlobals {
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
-            dbg!(globals_size);
-
             brillig.globals.insert(entry_point, artifact);
             brillig.globals_memory_size.insert(entry_point, globals_size);
         }
-
-        dbg!(inner_call_to_entry_point.clone());
-        dbg!(entry_point_globals_map.clone());
 
         self.inner_call_to_entry_point = inner_call_to_entry_point;
         self.entry_point_globals_map = entry_point_globals_map;
@@ -163,11 +173,15 @@ impl BrilligGlobals {
         let entry_points = self.inner_call_to_entry_point.get(&brillig_function_id);
 
         if let Some(entry_points) = entry_points {
+            // A Brillig function is used by multiple entry points. Fetch both globals allocations
+            // in case one is used by the internal call.
             entry_points
                 .iter()
                 .flat_map(|entry_point| self.entry_point_globals_map.get(entry_point))
                 .collect()
         } else if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
+            // If there is no mapping from an inner call to an entry point, that means `brillig_function_id`
+            // is itself an entry point and we can fetch the global allocations directly from `self.entry_point_globals_map`.
             vec![globals]
         } else {
             unreachable!(
