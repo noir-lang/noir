@@ -395,7 +395,7 @@ mod tests {
         for (func_id, mut artifact) in brillig.globals {
             let labels = artifact.take_labels();
             // When entering a context two labels are created.
-            // One is a context label and another is a section albel.
+            // One is a context label and another is a section label.
             assert_eq!(labels.len(), 2);
             for (label, position) in labels {
                 assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
