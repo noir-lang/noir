@@ -301,6 +301,4 @@ If you want to continue learning by doing, here are some challenges for you:
 - Change the circuit to accept a [public input](../noir/concepts/data_types/#private--public-types) as the cutoff age. It could be different depending on the purpose, for example!
 - Enjoy Noir's Rust-like syntax and write a struct `Country` that implements a trait `MinAge` with a method `get_min_age`. Then, make a struct `Person` have an `u8` as its age and a country of type `Country`. You can pass a `person` in JS just like a JSON object `person: { age, country: { min_age: 18 }}`
 
-The world is your stage, just have fun with ZK! You can see how noirjs is used in a full stack Next.js hardhat application in the [noir-starter repo here](https://github.com/noir-lang/noir-starter/tree/main/vite-hardhat). The example shows how to calculate a proof in the browser and verify it with a deployed Solidity verifier contract from noirjs.
-
-Check out other starters, tools, or just cool projects in the [awesome noir repository](https://github.com/noir-lang/awesome-noir).
+The world is your stage, just have fun with ZK! You can see how noirjs is used in some common frameworks in the [awesome-noir repo]([https://github.com/noir-lang/awesome](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#boilerplates)).
