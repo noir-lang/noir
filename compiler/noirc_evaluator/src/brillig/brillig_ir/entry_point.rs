@@ -27,6 +27,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(false);
 
+        // dbg!(globals_memory_size);
         context.globals_memory_size = Some(globals_memory_size);
 
         context.codegen_entry_point(&arguments, &return_parameters);

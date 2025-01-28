@@ -58,10 +58,8 @@ pub(crate) fn gen_brillig_for(
     brillig: &Brillig,
 ) -> Result<GeneratedBrillig<FieldElement>, InternalError> {
     // Create the entry point artifact
-    let globals_memory_size = *brillig
-        .globals_memory_size
-        .get(&func.id())
-        .expect("ICE: Should have entry point memory size set");
+    let globals_memory_size = brillig.globals_memory_size.get(&func.id()).copied().unwrap_or(0);
+    // let globals_memory_size = brillig.globals_memory_size.get(&func.id()).copied().expect("ICE: Should have entry point memory size set");
     let mut entry_point = BrilligContext::new_entry_point_artifact(
         arguments,
         FunctionContext::return_values(func),

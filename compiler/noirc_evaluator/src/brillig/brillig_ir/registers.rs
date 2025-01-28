@@ -150,15 +150,19 @@ impl RegisterAllocator for ScratchSpace {
 /// Globals have a separate memory space
 /// This memory space is initialized once at the beginning of a program
 /// and is read-only.
+#[derive(Default)]
 pub(crate) struct GlobalSpace {
     storage: DeallocationListAllocator,
+    // start_address: usize,
     max_memory_address: usize,
 }
 
 impl GlobalSpace {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
+        // let start_address = start_memory_address;
         Self {
             storage: DeallocationListAllocator::new(Self::start()),
+            // start_address,
             max_memory_address: Self::start(),
         }
     }
@@ -224,6 +228,7 @@ impl RegisterAllocator for GlobalSpace {
     }
 }
 
+#[derive(Default)]
 struct DeallocationListAllocator {
     /// A free-list of registers that have been deallocated and can be used again.
     deallocated_registers: BTreeSet<usize>,

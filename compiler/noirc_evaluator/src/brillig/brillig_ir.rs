@@ -224,6 +224,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     pub(crate) fn new_for_global_init(
         enable_debug_trace: bool,
         entry_point: FunctionId,
+        // start_memory_address: usize,
+        // Global registers are declared externally as to be shared across
+        // multiple Brillig contexts
+        // registers: GlobalSpace,
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
@@ -239,6 +243,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
 
     pub(crate) fn global_space_size(&self) -> usize {
         // `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
+        dbg!(self.registers.max_memory_address());
+        dbg!(GlobalSpace::start());
         (self.registers.max_memory_address() + 1) - GlobalSpace::start()
     }
 }

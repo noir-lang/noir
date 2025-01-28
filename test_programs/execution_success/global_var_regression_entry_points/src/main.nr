@@ -26,6 +26,8 @@ unconstrained fn check_acc_entry_point(x: Field, y: Field) {
     }
     assert(acc != 0);
     assert(x != y);
+
+    assert(inner(x + 1) == 2);
 }
 
 fn inner(x: Field) -> Field {
