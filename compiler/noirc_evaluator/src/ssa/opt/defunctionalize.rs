@@ -284,12 +284,24 @@ fn create_apply_functions(
     variants_map: BTreeMap<(Signature, RuntimeType), Vec<FunctionId>>,
 ) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
-    for ((signature, runtime), variants) in variants_map.into_iter() {
+    for ((mut signature, runtime), variants) in variants_map.into_iter() {
         assert!(
             !variants.is_empty(),
             "ICE: at least one variant should exist for a dynamic call {signature:?}"
         );
         let dispatches_to_multiple_functions = variants.len() > 1;
+
+        for param in &mut signature.params {
+            if *param == Type::Function {
+                *param = Type::field();
+            }
+        }
+
+        for ret in &mut signature.returns {
+            if *ret == Type::Function {
+                *ret = Type::field();
+            }
+        }
 
         let id = if dispatches_to_multiple_functions {
             create_apply_function(ssa, signature.clone(), runtime, variants)

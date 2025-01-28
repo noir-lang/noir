@@ -94,7 +94,6 @@ impl Binary {
 
         let lhs_value = dfg.get_numeric_constant(lhs);
         let rhs_value = dfg.get_numeric_constant(rhs);
-        eprintln!("{lhs} = {lhs_value:?}, {rhs} = {rhs_value:?}");
 
         let lhs_type = dfg.type_of_value(lhs).unwrap_numeric();
         let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
