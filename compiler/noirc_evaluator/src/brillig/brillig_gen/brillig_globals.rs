@@ -129,25 +129,17 @@ impl BrilligGlobals {
         let mut inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>> =
             HashMap::default();
         let mut entry_point_globals_map = HashMap::default();
-        for (entry_point, used_globals) in self.used_globals.iter() {
+        // We only need to generate globals for entry points
+        for (entry_point, entry_point_inner_calls) in self.brillig_entry_points.iter() {
             let entry_point = *entry_point;
 
-            // TODO: should just loop these rather than `used_globals`
-            let entry_point_inner_calls = self.brillig_entry_points.remove(&entry_point);
-            if entry_point.to_u32() == 6 {
-                dbg!(entry_point_inner_calls.clone());
-            }
-            let Some(entry_point_inner_calls) = entry_point_inner_calls else {
-                // Otherwise we do not have an entry point and do not need to generate globals
-                continue;
-            };
-
             for inner_call in entry_point_inner_calls {
-                inner_call_to_entry_point.entry(inner_call).or_default().push(entry_point);
+                inner_call_to_entry_point.entry(*inner_call).or_default().push(entry_point);
             }
 
+            let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
             let (artifact, brillig_globals, globals_size) =
-                convert_ssa_globals(enable_debug_trace, globals_dfg, used_globals, entry_point);
+                convert_ssa_globals(enable_debug_trace, globals_dfg, &used_globals, entry_point);
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
@@ -170,11 +162,10 @@ impl BrilligGlobals {
                 .iter()
                 .flat_map(|entry_point| self.entry_point_globals_map.get(entry_point))
                 .collect()
+        } else if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
+            vec![globals]
         } else {
-            vec![self
-                .entry_point_globals_map
-                .get(&brillig_function_id)
-                .expect("ICE: Must have allocated globals for entry point")]
+            vec![]
         }
     }
 }
