@@ -253,6 +253,7 @@ pub struct Corpus {
 }
 
 impl Corpus {
+    /// Create a new object for tracking information about discovered testcases
     pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
         Self {
             discovered_testcases: HashMap::new(),
@@ -267,10 +268,12 @@ impl Corpus {
         }
     }
 
+    /// Check if there are already corpus files on disk
     pub fn attempt_to_load_corpus_from_disk(&mut self) -> Result<(), String> {
         self.corpus_file_manager.load_corpus_from_disk()
     }
 
+    /// Get ALL the files that have been added to the corpus all the time (even deprecated ones)
     pub fn get_full_stored_corpus(&self) -> Vec<TestCase> {
         self.corpus_file_manager
             .get_full_corpus()
@@ -279,6 +282,7 @@ impl Corpus {
             .collect()
     }
 
+    /// Add a new file to the active corpus
     pub fn insert(
         &mut self,
         testcase_id: TestCaseId,
@@ -297,22 +301,29 @@ impl Corpus {
         Ok(testcase_id)
     }
 
+    /// Remove a file from the active corpus
     pub fn remove(&mut self, testcase_id: TestCaseId) {
         self.brillig_orchestrator.remove(testcase_id);
         self.acir_orchestrator.remove(testcase_id);
         self.discovered_testcases.remove(&testcase_id);
     }
 
+    /// Get the testcase body
     pub fn get_testcase_by_id(&self, id: TestCaseId) -> &InputMap {
         &self.discovered_testcases[&id]
     }
+
+    /// Get an id of the testcase we should use next for acir testing
     pub fn get_next_testcase_for_acir(&mut self, prng: &mut XorShiftRng) -> NextSelection {
         self.acir_orchestrator.get_next_testcase(prng)
     }
 
+    /// Get an id of the testcase we should use next for brillig testing
     pub fn get_next_testcase_for_brillig(&mut self, prng: &mut XorShiftRng) -> NextSelection {
         self.brillig_orchestrator.get_next_testcase(prng)
     }
+
+    /// Get the number of active testcases in the corpus
     pub fn get_testcase_count(&self) -> usize {
         self.discovered_testcases.len()
     }

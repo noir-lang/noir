@@ -32,9 +32,6 @@ pub struct InputMutator {
 
 const MUTATION_LOG_MIN: u32 = 0;
 const MUTATION_LOG_MAX: u32 = 5;
-const TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT: usize = 1usize;
-const SPLICE_ONE_DESCENDANT: usize = 1usize;
-const TOTAL_WEIGHT: usize = TOP_LEVEL_RANDOM_SPLICE_STRATEGY_WEIGHT + SPLICE_ONE_DESCENDANT;
 /// NodeWeight determines the probability of mutating a particular object
 /// It represent the relative weight of this InputValue and its children
 #[derive(Clone, Debug)]
@@ -633,6 +630,7 @@ impl InputMutator {
         second_input_map: &InputMap,
         prng: &mut XorShiftRng,
     ) -> InputMap {
+        // TODO: add the most basic splice where the whole map is converted into a witness map and then we splice those
         match BASIC_TESTCASE_SPLICE_CONFIGURATION.select(prng) {
             TestCaseSpliceType::BalancedTopLevel => {
                 self // Randomly pick top-level objects with 50/50 probability

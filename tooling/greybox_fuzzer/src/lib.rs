@@ -8,8 +8,8 @@ use acvm::{
     FieldElement,
 };
 use coverage::{
-    analyze_brillig_program_before_fuzzing, AccumulatedFuzzerCoverage, BranchToFeatureMap,
-    BrilligCoverageRanges, PotentialBoolWitnessList, SingleTestCaseCoverage,
+    analyze_brillig_program_before_fuzzing, AccumulatedFuzzerCoverage, BrilligCoverageRanges,
+    FeatureToIndexMap, PotentialBoolWitnessList, SingleTestCaseCoverage,
 };
 use noir_fuzzer::dictionary::build_dictionary_from_program;
 
@@ -68,7 +68,7 @@ pub struct FuzzedExecutor<E, F> {
     brillig_executor: F,
 
     /// Location to feature map (used in brillig fuzzing)
-    location_to_feature_map: BranchToFeatureMap,
+    location_to_feature_map: FeatureToIndexMap,
 
     /// Brillig coverage ranges (which are branch coverage and which are comparison coverage)
     brillig_coverage_ranges: BrilligCoverageRanges,
@@ -104,7 +104,7 @@ impl<
         F: Fn(
                 &Program<FieldElement>,
                 WitnessMap<FieldElement>,
-                &BranchToFeatureMap,
+                &FeatureToIndexMap,
             )
                 -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), (String, Option<Vec<u32>>)>
             + Sync,
