@@ -1637,14 +1637,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     fn initialize_constants(&mut self, constants: &[ValueId], dfg: &DataFlowGraph) {
         for &constant_id in constants {
-            // if let Value::NumericConstant { constant, typ } = dfg[constant_id] {
-            //     if let Some(variable) = self.hoisted_global_constants.get(&(constant, typ)) {
-            //         if self.function_context.ssa_value_allocations.insert(constant_id, *variable).is_some() {
-            //             unreachable!("ICE: ValueId {constant:?} was already in cache");
-            //         }
-            //         self.variables.available_variables.insert(constant_id);
-            //     }
-            // }
             self.convert_ssa_value(constant_id, dfg);
         }
     }
@@ -1661,15 +1653,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         if !self.building_globals {
             if let Value::NumericConstant { constant, typ } = value {
                 if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
-                    // if self.function_context.ssa_value_allocations.insert(value_id, *variable).is_some() {
-                    //     unreachable!("ICE: ValueId {constant:?} was already in cache");
-                    // }
-                    // self.variables.available_variables.insert(value_id);
                     return *variable;
                 }
-                // else {
-                //     panic!("ICE: should have variable already allocated");
-                // }
             }
         }
 

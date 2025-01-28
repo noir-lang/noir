@@ -60,7 +60,6 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
-        // let mut constants = HashSet::default();
         for function in self.functions.values_mut() {
             function.constant_fold(false, None);
         }
