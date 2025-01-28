@@ -104,6 +104,7 @@ impl DefunctionalizationContext {
             // Now we can finally change each instruction, replacing
             // each first class function with a field value and replacing calls
             // to a first class function to a call to the relevant `apply` function.
+            #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
             for instruction_id in block.instructions().to_vec() {
                 let mut instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
@@ -112,6 +113,7 @@ impl DefunctionalizationContext {
                     func.dfg[instruction_id] = instruction.clone();
                 }
 
+                #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
                     if func.dfg.type_of_value(result) == Type::Function {
                         func.dfg.set_type_of_value(result, Type::field());
