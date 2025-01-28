@@ -4,7 +4,7 @@
 //! with a non-literal target can be replaced with a call to an apply function.
 //! The apply function is a dispatch function that takes the function id as a parameter
 //! and dispatches to the correct target.
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -80,8 +80,6 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut call_target_values = HashSet::new();
-
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -96,12 +94,32 @@ impl DefunctionalizationContext {
             let block = &mut func.dfg[block_id];
             block.set_parameters(parameters);
 
+            // Do the same for the terminator
+            let terminator = block.take_terminator();
+            terminator.for_each_value(|value| {
+                if func.dfg.type_of_value(value) == Type::Function {
+                    func.dfg.set_type_of_value(value, Type::field());
+                }
+            });
+
+            let block = &mut func.dfg[block_id];
+            block.set_terminator(terminator);
+
+            // Now we can finally change each instruction, replacing
+            // each first class function with a field value and replacing calls
+            // to a first class function to a call to the relevant `apply` function.
             for instruction_id in block.instructions().to_vec() {
                 let mut instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
 
                 if remove_first_class_functions_in_instruction(func, &mut instruction) {
                     func.dfg[instruction_id] = instruction.clone();
+                }
+
+                for result in func.dfg.instruction_results(instruction_id).to_vec() {
+                    if func.dfg.type_of_value(result) == Type::Function {
+                        func.dfg.set_type_of_value(result, Type::field());
+                    }
                 }
 
                 // Operate on call instructions
@@ -133,12 +151,7 @@ impl DefunctionalizationContext {
                             arguments.insert(0, target_func_id);
                         }
                         let func = apply_function_value_id;
-                        call_target_values.insert(func);
-
                         replacement_instruction = Some(Instruction::Call { func, arguments });
-                    }
-                    Value::Function(..) => {
-                        call_target_values.insert(target_func_id);
                     }
                     _ => {}
                 }
