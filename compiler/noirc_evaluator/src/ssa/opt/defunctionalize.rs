@@ -83,18 +83,35 @@ impl DefunctionalizationContext {
         let mut call_target_values = HashSet::new();
 
         for block_id in func.reachable_blocks() {
-            let block = &func.dfg[block_id];
-            let instructions = block.instructions().to_vec();
+            let block = &mut func.dfg[block_id];
 
-            for instruction_id in instructions {
-                let instruction = func.dfg[instruction_id].clone();
+            // Temporarily take the parameters here just to avoid cloning them
+            let parameters = block.take_parameters();
+            for parameter in &parameters {
+                if func.dfg.type_of_value(*parameter) == Type::Function {
+                    func.dfg.set_type_of_value(*parameter, Type::field());
+                }
+            }
+
+            let block = &mut func.dfg[block_id];
+            block.set_parameters(parameters);
+
+            for instruction_id in block.instructions().to_vec() {
+                let mut instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
+
+                if remove_first_class_functions_in_instruction(func, &mut instruction) {
+                    func.dfg[instruction_id] = instruction.clone();
+                }
+
                 // Operate on call instructions
                 let (target_func_id, arguments) = match &instruction {
                     Instruction::Call { func: target_func_id, arguments } => {
                         (*target_func_id, arguments)
                     }
-                    _ => continue,
+                    _ => {
+                        continue;
+                    }
                 };
 
                 match func.dfg[target_func_id] {
@@ -130,35 +147,50 @@ impl DefunctionalizationContext {
                 }
             }
         }
-
-        // Change the type of all the values that are not call targets to NativeField
-        let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
-        for value_id in value_ids {
-            if let Type::Function = func.dfg[value_id].get_type().as_ref() {
-                match &func.dfg[value_id] {
-                    // If the value is a static function, transform it to the function id
-                    Value::Function(id) => {
-                        if !call_target_values.contains(&value_id) {
-                            let field = NumericType::NativeField;
-                            let new_value =
-                                func.dfg.make_constant(function_id_to_field(*id), field);
-                            func.dfg.set_value_from_id(value_id, new_value);
-                        }
-                    }
-                    // If the value is a function used as value, just change the type of it
-                    Value::Instruction { .. } | Value::Param { .. } => {
-                        func.dfg.set_type_of_value(value_id, Type::field());
-                    }
-                    _ => {}
-                }
-            }
-        }
     }
 
     /// Returns the apply function for the given signature
     fn get_apply_function(&self, signature: Signature, runtime: RuntimeType) -> ApplyFunction {
         *self.apply_functions.get(&(signature, runtime)).expect("Could not find apply function")
     }
+}
+
+/// Replace any first class functions used in an instruction with a field value.
+/// This applies to any function used anywhere else other than the function position
+/// of a call instruction. Returns true if the instruction was modified
+fn remove_first_class_functions_in_instruction(
+    func: &mut Function,
+    instruction: &mut Instruction,
+) -> bool {
+    let mut modified = false;
+    let mut map_value = |value: ValueId| {
+        if let Type::Function = func.dfg[value].get_type().as_ref() {
+            match &func.dfg[value] {
+                // If the value is a static function, transform it to the function id
+                Value::Function(id) => {
+                    let new_value = function_id_to_field(*id);
+                    modified = true;
+                    return func.dfg.make_constant(new_value, NumericType::NativeField);
+                }
+                // If the value is a function used as value, just change the type of it
+                Value::Instruction { .. } | Value::Param { .. } => {
+                    func.dfg.set_type_of_value(value, Type::field());
+                }
+                _ => (),
+            }
+        }
+        value
+    };
+
+    if let Instruction::Call { func: _, arguments } = instruction {
+        for arg in arguments {
+            *arg = map_value(*arg);
+        }
+    } else {
+        instruction.map_values_mut(map_value);
+    }
+
+    modified
 }
 
 /// Collects all functions used as values that can be called by their signatures
