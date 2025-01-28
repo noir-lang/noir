@@ -17,7 +17,7 @@ use crate::brillig::{
 pub(crate) struct BrilligGlobals {
     /// Both `used_globals` and `brillig_entry_points` need to be built
     /// from a function call graph.
-    /// 
+    ///
     /// Maps a Brillig function to the globals used in that function.
     /// This includes all globals used in functions called internally.
     used_globals: HashMap<FunctionId, HashSet<ValueId>>,
