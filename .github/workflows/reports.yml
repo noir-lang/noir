@@ -366,7 +366,7 @@ jobs:
           path: test-repo
           ref: ${{ matrix.project.ref }}
       
-      - name: Generate compilation report
+      - name: Fetch noir dependencies
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
           # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
