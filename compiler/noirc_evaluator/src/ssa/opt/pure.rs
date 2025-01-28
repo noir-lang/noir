@@ -116,7 +116,14 @@ impl Function {
         // from called functions to their callers. Resultingly, an initial "Pure"
         // result here could be overridden by one of these dependencies being impure.
         let mut dependencies = BTreeSet::new();
-        let mut result = Purity::Pure;
+
+        let mut result = if self.runtime().is_acir() {
+            Purity::Pure
+        } else {
+            // Because we return bogus values when a brillig function is called from acir
+            // in a disabled predicate, brillig functions can never be truly pure unfortunately.
+            Purity::PureWithPredicate
+        };
 
         for block in self.reachable_blocks() {
             for instruction in self.dfg[block].instructions() {
