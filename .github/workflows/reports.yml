@@ -365,6 +365,13 @@ jobs:
           repository: ${{ matrix.project.repo }}
           path: test-repo
           ref: ${{ matrix.project.ref }}
+      
+      - name: Fetch noir dependencies
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
+          # when benchmarking.
+          nargo check
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
