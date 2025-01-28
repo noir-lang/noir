@@ -8,6 +8,13 @@ fn main(x: Field, y: pub Field) {
         check_acc_entry_point(x, y);
         assert(entry_point_only_const_global(x) == 2);
         entry_point_inner_func_globals(x as Field, y);
+        // NOTE: We want a lot of these calls to display clearly
+        // that execution time has not been tainted by accidentally initializing globals
+        // for entry points which do not use them.
+        assert(entry_point_only_const_global(x) == 2);
+        assert(entry_point_only_const_global(x) == 2);
+        assert(entry_point_only_const_global(x) == 2);
+        assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
