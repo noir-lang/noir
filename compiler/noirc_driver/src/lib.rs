@@ -141,6 +141,10 @@ pub struct CompileOptions {
     #[arg(long)]
     pub enable_brillig_constraints_check: bool,
 
+    /// Hidden Brillig call check flag to maintain CI compatibility (currently ignored)
+    #[arg(long, hide = true)]
+    pub skip_brillig_constraints_check: bool,
+
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
