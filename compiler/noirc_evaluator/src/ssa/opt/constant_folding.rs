@@ -1655,10 +1655,10 @@ mod test {
         ";
 
         let expected = "
-        acir(inline) pure fn main f0 {
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
-            v1 = call f1(v0) -> Field
-            constrain v1 == Field 0
+            v2 = call f1(v0) -> Field
+            constrain v2 == Field 0
             return
         }
         acir(inline) pure fn foo f1 {

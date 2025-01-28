@@ -388,10 +388,10 @@ mod tests {
               v5 = add v0, u32 1
               v6 = eq v3, v5
               constrain v3 == v5
-              v9 = call f1(f3, v0) -> u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
+              v8 = call f1(f3, v0) -> u32
+              v9 = add v0, u32 1
+              v10 = eq v8, v9
+              constrain v8 == v9
               return
           }
           brillig(inline) fn wrapper f1 {
@@ -421,10 +421,10 @@ mod tests {
               v5 = add v0, u32 1
               v6 = eq v3, v5
               constrain v3 == v5
-              v9 = call f1(Field 3, v0) -> u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
+              v8 = call f1(Field 3, v0) -> u32
+              v9 = add v0, u32 1
+              v10 = eq v8, v9
+              constrain v8 == v9
               return
           }
           brillig(inline) fn wrapper f1 {
