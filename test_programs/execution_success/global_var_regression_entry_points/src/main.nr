@@ -11,16 +11,16 @@ fn main(x: Field, y: pub Field) {
         // NOTE: We want a lot of these calls to display clearly
         // that execution time has not been tainted by accidentally initializing globals
         // for entry points which do not use them.
-        assert(entry_point_no_globals(x) == 1);
-        assert(entry_point_no_globals(x) == 1);
+        assert(entry_point_no_globals(x, y) == 1);
+        assert(entry_point_no_globals(x, y) == 1);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
         assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_no_globals(x) == 1);
-        assert(entry_point_no_globals(x) == 1);
-        assert(entry_point_no_globals(x) == 1);
+        assert(entry_point_no_globals(x, y) == 1);
+        assert(entry_point_no_globals(x, y) == 1);
+        assert(entry_point_no_globals(x, y) == 1);
     }
 }
 
