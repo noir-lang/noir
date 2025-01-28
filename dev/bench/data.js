@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738091794156,
+  "lastUpdate": 1738091798158,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17676,6 +17676,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "ram_blowup_regression",
             "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.12,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc06d8eabeba18a9928e32477dbfa7ca5cdc8dfe",
+          "message": "fix: correct reversed callstacks (#7212)",
+          "timestamp": "2025-01-28T18:53:49Z",
+          "tree_id": "b111daff3161f12b224950ef196a5de445533a6b",
+          "url": "https://github.com/noir-lang/noir/commit/dc06d8eabeba18a9928e32477dbfa7ca5cdc8dfe"
+        },
+        "date": 1738091796821,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.47,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
             "unit": "MB"
           },
           {
