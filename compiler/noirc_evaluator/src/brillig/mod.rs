@@ -92,7 +92,8 @@ impl Ssa {
         }
 
         // We can potentially have multiple local constants with the same value and type
-        let mut hoisted_global_consts: HashSet<(FieldElement, NumericType)> = HashSet::default();
+        let mut hoisted_global_consts: HashMap<(FieldElement, NumericType), usize> =
+            HashMap::default();
         for brillig_function_id in brillig_reachable_function_ids.iter() {
             let function = &self.functions[brillig_function_id];
             let constants = ConstantAllocation::from_function(function);
@@ -101,10 +102,27 @@ impl Ssa {
                 let value = value.unwrap();
                 let typ = function.dfg.type_of_value(constant);
                 if !function.dfg.is_global(constant) {
-                    hoisted_global_consts.insert((value, typ.unwrap_numeric()));
+                    hoisted_global_consts
+                        .entry((value, typ.unwrap_numeric()))
+                        .and_modify(|counter| *counter += 1)
+                        .or_insert(1);
                 }
             }
         }
+
+        // We want to hoist only if there are repeat occurrences of a constant.
+        let hoisted_global_consts = hoisted_global_consts
+            .into_iter()
+            .filter_map(
+                |(value, num_occurrences)| {
+                    if num_occurrences > 1 {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect::<HashSet<_>>();
 
         // Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
