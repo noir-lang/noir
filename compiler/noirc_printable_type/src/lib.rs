@@ -36,6 +36,10 @@ pub enum PrintableType {
         name: String,
         fields: Vec<(String, PrintableType)>,
     },
+    Enum {
+        name: String,
+        variants: Vec<(String, Vec<PrintableType>)>,
+    },
     String {
         length: u32,
     },

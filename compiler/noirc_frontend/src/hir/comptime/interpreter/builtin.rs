@@ -393,7 +393,7 @@ fn struct_def_add_attribute(
     };
 
     let struct_id = get_struct(self_argument)?;
-    interner.update_struct_attributes(struct_id, |attributes| {
+    interner.update_type_attributes(struct_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -535,7 +535,7 @@ fn struct_def_has_named_attribute(
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.struct_attributes(&struct_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&struct_id))))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
@@ -569,9 +569,11 @@ fn struct_def_fields(
 
     let mut fields = im::Vector::new();
 
-    for (field_name, field_type) in struct_def.get_fields(&generic_args) {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
-        fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+    if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
+        for (field_name, field_type) in struct_fields {
+            let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+            fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
+        }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
@@ -597,10 +599,12 @@ fn struct_def_fields_as_written(
 
     let mut fields = im::Vector::new();
 
-    for field in struct_def.get_fields_as_written() {
-        let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
-        let typ = Value::Type(field.typ);
-        fields.push_back(Value::Tuple(vec![name, typ]));
+    if let Some(struct_fields) = struct_def.get_fields_as_written() {
+        for field in struct_fields {
+            let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+            let typ = Value::Type(field.typ);
+            fields.push_back(Value::Tuple(vec![name, typ]));
+        }
     }
 
     let typ = Type::Slice(Box::new(Type::Tuple(vec![
@@ -1456,7 +1460,8 @@ fn zeroed(return_type: Type, span: Span) -> IResult<Value> {
         Type::Unit => Ok(Value::Unit),
         Type::Tuple(fields) => Ok(Value::Tuple(try_vecmap(fields, |field| zeroed(field, span))?)),
         Type::DataType(struct_type, generics) => {
-            let fields = struct_type.borrow().get_fields(&generics);
+            // TODO: Handle enums
+            let fields = struct_type.borrow().get_fields(&generics).unwrap();
             let mut values = HashMap::default();
 
             for (field_name, field_type) in fields {
