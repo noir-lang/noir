@@ -320,3 +320,67 @@ fn generic_functions() {
     let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
+
+
+#[test]
+fn can_handle_recursion() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7213
+    let program = "
+
+    global ELEMENT_COUNT: u32 = 100;
+
+    comptime fn main() {
+        let values: [u32; ELEMENT_COUNT] = [0; ELEMENT_COUNT];
+        let _ = quicksort(values);
+    }
+    
+    comptime fn partition<let N: u32>(
+        arr: &mut [u32; N],
+        low: u32,
+        high: u32,
+    ) -> u32 {
+        let pivot = high;
+        let mut i = low;
+        for j in low..high {
+            if arr[j] < arr[pivot] {
+                let temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+    
+                i += 1;
+            }
+        }
+    
+        let temp = arr[i];
+        arr[i] = arr[pivot];
+        arr[pivot] = temp;
+        i
+    }
+    
+    comptime fn quicksort_recursive<let N: u32>(
+        arr: &mut [u32; N],
+        low: u32,
+        high: u32,
+    ) {
+        if low < high {
+            let pivot_index = partition(arr, low, high);
+            if pivot_index > 0 {
+                quicksort_recursive(arr, low, pivot_index - 1);
+            }
+            quicksort_recursive(arr, pivot_index + 1, high);
+        }
+    }
+    
+    comptime fn quicksort<let N: u32>(
+        _arr: [u32; N],
+    ) -> [u32; N] {
+        let mut arr: [u32; N] = _arr;
+        if N > 1 {
+            quicksort_recursive(&mut arr, 0, N - 1);
+        }
+        arr
+    }    
+    ";
+    let result = interpret(program);
+    assert_eq!(result, Value::Unit);
+}
