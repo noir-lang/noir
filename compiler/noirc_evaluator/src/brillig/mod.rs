@@ -96,30 +96,18 @@ impl Ssa {
         let mut brillig_globals =
             BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
 
-        // if self.main().runtime().is_brillig() {
-        // }
-
         // Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
-
         brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);
 
         for brillig_function_id in brillig_reachable_function_ids {
             let mut globals_allocations = HashMap::default();
-            // if let Some(allocations) = brillig_globals.get_brillig_globals(brillig_function_id) {
-            //     for map in allocations {
-            //         globals_allocations.extend(map.iter().map(|(k, v)| (k.clone(), v.clone())));
-            //     }
-            // }
             let entry_point_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
             for map in entry_point_allocations {
                 globals_allocations.extend(map);
-                // globals_allocations.extend(map.iter().map(|(k, v)| (k.clone(), v.clone())));
             }
-            // dbg!(globals_allocations.clone());
-            // dbg!(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
             brillig.compile(func, enable_debug_trace, &globals_allocations);
