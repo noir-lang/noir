@@ -266,8 +266,6 @@ mod tests {
         let mut ssa = ssa.dead_instruction_elimination();
 
         let brillig = ssa.to_brillig(false);
-        dbg!(brillig.globals.clone());
-        dbg!(brillig.globals_memory_size.clone());
 
         assert_eq!(
             brillig.globals.len(),
