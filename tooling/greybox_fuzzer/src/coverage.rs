@@ -636,7 +636,7 @@ pub fn analyze_brillig_program_before_fuzzing(
             // TODO(Parse constants in brillig and add to the dictionary)
             | BrilligOpcode::Const { .. }
             | BrilligOpcode::IndirectConst { .. }
-            | BrilligOpcode::Return => todo!(),
+            | BrilligOpcode::Return => {..},
             BrilligOpcode::ForeignCall { .. }
             | BrilligOpcode::Mov { .. }
             | BrilligOpcode::Load { .. }

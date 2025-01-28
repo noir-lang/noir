@@ -552,6 +552,175 @@ impl TestCaseSpliceConfiguration {
         return TestCaseSpliceType::SingleElementImport;
     }
 }
+/// Int-specific configurations
+pub(crate) enum FixedIntSubstitution {
+    Minimum,
+    Maximum,
+    Pow2,
+}
+
+pub(crate) struct FixedIntSubstitutionConfiguration {
+    minimum_weight: usize,
+    maximum_weight: usize,
+    #[allow(unused)]
+    pow2_weight: usize,
+    total_weight: usize,
+}
+
+impl FixedIntSubstitutionConfiguration {
+    #[allow(unused)]
+    pub fn new(minimum_weight: usize, maximum_weight: usize, pow2_weight: usize) -> Self {
+        let total_weight = minimum_weight + maximum_weight + pow2_weight;
+        Self { minimum_weight, maximum_weight, pow2_weight, total_weight }
+    }
+    /// Select a mutation according to weights
+    pub fn select(&self, prng: &mut XorShiftRng) -> FixedIntSubstitution {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.minimum_weight {
+            return FixedIntSubstitution::Minimum;
+        }
+        selector -= self.minimum_weight;
+        if selector < self.maximum_weight {
+            return FixedIntSubstitution::Maximum;
+        }
+        return FixedIntSubstitution::Pow2;
+    }
+}
+
+pub(crate) enum BinaryIntOperationMutation {
+    Add,
+    Sub,
+    And,
+    Or,
+    Xor,
+}
+
+pub(crate) struct BinaryIntOperationMutationConfiguration {
+    addition_weight: usize,
+    subtraction_weight: usize,
+    and_operation_weight: usize,
+    or_operation_weight: usize,
+    #[allow(unused)]
+    xor_operation_weight: usize,
+    total_weight: usize,
+}
+
+impl BinaryIntOperationMutationConfiguration {
+    #[allow(unused)]
+    pub fn new(
+        addition_weight: usize,
+        subtraction_weight: usize,
+        and_operation_weight: usize,
+        or_operation_weight: usize,
+        xor_operation_weight: usize,
+    ) -> Self {
+        let total_weight = addition_weight
+            + subtraction_weight
+            + and_operation_weight
+            + or_operation_weight
+            + xor_operation_weight;
+        Self {
+            addition_weight,
+            subtraction_weight,
+            and_operation_weight,
+            or_operation_weight,
+            xor_operation_weight,
+            total_weight,
+        }
+    }
+    /// Select a mutation according to weights
+    pub fn select(&self, prng: &mut XorShiftRng) -> BinaryIntOperationMutation {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.addition_weight {
+            return BinaryIntOperationMutation::Add;
+        }
+        selector -= self.addition_weight;
+        if selector < self.subtraction_weight {
+            return BinaryIntOperationMutation::Sub;
+        }
+        selector -= self.subtraction_weight;
+        if selector < self.and_operation_weight {
+            return BinaryIntOperationMutation::And;
+        }
+        selector -= self.and_operation_weight;
+        if selector < self.or_operation_weight {
+            return BinaryIntOperationMutation::Or;
+        }
+        return BinaryIntOperationMutation::Xor;
+    }
+}
+pub(crate) enum IntTopLevelMutation {
+    FixedSubstitution,
+    DictionarySubstitution,
+    Negation,
+    Shift,
+    SmallValueUpdate,
+    DictionaryValueUpdate,
+}
+
+pub(crate) struct IntTopLevelMutationConfiguration {
+    fixed_substitution_weight: usize,
+    dictionary_substitution_weight: usize,
+    negation_weight: usize,
+    shift_weight: usize,
+    small_value_update_weight: usize,
+    #[allow(unused)]
+    dictionary_value_update_weight: usize,
+    total_weight: usize,
+}
+
+impl IntTopLevelMutationConfiguration {
+    #[allow(unused)]
+    pub fn new(
+        fixed_substitution_weight: usize,
+        dictionary_substitution_weight: usize,
+        negation_weight: usize,
+        shift_weight: usize,
+        small_value_update_weight: usize,
+        dictionary_value_update_weight: usize,
+    ) -> Self {
+        let total_weight = fixed_substitution_weight
+            + dictionary_substitution_weight
+            + negation_weight
+            + shift_weight
+            + small_value_update_weight
+            + dictionary_value_update_weight;
+        Self {
+            fixed_substitution_weight,
+            dictionary_substitution_weight,
+            negation_weight,
+            shift_weight,
+            small_value_update_weight,
+            dictionary_value_update_weight,
+            total_weight,
+        }
+    }
+
+    /// Select a mutation according to weights
+    pub fn select(&self, prng: &mut XorShiftRng) -> IntTopLevelMutation {
+        let mut selector = prng.gen_range(0..self.total_weight);
+        if selector < self.fixed_substitution_weight {
+            return IntTopLevelMutation::FixedSubstitution;
+        }
+        selector -= self.fixed_substitution_weight;
+        if selector < self.dictionary_substitution_weight {
+            return IntTopLevelMutation::DictionarySubstitution;
+        }
+        selector -= self.dictionary_substitution_weight;
+        if selector < self.negation_weight {
+            return IntTopLevelMutation::Negation;
+        }
+        selector -= self.negation_weight;
+        if selector < self.shift_weight {
+            return IntTopLevelMutation::Shift;
+        }
+        selector -= self.shift_weight;
+        if selector < self.small_value_update_weight {
+            return IntTopLevelMutation::SmallValueUpdate;
+        }
+        return IntTopLevelMutation::DictionaryValueUpdate;
+    }
+}
 
 /// Default configurations for all mutations that are currently used
 
@@ -673,4 +842,32 @@ pub(crate) const BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutati
         random_value_duplication_weight: 0,
         swap_weight: 3,
         total_weight: 3 + 2 + 0 + 3,
+    };
+pub(crate) const BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION: FixedIntSubstitutionConfiguration =
+    FixedIntSubstitutionConfiguration {
+        minimum_weight: 1,
+        maximum_weight: 1,
+        pow2_weight: 1,
+        total_weight: 1 + 1 + 1,
+    };
+
+pub(crate) const BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION:
+    BinaryIntOperationMutationConfiguration = BinaryIntOperationMutationConfiguration {
+    addition_weight: 1,
+    subtraction_weight: 1,
+    and_operation_weight: 1,
+    or_operation_weight: 1,
+    xor_operation_weight: 1,
+    total_weight: 1 + 1 + 1 + 1 + 1,
+};
+
+pub(crate) const BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION: IntTopLevelMutationConfiguration =
+    IntTopLevelMutationConfiguration {
+        fixed_substitution_weight: 0x20,
+        dictionary_substitution_weight: 0x30,
+        negation_weight: 0x2,
+        shift_weight: 0x8,
+        small_value_update_weight: 0x80,
+        dictionary_value_update_weight: 0x30,
+        total_weight: 0x20 + 0x30 + 0x2 + 0x8 + 0x80 + 0x30,
     };

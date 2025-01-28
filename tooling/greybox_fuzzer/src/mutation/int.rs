@@ -10,7 +10,14 @@ use num_traits::{
 use rand::{seq::SliceRandom, Rng};
 use rand_xorshift::XorShiftRng;
 
-use super::dictionary::IntDictionary;
+use super::{
+    configurations::{
+        BinaryIntOperationMutation, FixedIntSubstitution, IntTopLevelMutation,
+        BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION,
+        BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION, BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION,
+    },
+    dictionary::IntDictionary,
+};
 /// This file contains mechanisms for mutating integer InputValues.
 /// If the value is a boolean, it just picks a new random value.
 /// Otherwise, it performs one of the following mutations:
@@ -193,118 +200,6 @@ fn wrapping_sub_small_unsigned<T: WrappingSub + PrimInt + HasBits + AsPrimitive<
     let after_update = converted.wrapping_sub(&update_t);
     i128_to_field(after_update.as_(), T::BITS)
 }
-enum FixedSubstitution {
-    Minimum,
-    Maximum,
-    Pow2,
-}
-
-struct FixedSubstitutionConfiguration {
-    minimum_weight: usize,
-    maximum_weight: usize,
-    #[allow(unused)]
-    pow2_weight: usize,
-    total_weight: usize,
-}
-
-impl FixedSubstitutionConfiguration {
-    #[allow(unused)]
-    pub fn new(minimum_weight: usize, maximum_weight: usize, pow2_weight: usize) -> Self {
-        let total_weight = minimum_weight + maximum_weight + pow2_weight;
-        Self { minimum_weight, maximum_weight, pow2_weight, total_weight }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> FixedSubstitution {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.minimum_weight {
-            return FixedSubstitution::Minimum;
-        }
-        selector -= self.minimum_weight;
-        if selector < self.maximum_weight {
-            return FixedSubstitution::Maximum;
-        }
-        return FixedSubstitution::Pow2;
-    }
-}
-const BASIC_FIXED_SUBSTITUTION_CONFIGURATION: FixedSubstitutionConfiguration =
-    FixedSubstitutionConfiguration {
-        minimum_weight: 1,
-        maximum_weight: 1,
-        pow2_weight: 1,
-        total_weight: 1 + 1 + 1,
-    };
-
-enum BinaryOperationMutation {
-    Add,
-    Sub,
-    And,
-    Or,
-    Xor,
-}
-
-struct BinaryOperationMutationConfiguration {
-    addition_weight: usize,
-    subtraction_weight: usize,
-    and_operation_weight: usize,
-    or_operation_weight: usize,
-    #[allow(unused)]
-    xor_operation_weight: usize,
-    total_weight: usize,
-}
-
-impl BinaryOperationMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        addition_weight: usize,
-        subtraction_weight: usize,
-        and_operation_weight: usize,
-        or_operation_weight: usize,
-        xor_operation_weight: usize,
-    ) -> Self {
-        let total_weight = addition_weight
-            + subtraction_weight
-            + and_operation_weight
-            + or_operation_weight
-            + xor_operation_weight;
-        Self {
-            addition_weight,
-            subtraction_weight,
-            and_operation_weight,
-            or_operation_weight,
-            xor_operation_weight,
-            total_weight,
-        }
-    }
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> BinaryOperationMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.addition_weight {
-            return BinaryOperationMutation::Add;
-        }
-        selector -= self.addition_weight;
-        if selector < self.subtraction_weight {
-            return BinaryOperationMutation::Sub;
-        }
-        selector -= self.subtraction_weight;
-        if selector < self.and_operation_weight {
-            return BinaryOperationMutation::And;
-        }
-        selector -= self.and_operation_weight;
-        if selector < self.or_operation_weight {
-            return BinaryOperationMutation::Or;
-        }
-        return BinaryOperationMutation::Xor;
-    }
-}
-const BASIC_BINARY_OPERATION_MUTATION_CONFIGURATION: BinaryOperationMutationConfiguration =
-    BinaryOperationMutationConfiguration {
-        addition_weight: 1,
-        subtraction_weight: 1,
-        and_operation_weight: 1,
-        or_operation_weight: 1,
-        xor_operation_weight: 1,
-        total_weight: 1 + 1 + 1 + 1 + 1,
-    };
 
 /// Perform a signed integer binary operation on 2 field elements according to `mutation_operation`. Get field as a result
 fn add_sub_xor_and_or_signed<
@@ -319,17 +214,17 @@ fn add_sub_xor_and_or_signed<
 >(
     lhs: &FieldElement,
     rhs: &FieldElement,
-    mutation_operation: BinaryOperationMutation,
+    mutation_operation: BinaryIntOperationMutation,
 ) -> FieldElement {
     let width = T::BITS;
     let lhs_int = T::from(field_to_i128(lhs, width)).expect("Should convert");
     let rhs_int = T::from(field_to_i128(rhs, width)).expect("Should convert");
     let result_int = match mutation_operation {
-        BinaryOperationMutation::Add => lhs_int.overflowing_add(&rhs_int).0,
-        BinaryOperationMutation::Sub => lhs_int.overflowing_sub(&rhs_int).0,
-        BinaryOperationMutation::Xor => lhs_int ^ rhs_int,
-        BinaryOperationMutation::And => lhs_int & rhs_int,
-        BinaryOperationMutation::Or => lhs_int | rhs_int,
+        BinaryIntOperationMutation::Add => lhs_int.overflowing_add(&rhs_int).0,
+        BinaryIntOperationMutation::Sub => lhs_int.overflowing_sub(&rhs_int).0,
+        BinaryIntOperationMutation::Xor => lhs_int ^ rhs_int,
+        BinaryIntOperationMutation::And => lhs_int & rhs_int,
+        BinaryIntOperationMutation::Or => lhs_int | rhs_int,
     };
     i128_to_field(result_int.as_(), width)
 }
@@ -347,17 +242,17 @@ fn add_sub_xor_and_or_unsigned<
 >(
     lhs: &FieldElement,
     rhs: &FieldElement,
-    mutation_operation: BinaryOperationMutation,
+    mutation_operation: BinaryIntOperationMutation,
 ) -> FieldElement {
     let width = T::BITS;
     let lhs_int = T::from(field_to_i128(lhs, width + 1)).expect("Should convert");
     let rhs_int = T::from(field_to_i128(rhs, width + 1)).expect("Should convert");
     let result_int = match mutation_operation {
-        BinaryOperationMutation::Add => lhs_int.wrapping_add(&rhs_int),
-        BinaryOperationMutation::Sub => lhs_int.wrapping_sub(&rhs_int),
-        BinaryOperationMutation::Xor => lhs_int ^ rhs_int,
-        BinaryOperationMutation::And => lhs_int & rhs_int,
-        BinaryOperationMutation::Or => lhs_int | rhs_int,
+        BinaryIntOperationMutation::Add => lhs_int.wrapping_add(&rhs_int),
+        BinaryIntOperationMutation::Sub => lhs_int.wrapping_sub(&rhs_int),
+        BinaryIntOperationMutation::Xor => lhs_int ^ rhs_int,
+        BinaryIntOperationMutation::And => lhs_int & rhs_int,
+        BinaryIntOperationMutation::Or => lhs_int | rhs_int,
     };
     i128_to_field(result_int.as_(), width)
 }
@@ -403,90 +298,6 @@ fn generate_random_for_width(prng: &mut XorShiftRng, width: u32) -> FieldElement
     FieldElement::from(prng.gen_range(0..(2i128 << width)))
 }
 
-enum IntTopLevelMutation {
-    FixedSubstitution,
-    DictionarySubstitution,
-    Negation,
-    Shift,
-    SmallValueUpdate,
-    DictionaryValueUpdate,
-}
-
-struct IntTopLevelMutationConfiguration {
-    fixed_substitution_weight: usize,
-    dictionary_substitution_weight: usize,
-    negation_weight: usize,
-    shift_weight: usize,
-    small_value_update_weight: usize,
-    #[allow(unused)]
-    dictionary_value_update_weight: usize,
-    total_weight: usize,
-}
-
-impl IntTopLevelMutationConfiguration {
-    #[allow(unused)]
-    pub fn new(
-        fixed_substitution_weight: usize,
-        dictionary_substitution_weight: usize,
-        negation_weight: usize,
-        shift_weight: usize,
-        small_value_update_weight: usize,
-        dictionary_value_update_weight: usize,
-    ) -> Self {
-        let total_weight = fixed_substitution_weight
-            + dictionary_substitution_weight
-            + negation_weight
-            + shift_weight
-            + small_value_update_weight
-            + dictionary_value_update_weight;
-        Self {
-            fixed_substitution_weight,
-            dictionary_substitution_weight,
-            negation_weight,
-            shift_weight,
-            small_value_update_weight,
-            dictionary_value_update_weight,
-            total_weight,
-        }
-    }
-
-    /// Select a mutation according to weights
-    pub fn select(&self, prng: &mut XorShiftRng) -> IntTopLevelMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
-        if selector < self.fixed_substitution_weight {
-            return IntTopLevelMutation::FixedSubstitution;
-        }
-        selector -= self.fixed_substitution_weight;
-        if selector < self.dictionary_substitution_weight {
-            return IntTopLevelMutation::DictionarySubstitution;
-        }
-        selector -= self.dictionary_substitution_weight;
-        if selector < self.negation_weight {
-            return IntTopLevelMutation::Negation;
-        }
-        selector -= self.negation_weight;
-        if selector < self.shift_weight {
-            return IntTopLevelMutation::Shift;
-        }
-        selector -= self.shift_weight;
-        if selector < self.small_value_update_weight {
-            return IntTopLevelMutation::SmallValueUpdate;
-        }
-        return IntTopLevelMutation::DictionaryValueUpdate;
-    }
-}
-
-const BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION: IntTopLevelMutationConfiguration =
-    IntTopLevelMutationConfiguration {
-        fixed_substitution_weight: 0x20,
-        dictionary_substitution_weight: 0x30,
-        negation_weight: 0x2,
-        shift_weight: 0x8,
-        small_value_update_weight: 0x80,
-        dictionary_value_update_weight: 0x30,
-        total_weight: 0x20 + 0x30 + 0x2 + 0x8 + 0x80 + 0x30,
-    };
-
 struct IntMutator<'a> {
     dictionary: &'a IntDictionary,
     prng: &'a mut XorShiftRng,
@@ -500,14 +311,14 @@ impl<'a> IntMutator<'a> {
     /// Get one of the fixed values in place of the original value
     fn substitute_signed_int_with_fixed_value(&mut self, width: u32) -> InputValue {
         return InputValue::Field(i128_to_field(
-            match BASIC_FIXED_SUBSTITUTION_CONFIGURATION.select(self.prng) {
-                FixedSubstitution::Minimum => {
+            match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
+                FixedIntSubstitution::Minimum => {
                     FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
                 }
-                FixedSubstitution::Maximum => {
+                FixedIntSubstitution::Maximum => {
                     FIXED_SIGNED_VALUES[self.prng.gen_range(64..(64 + width) as usize)]
                 }
-                FixedSubstitution::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
+                FixedIntSubstitution::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
             },
             width,
         ));
@@ -574,7 +385,7 @@ impl<'a> IntMutator<'a> {
             return InputValue::Field(generate_random_for_width(self.prng, width));
         }
         let dictionary_value = width_dictionary.choose(self.prng).unwrap();
-        let chosen_operation = BASIC_BINARY_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
+        let chosen_operation = BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
         InputValue::Field(match width {
             8 => add_sub_xor_and_or_signed::<i8>(input, &dictionary_value, chosen_operation),
             16 => add_sub_xor_and_or_signed::<i16>(input, &dictionary_value, chosen_operation),
@@ -682,7 +493,7 @@ impl<'a> IntMutator<'a> {
             return InputValue::Field(generate_random_for_width(self.prng, width));
         }
         let dictionary_value = width_dictionary.choose(self.prng).unwrap();
-        let chosen_operation = BASIC_BINARY_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
+        let chosen_operation = BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
         InputValue::Field(match width {
             8 => add_sub_xor_and_or_unsigned::<u8>(input, &dictionary_value, chosen_operation),
             16 => add_sub_xor_and_or_unsigned::<u16>(input, &dictionary_value, chosen_operation),
