@@ -368,11 +368,16 @@ pub struct StructField {
 pub struct EnumVariant {
     pub name: Ident,
     pub params: Vec<Type>,
+
+    /// True if this variant was declared as a function.
+    /// Required to distinguish `Foo::Bar` from `Foo::Bar()`
+    /// for zero-parameter variants. Only required for printing.
+    pub is_function: bool,
 }
 
 impl EnumVariant {
-    pub fn new(name: Ident, params: Vec<Type>) -> EnumVariant {
-        Self { name, params }
+    pub fn new(name: Ident, params: Vec<Type>, is_function: bool) -> EnumVariant {
+        Self { name, params, is_function }
     }
 }
 
