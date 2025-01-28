@@ -135,8 +135,8 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Flag to turn on the compiler check for missing Brillig call constrains.
-    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// Flag to turn on the compiler check for missing Brillig call constraints.
+    /// Warning: This can degrade compilation speed but will also find some correctness errors.
     /// This check should always be run on production code.
     #[arg(long)]
     pub enable_brillig_constraints_check: bool,
