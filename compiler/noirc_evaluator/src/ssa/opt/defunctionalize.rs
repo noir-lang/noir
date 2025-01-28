@@ -95,12 +95,8 @@ impl DefunctionalizationContext {
             block.set_parameters(parameters);
 
             // Do the same for the terminator
-            let terminator = block.take_terminator();
-            terminator.for_each_value(|value| {
-                if func.dfg.type_of_value(value) == Type::Function {
-                    func.dfg.set_type_of_value(value, Type::field());
-                }
-            });
+            let mut terminator = block.take_terminator();
+            terminator.map_values_mut(|value| map_function_to_field(func, value).unwrap_or(value));
 
             let block = &mut func.dfg[block_id];
             block.set_terminator(terminator);
@@ -177,22 +173,12 @@ fn remove_first_class_functions_in_instruction(
 ) -> bool {
     let mut modified = false;
     let mut map_value = |value: ValueId| {
-        if let Type::Function = func.dfg[value].get_type().as_ref() {
-            match &func.dfg[value] {
-                // If the value is a static function, transform it to the function id
-                Value::Function(id) => {
-                    let new_value = function_id_to_field(*id);
-                    modified = true;
-                    return func.dfg.make_constant(new_value, NumericType::NativeField);
-                }
-                // If the value is a function used as value, just change the type of it
-                Value::Instruction { .. } | Value::Param { .. } => {
-                    func.dfg.set_type_of_value(value, Type::field());
-                }
-                _ => (),
-            }
+        if let Some(new_value) = map_function_to_field(func, value) {
+            modified = true;
+            new_value
+        } else {
+            value
         }
-        value
     };
 
     if let Instruction::Call { func: _, arguments } = instruction {
@@ -204,6 +190,26 @@ fn remove_first_class_functions_in_instruction(
     }
 
     modified
+}
+
+/// Try to map the given function literal to a field, returning Some(field) on success.
+/// Returns none if the given value was not a function or doesn't need to be mapped.
+fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId> {
+    if let Type::Function = func.dfg[value].get_type().as_ref() {
+        match &func.dfg[value] {
+            // If the value is a static function, transform it to the function id
+            Value::Function(id) => {
+                let new_value = function_id_to_field(*id);
+                return Some(func.dfg.make_constant(new_value, NumericType::NativeField));
+            }
+            // If the value is a function used as value, just change the type of it
+            Value::Instruction { .. } | Value::Param { .. } => {
+                func.dfg.set_type_of_value(value, Type::field());
+            }
+            _ => (),
+        }
+    }
+    None
 }
 
 /// Collects all functions used as values that can be called by their signatures
