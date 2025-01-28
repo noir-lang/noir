@@ -121,7 +121,9 @@ impl Translator {
                 self.builder.new_function(external_name, function_id, inline_type);
             }
             RuntimeType::Brillig(inline_type) => {
+                dbg!(function_id);
                 self.builder.new_brillig_function(external_name, function_id, inline_type);
+                self.builder.set_globals(self.globals_graph.clone());
             }
         }
 

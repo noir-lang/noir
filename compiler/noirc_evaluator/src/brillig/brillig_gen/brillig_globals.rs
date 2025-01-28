@@ -143,9 +143,14 @@ impl BrilligGlobals {
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
+            dbg!(globals_size);
+
             brillig.globals.insert(entry_point, artifact);
             brillig.globals_memory_size.insert(entry_point, globals_size);
         }
+
+        dbg!(inner_call_to_entry_point.clone());
+        dbg!(entry_point_globals_map.clone());
 
         self.inner_call_to_entry_point = inner_call_to_entry_point;
         self.entry_point_globals_map = entry_point_globals_map;
@@ -165,7 +170,9 @@ impl BrilligGlobals {
         } else if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
             vec![globals]
         } else {
-            vec![]
+            unreachable!(
+                "ICE: Expected global allocation to be set for function {brillig_function_id}"
+            );
         }
     }
 }
@@ -206,4 +213,209 @@ pub(crate) fn convert_ssa_globals(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use acvm::{
+        acir::brillig::{BitSize, Opcode},
+        FieldElement,
+    };
+
+    use crate::brillig::{brillig_ir::registers::RegisterAllocator, GlobalSpace, LabelType, Ssa};
+
+    #[test]
+    fn entry_points_different_globals() {
+        let src = "
+        g0 = Field 2
+
+        acir(inline) fn main f0 {
+        b0(v1: Field, v2: Field):
+            v4 = call f1(v1) -> Field
+            constrain v4 == Field 2
+            v6 = call f2(v1) -> Field
+            constrain v6 == Field 2
+            return
+        }
+        brillig(inline) fn entry_point_no_globals f1 {
+        b0(v1: Field):
+            v3 = add v1, Field 1
+            v4 = add v3, Field 1
+            return v4
+        }
+        brillig(inline) fn entry_point_globals f2 {
+        b0(v1: Field):
+            v2 = add v1, Field 2
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
+        let mut ssa = ssa.dead_instruction_elimination();
+
+        let brillig = ssa.to_brillig(false);
+        dbg!(brillig.globals.clone());
+        dbg!(brillig.globals_memory_size.clone());
+
+        assert_eq!(
+            brillig.globals.len(),
+            2,
+            "Should have a globals artifact associated with each entry point"
+        );
+        for (func_id, mut artifact) in brillig.globals {
+            let labels = artifact.take_labels();
+            // When entering a context two labels are created.
+            // One is a context label and another is a section albel.
+            assert_eq!(labels.len(), 2);
+            for (label, position) in labels {
+                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+                assert_eq!(position, 0);
+            }
+            if func_id.to_u32() == 1 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    1,
+                    "Expected just a `Return`, but got more than a single opcode"
+                );
+                assert!(matches!(&artifact.byte_code[0], Opcode::Return));
+            } else if func_id.to_u32() == 2 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    2,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                    panic!("First opcode is expected to be `Const`");
+                };
+                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert!(matches!(bit_size, BitSize::Field));
+                assert_eq!(*value, FieldElement::from(2u128));
+
+                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+            } else {
+                panic!("Unexpected function id: {func_id}");
+            }
+        }
+    }
+
+    #[test]
+    fn entry_point_nested_globals() {
+        let src = "
+        g0 = Field 1
+        g1 = make_array [Field 1, Field 1] : [Field; 2]
+        g2 = Field 0
+        g3 = make_array [Field 0, Field 0] : [Field; 2]
+        g4 = make_array [g1, g3] : [[Field; 2]; 2]
+
+        acir(inline) fn main f0 {
+          b0(v5: Field, v6: Field):
+              v8 = call f1(v5) -> Field
+              constrain v8 == Field 2
+              call f2(v5, v6)
+              v12 = call f1(v5) -> Field
+              constrain v12 == Field 2
+              call f3(v5, v6)
+              v15 = call f1(v5) -> Field
+              constrain v15 == Field 2
+              return
+        }
+        brillig(inline) fn entry_point_no_globals f1 {
+          b0(v5: Field):
+              v6 = add v5, Field 1
+              v7 = add v6, Field 1
+              return v7
+        }
+        brillig(inline) fn check_acc_entry_point f2 {
+          b0(v5: Field, v6: Field):
+              v8 = allocate -> &mut Field
+              store Field 0 at v8
+              jmp b1(u32 0)
+          b1(v7: u32):
+              v11 = lt v7, u32 2
+              jmpif v11 then: b3, else: b2
+          b2():
+              v12 = load v8 -> Field
+              v13 = eq v12, Field 0
+              constrain v13 == u1 0
+              v15 = eq v5, v6
+              constrain v15 == u1 0
+              v16 = add v5, Field 1
+              v17 = add v16, Field 1
+              constrain v17 == Field 2
+              return
+          b3():
+              v19 = array_get g4, index v7 -> [Field; 2]
+              v20 = load v8 -> Field
+              v21 = array_get v19, index u32 0 -> Field
+              v22 = add v20, v21
+              v24 = array_get v19, index u32 1 -> Field
+              v25 = add v22, v24
+              store v25 at v8
+              v26 = unchecked_add v7, u32 1
+              jmp b1(v26)
+        }
+        brillig(inline) fn entry_point_inner_func_globals f3 {
+          b0(v5: Field, v6: Field):
+              call f4(v5, v6)
+              return
+        }
+        brillig(inline) fn non_entry_point_wrapper f4 {
+          b0(v5: Field, v6: Field):
+              call f2(v5, v6)
+              call f2(v5, v6)
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
+        let mut ssa = ssa.dead_instruction_elimination();
+
+        let brillig = ssa.to_brillig(false);
+
+        assert_eq!(
+            brillig.globals.len(),
+            3,
+            "Should have a globals artifact associated with each entry point"
+        );
+        for (func_id, mut artifact) in brillig.globals {
+            let labels = artifact.take_labels();
+            // When entering a context two labels are created.
+            // One is a context label and another is a section albel.
+            assert_eq!(labels.len(), 2);
+            for (label, position) in labels {
+                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+                assert_eq!(position, 0);
+            }
+            if func_id.to_u32() == 1 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    2,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                    panic!("First opcode is expected to be `Const`");
+                };
+                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert!(matches!(bit_size, BitSize::Field));
+                assert_eq!(*value, FieldElement::from(1u128));
+
+                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+            } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
+                // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
+                // to have the same globals initialized.
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    30,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let globals_max_memory = brillig
+                    .globals_memory_size
+                    .get(&func_id)
+                    .copied()
+                    .expect("Should have globals memory size");
+                assert_eq!(globals_max_memory, 7);
+            } else {
+                panic!("Unexpected function id: {func_id}");
+            }
+        }
+    }
+}
