@@ -241,7 +241,7 @@ impl CrateDefMap {
 
                     module.type_definitions().for_each(|id| {
                         if let ModuleDefId::TypeId(struct_id) = id {
-                            interner.struct_attributes(&struct_id).iter().for_each(|attr| {
+                            interner.type_attributes(&struct_id).iter().for_each(|attr| {
                                 if let SecondaryAttribute::Abi(tag) = attr {
                                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                                         tagged.push(struct_id);

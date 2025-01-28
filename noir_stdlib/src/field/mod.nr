@@ -32,9 +32,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_le_bits)]
-    // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_le_bits
+    fn _to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
 
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
@@ -48,9 +46,71 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_be_bits)]
+    fn _to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
+
+    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
+    // docs:start:to_le_bits
+    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+        // docs:end:to_le_bits
+        let bits = self._to_le_bits();
+
+        if !is_unconstrained() {
+            // Ensure that the byte decomposition does not overflow the modulus
+            let p = modulus_le_bits();
+            assert(bits.len() <= p.len());
+            let mut ok = bits.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bits[N - 1 - i] != p[N - 1 - i]) {
+                        assert(p[N - 1 - i] == 1);
+                        ok = true;
+                    }
+                }
+            }
+            assert(ok);
+        }
+        bits
+    }
+
+    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+    /// This array will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_be_bits
+    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+        // docs:end:to_be_bits
+        let bits = self._to_be_bits();
+
+        if !is_unconstrained() {
+            // Ensure that the decomposition does not overflow the modulus
+            let p = modulus_be_bits();
+            assert(bits.len() <= p.len());
+            let mut ok = bits.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bits[i] != p[i]) {
+                        assert(p[i] == 1);
+                        ok = true;
+                    }
+                }
+            }
+            assert(ok);
+        }
+        bits
+    }
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.

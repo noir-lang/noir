@@ -199,7 +199,7 @@ impl<'a> NodeFinder<'a> {
         };
 
         let location = Location::new(span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(struct_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
@@ -207,8 +207,11 @@ impl<'a> NodeFinder<'a> {
         let struct_type = struct_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields: Vec<_> =
-            struct_type.get_fields_as_written().into_iter().enumerate().collect();
+        let Some(fields) = struct_type.get_fields_as_written() else {
+            return;
+        };
+
+        let mut fields = fields.into_iter().enumerate().collect::<Vec<_>>();
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
@@ -805,9 +808,11 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, visibility, typ)) in
-            struct_type.get_fields_with_visibility(generics).iter().enumerate()
-        {
+        let Some(fields) = struct_type.get_fields_with_visibility(generics) else {
+            return;
+        };
+
+        for (field_index, (name, visibility, typ)) in fields.iter().enumerate() {
             if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
             {
                 continue;
@@ -1953,8 +1958,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
     match reference_id {
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
-        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
-        ReferenceId::Enum(enum_id) => Some(ModuleDefId::TypeId(enum_id)),
+        ReferenceId::Type(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
