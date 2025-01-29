@@ -245,7 +245,7 @@ fn flatten_function(function: &mut Function, no_predicates: &mut FxHashMap<Funct
             stack.extend(cfg.successors(block));
         }
     }
-    dbg!(&conditionals.len());
+
     // 2. Flatten all simple conditionals
     // process in reverse order because the process of a conditional does not impact the previous ones
     conditionals.reverse();
