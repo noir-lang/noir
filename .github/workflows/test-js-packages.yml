@@ -610,7 +610,7 @@ jobs:
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
-          jq --null-input "{ test_reports: [{ name: \"$NAME\", time: \"$TIME\" }]}" > $TEST_REPORT_NAME.json
+          jq --null-input "{ test_reports: [{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]}" > $TEST_REPORT_NAME.json
 
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
@@ -657,7 +657,6 @@ jobs:
         run: |
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh test_report
-          jq ".test_reports | map({name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./test_report.json > test_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -665,7 +664,7 @@ jobs:
         with:
           name: "Test Suite Duration"
           tool: "customSmallerIsBetter"
-          output-file-path: ./test_bench.json
+          output-file-path: ./test_report.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
