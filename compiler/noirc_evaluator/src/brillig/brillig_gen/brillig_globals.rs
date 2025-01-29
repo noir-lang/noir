@@ -108,10 +108,9 @@ impl BrilligGlobals {
         brillig_entry_points: &mut HashMap<FunctionId, HashSet<FunctionId>>,
         mut explored_functions: im::HashSet<FunctionId>,
     ) {
-        if explored_functions.contains(&called_function.id()) {
+        if explored_functions.insert(called_function.id()).is_some() {
             return;
         }
-        explored_functions.insert(called_function.id());
 
         let inner_calls = called_functions_vec(called_function).into_iter().collect::<HashSet<_>>();
 
