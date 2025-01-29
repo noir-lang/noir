@@ -114,22 +114,24 @@ impl BrilligGlobals {
 
         let inner_calls = called_functions_vec(called_function).into_iter().collect::<HashSet<_>>();
 
-        for inner_call in inner_calls.iter() {
-            let inner_globals =
-                used_globals.get(inner_call).expect("Should have a slot for each function").clone();
+        for inner_call in inner_calls {
+            let inner_globals = used_globals
+                .get(&inner_call)
+                .expect("Should have a slot for each function")
+                .clone();
             used_globals
                 .get_mut(&entry_point)
                 .expect("ICE: should have func")
                 .extend(inner_globals);
 
             if let Some(inner_calls) = brillig_entry_points.get_mut(&entry_point) {
-                inner_calls.insert(*inner_call);
+                inner_calls.insert(inner_call);
             }
 
             Self::mark_entry_points_calls_recursive(
                 functions,
                 entry_point,
-                &functions[inner_call],
+                &functions[&inner_call],
                 used_globals,
                 brillig_entry_points,
                 explored_functions.clone(),
