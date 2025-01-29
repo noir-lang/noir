@@ -2,8 +2,8 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_gen::{brillig_globals::convert_ssa_globals, constant_allocation::ConstantAllocation};
 use brillig_gen::brillig_globals::BrilligGlobals;
+use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 
 use self::{
@@ -18,8 +18,8 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        types::NumericType,
         instruction::Instruction,
+        types::NumericType,
         value::{Value, ValueId},
     },
     opt::inlining::called_functions_vec,
@@ -104,42 +104,10 @@ impl Ssa {
             return brillig;
         }
 
-        // We can potentially have multiple local constants with the same value and type
-        let mut hoisted_global_constants: HashMap<(FieldElement, NumericType), usize> =
-            HashMap::default();
-        for brillig_function_id in brillig_reachable_function_ids.iter() {
-            let function = &self.functions[brillig_function_id];
-            let constants = ConstantAllocation::from_function(function);
-            for (constant, _) in constants.constant_usage {
-                let value = function.dfg.get_numeric_constant(constant);
-                let value = value.unwrap();
-                let typ = function.dfg.type_of_value(constant);
-                if !function.dfg.is_global(constant) {
-                    hoisted_global_constants
-                        .entry((value, typ.unwrap_numeric()))
-                        .and_modify(|counter| *counter += 1)
-                        .or_insert(1);
-                }
-            }
-        }
-
-        // We want to hoist only if there are repeat occurrences of a constant.
-        let hoisted_global_constants = hoisted_global_constants
-            .into_iter()
-            .filter_map(
-                |(value, num_occurrences)| {
-                    if num_occurrences > 1 {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                },
-            )
-            .collect::<HashSet<_>>();
-
         let mut brillig_globals =
             BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
 
+        // brillig_globals.fetch_global_constants_to_hoist(&self.functions);
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
@@ -148,10 +116,16 @@ impl Ssa {
         brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let globals_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
+            let (globals_allocations, hoisted_constant_allocations) =
+                brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, enable_debug_trace, &globals_allocations, &HashMap::default());
+            brillig.compile(
+                func,
+                enable_debug_trace,
+                &globals_allocations,
+                &hoisted_constant_allocations,
+            );
         }
 
         brillig

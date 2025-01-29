@@ -60,7 +60,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         globals: &'block HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &'block HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) {
-        let live_in = function_context.liveness.get_live_in(&block_id);
+        let live_in: &std::collections::HashSet<
+            crate::ssa::ir::map::Id<Value>,
+            std::hash::BuildHasherDefault<fxhash::FxHasher>,
+        > = function_context.liveness.get_live_in(&block_id);
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
@@ -106,6 +109,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         hoisted_global_consts: &HashSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+        let mut new_hoisted_constants = HashMap::default();
+
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -125,17 +130,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
-        let mut hoisted_global_constants = HashMap::default();
         for (constant, typ) in hoisted_global_consts {
-            let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(*typ));
-
-            self.brillig_context.const_instruction(new_variable.extract_single_addr(), *constant);
-
-            if hoisted_global_constants.insert((*constant, *typ), new_variable).is_some() {
+            let constant = *constant;
+            let typ = *typ;
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
+            self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
+            if new_hoisted_constants.insert((constant, typ), new_variable).is_some() {
                 unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
             }
         }
-        hoisted_global_constants
+        new_hoisted_constants
     }
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {

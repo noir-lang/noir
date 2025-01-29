@@ -88,7 +88,7 @@ impl Ssa {
                             &globals_dfg,
                             used_globals,
                             &fxhash::FxHashSet::default(),
-                            function.id()
+                            function.id(),
                         );
                         global_cache = Some(brillig_globals);
                     }
