@@ -602,7 +602,7 @@ jobs:
           output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
           BEFORE=$SECONDS
           nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
-          TIME=$SECONDS-$BEFORE
+          TIME=$(($SECONDS-$BEFORE))
 
           NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
           # Replace any slashes with underscores
