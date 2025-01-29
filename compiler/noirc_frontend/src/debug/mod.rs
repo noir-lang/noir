@@ -141,6 +141,8 @@ impl DebugInstrumenter {
     fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
+        let span = Span::empty(span.end());
+
         // extract and save the return value from the scope if there is one
         let ret_stmt = statements.pop();
         let has_ret_expr = match ret_stmt {
@@ -148,12 +150,12 @@ impl DebugInstrumenter {
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
                 let mut save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
-                        ast::Pattern::Identifier(ident("__debug_return_expr", ret_expr.span)),
+                        ast::Pattern::Identifier(ident("__debug_return_expr", span)),
                         ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
                         ret_expr.clone(),
                         vec![],
                     ),
-                    span: ret_expr.span,
+                    span,
                 };
                 // call walk_statement on the new let statement, in order to make the return variable visible in the debugger
                 self.walk_statement(&mut save_ret_expr);
@@ -166,8 +168,6 @@ impl DebugInstrumenter {
                 false
             }
         };
-
-        let span = Span::empty(span.end());
 
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
