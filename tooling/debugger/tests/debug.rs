@@ -49,4 +49,112 @@ mod tests {
         // Exit the bash session.
         dbg_session.send_line("exit").expect("Failed to quit bash session");
     }
+
+    #[test]
+    fn debugger_expected_call_stack() {
+        let nargo_bin =
+            cargo_bin("nargo").into_os_string().into_string().expect("Cannot parse nargo path");
+
+        let timeout_seconds = 30;
+        let mut dbg_session =
+            spawn_bash(Some(timeout_seconds * 1000)).expect("Could not start bash session");
+
+        let test_program_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test_programs/execution_success/regression_7195");
+        let test_program_dir = test_program_path.display();
+
+        // Start debugger and test that it loads for the given program.
+        dbg_session
+            .execute(
+                &format!(
+                    "{nargo_bin} debug --raw-source-printing true --program-dir {test_program_dir} --force-brillig --expression-width 3"
+                ),
+                ".*\\Starting debugger.*",
+            )
+            .expect("Could not start debugger");
+
+        for step_number in 0..8 {
+            // While running the debugger, issue a "next" cmd,
+            // which should run to the program to the next source line given
+            // we haven't set any breakpoints.
+            // ">" is the debugger's prompt, so finding one
+            // after running "next" indicates that the
+            // debugger has not panicked for this step.
+            dbg_session
+                .send_line("next")
+                .expect("Debugger panicked while attempting to step through program.");
+            dbg_session
+                .exp_string(">")
+                .expect("Failed while waiting for debugger to step through program.");
+
+            if step_number == 7 {
+                let mut lines = vec![];
+                let mut read_line = dbg_session.read_line();
+                while read_line.is_ok() {
+                    if let Ok(line) = read_line {
+                        // only keep the results after the most recent "next" command
+                        if line.contains("> next") {
+                            lines = vec![];
+                        } else {
+                            lines.push(line);
+                        }
+                    }
+                    read_line = dbg_session.read_line();
+                }
+
+                let lines_expected_to_contain: Vec<&str> = vec![
+                    "At opcode ",
+                    "At ",
+                    "...",
+                    "    bar(x)",
+                    "}",
+                    "",
+                    "fn main(x: Field, y: pub Field) {",
+                    "    foo(x);",
+                    "    foo(y);",
+                    "    assert(x != y);",
+                    "}",
+                    "At ",
+                    "fn bar(y: Field) {",
+                    "    assert(y != 0);",
+                    "}",
+                    "",
+                    "fn foo(x: Field) {",
+                    "    bar(x)",
+                    "}",
+                    "",
+                    "fn main(x: Field, y: pub Field) {",
+                    "    foo(x);",
+                    "...",
+                    "At ",
+                    "fn bar(y: Field) {",
+                    "    assert(y != 0);",
+                    "}",
+                    "",
+                    "fn foo(x: Field) {",
+                    "    bar(x)",
+                    "...",
+                ];
+
+                for (line, line_expected_to_contain) in
+                    lines.into_iter().zip(lines_expected_to_contain)
+                {
+                    let ascii_line: String = line.chars().filter(char::is_ascii).collect();
+                    let line_expected_to_contain = line_expected_to_contain.trim_start();
+                    assert!(
+                        ascii_line.contains(&line_expected_to_contain),
+                        "{:?}\ndid not contain\n{:?}",
+                        ascii_line,
+                        line_expected_to_contain,
+                    );
+                }
+            }
+        }
+
+        // Run the "quit" command
+        dbg_session.send_line("quit").expect("Failed to quit debugger");
+
+        // Exit the bash session.
+        dbg_session.send_line("exit").expect("Failed to quit bash session");
+    }
 }

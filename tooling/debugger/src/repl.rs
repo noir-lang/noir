@@ -32,6 +32,9 @@ pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 
     // Brillig functions referenced from the ACIR circuits above
     unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+
+    // whether to print the source without highlighting / pretty-printing
+    raw_source_printing: bool,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
@@ -41,6 +44,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        raw_source_printing: bool,
     ) -> Self {
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
             PrintOutput::Stdout,
@@ -68,6 +72,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             initial_witness,
             last_result,
             unconstrained_functions,
+            raw_source_printing,
         }
     }
 
@@ -97,7 +102,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                     }
                 }
                 let locations = self.context.get_source_location_for_debug_location(&location);
-                print_source_code_location(self.debug_artifact, &locations);
+                print_source_code_location(
+                    self.debug_artifact,
+                    &locations,
+                    self.raw_source_printing,
+                );
             }
         }
     }
@@ -125,7 +134,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             }
         }
         let locations = self.context.get_source_location_for_debug_location(debug_location);
-        print_source_code_location(self.debug_artifact, &locations);
+        print_source_code_location(self.debug_artifact, &locations, self.raw_source_printing);
     }
 
     pub fn show_current_call_stack(&self) {
@@ -427,6 +436,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
+    raw_source_printing: bool,
 ) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
     let circuits = &program.program.functions;
     let debug_artifact =
@@ -438,6 +448,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
         debug_artifact,
         initial_witness,
         unconstrained_functions,
+        raw_source_printing,
     ));
     let ref_context = &context;
 
