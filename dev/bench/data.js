@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738169701287,
+  "lastUpdate": 1738169703424,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13907,95 +13907,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "df71bdea8d726142994f92fea1d947e6307a7095",
-          "message": "chore: Add benchmarking dashboard (#7068)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-01-17T16:36:34Z",
-          "tree_id": "0dfe3a96b6cccdbe9fa643ac09acc0ab8e246c74",
-          "url": "https://github.com/noir-lang/noir/commit/df71bdea8d726142994f92fea1d947e6307a7095"
-        },
-        "date": 1737133295922,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.63,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.41,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.94,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 472.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1220,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 734.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 590.4,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 180.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208.84,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -18360,6 +18271,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 210.59,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bdcfd38e4d8c9fb9dcd4298ac263f681e470a6ce",
+          "message": "fix(brillig): Globals entry point reachability analysis  (#7188)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-29T16:32:32Z",
+          "tree_id": "7cc7a3a708af7d73728e8df9e61f7b537549e176",
+          "url": "https://github.com/noir-lang/noir/commit/bdcfd38e4d8c9fb9dcd4298ac263f681e470a6ce"
+        },
+        "date": 1738169702481,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.56,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.92,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 182.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 247.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.56,
             "unit": "MB"
           }
         ]
