@@ -87,6 +87,22 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    fn are_src_locations_equal(
+        src_location_1: &Vec<SourceLocation>,
+        src_location_2: &Vec<SourceLocation>,
+    ) -> bool {
+        if src_location_1.len() != src_location_2.len() {
+            false
+        } else {
+            for i in 0..src_location_1.len() {
+                if src_location_1[i] != src_location_2[i] {
+                    return false;
+                }
+            }
+            true
+        }
+    }
+
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
     /// Ok.
     ///
@@ -109,10 +125,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
                 println!("Warning: no call stack");
                 continue;
             };
-
-            if self.source_locations.len() == source_locations.len()
-                && self.source_locations.last().unwrap() == source_locations.last().unwrap()
-            {
+            if Self::are_src_locations_equal(&self.source_locations, &source_locations) {
                 // Continue stepping until a new line in the same file is reached, or the current file
                 // has changed.
                 // TODO(coda-bug/r916): a function call could result in an extra step
@@ -123,7 +136,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
-    fn maybe_update_saved_return_value(frame: &StackFrame, saved_return_value: &mut Option<Variable>) {
+    fn maybe_update_saved_return_value(
+        frame: &StackFrame,
+        saved_return_value: &mut Option<Variable>,
+    ) {
         for variable in &frame.variables {
             if variable.name == "__debug_return_expr" {
                 *saved_return_value = Some(variable.clone());
@@ -183,7 +199,10 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
             self.maybe_report_print_events(tracer);
             register_step(tracer, location, debug_trace_list);
             register_variables(tracer, &stack_frames[index]);
-            Self::maybe_update_saved_return_value(&stack_frames[index], &mut self.saved_return_value);
+            Self::maybe_update_saved_return_value(
+                &stack_frames[index],
+                &mut self.saved_return_value,
+            );
         }
 
         self.stack_frames = stack_frames;
