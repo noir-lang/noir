@@ -2,10 +2,12 @@ name: Deploy preview for PR
 
 on:
   pull_request:
+  merge_group:
 
 jobs:
   add_label:
     runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
     outputs:
       has_label: ${{ steps.check-labels.outputs.result }}
     steps:
