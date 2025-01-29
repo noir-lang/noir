@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738162218824,
+  "lastUpdate": 1738162474584,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18165,6 +18165,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 611.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 182.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.73,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.25,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a779cef6a559b6934ae2676980f8c41119ac068b",
+          "message": "chore(ssa): Flip the SSA Brillig constraint check to off by default (#7211)",
+          "timestamp": "2025-01-29T14:26:14Z",
+          "tree_id": "7172b0362f1e9b98be75e5a7a108ba84a0814d7b",
+          "url": "https://github.com/noir-lang/noir/commit/a779cef6a559b6934ae2676980f8c41119ac068b"
+        },
+        "date": 1738162473812,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.09,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 749.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.56,
             "unit": "MB"
           },
           {
