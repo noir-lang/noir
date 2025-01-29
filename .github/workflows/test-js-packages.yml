@@ -610,7 +610,7 @@ jobs:
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
-          jq --null-input "{ name: \"$NAME\", time: \"$TIME\" }" > $TEST_REPORT_NAME.json
+          jq --null-input "{ test_reports: [{ name: \"$NAME\", time: \"$TIME\" }]}" > $TEST_REPORT_NAME.json
 
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
