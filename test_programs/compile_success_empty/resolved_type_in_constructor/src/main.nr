@@ -4,7 +4,7 @@ fn main() {
 
 comptime fn my_macro() -> Quoted {
     let typ = quote { Foo }.as_type();
-    quote[$typ {}]
+    quote [$typ {}]
 }
 
 struct Foo {}

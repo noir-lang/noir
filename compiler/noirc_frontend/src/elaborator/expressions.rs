@@ -680,7 +680,7 @@ impl<'context> Elaborator<'context> {
 
         let field_types = r#type
             .borrow()
-            .get_fields_with_visibility(&struct_generics)
+            .get_fields_with_visibility(struct_generics)
             .expect("This type should already be validated to be a struct");
 
         let fields =
