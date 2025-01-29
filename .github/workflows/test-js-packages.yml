@@ -605,6 +605,8 @@ jobs:
           TIME=$SECONDS-$BEFORE
 
           NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
+          # Replace any slashes with underscores
+          NAME=${NAME//\//_}
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
