@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738174467853,
+  "lastUpdate": 1738174490115,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13937,95 +13937,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "82cb9007b89c1a3520c85d3134916a29127226db",
-          "message": "feat(brillig): SSA globals code gen (#7021)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-01-17T18:47:15Z",
-          "tree_id": "a1cc28441a9d2b957a20b238752b31d2f35a0f65",
-          "url": "https://github.com/noir-lang/noir/commit/82cb9007b89c1a3520c85d3134916a29127226db"
-        },
-        "date": 1737141199629,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.63,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.66,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.94,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 734.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 590.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 180.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208.85,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -18340,6 +18251,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 124.29,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.92,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 182.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 247.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.56,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0c4687025ad8ff2faa0512223147977b1bc28b46",
+          "message": "chore: start tracking time to run critical library tests (#7221)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-29T17:51:44Z",
+          "tree_id": "4f85d8d463c383ce8962d71b58afc93c94f7419b",
+          "url": "https://github.com/noir-lang/noir/commit/0c4687025ad8ff2faa0512223147977b1bc28b46"
+        },
+        "date": 1738174489328,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.26,
             "unit": "MB"
           },
           {
