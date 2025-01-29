@@ -283,7 +283,8 @@ mod tests {
         // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
         let mut ssa = ssa.dead_instruction_elimination();
 
-        let brillig = ssa.to_brillig(false);
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),
@@ -399,7 +400,8 @@ mod tests {
         // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
         let mut ssa = ssa.dead_instruction_elimination();
 
-        let brillig = ssa.to_brillig(false);
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),

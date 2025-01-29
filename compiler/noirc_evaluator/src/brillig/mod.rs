@@ -23,7 +23,7 @@ use crate::ssa::{
     opt::inlining::called_functions_vec,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -75,9 +75,18 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn to_brillig(&self, enable_debug_trace: bool) -> Brillig {
+        self.to_brillig_with_globals(enable_debug_trace, HashMap::default())
+    }
+
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&mut self, enable_debug_trace: bool) -> Brillig {
+    pub(crate) fn to_brillig_with_globals(
+        &self,
+        enable_debug_trace: bool,
+        used_globals_map: HashMap<FunctionId, HashSet<ValueId>>,
+    ) -> Brillig {
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
         let brillig_reachable_function_ids = self
@@ -92,7 +101,6 @@ impl Ssa {
             return brillig;
         }
 
-        let used_globals_map = std::mem::take(&mut self.used_globals);
         let mut brillig_globals =
             BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
 

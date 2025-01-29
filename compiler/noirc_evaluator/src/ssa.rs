@@ -122,8 +122,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
+    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig(options.enable_brillig_logging)
+        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
