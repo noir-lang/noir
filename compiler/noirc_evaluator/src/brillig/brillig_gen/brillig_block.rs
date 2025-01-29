@@ -853,8 +853,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             Instruction::EnableSideEffectsIf { .. } => {
                 unreachable!("enable_side_effects not supported by brillig")
             }
-            Instruction::IfElse { .. } => {
-                unreachable!("IfElse instructions should not be possible in brillig")
+            Instruction::IfElse { then_condition, then_value, else_condition: _, else_value } => {
+                let then_condition = self.convert_ssa_single_addr_value(*then_condition, dfg);
+                let then_value = self.convert_ssa_single_addr_value(*then_value, dfg);
+                let else_value = self.convert_ssa_single_addr_value(*else_value, dfg);
+                let result_register = self.variables.define_single_addr_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    dfg.instruction_results(instruction_id)[0],
+                    dfg,
+                );
+                self.brillig_context.conditional_move_instruction(
+                    then_condition,
+                    then_value,
+                    else_value,
+                    result_register,
+                );
             }
             Instruction::MakeArray { elements: array, typ } => {
                 let value_id = dfg.instruction_results(instruction_id)[0];

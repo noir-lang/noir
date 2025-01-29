@@ -232,10 +232,9 @@ impl DataFlowGraph {
                 instruction,
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
             ),
-            RuntimeType::Brillig(_) => !matches!(
-                instruction,
-                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
-            ),
+            RuntimeType::Brillig(_) => {
+                !matches!(instruction, Instruction::EnableSideEffectsIf { .. })
+            }
         }
     }
 
