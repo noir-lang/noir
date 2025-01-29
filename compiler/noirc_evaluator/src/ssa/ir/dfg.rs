@@ -424,7 +424,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function(function))
+        let result = self.values.insert(Value::Function(function));
+        self.functions.insert(function, result);
+        result
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -432,7 +434,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
+        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        self.foreign_functions.insert(function.to_owned(), result);
+        result
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
