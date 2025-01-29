@@ -658,7 +658,7 @@ jobs:
           jq --null-input "{ test_reports: [] }" > test_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh test_report
-          cat ./test_report.json | jq ".test_reports" > test_bench.json
+          jq ".test_reports" < ./test_report.json > test_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
