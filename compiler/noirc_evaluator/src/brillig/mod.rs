@@ -92,7 +92,7 @@ impl Ssa {
         }
 
         // We can potentially have multiple local constants with the same value and type
-        let mut hoisted_global_consts: HashMap<(FieldElement, NumericType), usize> =
+        let mut hoisted_global_constants: HashMap<(FieldElement, NumericType), usize> =
             HashMap::default();
         for brillig_function_id in brillig_reachable_function_ids.iter() {
             let function = &self.functions[brillig_function_id];
@@ -102,7 +102,7 @@ impl Ssa {
                 let value = value.unwrap();
                 let typ = function.dfg.type_of_value(constant);
                 if !function.dfg.is_global(constant) {
-                    hoisted_global_consts
+                    hoisted_global_constants
                         .entry((value, typ.unwrap_numeric()))
                         .and_modify(|counter| *counter += 1)
                         .or_insert(1);
@@ -111,7 +111,7 @@ impl Ssa {
         }
 
         // We want to hoist only if there are repeat occurrences of a constant.
-        let hoisted_global_consts = hoisted_global_consts
+        let hoisted_global_constants = hoisted_global_constants
             .into_iter()
             .filter_map(
                 |(value, num_occurrences)| {
@@ -132,7 +132,7 @@ impl Ssa {
                 enable_debug_trace,
                 globals,
                 &self.used_global_values,
-                &hoisted_global_consts,
+                &hoisted_global_constants,
             );
         brillig.globals = artifact;
         brillig.globals_memory_size = globals_size;
