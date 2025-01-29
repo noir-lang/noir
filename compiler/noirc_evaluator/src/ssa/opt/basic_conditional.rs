@@ -16,7 +16,7 @@ use crate::ssa::{
 };
 
 use super::flatten_cfg::Context;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct BasicConditional {
     block_entry: BasicBlockId,
     block_then: Option<BasicBlockId>,
@@ -73,36 +73,78 @@ fn is_conditional(
             // including an overhead to take into account the jumps between the blocks.
             let cost = cost_right.saturating_add(cost_left);
             if cost < cost / 2 + jump_overhead {
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: Some(left),
-                    block_else: Some(right),
-                    block_exit: next_left.unwrap(),
-                });
+                if let Some(TerminatorInstruction::JmpIf {
+                    condition: _,
+                    then_destination,
+                    else_destination,
+                    call_stack: _,
+                }) = function.dfg[block].terminator()
+                {
+                    result = Some(BasicConditional {
+                        block_entry: block,
+                        block_then: Some(*then_destination),
+                        block_else: Some(*else_destination),
+                        block_exit: next_left.unwrap(),
+                    });
+                }
             }
         } else if left_successors_len == 1 && next_left == Some(right) {
             // Left branch joins the right branch, it is a if/then statement with no else
             // I am not sure whether this case can happen, but it is not difficult to handle it
             let cost = block_cost(left, &function.dfg);
             if cost < cost / 2 + jump_overhead {
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: Some(left),
-                    block_else: None,
-                    block_exit: right,
-                });
+                if let Some(TerminatorInstruction::JmpIf {
+                    condition: _,
+                    then_destination,
+                    else_destination,
+                    call_stack: _,
+                }) = function.dfg[block].terminator()
+                {
+                    if left == *then_destination {
+                        result = Some(BasicConditional {
+                            block_entry: block,
+                            block_then: Some(left),
+                            block_else: None,
+                            block_exit: right,
+                        });
+                    } else if left == *else_destination {
+                        result = Some(BasicConditional {
+                            block_entry: block,
+                            block_then: None,
+                            block_else: Some(left),
+                            block_exit: right,
+                        });
+                    }
+                }
             }
         } else if right_successors_len == 1 && next_right == Some(left) {
             // Right branch joins the right branch, it is a if/else statement with no then
             // I am not sure whether this case can happen, but it is not difficult to handle it
             let cost = block_cost(right, &function.dfg);
             if cost < cost / 2 + jump_overhead {
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: None,
-                    block_else: Some(right),
-                    block_exit: right,
-                });
+                if let Some(TerminatorInstruction::JmpIf {
+                    condition: _,
+                    then_destination,
+                    else_destination,
+                    call_stack: _,
+                }) = function.dfg[block].terminator()
+                {
+                    if right == *else_destination {
+                        result = Some(BasicConditional {
+                            block_entry: block,
+                            block_then: None,
+                            block_else: Some(right),
+                            block_exit: right,
+                        });
+                    } else if right == *then_destination {
+                        result = Some(BasicConditional {
+                            block_entry: block,
+                            block_then: Some(right),
+                            block_else: None,
+                            block_exit: right,
+                        });
+                    }
+                }
             }
         }
     }
@@ -232,19 +274,32 @@ impl<'f> Context<'f> {
         conditional: &BasicConditional,
         no_predicates: &mut FxHashMap<FunctionId, bool>,
     ) {
-        // Manually inline then, else and exit into the entry block
-        let queue = vec![];
-
+        // Manually inline 'then', 'else' and 'exit' into the entry block
+        let mut queue = vec![];
+        //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
-        let _to_process = self.handle_terminator(conditional.block_entry, &queue);
+        let to_process = self.handle_terminator(conditional.block_entry, &queue);
+        queue.extend(to_process);
         if let Some(then) = conditional.block_then {
+            assert_eq!(queue.pop(), conditional.block_then);
             self.inline_block(then, no_predicates);
-            self.handle_terminator(then, &queue);
+            let to_process = self.handle_terminator(then, &queue);
+
+            queue.extend(to_process);
         }
-        if let Some(else_b) = conditional.block_else {
-            self.inline_block(else_b, no_predicates);
-            self.handle_terminator(else_b, &queue);
+
+        //2. process 'else' branch, in case there is no 'then'
+        let next = queue.pop();
+        if next == conditional.block_else {
+            let next = next.unwrap();
+            self.inline_block(next, no_predicates);
+            let to_process = self.handle_terminator(next, &queue);
+            queue.extend(to_process);
+        } else {
+            assert_eq!(next, Some(conditional.block_exit));
         }
+
+        //3. process 'exit' block
         self.inline_block(conditional.block_exit, no_predicates);
         // Manually set the terminator of the entry block to the one of the exit block
         let terminator =
