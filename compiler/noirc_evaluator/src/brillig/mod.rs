@@ -104,11 +104,7 @@ impl Ssa {
         brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let mut globals_allocations = HashMap::default();
-            let entry_point_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
-            for map in entry_point_allocations {
-                globals_allocations.extend(map);
-            }
+            let globals_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
 
             let func = &self.functions[&brillig_function_id];
             brillig.compile(func, enable_debug_trace, &globals_allocations);
