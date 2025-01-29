@@ -184,7 +184,7 @@ struct PerFunctionContext<'function> {
 /// Utility function to find out the direct calls of a function.
 ///
 /// Returns the function IDs from all `Call` instructions without deduplication.
-fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
+pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {

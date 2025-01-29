@@ -66,13 +66,14 @@ const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 3] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "macros_in_comptime",
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
+    "comptime_enums",
 ];
 
 fn read_test_cases(
@@ -430,6 +431,7 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             &test_dir,
             "compile",
             r#"
+                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:").not());
             "#,
             &MatrixConfig::default(),
@@ -459,6 +461,7 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             "compile",
             r#"
+                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:"));
             "#,
             &MatrixConfig::default(),

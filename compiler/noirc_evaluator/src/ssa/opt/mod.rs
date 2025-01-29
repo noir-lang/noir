@@ -12,7 +12,7 @@ mod defunctionalize;
 mod die;
 pub(crate) mod flatten_cfg;
 mod hint;
-mod inlining;
+pub(crate) mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;

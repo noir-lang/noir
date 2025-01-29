@@ -32,7 +32,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.codegen_entry_point(&arguments, &return_parameters);
 
         if globals_init {
-            context.add_globals_init_instruction();
+            context.add_globals_init_instruction(target_function);
         }
 
         context.add_external_call_instruction(target_function);
