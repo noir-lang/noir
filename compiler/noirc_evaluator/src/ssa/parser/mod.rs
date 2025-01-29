@@ -182,6 +182,10 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
+
+        // Ignore function purity if it is in the input
+        self.eat_identifier().ok();
+
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_error()?;
