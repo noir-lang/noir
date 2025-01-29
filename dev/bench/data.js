@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738157665944,
+  "lastUpdate": 1738157915341,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17843,6 +17843,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 124.47,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 610.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 181.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.6,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.12,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "871935ea0b1d07eef72dc165dec78f25d668125b",
+          "message": "chore: build docs in the merge queue (#7218)",
+          "timestamp": "2025-01-29T13:13:58Z",
+          "tree_id": "b09d26eacc607ce796e6f2b5051a593e0ef1da66",
+          "url": "https://github.com/noir-lang/noir/commit/871935ea0b1d07eef72dc165dec78f25d668125b"
+        },
+        "date": 1738157914334,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.03,
             "unit": "MB"
           },
           {
