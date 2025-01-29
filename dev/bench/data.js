@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738174445419,
+  "lastUpdate": 1738174467853,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "82cb9007b89c1a3520c85d3134916a29127226db",
-          "message": "feat(brillig): SSA globals code gen (#7021)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-01-17T18:47:15Z",
-          "tree_id": "a1cc28441a9d2b957a20b238752b31d2f35a0f65",
-          "url": "https://github.com/noir-lang/noir/commit/82cb9007b89c1a3520c85d3134916a29127226db"
-        },
-        "date": 1737141197551,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 77.56,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.81,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 424.07,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 601.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 494.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 16060,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 489.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 601.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1140,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 207.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 584.4,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 294.6,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4969,6 +4870,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 270.94,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0c4687025ad8ff2faa0512223147977b1bc28b46",
+          "message": "chore: start tracking time to run critical library tests (#7221)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-01-29T17:51:44Z",
+          "tree_id": "4f85d8d463c383ce8962d71b58afc93c94f7419b",
+          "url": "https://github.com/noir-lang/noir/commit/0c4687025ad8ff2faa0512223147977b1bc28b46"
+        },
+        "date": 1738174467203,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.85,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 425,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 433.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 614.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 505.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 5390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 502.03,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 5390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 614.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 202.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 540.2,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 270.98,
             "unit": "MB"
           }
         ]
