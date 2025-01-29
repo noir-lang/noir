@@ -644,7 +644,7 @@ impl<'context> Elaborator<'context> {
         last_segment: Option<PathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
-        let (r#type, struct_generics) = match typ.as_ref() {
+        let (r#type, generics) = match typ.as_ref() {
             Type::DataType(r#type, struct_generics) if r#type.borrow().is_struct() => {
                 (r#type, struct_generics)
             }
@@ -659,7 +659,7 @@ impl<'context> Elaborator<'context> {
         self.mark_struct_as_constructed(r#type.clone());
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
-        let mut generics = struct_generics.clone();
+        let mut generics = generics.clone();
         let mut is_self_type = false;
         let mut constructor_type_span = span;
 
@@ -680,7 +680,7 @@ impl<'context> Elaborator<'context> {
 
         let field_types = r#type
             .borrow()
-            .get_fields_with_visibility(struct_generics)
+            .get_fields_with_visibility(&generics)
             .expect("This type should already be validated to be a struct");
 
         let fields =
