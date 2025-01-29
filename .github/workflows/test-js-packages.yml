@@ -634,7 +634,7 @@ jobs:
   upload_critical_library_report:
     name: Upload critical library report 
     needs: [external-repo-checks]
-    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
     if: always() 
     runs-on: ubuntu-22.04
     permissions:
