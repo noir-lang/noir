@@ -1323,7 +1323,7 @@ mod test {
                 return v0
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
@@ -1351,7 +1351,7 @@ mod test {
                 return v2
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
@@ -1379,7 +1379,7 @@ mod test {
                 return v2
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
@@ -1407,7 +1407,7 @@ mod test {
                 return v3
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
@@ -1436,7 +1436,7 @@ mod test {
                 return v4
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
@@ -1470,7 +1470,7 @@ mod test {
                 return v5
             }
             ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let expected = "
