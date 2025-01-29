@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738178373969,
+  "lastUpdate": 1738178375331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13952,95 +13952,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7705a624842d1e1f716506b005ca65e397ff7a9f",
-          "message": "feat: Parser and formatter support for `enum`s (#7110)",
-          "timestamp": "2025-01-17T19:47:41Z",
-          "tree_id": "57c059db9627325e6d4fa517a31f236c78cdde21",
-          "url": "https://github.com/noir-lang/noir/commit/7705a624842d1e1f716506b005ca65e397ff7a9f"
-        },
-        "date": 1737144762098,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.63,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.41,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.94,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 734.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 590.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 180.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208.85,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -18420,6 +18331,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 210.56,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f218247aecf2a57eab43fde667e7b0759eeb78c",
+          "message": "feat(optimization): Add purity analysis to SSA (#7197)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-29T18:56:14Z",
+          "tree_id": "eed4b1eb22ce28e0a3ef8228e7d43fbaebcf4160",
+          "url": "https://github.com/noir-lang/noir/commit/9f218247aecf2a57eab43fde667e7b0759eeb78c"
+        },
+        "date": 1738178373886,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.07,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 794.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.67,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.95,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 213.13,
             "unit": "MB"
           }
         ]
