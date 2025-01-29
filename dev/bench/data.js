@@ -1,103 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738157915341,
+  "lastUpdate": 1738157918885,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "name": "noir-lang",
-            "username": "noir-lang"
-          },
-          "committer": {
-            "name": "noir-lang",
-            "username": "noir-lang"
-          },
-          "id": "99c0a807542f661aa91b41cdc23b693ad32f4b63",
-          "message": "chore: experimenting with benchmark action",
-          "timestamp": "2025-01-15T20:54:17Z",
-          "url": "https://github.com/noir-lang/noir/pull/7068/commits/99c0a807542f661aa91b41cdc23b693ad32f4b63"
-        },
-        "date": 1737022432136,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 77.63,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.97,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 424.14,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 336.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 229.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 15970,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 223.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 15970,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 336.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2120,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 874.53,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 207.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 584.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 294.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4929,6 +4834,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 270.47,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "871935ea0b1d07eef72dc165dec78f25d668125b",
+          "message": "chore: build docs in the merge queue (#7218)",
+          "timestamp": "2025-01-29T13:13:58Z",
+          "tree_id": "b09d26eacc607ce796e6f2b5051a593e0ef1da66",
+          "url": "https://github.com/noir-lang/noir/commit/871935ea0b1d07eef72dc165dec78f25d668125b"
+        },
+        "date": 1738157915927,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 77.85,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.31,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 425,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 1480,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 613.37,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 504.51,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 5420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 500.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 5430,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 613.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 2130,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1130,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 201.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 539.73,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 270.52,
             "unit": "MB"
           }
         ]
