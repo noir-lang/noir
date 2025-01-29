@@ -27,26 +27,32 @@ pub(crate) fn extract_indices(
 
 /// Extracts a `WitnessMap` containing the witness indices corresponding to the circuit's return values.
 ///
-/// @param {Uint8Array} circuit - A serialized representation of an ACIR circuit
+/// @param {Uint8Array} program - A serialized representation of an ACIR program
 /// @param {WitnessMap} witness_map - The completed witness map after executing the circuit.
 /// @returns {WitnessMap} A witness map containing the circuit's return values.
 #[wasm_bindgen(js_name = getReturnWitness)]
 pub fn get_return_witness(
-    // TODO(https://github.com/noir-lang/noir/issues/4428): These need to be updated to match the same interfaces
-    // as the native ACVM executor. Right now native execution still only handles one circuit so I do not feel the need
-    // to break the JS interface just yet.
     program: Vec<u8>,
     witness_map: JsWitnessMap,
 ) -> Result<JsWitnessMap, JsString> {
     console_error_panic_hook::set_once();
     let program: Program<FieldElement> =
-        Program::deserialize_program(&program).expect("Failed to deserialize circuit");
-    let circuit = match program.functions.len() {
-        0 => return Ok(JsWitnessMap::from(WitnessMap::new())),
-        1 => &program.functions[0],
-        _ => return Err(JsString::from("Program contains multiple circuits however ACVM currently only supports programs containing a single circuit"))
-    };
+        Program::deserialize_program(&program).expect("Failed to deserialize program");
+    
+    // Handle empty program case first
+    if program.functions.is_empty() {
+        return Ok(JsWitnessMap::from(WitnessMap::new()));
+    }
 
+    // For now we only support single-circuit programs
+    // This maintains compatibility while allowing for future multi-circuit support
+    if program.functions.len() > 1 {
+        return Err(JsString::from(
+            "Multi-circuit programs are not yet supported in ACVM JS bindings",
+        ));
+    }
+
+    let circuit = &program.functions[0];
     let witness_map = WitnessMap::from(witness_map);
 
     let return_witness =
