@@ -96,8 +96,9 @@ impl Ssa {
         let mut brillig_globals =
             BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
 
-        // Globals are computed once at compile time and shared across all functions,
+        // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
+        // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
         brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);

@@ -170,6 +170,14 @@ impl BrilligGlobals {
         self.entry_point_globals_map = entry_point_globals_map;
     }
 
+    /// Fetch the global allocations that can possibly be accessed
+    /// by any given Brillig function (non-entry point or entry point).
+    /// The allocations available to a function are determined by its entry point.
+    /// For a given function id input, this function will search for that function's
+    /// entry point (or multiple entry points) and fetch the global allocations
+    /// associated with those entry points.
+    /// These allocations can then be used when compiling the Brillig function
+    /// and resolving global variables.
     pub(crate) fn get_brillig_globals(
         &self,
         brillig_function_id: FunctionId,
