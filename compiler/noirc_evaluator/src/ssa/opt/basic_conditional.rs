@@ -285,7 +285,11 @@ impl<'f> Context<'f> {
             self.inline_block(then, no_predicates);
             let to_process = self.handle_terminator(then, &queue);
 
-            queue.extend(to_process);
+            for incoming_block in to_process {
+                if !queue.contains(&incoming_block) {
+                    queue.push(incoming_block);
+                }
+            }
         }
 
         //2. process 'else' branch, in case there is no 'then'
@@ -294,7 +298,11 @@ impl<'f> Context<'f> {
             let next = next.unwrap();
             self.inline_block(next, no_predicates);
             let to_process = self.handle_terminator(next, &queue);
-            queue.extend(to_process);
+            for incoming_block in to_process {
+                if !queue.contains(&incoming_block) {
+                    queue.push(incoming_block);
+                }
+            }
         } else {
             assert_eq!(next, Some(conditional.block_exit));
         }
