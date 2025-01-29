@@ -3328,7 +3328,7 @@ mod test {
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
         build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish();
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, brillig_functions, _, _) = ssa
@@ -3466,7 +3466,7 @@ mod test {
 
         build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
@@ -3555,7 +3555,7 @@ mod test {
         // Build an ACIR function which has the same logic as the Brillig function above
         build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
 
-        let mut ssa = builder.finish();
+        let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
         let brillig = ssa.to_brillig(false);
         println!("{}", ssa);
@@ -3673,7 +3673,7 @@ mod test {
                 return v3
             }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let (mut acir_functions, _brillig_functions, _, _) = ssa
@@ -3711,7 +3711,7 @@ mod test {
               return
           }
         ";
-        let mut ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
         let brillig = ssa.to_brillig(false);
 
         let (acir_functions, _brillig_functions, _, _) = ssa
