@@ -655,6 +655,7 @@ jobs:
 
       - name: Merge test reports using jq
         run: |
+          jq --null-input "{ test_reports: [] }" > test_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh test_report
 
