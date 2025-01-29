@@ -60,29 +60,15 @@ Github comes with a default codespace and you can use it to code your own devcon
 
 #### 3. Create a folder called `.devcontainer` in the root of your repository.
 
-#### 4. Create a Dockerfile in that folder, and paste the following code:
-
-```docker
-FROM --platform=linux/amd64 node:lts-bookworm-slim
-SHELL ["/bin/bash", "-c"]
-RUN apt update && apt install -y curl bash git tar gzip libc++-dev
-RUN curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-ENV PATH="/root/.nargo/bin:$PATH"
-RUN noirup
-ENTRYPOINT ["nargo"]
-```
-#### 5. Create a file called `devcontainer.json` in the same folder, and paste the following code:
+#### 4. Create a file called `devcontainer.json` in the same folder, and paste the following code:
 
 ```json
 {
  "name": "Noir on Codespaces",
- "build": {
-    "context": ".",
-    "dockerfile": "Dockerfile"
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": ["noir-lang.vscode-noir"]
+ "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/noir-lang/features/noir:latest": {
+      "version": "1.0.0-beta.1"
     }
   }
 }
@@ -91,13 +77,8 @@ ENTRYPOINT ["nargo"]
 
 This will pull the new image and build it, so it could take a minute or so
 
-#### 8. Done! 
-Just wait for the build to finish, and there's your easy Noir environment.
-
-
-Refer to [noir-starter](https://github.com/noir-lang/noir-starter/) as an example of how devcontainers can be used together with codespaces.
-
-
+#### 8. Done!   
+Just wait for the build to finish, and there's your easy Noir environment. Some examples of how to use it can be found in the [awesome-noir](https://github.com/noir-lang/awesome-noir?tab=readme-ov-file#boilerplates) repository.
 
 ## How do I use it?
 
