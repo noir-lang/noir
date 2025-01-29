@@ -91,6 +91,7 @@
         "Elligator",
         "endianness",
         "envrc",
+        "EXPONENTIATE",
         "Flamegraph",
         "flate",
         "fmtstr",
