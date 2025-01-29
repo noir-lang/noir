@@ -3,9 +3,9 @@ fn main(x: Field, active: bool) {
     /// Safety:)
     unsafe {
         if active {
-            x1 = foo(x);        
+            x1 = foo(x);
         }
-    
+
         let x2 = foo(x);
         assert(x2);
     }
