@@ -658,6 +658,7 @@ jobs:
           jq --null-input "{ test_reports: [] }" > test_report.json
           mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
           ./merge-bench-reports.sh test_report
+          cat ./test_report.json | jq ".test_reports" > test_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -665,7 +666,7 @@ jobs:
         with:
           name: "Test Suite Duration"
           tool: "customSmallerIsBetter"
-          output-file-path: ./test_report.json
+          output-file-path: ./test_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
