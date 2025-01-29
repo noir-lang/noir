@@ -44,36 +44,35 @@ impl BrilligGlobals {
         main_id: FunctionId,
     ) -> Self {
         let mut brillig_entry_points = HashMap::default();
-        let acir_functions = functions.iter().filter(|func| func.is_acir());
+        let acir_functions = functions.iter().filter(|(_, func)| func.runtime().is_acir());
         for (_, function) in acir_functions {
-                for block_id in function.reachable_blocks() {
-                    for instruction_id in function.dfg[block_id].instructions() {
-                        let instruction = &function.dfg[*instruction_id];
-                        let Instruction::Call { func: func_id, arguments: _ } = instruction else {
-                            continue;
-                        };
+            for block_id in function.reachable_blocks() {
+                for instruction_id in function.dfg[block_id].instructions() {
+                    let instruction = &function.dfg[*instruction_id];
+                    let Instruction::Call { func: func_id, arguments: _ } = instruction else {
+                        continue;
+                    };
 
-                        let func_value = &function.dfg[*func_id];
-                        let Value::Function(func_id) = func_value else { continue };
+                    let func_value = &function.dfg[*func_id];
+                    let Value::Function(func_id) = func_value else { continue };
 
-                        let called_function = &functions[func_id];
-                        if called_function.runtime().is_acir() {
-                            continue;
-                        }
-
-                        // We have now found a Brillig entry point.
-                        // Let's recursively build a call graph to determine any functions
-                        // whose parent is this entry point and any globals used in those internal calls.
-                        brillig_entry_points.insert(*func_id, HashSet::default());
-                        Self::mark_entry_points_calls_recursive(
-                            functions,
-                            *func_id,
-                            called_function,
-                            &mut used_globals,
-                            &mut brillig_entry_points,
-                            im::HashSet::new(),
-                        );
+                    let called_function = &functions[func_id];
+                    if called_function.runtime().is_acir() {
+                        continue;
                     }
+
+                    // We have now found a Brillig entry point.
+                    // Let's recursively build a call graph to determine any functions
+                    // whose parent is this entry point and any globals used in those internal calls.
+                    brillig_entry_points.insert(*func_id, HashSet::default());
+                    Self::mark_entry_points_calls_recursive(
+                        functions,
+                        *func_id,
+                        called_function,
+                        &mut used_globals,
+                        &mut brillig_entry_points,
+                        im::HashSet::new(),
+                    );
                 }
             }
         }
