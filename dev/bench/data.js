@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738159991777,
+  "lastUpdate": 1738159997898,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18083,6 +18083,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 210.12,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jose@aztecprotocol.com",
+            "name": "José Pedro Sousa",
+            "username": "signorecello"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "248857d64b55cd8a846eace23f97bd2c11d2d7cf",
+          "message": "chore(docs): moving references to noir-starter to awesome-noir (#7203)\n\nCo-authored-by: signorecello <outgoing@zkpedro.dev>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>",
+          "timestamp": "2025-01-29T13:14:39Z",
+          "tree_id": "515c4f57627c770f34e5d8d6ac28b4568545aa3b",
+          "url": "https://github.com/noir-lang/noir/commit/248857d64b55cd8a846eace23f97bd2c11d2d7cf"
+        },
+        "date": 1738159996586,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.05,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.16,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.28,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 517.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 492.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 517.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 750.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 611.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 182.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 246.73,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 210.25,
             "unit": "MB"
           }
         ]
