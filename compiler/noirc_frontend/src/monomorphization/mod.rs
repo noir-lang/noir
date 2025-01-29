@@ -777,13 +777,12 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// For an enum like:
-    /// ```
     /// enum Foo {
     ///    A(i32, u32),
     ///    B(Field),
     ///    C
     /// }
-    /// ```
+    ///
     /// this will translate the call `Foo::A(1, 2)` into `(0, (1, 2), (0,), ())` where
     /// the first field `0` is the tag value, the second is `A`, third is `B`, and fourth is `C`.
     /// Each variant that isn't the desired variant has zeroed values filled in for its data.
