@@ -68,8 +68,8 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// Skip the missing Brillig call constraints check
-    pub skip_brillig_constraints_check: bool,
+    /// Enable the missing Brillig call constraints check
+    pub enable_brillig_constraints_check: bool,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -112,7 +112,7 @@ pub(crate) fn optimize_into_acir(
         ));
     }
 
-    if !options.skip_brillig_constraints_check {
+    if options.enable_brillig_constraints_check {
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
