@@ -44,8 +44,8 @@ impl BrilligGlobals {
         main_id: FunctionId,
     ) -> Self {
         let mut brillig_entry_points = HashMap::default();
-        for (_, function) in functions.iter() {
-            if function.runtime().is_acir() {
+        let acir_functions = functions.iter().filter(|func| func.is_acir());
+        for (_, function) in acir_functions {
                 for block_id in function.reachable_blocks() {
                     for instruction_id in function.dfg[block_id].instructions() {
                         let instruction = &function.dfg[*instruction_id];
