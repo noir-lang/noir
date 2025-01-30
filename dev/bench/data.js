@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738272474767,
+  "lastUpdate": 1738272671121,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19490,6 +19490,140 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
             "value": 377,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "15bbaa86bde37546f69e3e7b375e10b569972bd3",
+          "message": "chore: bump gates diff (#7245)",
+          "timestamp": "2025-01-30T21:08:44Z",
+          "tree_id": "b32254d51ee805792f96a78807bfc7c104f6682f",
+          "url": "https://github.com/noir-lang/noir/commit/15bbaa86bde37546f69e3e7b375e10b569972bd3"
+        },
+        "date": 1738272669631,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "noir-lang_sparse_array_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_schnorr_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_string_search_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_sort_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_rsa_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 8,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_check_shuffle_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_bigcurve_",
+            "value": 304,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_base64_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-edwards_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-bignum_",
+            "value": 301,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_mimc_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_eddsa_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_ec_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 52,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 280,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 12,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 224,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 56,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 343,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 372,
             "unit": "s"
           }
         ]
