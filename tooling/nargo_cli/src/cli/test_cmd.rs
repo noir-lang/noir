@@ -44,7 +44,7 @@ pub(crate) struct TestCommand {
     exact: bool,
 
     /// Print all matching test names.
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     list_tests: bool,
 
     #[clap(flatten)]
