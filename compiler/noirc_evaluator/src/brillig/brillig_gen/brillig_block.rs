@@ -103,7 +103,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         &mut self,
         globals: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
-        hoisted_global_consts: &HashSet<(FieldElement, NumericType)>,
+        hoisted_global_constants: &HashSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
         let mut new_hoisted_constants = HashMap::default();
 
@@ -126,7 +126,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
-        for (constant, typ) in hoisted_global_consts {
+        for (constant, typ) in hoisted_global_constants {
             let constant = *constant;
             let typ = *typ;
             let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
