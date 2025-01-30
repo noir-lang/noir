@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738252786831,
+  "lastUpdate": 1738252881285,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14007,95 +14007,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3",
-          "message": "fix: don't always use an exclusive lock in `nargo check` (#7120)",
-          "timestamp": "2025-01-20T14:41:38Z",
-          "tree_id": "cbe93c884f1997cd5ff41f80680b50d21aafccdd",
-          "url": "https://github.com/noir-lang/noir/commit/bbdb937d44ddfbcd02a746dba9ad73ac704fcdd3"
-        },
-        "date": 1737385370629,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.63,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.81,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.93,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.66,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 733.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 590.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 180.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.42,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 207.81,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -18495,6 +18406,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 213.13,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "429ae523bbc6ab69daadcfde7dce0dc548ba69f2",
+          "message": "fix: Avoid type error when calling something with a type alias of a function (#7239)",
+          "timestamp": "2025-01-30T15:37:57Z",
+          "tree_id": "bd06b509dbae0adccb99cc451e89a06f1d956748",
+          "url": "https://github.com/noir-lang/noir/commit/429ae523bbc6ab69daadcfde7dce0dc548ba69f2"
+        },
+        "date": 1738252880369,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.06,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.47,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.29,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.8,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.84,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 794.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 213.15,
             "unit": "MB"
           }
         ]
