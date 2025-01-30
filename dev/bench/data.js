@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738253954995,
+  "lastUpdate": 1738254200122,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9765,90 +9765,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9be84f7102b80c650ff0b3d5328efc70873debbe",
-          "message": "chore: mark libs good (#7123)",
-          "timestamp": "2025-01-20T15:41:02Z",
-          "tree_id": "67e1f2a4915cedc53a1f5bbea32e6821189bb6db",
-          "url": "https://github.com/noir-lang/noir/commit/9be84f7102b80c650ff0b3d5328efc70873debbe"
-        },
-        "date": 1737388605639,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.054,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.609,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 38.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.222,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.453,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.311,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14013,6 +13929,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.068,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49d1b13a185dbf4a61beddd62c5304b4ec8ea3bc",
+          "message": "feat: simplify subtraction from self to return zero (#7189)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-01-30T16:03:17Z",
+          "tree_id": "a9123e1af63f9be471e3a5466c4786fe5d3651f2",
+          "url": "https://github.com/noir-lang/noir/commit/49d1b13a185dbf4a61beddd62c5304b4ec8ea3bc"
+        },
+        "date": 1738254199406,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.078,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.601,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.453,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.31,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
             "unit": "s"
           }
         ]
