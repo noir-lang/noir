@@ -154,12 +154,12 @@ impl<'context> Elaborator<'context> {
 
         let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
         match resolved_type {
-            Type::Struct(ref struct_type, _) => {
+            Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference
                 self.interner.push_type_ref_location(resolved_type.clone(), location);
                 if !is_synthetic {
-                    self.interner.add_struct_reference(
-                        struct_type.borrow().id,
+                    self.interner.add_type_reference(
+                        data_type.borrow().id,
                         location,
                         is_self_type_name,
                     );
@@ -259,11 +259,11 @@ impl<'context> Elaborator<'context> {
             return Type::Alias(type_alias, args);
         }
 
-        match self.lookup_struct_or_error(path) {
-            Some(struct_type) => {
-                if self.resolving_ids.contains(&struct_type.borrow().id) {
-                    self.push_err(ResolverError::SelfReferentialStruct {
-                        span: struct_type.borrow().name.span(),
+        match self.lookup_datatype_or_error(path) {
+            Some(data_type) => {
+                if self.resolving_ids.contains(&data_type.borrow().id) {
+                    self.push_err(ResolverError::SelfReferentialType {
+                        span: data_type.borrow().name.span(),
                     });
 
                     return Type::Error;
@@ -272,23 +272,23 @@ impl<'context> Elaborator<'context> {
                 if !self.in_contract()
                     && self
                         .interner
-                        .struct_attributes(&struct_type.borrow().id)
+                        .type_attributes(&data_type.borrow().id)
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        span: struct_type.borrow().name.span(),
+                        span: data_type.borrow().name.span(),
                     });
                 }
 
-                let (args, _) = self.resolve_type_args(args, struct_type.borrow(), span);
+                let (args, _) = self.resolve_type_args(args, data_type.borrow(), span);
 
                 if let Some(current_item) = self.current_item {
-                    let dependency_id = struct_type.borrow().id;
+                    let dependency_id = data_type.borrow().id;
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
 
-                Type::Struct(struct_type, args)
+                Type::DataType(data_type, args)
             }
             None => Type::Error,
         }
@@ -684,8 +684,8 @@ impl<'context> Elaborator<'context> {
         None
     }
 
-    /// This resolves a method in the form `Struct::method` where `method` is a trait method
-    fn resolve_struct_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
+    /// This resolves a method in the form `Type::method` where `method` is a trait method
+    fn resolve_type_trait_method(&mut self, path: &Path) -> Option<TraitPathResolution> {
         if path.segments.len() < 2 {
             return None;
         }
@@ -696,16 +696,16 @@ impl<'context> Elaborator<'context> {
         let before_last_segment = path.last_segment();
 
         let path_resolution = self.resolve_path(path).ok()?;
-        let PathResolutionItem::Struct(struct_id) = path_resolution.item else {
+        let PathResolutionItem::Type(type_id) = path_resolution.item else {
             return None;
         };
 
-        let struct_type = self.get_struct(struct_id);
-        let generics = struct_type.borrow().instantiate(self.interner);
-        let typ = Type::Struct(struct_type, generics);
+        let datatype = self.get_type(type_id);
+        let generics = datatype.borrow().instantiate(self.interner);
+        let typ = Type::DataType(datatype, generics);
         let method_name = &last_segment.ident.0.contents;
 
-        // If we can find a method on the struct, this is definitely not a trait method
+        // If we can find a method on the type, this is definitely not a trait method
         if self.interner.lookup_direct_method(&typ, method_name, false).is_some() {
             return None;
         }
@@ -749,7 +749,7 @@ impl<'context> Elaborator<'context> {
         self.resolve_trait_static_method_by_self(path)
             .or_else(|| self.resolve_trait_static_method(path))
             .or_else(|| self.resolve_trait_method_by_named_generic(path))
-            .or_else(|| self.resolve_struct_trait_method(path))
+            .or_else(|| self.resolve_type_trait_method(path))
     }
 
     pub(super) fn unify(
@@ -1423,12 +1423,12 @@ impl<'context> Elaborator<'context> {
                 self.lookup_method_in_trait_constraints(object_type, method_name, span)
             }
             // Mutable references to another type should resolve to methods of their element type.
-            // This may be a struct or a primitive type.
+            // This may be a data type or a primitive type.
             Type::MutableReference(element) => {
                 self.lookup_method(&element, method_name, span, has_self_arg)
             }
 
-            // If we fail to resolve the object to a struct type, we have no way of type
+            // If we fail to resolve the object to a data type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
 
@@ -1438,13 +1438,11 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => {
-                self.lookup_struct_or_primitive_method(&other, method_name, span, has_self_arg)
-            }
+            other => self.lookup_type_or_primitive_method(&other, method_name, span, has_self_arg),
         }
     }
 
-    fn lookup_struct_or_primitive_method(
+    fn lookup_type_or_primitive_method(
         &mut self,
         object_type: &Type,
         method_name: &str,
@@ -1475,12 +1473,16 @@ impl<'context> Elaborator<'context> {
             return self.return_trait_method_in_scope(&generic_methods, method_name, span);
         }
 
-        if let Type::Struct(struct_type, _) = object_type {
-            let has_field_with_function_type = struct_type
-                .borrow()
-                .get_fields_as_written()
-                .into_iter()
-                .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+        if let Type::DataType(datatype, _) = object_type {
+            let datatype = datatype.borrow();
+            let mut has_field_with_function_type = false;
+
+            if let Some(fields) = datatype.fields_raw() {
+                has_field_with_function_type = fields
+                    .iter()
+                    .any(|field| field.name.0.contents == method_name && field.typ.is_function());
+            }
+
             if has_field_with_function_type {
                 self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
                     method_name: method_name.to_string(),

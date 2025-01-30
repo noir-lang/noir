@@ -8,7 +8,7 @@ use crate::ast::{
     UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{
-    ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, StructId,
+    ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, TypeId,
 };
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
@@ -559,7 +559,7 @@ pub struct ConstructorExpression {
     /// This may be filled out during macro expansion
     /// so that we can skip re-resolving the type name since it
     /// would be lost at that point.
-    pub struct_type: Option<StructId>,
+    pub struct_type: Option<TypeId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -739,8 +739,7 @@ impl Display for CastExpression {
 
 impl Display for ConstructorExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fields =
-            self.fields.iter().map(|(ident, expr)| format!("{ident}: {expr}")).collect::<Vec<_>>();
+        let fields = vecmap(&self.fields, |(ident, expr)| format!("{ident}: {expr}"));
 
         write!(f, "({} {{ {} }})", self.typ, fields.join(", "))
     }

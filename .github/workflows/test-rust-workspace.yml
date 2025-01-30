@@ -29,7 +29,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          key: x86_64-unknown-linux-gnu
+          key: x86_64-unknown-linux-gnu-debug
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
@@ -39,7 +39,7 @@ jobs:
           tool: nextest@0.9.67
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --release --archive-file nextest-archive.tar.zst
+        run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
       
       - name: Upload archive to workflow
         uses: actions/upload-artifact@v4

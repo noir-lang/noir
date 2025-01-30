@@ -357,13 +357,29 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Struct(fields, typ) => {
                 let typename = match typ.follow_bindings() {
-                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    Type::DataType(def, _) => def.borrow().name.to_string(),
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
                     format!("{}: {}", name, value.display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Enum(tag, args, typ) => {
+                let args = vecmap(args, |arg| arg.display(self.interner).to_string()).join(", ");
+
+                match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(def, _) => {
+                        let def = def.borrow();
+                        let variant = def.variant_at(*tag);
+                        if variant.is_function {
+                            write!(f, "{}::{}({args})", def.name, variant.name)
+                        } else {
+                            write!(f, "{}::{}", def.name, variant.name)
+                        }
+                    }
+                    other => write!(f, "{other}(args)"),
+                }
             }
             Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
@@ -376,7 +392,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::StructDefinition(id) => {
-                let def = self.interner.get_struct(*id);
+                let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)
             }
@@ -732,8 +748,8 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
-        StatementKind::Loop(block) => {
-            StatementKind::Loop(remove_interned_in_expression(interner, block))
+        StatementKind::Loop(block, span) => {
+            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
         }
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))

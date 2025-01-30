@@ -119,8 +119,8 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
-        builder.set_runtime(runtime);
         builder.set_globals(Arc::new(globals));
+        builder.set_runtime(runtime);
 
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
@@ -136,13 +136,11 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
 
-        let globals = self.builder.current_function.dfg.globals.clone();
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
-        self.builder.set_globals(globals);
 
         self.add_parameters_to_scope(&func.parameters);
     }

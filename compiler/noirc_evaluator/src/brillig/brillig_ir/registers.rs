@@ -7,7 +7,7 @@ use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
 
 use super::{
     brillig_variable::SingleAddrVariable,
-    entry_point::{MAX_GLOBAL_SPACE, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
+    entry_point::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
     BrilligContext, ReservedRegisters,
 };
 
@@ -150,18 +150,35 @@ impl RegisterAllocator for ScratchSpace {
 /// Globals have a separate memory space
 /// This memory space is initialized once at the beginning of a program
 /// and is read-only.
+#[derive(Default)]
 pub(crate) struct GlobalSpace {
     storage: DeallocationListAllocator,
+    max_memory_address: usize,
 }
 
 impl GlobalSpace {
     pub(crate) fn new() -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()) }
+        Self {
+            storage: DeallocationListAllocator::new(Self::start()),
+            max_memory_address: Self::start(),
+        }
     }
 
     fn is_within_bounds(register: MemoryAddress) -> bool {
         let index = register.unwrap_direct();
-        index >= Self::start() && index < Self::end()
+        index >= Self::start()
+    }
+
+    fn update_max_address(&mut self, register: MemoryAddress) {
+        let index = register.unwrap_direct();
+        assert!(index >= Self::start(), "Global space malformed");
+        if index > self.max_memory_address {
+            self.max_memory_address = index;
+        }
+    }
+
+    pub(super) fn max_memory_address(&self) -> usize {
+        self.max_memory_address
     }
 }
 
@@ -171,12 +188,12 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn end() -> usize {
-        Self::start() + MAX_GLOBAL_SPACE
+        unreachable!("The global space is set by the program");
     }
 
     fn allocate_register(&mut self) -> MemoryAddress {
         let allocated = MemoryAddress::direct(self.storage.allocate_register());
-        assert!(Self::is_within_bounds(allocated), "Global space too deep");
+        self.update_max_address(allocated);
         allocated
     }
 
@@ -185,7 +202,7 @@ impl RegisterAllocator for GlobalSpace {
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        assert!(Self::is_within_bounds(register), "Register out of global space bounds");
+        self.update_max_address(register);
         self.storage.ensure_register_is_allocated(register.unwrap_direct());
     }
 
@@ -199,6 +216,7 @@ impl RegisterAllocator for GlobalSpace {
                 Self::start(),
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
+            max_memory_address: Self::start(),
         }
     }
 
@@ -207,6 +225,7 @@ impl RegisterAllocator for GlobalSpace {
     }
 }
 
+#[derive(Default)]
 struct DeallocationListAllocator {
     /// A free-list of registers that have been deallocated and can be used again.
     deallocated_registers: BTreeSet<usize>,

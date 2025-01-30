@@ -90,6 +90,9 @@ pub(crate) struct InlayHintsOptions {
 
     #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
     pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
+
+    #[serde(rename = "ChainingHints", default = "default_chaining_hints")]
+    pub(crate) chaining_hints: ChainingHintsOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
@@ -113,6 +116,12 @@ pub(crate) struct ClosingBraceHintsOptions {
     pub(crate) min_lines: u32,
 }
 
+#[derive(Debug, Deserialize, Serialize, Copy, Clone)]
+pub(crate) struct ChainingHintsOptions {
+    #[serde(rename = "enabled", default = "default_chaining_hints_enabled")]
+    pub(crate) enabled: bool,
+}
+
 fn default_enable_code_lens() -> bool {
     true
 }
@@ -126,6 +135,7 @@ fn default_inlay_hints() -> InlayHintsOptions {
         type_hints: default_type_hints(),
         parameter_hints: default_parameter_hints(),
         closing_brace_hints: default_closing_brace_hints(),
+        chaining_hints: default_chaining_hints(),
     }
 }
 
@@ -158,6 +168,14 @@ fn default_closing_brace_hints_enabled() -> bool {
 
 fn default_closing_brace_min_lines() -> u32 {
     25
+}
+
+fn default_chaining_hints() -> ChainingHintsOptions {
+    ChainingHintsOptions { enabled: default_chaining_hints_enabled() }
+}
+
+fn default_chaining_hints_enabled() -> bool {
+    true
 }
 
 impl Default for LspInitializationOptions {

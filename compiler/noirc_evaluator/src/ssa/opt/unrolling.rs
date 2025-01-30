@@ -79,11 +79,12 @@ impl Ssa {
             if has_unrolled && is_brillig {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
                     if global_cache.is_none() {
+                        let globals = (*function.dfg.globals).clone();
+                        let used_globals = &globals.values_iter().map(|(id, _)| id).collect();
+                        let globals_dfg = DataFlowGraph::from(globals);
                         // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
-                        let used_globals =
-                            &self.globals.dfg.values_iter().map(|(id, _)| id).collect();
-                        let (_, brillig_globals) =
-                            convert_ssa_globals(false, &self.globals, used_globals);
+                        let (_, brillig_globals, _) =
+                            convert_ssa_globals(false, &globals_dfg, used_globals, function.id());
                         global_cache = Some(brillig_globals);
                     }
                     let brillig_globals = global_cache.as_ref().unwrap();
