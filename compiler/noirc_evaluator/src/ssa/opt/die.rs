@@ -222,7 +222,7 @@ impl Context {
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
 
         // Take the mutated array back.
-        std::mem::swap(&mut self.mutated_array_types, &mut mutated_array_types);
+        self.mutated_array_types = mutated_array_types;
 
         false
     }
