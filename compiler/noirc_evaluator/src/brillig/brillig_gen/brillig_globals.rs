@@ -288,10 +288,17 @@ impl BrilligGlobals {
     }
 }
 
+/// A globals artifact containing all information necessary for utilizing
+/// globals from SSA during Brillig code generation.
 pub(crate) type BrilligGlobalsArtifact = (
+    // The actual bytecode declaring globals and any metadata needing for linking
     BrilligArtifact<FieldElement>,
+    // The SSA value -> Brillig global allocations
+    // This will be used for fetching global values when compiling functions to Brillig.
     HashMap<ValueId, BrilligVariable>,
+    // The size of the global memory
     usize,
+    // Duplicate SSA constants local to a function -> Brillig global allocations
     HashMap<(FieldElement, NumericType), BrilligVariable>,
 );
 
@@ -335,8 +342,6 @@ pub(crate) fn convert_ssa_globals(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use acvm::{
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
         FieldElement,
