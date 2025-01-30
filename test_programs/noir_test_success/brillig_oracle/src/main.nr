@@ -10,7 +10,6 @@ fn test_main() {
 fn main(_x: Field) {
     /// Safety: testing context
     unsafe {
-
         let size = 20;
         // TODO: Add a method along the lines of `(0..size).to_array()`.
         let mut mock_oracle_response = [0; 20];

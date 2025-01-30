@@ -4,7 +4,6 @@
 fn main() {
     /// Safety: testing context
     unsafe {
-
         assert(modulo(47, 3) == 2);
         assert(modulo(2, 3) == 2);
         assert(signed_modulo(5, 3) == 2);

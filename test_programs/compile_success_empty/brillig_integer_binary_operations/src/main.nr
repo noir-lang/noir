@@ -5,7 +5,6 @@ fn main() {
 
     /// Safety: testing context
     unsafe {
-
         assert((x + y) == add(x, y));
 
         assert((x - y) == sub(x, y));

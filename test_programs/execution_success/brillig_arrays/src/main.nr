@@ -4,7 +4,6 @@
 fn main(x: [Field; 3]) {
     /// Safety: testing context
     unsafe {
-
         read_array(x);
         read_write_array(x);
     }

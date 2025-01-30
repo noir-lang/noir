@@ -4,7 +4,6 @@
 fn main() {
     /// Safety: testing context
     unsafe {
-
         bool_casts();
         field_casts();
         uint_casts();

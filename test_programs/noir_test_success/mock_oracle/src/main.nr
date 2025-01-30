@@ -36,7 +36,6 @@ unconstrained fn struct_field(point: Point, array: [Field; 4]) -> Field {
 fn test_mock_no_returns() {
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("void_field");
         void_field(); // Some return value must be set
     }
@@ -46,7 +45,6 @@ fn test_mock_no_returns() {
 fn test_mock() {
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("void_field").returns(10);
         assert_eq(void_field(), 10);
     }
@@ -56,7 +54,6 @@ fn test_mock() {
 fn test_multiple_mock() {
     /// Safety: testing context
     unsafe {
-
         let first_mock = OracleMock::mock("void_field").returns(10);
         OracleMock::mock("void_field").returns(42);
 
@@ -72,7 +69,6 @@ fn test_multiple_mock() {
 fn test_multiple_mock_times() {
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("void_field").returns(10).times(2);
         OracleMock::mock("void_field").returns(42);
 
@@ -86,7 +82,6 @@ fn test_multiple_mock_times() {
 fn test_mock_with_params() {
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("field_field").with_params((5,)).returns(10);
         assert_eq(field_field(5), 10);
     }
@@ -96,7 +91,6 @@ fn test_mock_with_params() {
 fn test_multiple_mock_with_params() {
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("field_field").with_params((5,)).returns(10);
         OracleMock::mock("field_field").with_params((7,)).returns(14);
 
@@ -109,7 +103,6 @@ fn test_multiple_mock_with_params() {
 fn test_mock_last_params() {
     /// Safety: testing context
     unsafe {
-
         let mock = OracleMock::mock("field_field").returns(10);
         assert_eq(field_field(5), 10);
 
@@ -121,7 +114,6 @@ fn test_mock_last_params() {
 fn test_mock_last_params_many_calls() {
     /// Safety: testing context
     unsafe {
-
         let mock = OracleMock::mock("field_field").returns(10);
         assert_eq(field_field(5), 10);
         assert_eq(field_field(7), 10);
@@ -139,7 +131,6 @@ fn test_mock_struct_field() {
 
     /// Safety: testing context
     unsafe {
-
         OracleMock::mock("struct_field").returns(42).times(2);
         let timeless_mock = OracleMock::mock("struct_field").returns(0);
         assert_eq(42, struct_field(point, array));

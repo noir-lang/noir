@@ -4,7 +4,6 @@
 fn main(x: [u32; 3]) {
     /// Safety: testing context
     unsafe {
-
         assert(entry_point(x[0]) == 7);
         assert(entry_point(x[1]) == 8);
         assert(entry_point(x[2]) == 9);
