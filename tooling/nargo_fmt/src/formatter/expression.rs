@@ -2391,4 +2391,19 @@ global y = 1;
 ";
         assert_format_with_max_width(src, expected, "            Foo { a: 1 },".len() - 1);
     }
+
+    #[test]
+    fn format_match() {
+        let src = "fn main() {  match  x  {  A=>B,C  =>  {D}E=>(),  } }";
+        // We should remove the block on D for single expressions in the future,
+        // unless D is an if or match.
+        let expected = "fn main() {
+    match x {
+        A => B,
+        C => { D },
+        E => (),
+    }
+}\n";
+        assert_format(src, expected);
+    }
 }

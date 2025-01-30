@@ -926,8 +926,8 @@ impl<'context> Elaborator<'context> {
         (HirExpression::If(if_expr), ret_type)
     }
 
-    fn elaborate_match(&mut self, match_expr: MatchExpression) -> (HirExpression, Type) {
-        todo!()
+    fn elaborate_match(&mut self, _match_expr: MatchExpression) -> (HirExpression, Type) {
+        todo!("Elaborate match expressions")
     }
 
     fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {
