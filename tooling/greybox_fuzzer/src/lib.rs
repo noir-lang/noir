@@ -2,7 +2,6 @@ use std::{cmp::max, time::Instant};
 
 use acvm::{
     acir::{
-        brillig,
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
@@ -25,6 +24,7 @@ use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     ThreadPool,
 };
+use termcolor::{ColorChoice, StandardStream};
 use types::{
     CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult, SuccessfulCaseOutcome,
 };
@@ -35,6 +35,8 @@ use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 use rayon::prelude::IntoParallelIterator;
+use std::io::Write;
+use termcolor::{Color, ColorSpec, WriteColor};
 
 const FOREIGN_CALL_FAILURE_SUBSTRING: &str = "Failed calling external resolver.";
 
@@ -49,19 +51,28 @@ struct Metrics {
     total_mutation_time: u128,
     /// The number of unique testcases run
     processed_testcase_count: usize,
-
     /// Number of testcases removed from the corpus
     removed_testcase_count: usize,
+    /// The size of the corpus being used in mutation schedule
+    active_corpus_size: usize,
+    /// Last round size
+    last_round_size: usize,
+    /// Last round execution time
+    last_round_execution_time: u128,
+    /// Last round accumulated coverage update time
+    last_round_update_time: u128,
+    /// Number of threads involved in fuzzing
+    num_threads: usize,
 }
 
 impl Metrics {
-    pub fn update_total_acir_time(&mut self, update: &u128) {
+    pub fn increase_total_acir_time(&mut self, update: &u128) {
         self.total_acir_execution_time += update;
     }
-    pub fn update_total_brillig_time(&mut self, update: &u128) {
+    pub fn increase_total_brillig_time(&mut self, update: &u128) {
         self.total_brillig_execution_time += update;
     }
-    pub fn update_total_mutation_time(&mut self, update: &u128) {
+    pub fn increase_total_mutation_time(&mut self, update: &u128) {
         self.total_mutation_time += update;
     }
     /// Tells if more time has been spent in brillig execution than in ACIR execution
@@ -71,11 +82,26 @@ impl Metrics {
     pub fn increment_processed_testcase_count(&mut self) {
         self.processed_testcase_count += 1;
     }
-    pub fn update_processed_testcase_count(&mut self, update: &usize) {
+    pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
     pub fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
+    }
+    pub fn set_active_corpus_size(&mut self, new_size: usize) {
+        self.active_corpus_size = new_size;
+    }
+    pub fn set_last_round_size(&mut self, new_size: usize) {
+        self.last_round_size = new_size;
+    }
+    pub fn set_last_round_execution_time(&mut self, new_time: u128) {
+        self.last_round_execution_time = new_time;
+    }
+    pub fn set_last_round_update_time(&mut self, new_time: u128) {
+        self.last_round_execution_time = new_time;
+    }
+    pub fn set_num_threads(&mut self, count: usize) {
+        self.num_threads = count;
     }
 }
 /// An executor for Noir programs which which provides fuzzing support
@@ -280,8 +306,8 @@ impl<
             };
 
             // Update ACIR and Brillig times
-            self.metrics.update_total_acir_time(acir_time);
-            self.metrics.update_total_brillig_time(brillig_time);
+            self.metrics.increase_total_acir_time(acir_time);
+            self.metrics.increase_total_brillig_time(brillig_time);
             self.metrics.increment_processed_testcase_count();
 
             // Update empiric boolean list from the acir execution witness only if we executed ACIR
@@ -346,8 +372,8 @@ impl<
 
     /// Start the fuzzing campaign
     pub fn fuzz(&mut self) -> FuzzTestResult {
+        self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
-
         let seed = thread_rng().gen::<u64>();
         println!("Fuzzing seed for this campaign: {}", seed);
 
@@ -611,7 +637,7 @@ impl<
             let updating_time_tracker = Instant::now();
             let mut skipped = 0usize;
 
-            self.metrics.update_processed_testcase_count(&current_testcase_set_size);
+            self.metrics.increase_processed_testcase_count(&current_testcase_set_size);
             // Count how many testcases we skipped this round and update metrics
             for (_, _, mutation_time_micros, acir_time_micros, brillig_time_micros) in
                 all_fuzzing_results
@@ -619,9 +645,9 @@ impl<
                     .filter(|(_, should_skip_check, _, _, _)| *should_skip_check)
             {
                 skipped += 1;
-                self.metrics.update_total_acir_time(acir_time_micros);
-                self.metrics.update_total_brillig_time(brillig_time_micros);
-                self.metrics.update_total_mutation_time(mutation_time_micros);
+                self.metrics.increase_total_acir_time(acir_time_micros);
+                self.metrics.increase_total_brillig_time(brillig_time_micros);
+                self.metrics.increase_total_mutation_time(mutation_time_micros);
             }
             let mut results_to_analyze = Vec::new();
 
@@ -632,9 +658,9 @@ impl<
                     .enumerate()
                     .filter(|(_, (_, should_skip_check, _, _, _))| !*should_skip_check)
             {
-                self.metrics.update_total_acir_time(acir_time_micros);
-                self.metrics.update_total_brillig_time(brillig_time_micros);
-                self.metrics.update_total_mutation_time(mutation_time_micros);
+                self.metrics.increase_total_acir_time(acir_time_micros);
+                self.metrics.increase_total_brillig_time(brillig_time_micros);
+                self.metrics.increase_total_mutation_time(mutation_time_micros);
                 results_to_analyze.push(index);
             }
 
@@ -802,7 +828,7 @@ impl<
                     };
                 // Parse brillig coverage
                 if let Some(brillig_coverage) = brillig_coverage {
-                    self.metrics.update_total_brillig_time(&brillig_time);
+                    self.metrics.increase_total_brillig_time(&brillig_time);
                     // In case ACIR execution
                     if witness.is_some() {
                         // Update the potential list
@@ -852,40 +878,12 @@ impl<
                 break result;
             }
             if time_tracker.elapsed().as_secs() >= 1 {
-                let format_time = |x: u128| {
-                    let microseconds_in_second = 1_000_000;
-                    let microseconds_in_millisecond = 1_000;
-                    let microseconds_in_minutes = 60_000_000;
-                    if x > microseconds_in_minutes {
-                        format!("{}m", x / microseconds_in_minutes)
-                    } else if x > microseconds_in_second {
-                        format!("{}s", x / microseconds_in_second)
-                    } else if x > microseconds_in_millisecond {
-                        format!("{}ms", x / microseconds_in_millisecond)
-                    } else {
-                        format!("{}us", x)
-                    }
-                };
-                let format_count = |x: usize| {
-                    let million = 1_000_000;
-                    let thousand = 1_000;
-                    let billion = 1_000_000_000;
-                    if x > billion {
-                        format!("{}G", x / billion)
-                    } else if x > million {
-                        format!("{}M", x / million)
-                    } else if x > thousand {
-                        format!("{}k", x / thousand)
-                    } else {
-                        format!("{}", x)
-                    }
-                };
-                println!(
-                    "iterations: {}, corpus size:{}, acir_time: {}, brillig_time: {}, tc_gen_time:{}, mut_time:{}, count:{}, fuzzing_time:{}, upd_time: {}, skipped: {}, threads: {}",
-                    format_count(self.metrics.processed_testcase_count),corpus.get_testcase_count(), format_time(self.metrics.total_acir_execution_time), format_time(self.metrics.total_brillig_execution_time), format_time(testcase_generation_time),format_time(self.metrics.total_mutation_time),format_count(current_testcase_set_size), format_time(fuzz_time_micros),format_time(updating_time),
-                format_count(skipped),self.num_threads
-
-                );
+                // Update and display metrics
+                self.metrics.set_active_corpus_size(corpus.get_testcase_count());
+                self.metrics.set_last_round_size(current_testcase_set_size);
+                self.metrics.set_last_round_update_time(updating_time);
+                self.metrics.set_last_round_execution_time(fuzz_time_micros);
+                display_metrics(&self.metrics);
                 time_tracker = Instant::now();
             }
         };
@@ -945,15 +943,17 @@ impl<
         }
     }
 
-    /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
-    /// or a `CounterExampleOutcome`
+    /// Execute acir and brillig programs with the following Testcase
     pub fn single_fuzz_acir_and_brillig(&self, testcase: &TestCase) -> FuzzOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let initial_witness2 = self.acir_program.abi.encode(testcase.value(), None).unwrap();
+
         let acir_start = Instant::now();
+        // Execute and time ACIR
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
         let acir_elapsed = acir_start.elapsed();
         let brillig_start = Instant::now();
+        // Execute and time Brillig
         let result_brillig = (self.brillig_executor)(
             &self.brillig_program.bytecode,
             initial_witness2,
@@ -961,8 +961,10 @@ impl<
         );
         let brillig_elapsed = brillig_start.elapsed();
 
+        // Parse results
         match (result_acir, result_brillig) {
             (Ok(witnesses), Ok((_map, brillig_coverage))) => {
+                // If both were OK, collect coverage and ACIR witnesses along with timings and return
                 FuzzOutcome::Case(SuccessfulCaseOutcome {
                     case_id: testcase.id(),
                     case: testcase.value().clone(),
@@ -972,6 +974,7 @@ impl<
                     brillig_time: brillig_elapsed.as_micros(),
                 })
             }
+            // If results diverge, it's a discrepancy
             (Err(err), Ok(_)) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
@@ -984,12 +987,15 @@ impl<
                 acir_failed: false,
                 counterexample: testcase.value().clone(),
             }),
+            // If both failed, then we need to check
             (Err(..), Err((err, coverage))) => {
+                // If this is a foreign call failure, we need to inform the user
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
                     return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
                         exit_reason: err,
                     });
                 }
+                // If failures are expected and this is not the failure that we are looking for, then don't treat as failure
                 if self.fail_on_specific_asserts
                     && !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),
@@ -1005,6 +1011,7 @@ impl<
                     });
                 }
 
+                // This is a bug, inform the user
                 FuzzOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
@@ -1110,4 +1117,92 @@ impl<
             }
         }
     }
+}
+
+fn display_metrics(metrics: &Metrics) {
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let mut writer = writer.lock();
+    let format_time = |x: u128| {
+        let microseconds_in_second = 1_000_000;
+        let microseconds_in_millisecond = 1_000;
+        let microseconds_in_minutes = 60_000_000;
+        let microseconds_in_an_hour = microseconds_in_minutes * 60;
+        let microseconds_in_4_hours = microseconds_in_an_hour * 4;
+        if x > microseconds_in_4_hours {
+            format!("{}h", x / microseconds_in_an_hour)
+        } else if x > microseconds_in_minutes {
+            format!("{}m", x / microseconds_in_minutes)
+        } else if x > microseconds_in_second {
+            format!("{}s", x / microseconds_in_second)
+        } else if x > microseconds_in_millisecond {
+            format!("{}ms", x / microseconds_in_millisecond)
+        } else {
+            format!("{}us", x)
+        }
+    };
+    let format_count = |x: usize| {
+        let million = 1_000_000;
+        let thousand = 1_000;
+        let billion = 1_000_000_000;
+        if x > billion {
+            format!("{}G", x / billion)
+        } else if x > million {
+            format!("{}M", x / million)
+        } else if x > thousand {
+            format!("{}k", x / thousand)
+        } else {
+            format!("{}", x)
+        }
+    };
+    write!(writer, "iterations: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.processed_testcase_count))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", corpus_size: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.active_corpus_size))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", acir_time: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_time(metrics.total_acir_execution_time))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", brlg_time: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_time(metrics.total_brillig_execution_time))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", mut_time: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_time(metrics.total_mutation_time))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", rnd_count: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.last_round_size)).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", r_exec_time: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_time(metrics.last_round_execution_time))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", upd_time: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", format_time(metrics.last_round_update_time))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", threads: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    writeln!(writer, "{}", metrics.num_threads).expect("Failed to write to stderr");
+    writer.flush().expect("Failed to flush writer");
 }

@@ -3203,6 +3203,7 @@ dependencies = [
  "rand_xorshift",
  "rayon",
  "sha256",
+ "termcolor",
  "walkdir",
 ]
 
