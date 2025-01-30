@@ -631,6 +631,44 @@ jobs:
           retention-days: 3
           overwrite: true
 
+  compile-noir-contracts:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    name: Compile `noir-contracts` zero inliner aggressiveness
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: AztecProtocol/aztec-packages
+          path: test-repo
+          ref: noir-projects/noir-contracts
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo compile
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: nargo compile --inliner-aggressiveness 0 
+
   upload_critical_library_report:
     name: Upload critical library report 
     needs: [external-repo-checks]
@@ -695,6 +733,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
+      - compile-noir-contracts
 
     steps:
         - name: Report overall success
