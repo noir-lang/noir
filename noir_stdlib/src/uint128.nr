@@ -461,7 +461,7 @@ mod tests {
         let d = U128::from_u64s_le(0x0, 0x1);
         /// Safety: testing context
         unsafe {
-            //@safety: testing context
+
             let (q, r) = a.unconstrained_div(b);
             assert_eq(q, c);
             assert_eq(r, d);
@@ -472,7 +472,7 @@ mod tests {
         // Check the case where a is a multiple of b
         /// Safety: testing context
         unsafe {
-            //@safety: testing context
+
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (a, U128::zero()));
         }
@@ -480,7 +480,7 @@ mod tests {
         // Check where b is a multiple of a
         /// Safety: testing context
         unsafe {
-            //@safety: testing context
+
             let (c, d) = b.unconstrained_div(a);
             assert_eq((c, d), (U128::zero(), b));
         }
@@ -490,7 +490,7 @@ mod tests {
         let b = U128::zero();
         /// Safety: testing context
         unsafe {
-            //@safety: testing context
+
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::zero(), U128::zero()));
         }
@@ -499,7 +499,7 @@ mod tests {
         let b = U128::from_u64s_le(0x0, pow63 as u64);
         /// Safety: testing context
         unsafe {
-            //@safety: testing context
+
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::one(), U128::zero()));
         }
