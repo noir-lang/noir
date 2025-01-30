@@ -373,9 +373,8 @@ jobs:
           # when benchmarking.
           nargo check
 
-      - name: Generate compilation report without averages
+      - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.take_average }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
           touch parse_time.sh
