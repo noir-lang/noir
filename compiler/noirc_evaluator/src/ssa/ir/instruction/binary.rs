@@ -155,7 +155,7 @@ impl Binary {
                 }
             }
             BinaryOp::Sub { .. } => {
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if lhs == rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
