@@ -33,7 +33,7 @@ pub struct Options {
 impl Options {
     pub fn function_name_match(&self) -> FunctionNameMatch {
         match self.args.as_slice() {
-            [_test_name, lib] => FunctionNameMatch::Contains(lib.as_str()),
+            [_test_name, lib] => FunctionNameMatch::Contains(vec![lib.clone()]),
             _ => FunctionNameMatch::Anything,
         }
     }
@@ -78,7 +78,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
 
     let test_functions = context.get_all_test_functions_in_crate_matching(
         context.stdlib_crate_id(),
-        opts.function_name_match(),
+        &opts.function_name_match(),
     );
 
     let context = std::sync::Mutex::new(context);

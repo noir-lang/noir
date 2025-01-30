@@ -30,26 +30,36 @@ impl Ssa {
     }
 
     fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
-        let mut used_global_values: HashSet<_> = self
+        let mut used_globals_map: HashMap<_, _> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
+            .filter_map(|(id, func)| {
+                let set = func.dead_instruction_elimination(true, flattened);
+                if func.runtime().is_brillig() {
+                    Some((*id, set))
+                } else {
+                    None
+                }
+            })
             .collect();
 
         let globals = &self.functions[&self.main_id].dfg.globals;
-        // Check which globals are used across all functions
-        for (id, value) in globals.values_iter().rev() {
-            if used_global_values.contains(&id) {
-                if let Value::Instruction { instruction, .. } = &value {
-                    let instruction = &globals[*instruction];
-                    instruction.for_each_value(|value_id| {
-                        used_global_values.insert(value_id);
-                    });
+        for used_global_values in used_globals_map.values_mut() {
+            // DIE only tracks used instruction results, however, globals include constants.
+            // Back track globals for internal values which may be in use.
+            for (id, value) in globals.values_iter().rev() {
+                if used_global_values.contains(&id) {
+                    if let Value::Instruction { instruction, .. } = &value {
+                        let instruction = &globals[*instruction];
+                        instruction.for_each_value(|value_id| {
+                            used_global_values.insert(value_id);
+                        });
+                    }
                 }
             }
         }
 
-        self.used_global_values = used_global_values;
+        self.used_globals = used_globals_map;
 
         self
     }
@@ -117,10 +127,6 @@ struct Context {
     /// the flattening of the CFG, but if that's not the case then we should not eliminate
     /// them just yet.
     flattened: bool,
-
-    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
-    // This we consider to span all blocks of the functions.
-    mutated_array_types: HashSet<Type>,
 }
 
 impl Context {
@@ -613,6 +619,8 @@ struct RcTracker<'a> {
     // We also separately track all IncrementRc instructions and all array types which have been mutably borrowed.
     // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
+    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
+    mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -622,17 +630,7 @@ struct RcTracker<'a> {
     mutated_array_types: &'a mut HashSet<Type>,
 }
 
-impl<'a> RcTracker<'a> {
-    fn new(mutated_array_types: &'a mut HashSet<Type>) -> Self {
-        Self {
-            rcs_with_possible_pairs: Default::default(),
-            rc_pairs_to_remove: Default::default(),
-            inc_rcs: Default::default(),
-            previous_inc_rc: Default::default(),
-            mutated_array_types,
-        }
-    }
-
+impl RcTracker {
     fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
         block.unwrap_terminator().for_each_value(|value| {
             let typ = function.dfg.type_of_value(value);

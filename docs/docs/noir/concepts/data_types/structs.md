@@ -52,7 +52,7 @@ Structs can also be destructured in a pattern, binding each field to a new varia
 fn main() {
     let Animal { hands, legs: feet, eyes } = get_octopus();
 
-    let ten = hands + feet + eyes as u8;
+    let ten = hands + feet + eyes as Field;
 }
 
 fn get_octopus() -> Animal {

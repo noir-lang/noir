@@ -385,9 +385,15 @@ mod tests {
     #[test]
     // docs:start:to_be_radix_example
     fn test_to_be_radix() {
-        let field = 2;
+        // 259, in base 256, big endian, is [1, 3].
+        // i.e. 3 * 256^0 + 1 * 256^1
+        let field = 259;
+
+        // The radix (in this example, 256) must be a power of 2.
+        // The length of the returned byte array can be specified to be
+        // >= the amount of space needed.
         let bytes: [u8; 8] = field.to_be_radix(256);
-        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 1, 3]);
         assert_eq(Field::from_be_bytes::<8>(bytes), field);
     }
     // docs:end:to_be_radix_example
@@ -395,9 +401,15 @@ mod tests {
     #[test]
     // docs:start:to_le_radix_example
     fn test_to_le_radix() {
-        let field = 2;
+        // 259, in base 256, little endian, is [3, 1].
+        // i.e. 3 * 256^0 + 1 * 256^1
+        let field = 259;
+
+        // The radix (in this example, 256) must be a power of 2.
+        // The length of the returned byte array can be specified to be
+        // >= the amount of space needed.
         let bytes: [u8; 8] = field.to_le_radix(256);
-        assert_eq(bytes, [2, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq(bytes, [3, 1, 0, 0, 0, 0, 0, 0]);
         assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_radix_example
@@ -414,17 +426,17 @@ mod tests {
     }
 
     // TODO: Update this test to account for the Brillig restriction that the radix must be greater than 2
-    // #[test]
-    // fn test_to_le_radix_brillig_1() {
-    //     // this test should only fail in constrained mode
-    //     if runtime::is_unconstrained() {
-    //         let field = 1;
-    //         let out: [u8; 8] = field.to_le_radix(1);
-    //         crate::println(out);
-    //         let expected = [0; 8];
-    //         assert(out == expected, "unexpected result");
-    //     }
-    // }
+    #[test]
+    fn test_to_le_radix_brillig_1() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(1);
+            crate::println(out);
+            let expected = [0; 8];
+            assert(out == expected, "unexpected result");
+        }
+    }
 
     #[test(should_fail_with = "radix must be a power of 2")]
     fn test_to_le_radix_3() {
@@ -461,17 +473,17 @@ mod tests {
     }
 
     // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
-    // #[test]
-    // fn test_to_le_radix_brillig_512() {
-    //     // this test should only fail in constrained mode
-    //     if runtime::is_unconstrained() {
-    //         let field = 1;
-    //         let out: [u8; 8] = field.to_le_radix(512);
-    //         let mut expected = [0; 8];
-    //         expected[0] = 1;
-    //         assert(out == expected, "unexpected result");
-    //     }
-    // }
+    #[test]
+    fn test_to_le_radix_brillig_512() {
+        // this test should only fail in constrained mode
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(512);
+            let mut expected = [0; 8];
+            expected[0] = 1;
+            assert(out == expected, "unexpected result");
+        }
+    }
 
     #[test]
     unconstrained fn test_field_less_than() {

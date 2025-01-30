@@ -297,7 +297,6 @@ pub struct HirConstructorExpression {
 #[derive(Debug, Clone)]
 pub struct HirEnumConstructorExpression {
     pub r#type: Shared<DataType>,
-    pub enum_generics: Vec<Type>,
     pub variant_index: usize,
 
     /// This refers to just the arguments that are passed. E.g. just

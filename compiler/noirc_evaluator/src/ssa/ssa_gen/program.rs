@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use fxhash::FxHashSet as HashSet;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::btree_map;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -20,7 +20,7 @@ use super::ValueId;
 pub(crate) struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) used_global_values: HashSet<ValueId>,
+    pub(crate) used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     pub(crate) main_id: FunctionId,
     #[serde(skip)]
     pub(crate) next_id: AtomicCounter<Function>,
@@ -59,7 +59,7 @@ impl Ssa {
             error_selector_to_type: error_types,
             // This field is set only after running DIE and is utilized
             // for optimizing implementation of globals post-SSA.
-            used_global_values: HashSet::default(),
+            used_globals: HashMap::default(),
         }
     }
 

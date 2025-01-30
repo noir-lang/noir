@@ -54,11 +54,11 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub package_build_path: PathBuf,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum FunctionNameMatch<'a> {
+#[derive(Debug)]
+pub enum FunctionNameMatch {
     Anything,
-    Exact(&'a str),
-    Contains(&'a str),
+    Exact(Vec<String>),
+    Contains(Vec<String>),
 }
 
 impl Context<'_, '_> {
@@ -175,7 +175,7 @@ impl Context<'_, '_> {
     pub fn get_all_test_functions_in_crate_matching(
         &self,
         crate_id: &CrateId,
-        pattern: FunctionNameMatch,
+        pattern: &FunctionNameMatch,
     ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
@@ -187,10 +187,13 @@ impl Context<'_, '_> {
                     self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                    FunctionNameMatch::Exact(patterns) => patterns
+                        .iter()
+                        .any(|pattern| &fully_qualified_name == pattern)
                         .then_some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
-                        .contains(pattern)
+                    FunctionNameMatch::Contains(patterns) => patterns
+                        .iter()
+                        .any(|pattern| fully_qualified_name.contains(pattern))
                         .then_some((fully_qualified_name, test_function)),
                 }
             })

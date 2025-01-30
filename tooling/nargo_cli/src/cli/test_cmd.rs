@@ -33,7 +33,7 @@ pub(crate) mod formatters;
 #[clap(visible_alias = "t")]
 pub(crate) struct TestCommand {
     /// If given, only tests with names containing this string will be run
-    test_name: Option<String>,
+    test_names: Vec<String>,
 
     /// Display output of `println` statements
     #[arg(long)]
@@ -129,15 +129,12 @@ pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
     let parsed_files = parse_all(&file_manager);
 
-    let pattern = match &args.test_name {
-        Some(name) => {
-            if args.exact {
-                FunctionNameMatch::Exact(name)
-            } else {
-                FunctionNameMatch::Contains(name)
-            }
-        }
-        None => FunctionNameMatch::Anything,
+    let pattern = if args.test_names.is_empty() {
+        FunctionNameMatch::Anything
+    } else if args.exact {
+        FunctionNameMatch::Exact(args.test_names.clone())
+    } else {
+        FunctionNameMatch::Contains(args.test_names.clone())
     };
 
     let formatter: Box<dyn Formatter> = if let Some(format) = args.format {
@@ -165,7 +162,7 @@ struct TestRunner<'a> {
     parsed_files: &'a ParsedFiles,
     workspace: Workspace,
     args: &'a TestCommand,
-    pattern: FunctionNameMatch<'a>,
+    pattern: FunctionNameMatch,
     num_threads: usize,
     formatter: Box<dyn Formatter>,
 }
@@ -199,15 +196,31 @@ impl<'a> TestRunner<'a> {
 
         if tests_count == 0 {
             match &self.pattern {
-                FunctionNameMatch::Exact(pattern) => {
-                    return Err(CliError::Generic(format!(
-                        "Found 0 tests matching input '{pattern}'.",
-                    )))
+                FunctionNameMatch::Exact(patterns) => {
+                    if patterns.len() == 1 {
+                        return Err(CliError::Generic(format!(
+                            "Found 0 tests matching '{}'.",
+                            patterns.first().unwrap()
+                        )));
+                    } else {
+                        return Err(CliError::Generic(format!(
+                            "Found 0 tests matching any of {}.",
+                            patterns.join(", "),
+                        )));
+                    }
                 }
-                FunctionNameMatch::Contains(pattern) => {
-                    return Err(CliError::Generic(
-                        format!("Found 0 tests containing '{pattern}'.",),
-                    ))
+                FunctionNameMatch::Contains(patterns) => {
+                    if patterns.len() == 1 {
+                        return Err(CliError::Generic(format!(
+                            "Found 0 tests containing '{}'.",
+                            patterns.first().unwrap()
+                        )));
+                    } else {
+                        return Err(CliError::Generic(format!(
+                            "Found 0 tests containing any of {}.",
+                            patterns.join(", ")
+                        )));
+                    }
                 }
                 // If we are running all tests in a crate, having none is not an error
                 FunctionNameMatch::Anything => {}
@@ -472,7 +485,7 @@ impl<'a> TestRunner<'a> {
         check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
 
         Ok(context
-            .get_all_test_functions_in_crate_matching(&crate_id, self.pattern)
+            .get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
             .into_iter()
             .map(|(test_name, _)| test_name)
             .collect())
@@ -496,8 +509,8 @@ impl<'a> TestRunner<'a> {
         check_crate(&mut context, crate_id, &self.args.compile_options)
             .expect("Any errors should have occurred when collecting test functions");
 
-        let test_functions = context
-            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
+        let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
+        let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         let blackbox_solver = S::default();

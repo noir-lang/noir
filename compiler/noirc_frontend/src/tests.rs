@@ -4178,3 +4178,19 @@ fn errors_on_loop_without_break_with_nested_loop() {
         CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
     ));
 }
+
+#[test]
+fn call_function_alias_type() {
+    let src = r#"
+    type Alias<Env> = fn[Env](Field) -> Field;
+
+    fn main() {
+        call_fn(|x| x + 1);
+    }
+
+    fn call_fn<Env>(f: Alias<Env>) {
+        assert_eq(f(0), 1);
+    }
+    "#;
+    assert_no_errors(src);
+}

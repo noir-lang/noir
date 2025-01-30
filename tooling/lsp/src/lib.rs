@@ -215,7 +215,7 @@ fn get_package_tests_in_crate(
     let fm = &context.file_manager;
     let files = fm.as_file_map();
     let tests =
-        context.get_all_test_functions_in_crate_matching(crate_id, FunctionNameMatch::Anything);
+        context.get_all_test_functions_in_crate_matching(crate_id, &FunctionNameMatch::Anything);
 
     let package_tests: Vec<_> = tests
         .into_iter()

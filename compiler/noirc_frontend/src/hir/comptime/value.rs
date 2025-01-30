@@ -15,8 +15,8 @@ use crate::{
     elaborator::Elaborator,
     hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
     hir_def::expr::{
-        HirArrayLiteral, HirConstructorExpression, HirExpression, HirIdent, HirLambda, HirLiteral,
-        ImplKind,
+        HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
+        HirIdent, HirLambda, HirLiteral, ImplKind,
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
@@ -55,6 +55,7 @@ pub enum Value {
 
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
+    Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
@@ -131,6 +132,7 @@ impl Value {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
             }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
+            Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
@@ -233,7 +235,7 @@ impl Value {
                     Ok((Ident::new(unwrap_rc(name), location.span), field))
                 })?;
 
-                let struct_type = match typ.follow_bindings() {
+                let struct_type = match typ.follow_bindings_shallow().as_ref() {
                     Type::DataType(def, _) => Some(def.borrow().id),
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
@@ -245,6 +247,10 @@ impl Value {
                     fields,
                     struct_type,
                 }))
+            }
+            value @ Value::Enum(..) => {
+                let hir = value.into_hir_expression(elaborator.interner, location)?;
+                ExpressionKind::Resolved(hir)
             }
             Value::Array(elements, _) => {
                 let elements =
@@ -396,6 +402,21 @@ impl Value {
                     r#type,
                     struct_generics,
                     fields,
+                })
+            }
+            Value::Enum(variant_index, args, typ) => {
+                let r#type = match typ.follow_bindings() {
+                    Type::DataType(def, _) => def,
+                    _ => return Err(InterpreterError::NonEnumInConstructor { typ, location }),
+                };
+
+                let arguments =
+                    try_vecmap(args, |arg| arg.into_hir_expression(interner, location))?;
+
+                HirExpression::EnumConstructor(HirEnumConstructorExpression {
+                    r#type,
+                    variant_index,
+                    arguments,
                 })
             }
             Value::Array(elements, _) => {

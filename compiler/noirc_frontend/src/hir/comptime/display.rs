@@ -365,6 +365,22 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
+            Value::Enum(tag, args, typ) => {
+                let args = vecmap(args, |arg| arg.display(self.interner).to_string()).join(", ");
+
+                match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(def, _) => {
+                        let def = def.borrow();
+                        let variant = def.variant_at(*tag);
+                        if variant.is_function {
+                            write!(f, "{}::{}({args})", def.name, variant.name)
+                        } else {
+                            write!(f, "{}::{}", def.name, variant.name)
+                        }
+                    }
+                    other => write!(f, "{other}(args)"),
+                }
+            }
             Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());

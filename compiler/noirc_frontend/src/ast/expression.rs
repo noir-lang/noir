@@ -739,8 +739,7 @@ impl Display for CastExpression {
 
 impl Display for ConstructorExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fields =
-            self.fields.iter().map(|(ident, expr)| format!("{ident}: {expr}")).collect::<Vec<_>>();
+        let fields = vecmap(&self.fields, |(ident, expr)| format!("{ident}: {expr}"));
 
         write!(f, "({} {{ {} }})", self.typ, fields.join(", "))
     }
