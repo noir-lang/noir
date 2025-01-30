@@ -29,6 +29,7 @@ use std::sync::Arc;
 use super::brillig_black_box::convert_black_box_call;
 use super::brillig_block_variables::{allocate_value_with_type, BlockVariables};
 use super::brillig_fn::FunctionContext;
+use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
@@ -44,8 +45,7 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) last_uses: HashMap<InstructionId, HashSet<ValueId>>,
 
     pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
-    pub(crate) hoisted_global_constants:
-        &'block HashMap<(FieldElement, NumericType), BrilligVariable>,
+    pub(crate) hoisted_global_constants: &'block HoistedConstantsToBrilligGlobals,
 
     pub(crate) building_globals: bool,
 }
@@ -58,16 +58,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
         globals: &'block HashMap<ValueId, BrilligVariable>,
-        hoisted_global_constants: &'block HashMap<(FieldElement, NumericType), BrilligVariable>,
+        hoisted_global_constants: &'block HoistedConstantsToBrilligGlobals,
     ) {
-        let live_in: &std::collections::HashSet<
-            crate::ssa::ir::map::Id<Value>,
-            std::hash::BuildHasherDefault<fxhash::FxHasher>,
-        > = function_context.liveness.get_live_in(&block_id);
+        let live_in = function_context.liveness.get_live_in(&block_id);
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
-            // TODO: Move this check into a helper function
             if let Value::NumericConstant { constant, typ } = dfg[*value] {
                 if hoisted_global_constants.get(&(constant, typ)).is_some() {
                     continue;
@@ -930,13 +926,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 .expect("Last uses for instruction should have been computed");
 
             for dead_variable in dead_variables {
-                if let Value::NumericConstant { constant, typ } = &dfg[*dead_variable] {
-                    if self.hoisted_global_constants.get(&(*constant, *typ)).is_some() {
-                        continue;
-                    }
-                }
                 // Globals are reserved throughout the entirety of the program
-                if !dfg.is_global(*dead_variable) {
+                let not_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_none();
+                if !dfg.is_global(*dead_variable) && not_hoisted_global {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,
@@ -1654,12 +1646,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let value_id = dfg.resolve(value_id);
         let value = &dfg[value_id];
 
-        if !self.building_globals {
-            if let Value::NumericConstant { constant, typ } = value {
-                if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
-                    return *variable;
-                }
-            }
+        if let Some(variable) = self.get_hoisted_global(dfg, value_id) {
+            return variable;
         }
 
         match value {
@@ -2001,6 +1989,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 unreachable!("ICE: Cannot get length of {array_variable:?}")
             }
         }
+    }
+
+    fn get_hoisted_global(
+        &self,
+        dfg: &DataFlowGraph,
+        value_id: ValueId,
+    ) -> Option<BrilligVariable> {
+        if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
+            if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
+                return Some(*variable);
+            }
+        }
+        None
     }
 }
 
