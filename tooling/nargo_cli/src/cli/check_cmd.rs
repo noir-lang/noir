@@ -35,7 +35,7 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 
     /// Just show the hash of each paackages, without actually performing the check.
-    #[clap(long)]
+    #[clap(long, hidden)]
     show_program_hash: bool,
 }
 
