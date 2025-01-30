@@ -23,11 +23,13 @@ const CORPUS_FILE_EXTENSION: &str = "json";
 
 static NEXT_TESTCASE_ID: AtomicU64 = AtomicU64::new(0xdead);
 
-fn generate_testcase_id() -> u64 {
+pub type TestCaseId = u64;
+/// Generate unique sequential id for a testcase
+fn generate_testcase_id() -> TestCaseId {
     NEXT_TESTCASE_ID.fetch_add(1, Ordering::SeqCst)
 }
 
-pub type TestCaseId = u64;
+/// An input to the program and an id assigned to it
 pub struct TestCase<'a> {
     value: &'a InputMap,
     id: TestCaseId,
@@ -48,6 +50,7 @@ impl<'a> From<&'a InputMap> for TestCase<'a> {
         Self { value, id: generate_testcase_id() }
     }
 }
+/// A mechanism for interacting with the corpus on the file system
 pub struct CorpusFileManager {
     file_manager: FileManager,
     corpus_path: PathBuf,
@@ -61,7 +64,7 @@ impl CorpusFileManager {
 
         Self { file_manager: FileManager::new(root), corpus_path, abi, parsed_map: HashMap::new() }
     }
-    /// Loads the corpus from the given directory
+    /// Loads the whole corpus from the given directory
     pub fn load_corpus_from_disk(&mut self) -> Result<(), String> {
         let mut builder = DirBuilder::new();
         match builder.recursive(true).create(&self.corpus_path) {
@@ -74,6 +77,7 @@ impl CorpusFileManager {
             }
         }
         println!("Path of corpus {:?}", self.corpus_path);
+        // Go through all files
         for entry in WalkDir::new(&self.corpus_path) {
             let Ok(entry) = entry else {
                 continue;
@@ -85,6 +89,7 @@ impl CorpusFileManager {
                 continue;
             };
             let path = entry.into_path();
+            // If the file with the correct extension is already in the corpus, no need to load
             if self.file_manager.has_file(&path) {
                 continue;
             }
@@ -95,6 +100,7 @@ impl CorpusFileManager {
                 format!("Error while parsing file {:?}: {:?}", path.as_os_str(), parsing_error)
             })?;
 
+            // Add the file with source to the file manager
             let file_id = self.file_manager.add_file_with_source(path.as_path(), source).unwrap();
             self.parsed_map.insert(file_id, parsed_source);
         }
@@ -111,7 +117,7 @@ impl CorpusFileManager {
         full_corpus
     }
 
-    /// Saves testcase to the corpus directory and adds it to the file manager
+    /// Save testcase to the corpus directory and add it to the file manager
     pub fn save_testcase_to_disk(&mut self, contents: &str) -> Result<(), String> {
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
         let full_file_path = self.corpus_path.join(file_name);
@@ -146,6 +152,7 @@ impl Sequence {
     }
 }
 
+/// A manager for selecting the next testcase to mutate
 pub struct TestCaseOrchestrator {
     /// How many times each testcase has been used in fuzzing
     executions_per_testcase: HashMap<TestCaseId, u64>,
@@ -170,11 +177,13 @@ impl TestCaseOrchestrator {
         }
     }
 
+    /// Add a new testcase for scheduling by the orchestrator
     pub fn new_testcase(&mut self, testcase_id: TestCaseId) {
         self.executions_per_testcase.insert(testcase_id, 0);
         self.sequence_number.insert(testcase_id, 0);
     }
 
+    /// Remove a testcase (usually happens when it no longer represents any unique features)
     pub fn remove(&mut self, testcase_id: TestCaseId) {
         let executions = self.executions_per_testcase[&testcase_id];
         self.executions_per_testcase.remove(&testcase_id);
@@ -184,11 +193,11 @@ impl TestCaseOrchestrator {
             self.current_sequence.clear();
         }
     }
-    /// Chooses the next testcase according to  the schedule prioritizing least fuzzed testcases in the corpus.
-    /// If there is more than one testcase, additionally selects and extra for splicing mutations
+
+    /// Chooses the next testcase according to the schedule prioritizing least fuzzed testcases in the corpus.
+    /// If there is more than one testcase, additionally selects an extra for splicing mutations (randomly)
     pub fn get_next_testcase(&mut self, prng: &mut XorShiftRng) -> NextSelection {
         let testcase_count = self.executions_per_testcase.len();
-        // TODO: refactor
         // If the sequence is already in place, just update counters
         if !self.current_sequence.is_empty() {
             // Update counts

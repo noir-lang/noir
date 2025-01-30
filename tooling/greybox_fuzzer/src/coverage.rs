@@ -101,13 +101,19 @@ pub struct AcirBoolState {
 
 const IF_BRANCH_COUNT: usize = 2;
 const EQ_STATE_COUNT: usize = 2;
+
+/// Structure containing information that at a particular index in the brillig program there is a branch
 pub struct BranchCoverageRange {
     index: usize,
 }
+
+/// Structure containing information that at a particular index in the brillig program there is a comparison between elements of the following bit size
 pub struct CmpCoverageRange {
     index: usize,
     bits: usize,
 }
+
+/// Structure containing information about positions of coverage-related opcodes in the brillig program
 pub enum BrilligCoverageItemRange {
     Branch(BranchCoverageRange),
     Comparison(CmpCoverageRange),
