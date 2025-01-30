@@ -11,8 +11,7 @@ if [[ -z $1 ]]; then
 fi
 noirup -v $1
 
-CRITICAL_LIBRARIES=$(grep -v "^#\|^$" ./CRITICAL_NOIR_LIBRARIES)
-readarray -t REPOS_TO_CHECK < <(echo "$CRITICAL_LIBRARIES")
+readarray -t REPOS_TO_CHECK < <(grep -v -E '^#|^$' ./CRITICAL_NOIR_LIBRARIES)
 
 getLatestReleaseTagForRepo() {
     REPO_NAME=$1
