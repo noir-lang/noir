@@ -216,9 +216,6 @@ impl Div for U128 {
         /// Safety: euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
         /// Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
         unsafe {
-            /*@safety : euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
-                Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
-            */
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
