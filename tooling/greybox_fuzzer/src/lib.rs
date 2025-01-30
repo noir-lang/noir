@@ -98,7 +98,7 @@ impl Metrics {
         self.last_round_execution_time = new_time;
     }
     pub fn set_last_round_update_time(&mut self, new_time: u128) {
-        self.last_round_execution_time = new_time;
+        self.last_round_update_time = new_time;
     }
     pub fn set_num_threads(&mut self, count: usize) {
         self.num_threads = count;
@@ -1119,6 +1119,7 @@ impl<
     }
 }
 
+// A method for pretty display of fuzzing metrics
 fn display_metrics(metrics: &Metrics) {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
@@ -1204,5 +1205,6 @@ fn display_metrics(metrics: &Metrics) {
     write!(writer, ", threads: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     writeln!(writer, "{}", metrics.num_threads).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
     writer.flush().expect("Failed to flush writer");
 }
