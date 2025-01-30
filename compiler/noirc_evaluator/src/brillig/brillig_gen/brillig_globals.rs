@@ -299,7 +299,7 @@ pub(crate) fn convert_ssa_globals(
     enable_debug_trace: bool,
     globals_dfg: &DataFlowGraph,
     used_globals: &HashSet<ValueId>,
-    hoisted_global_consts: &HashSet<(FieldElement, NumericType)>,
+    hoisted_global_constants: &HashSet<(FieldElement, NumericType)>,
     entry_point: FunctionId,
 ) -> BrilligGlobalsArtifact {
     let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
@@ -323,7 +323,7 @@ pub(crate) fn convert_ssa_globals(
     };
 
     let hoisted_global_constants =
-        brillig_block.compile_globals(globals_dfg, used_globals, hoisted_global_consts);
+        brillig_block.compile_globals(globals_dfg, used_globals, hoisted_global_constants);
 
     let globals_size = brillig_context.global_space_size();
 
