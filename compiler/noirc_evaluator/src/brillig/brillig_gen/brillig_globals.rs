@@ -270,7 +270,7 @@ impl BrilligGlobals {
             // Thus, if a call can be used by two entry points we should not use the hoisted constant allocations.
             if entry_points.len() == 1 {
                 let hoisted_allocations =
-                    self.entry_point_hoisted_globals_map.get(&brillig_function_id);
+                    self.entry_point_hoisted_globals_map.get(&entry_points[0]);
                 let hoisted_allocations = hoisted_allocations.unwrap_or_else(|| panic!("ICE: Expected hoisted allocations to be set for function {brillig_function_id}"));
                 hoisted_constants_allocations.extend(hoisted_allocations);
             }
