@@ -24,7 +24,7 @@ pub(crate) enum InstructionLocation {
 
 #[derive(Default)]
 pub(crate) struct ConstantAllocation {
-    pub(crate) constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
+    constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
     dominator_tree: DominatorTree,
     blocks_within_loops: HashSet<BasicBlockId>,
@@ -162,6 +162,10 @@ impl ConstantAllocation {
                 .expect("No dominator found when trying to allocate a constant outside of a loop");
         }
         current_block
+    }
+
+    pub(crate) fn get_constants(&self) -> HashSet<ValueId> {
+        self.constant_usage.keys().copied().collect()
     }
 }
 
