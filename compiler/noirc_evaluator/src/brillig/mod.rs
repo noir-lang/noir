@@ -107,7 +107,6 @@ impl Ssa {
         let mut brillig_globals =
             BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
 
-        // brillig_globals.fetch_global_constants_to_hoist(&self.functions);
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
