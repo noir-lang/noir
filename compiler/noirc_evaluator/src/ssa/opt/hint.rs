@@ -18,7 +18,7 @@ mod tests {
             expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
-            skip_brillig_constraints_check: true,
+            enable_brillig_constraints_check: false,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             show_plonky2: false,
@@ -86,7 +86,7 @@ mod tests {
 
         // After Array Set Optimizations:
         let expected = "
-          acir(inline) fn main f0 {
+          acir(inline) impure fn main f0 {
             b0(v0: u32):
               constrain u32 50 == v0
               v4 = call black_box(u32 10) -> u32

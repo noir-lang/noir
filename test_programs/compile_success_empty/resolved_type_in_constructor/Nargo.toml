@@ -1,0 +1,6 @@
+[package]
+name = "resolved_type_in_constructor"
+type = "bin"
+authors = [""]
+
+[dependencies]

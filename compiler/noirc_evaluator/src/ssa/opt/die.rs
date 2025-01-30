@@ -30,26 +30,36 @@ impl Ssa {
     }
 
     fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
-        let mut used_global_values: HashSet<_> = self
+        let mut used_globals_map: HashMap<_, _> = self
             .functions
             .par_iter_mut()
-            .flat_map(|(_, func)| func.dead_instruction_elimination(true, flattened))
+            .filter_map(|(id, func)| {
+                let set = func.dead_instruction_elimination(true, flattened);
+                if func.runtime().is_brillig() {
+                    Some((*id, set))
+                } else {
+                    None
+                }
+            })
             .collect();
 
         let globals = &self.functions[&self.main_id].dfg.globals;
-        // Check which globals are used across all functions
-        for (id, value) in globals.values_iter().rev() {
-            if used_global_values.contains(&id) {
-                if let Value::Instruction { instruction, .. } = &value {
-                    let instruction = &globals[*instruction];
-                    instruction.for_each_value(|value_id| {
-                        used_global_values.insert(value_id);
-                    });
+        for used_global_values in used_globals_map.values_mut() {
+            // DIE only tracks used instruction results, however, globals include constants.
+            // Back track globals for internal values which may be in use.
+            for (id, value) in globals.values_iter().rev() {
+                if used_global_values.contains(&id) {
+                    if let Value::Instruction { instruction, .. } = &value {
+                        let instruction = &globals[*instruction];
+                        instruction.for_each_value(|value_id| {
+                            used_global_values.insert(value_id);
+                        });
+                    }
                 }
             }
         }
 
-        self.used_global_values = used_global_values;
+        self.used_globals = used_globals_map;
 
         self
     }

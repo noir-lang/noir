@@ -145,10 +145,14 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Flag to turn off the compiler check for missing Brillig call constrains.
-    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// Flag to turn on the compiler check for missing Brillig call constraints.
+    /// Warning: This can degrade compilation speed but will also find some correctness errors.
     /// This check should always be run on production code.
     #[arg(long)]
+    pub enable_brillig_constraints_check: bool,
+
+    /// Hidden Brillig call check flag to maintain CI compatibility (currently ignored)
+    #[arg(long, hide = true)]
     pub skip_brillig_constraints_check: bool,
 
     /// Setting to decide on an inlining strategy for Brillig functions.
@@ -698,7 +702,7 @@ pub fn compile_no_check(
         show_plonky2: options.show_plonky2,
         plonky2_print_file: options.plonky2_print_file.clone(),
         skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
+        enable_brillig_constraints_check: options.enable_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
