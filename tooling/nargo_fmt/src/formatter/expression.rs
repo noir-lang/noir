@@ -2,8 +2,8 @@ use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
-        InfixExpression, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
-        PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
+        InfixExpression, Lambda, Literal, MatchExpression, MemberAccessExpression,
+        MethodCallExpression, PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -56,6 +56,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     *if_expression,
                     false, // force multiple lines
                 ));
+            }
+            ExpressionKind::Match(match_expression) => {
+                group.group(self.format_match_expression(*match_expression));
             }
             ExpressionKind::Variable(path) => {
                 group.text(self.chunk(|formatter| {
@@ -891,6 +894,68 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             alternative_group.tag = Some(group_tag);
             group.group(alternative_group);
         }
+
+        group
+    }
+
+    pub(super) fn format_match_expression(
+        &mut self,
+        match_expression: MatchExpression,
+    ) -> ChunkGroup {
+        let group_tag = self.new_group_tag();
+        let mut group = self.format_match_expression_with_group_tag(match_expression, group_tag);
+        force_if_chunks_to_multiple_lines(&mut group, group_tag);
+        group
+    }
+
+    pub(super) fn format_match_expression_with_group_tag(
+        &mut self,
+        match_expression: MatchExpression,
+        group_tag: GroupTag,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.tag = Some(group_tag);
+        group.force_multiple_lines = true;
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Match);
+            formatter.write_space();
+        }));
+
+        self.format_expression(match_expression.expression, &mut group);
+        self.skip_comments_and_whitespace_chunk();
+        group.space(self);
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_left_brace();
+        }));
+
+        group.increase_indentation();
+        for (pattern, branch) in match_expression.rules {
+            group.line();
+            self.format_expression(pattern, &mut group);
+            group.text(self.chunk(|formatter| {
+                formatter.write_space();
+                formatter.write_token(Token::FatArrow);
+                formatter.write_space();
+            }));
+            self.format_expression(branch, &mut group);
+
+            // Add a trailing comma regardless of whether the user specified one or not
+            group.text(self.chunk(|formatter| {
+                if formatter.token == Token::Comma {
+                    formatter.write_current_token_and_bump();
+                } else {
+                    formatter.write(",");
+                }
+            }));
+        }
+        group.decrease_indentation();
+        group.line();
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_brace();
+        }));
 
         group
     }

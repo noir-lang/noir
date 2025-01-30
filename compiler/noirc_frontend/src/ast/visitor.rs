@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
+    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression,
 };
@@ -219,6 +219,10 @@ pub trait Visitor {
     }
 
     fn visit_if_expression(&mut self, _: &IfExpression, _: Span) -> bool {
+        true
+    }
+
+    fn visit_match_expression(&mut self, _: &MatchExpression, _: Span) -> bool {
         true
     }
 
@@ -864,6 +868,9 @@ impl Expression {
             ExpressionKind::If(if_expression) => {
                 if_expression.accept(self.span, visitor);
             }
+            ExpressionKind::Match(match_expression) => {
+                match_expression.accept(self.span, visitor);
+            }
             ExpressionKind::Tuple(expressions) => {
                 if visitor.visit_tuple(expressions, self.span) {
                     visit_expressions(expressions, visitor);
@@ -1067,6 +1074,22 @@ impl IfExpression {
         self.consequence.accept(visitor);
         if let Some(alternative) = &self.alternative {
             alternative.accept(visitor);
+        }
+    }
+}
+
+impl MatchExpression {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_match_expression(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.expression.accept(visitor);
+        for (pattern, branch) in &self.rules {
+            pattern.accept(visitor);
+            branch.accept(visitor);
         }
     }
 }

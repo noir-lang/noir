@@ -162,10 +162,13 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(kind) = self.parse_if_expr() {
-            return Some(StatementKind::Expression(Expression {
-                kind,
-                span: self.span_since(start_span),
-            }));
+            let span = self.span_since(start_span);
+            return Some(StatementKind::Expression(Expression { kind, span }));
+        }
+
+        if let Some(kind) = self.parse_match_expr() {
+            let span = self.span_since(start_span);
+            return Some(StatementKind::Expression(Expression { kind, span }));
         }
 
         if let Some(block) = self.parse_block() {

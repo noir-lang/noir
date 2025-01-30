@@ -7,9 +7,9 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
-        PathSegment, PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData,
-        UnresolvedTypeExpression,
+        ItemVisibility, Lambda, Literal, MatchExpression, MemberAccessExpression,
+        MethodCallExpression, Path, PathSegment, PrefixExpression, StatementKind, UnaryOp,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -51,6 +51,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
+            ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda, None),
@@ -923,6 +924,10 @@ impl<'context> Elaborator<'context> {
 
         let if_expr = HirIfExpression { condition, consequence, alternative };
         (HirExpression::If(if_expr), ret_type)
+    }
+
+    fn elaborate_match(&mut self, match_expr: MatchExpression) -> (HirExpression, Type) {
+        todo!()
     }
 
     fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {
