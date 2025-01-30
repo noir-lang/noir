@@ -21,7 +21,7 @@ use super::brillig_fn::FunctionContext;
 
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
-    pub(crate) available_variables: HashSet<ValueId>,
+    available_variables: HashSet<ValueId>,
 }
 
 impl BlockVariables {
