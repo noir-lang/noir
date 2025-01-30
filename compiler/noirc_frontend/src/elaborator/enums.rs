@@ -8,7 +8,7 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::HirPattern,
     },
-    node_interner::{DefinitionKind, ExprId, FunctionModifiers, TypeId},
+    node_interner::{DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     token::Attributes,
     DataType, Shared, Type,
 };
@@ -89,7 +89,7 @@ impl Elaborator<'_> {
             typ = Type::Forall(typevars, Box::new(typ));
         }
 
-        self.interner.push_definition_type(definition_id, typ);
+        self.interner.push_definition_type(definition_id, typ.clone());
 
         let no_parameters = Parameters(Vec::new());
         let global_body =
@@ -98,6 +98,10 @@ impl Elaborator<'_> {
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
+
+        self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
+            crate::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
+        );
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -216,10 +220,8 @@ impl Elaborator<'_> {
             _ => unreachable!(),
         });
 
-        let enum_generics = self_type.borrow().generic_types();
         let constructor = HirExpression::EnumConstructor(HirEnumConstructorExpression {
             r#type: self_type.clone(),
-            enum_generics,
             arguments,
             variant_index,
         });

@@ -74,7 +74,7 @@ fn on_test_run_request_inner(
 
             let test_functions = context.get_all_test_functions_in_crate_matching(
                 &crate_id,
-                FunctionNameMatch::Exact(function_name),
+                &FunctionNameMatch::Exact(vec![function_name.clone()]),
             );
 
             let (_, test_function) = test_functions.into_iter().next().ok_or_else(|| {

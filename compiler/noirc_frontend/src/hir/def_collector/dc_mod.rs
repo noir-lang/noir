@@ -366,6 +366,7 @@ impl<'a> ModCollector<'a> {
             let doc_comments = type_alias.doc_comments;
             let type_alias = type_alias.item;
             let name = type_alias.name.clone();
+            let location = Location::new(name.span(), self.file_id);
             let visibility = type_alias.visibility;
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
@@ -419,6 +420,7 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_type_alias(
                     type_alias_id,
                     name,
+                    location,
                     visibility,
                     parent_module_id,
                 );
@@ -440,6 +442,7 @@ impl<'a> ModCollector<'a> {
             let doc_comments = trait_definition.doc_comments;
             let trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
+            let location = Location::new(trait_definition.name.span(), self.file_id);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -533,7 +536,10 @@ impl<'a> ModCollector<'a> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         let referenced = ReferenceId::Function(func_id);
-                        context.def_interner.add_definition_location(referenced, Some(trait_id.0));
+                        let module_id = Some(trait_id.0);
+                        context
+                            .def_interner
+                            .add_definition_location(referenced, location, module_id);
 
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
@@ -663,6 +669,7 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_trait(
                     trait_id,
                     name.to_string(),
+                    location,
                     visibility,
                     parent_module_id,
                 );
@@ -1106,7 +1113,7 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
     }
 
     Some((id, unresolved))
@@ -1201,7 +1208,7 @@ pub fn collect_enum(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
     }
 
     Some((id, unresolved))

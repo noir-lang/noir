@@ -1760,17 +1760,17 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            let fields_len = fields.len();
+            if self.interner.is_in_lsp_mode() {
+                for (field_index, field) in fields.iter().enumerate() {
+                    let location = Location::new(field.name.span(), self.file);
+                    let reference_id = ReferenceId::StructMember(*type_id, field_index);
+                    self.interner.add_definition_location(reference_id, location, None);
+                }
+            }
+
             self.interner.update_type(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
             });
-
-            for field_index in 0..fields_len {
-                self.interner.add_definition_location(
-                    ReferenceId::StructMember(*type_id, field_index),
-                    None,
-                );
-            }
         }
 
         // Check whether the struct fields have nested slices
@@ -1846,8 +1846,9 @@ impl<'context> Elaborator<'context> {
                     parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
                 let name = variant.item.name.clone();
 
-                let variant_arg_types = types.clone().unwrap_or_default();
-                datatype.borrow_mut().push_variant(EnumVariant::new(name, variant_arg_types));
+                let is_function = types.is_some();
+                let params = types.clone().unwrap_or_default();
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, params, is_function));
 
                 self.define_enum_variant_constructor(
                     &typ.enum_def,
@@ -1861,7 +1862,8 @@ impl<'context> Elaborator<'context> {
                 );
 
                 let reference_id = ReferenceId::EnumVariant(*type_id, i);
-                self.interner.add_definition_location(reference_id, Some(module_id));
+                let location = Location::new(variant.item.name.span(), self.file);
+                self.interner.add_definition_location(reference_id, location, Some(module_id));
             }
         }
     }
@@ -1881,15 +1883,15 @@ impl<'context> Elaborator<'context> {
             None
         };
 
+        let span = let_stmt.pattern.span();
+
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            let span = let_stmt.pattern.span();
             self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-            let span = let_stmt.pattern.span();
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
@@ -1902,7 +1904,14 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            self.interner.register_global(global_id, name, global.visibility, self.module_id());
+            let location = Location::new(span, self.file);
+            self.interner.register_global(
+                global_id,
+                name,
+                location,
+                global.visibility,
+                self.module_id(),
+            );
         }
 
         self.local_module = old_module;
