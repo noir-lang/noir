@@ -9,13 +9,6 @@ fn main() {
 
     // Enum variants are functions and can be passed around as such
     let _many_cs = [1, 2, 3].map(Foo::C);
-
-    match _a {
-        Foo::A(f1, f2) => (),
-        Foo::B(u) => (),
-        Foo::C(t) => (),
-        Foo::D => (),
-    }
 }
 
 enum Foo<T> {
