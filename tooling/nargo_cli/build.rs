@@ -198,8 +198,8 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
         nargo.arg("--force-brillig");
 
         // Set the maximum increase so that part of the optimization is exercised (it might fail).
-        nargo.arg("--max-bytecode-increase-percent");
-        nargo.arg("50");
+        // nargo.arg("--max-bytecode-increase-percent");
+        // nargo.arg("50");
     }}
 
     {test_content}

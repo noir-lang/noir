@@ -174,7 +174,11 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
-            "Unrolling",
+            "Unrolling (1st)",
+        )?
+        .try_run_pass(
+            |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+            "Unrolling (2nd)",
         )?
         .run_pass(Ssa::simplify_cfg, "Simplifying (2nd)")
         .run_pass(Ssa::mem2reg, "Mem2Reg (3rd)")

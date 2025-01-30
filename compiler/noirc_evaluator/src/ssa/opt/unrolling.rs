@@ -76,7 +76,9 @@ impl Ssa {
             // more finessing to convince the borrow checker that it's okay to share a read-only reference
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
             if has_unrolled && is_brillig {
-                dbg!(max_bytecode_increase_percent.clone());
+                // TODO: As we unroll more loops, this is potentially going to lead to panics
+                // when we have a non-aggressiveness inliner as the compiler is not going to have yet resolved
+                // certain intrinsics which we expect to be entirely known at compile-time (e.g. DerivePedersenGenerators).
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
                     if global_cache.is_none() {
                         let globals = (*function.dfg.globals).clone();
@@ -144,6 +146,7 @@ impl Function {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(super) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -221,8 +224,6 @@ impl Loops {
         // This is needed because inner loops may use the induction variable from their outer loops in
         // their loop range. We will start popping loops from the back.
         loops.sort_by_key(|loop_| loop_.blocks.len());
-
-        // dbg!(loops.clone());
 
         Self {
             failed_to_unroll: im::HashSet::default(),
@@ -654,22 +655,21 @@ impl Loop {
     /// Count the number of increments to the induction variable.
     /// It should be one, but it can be duplicated.
     /// The increment should be in the block where the back-edge was found.
-    fn count_induction_increments(&self, function: &Function) -> usize {
-        let back = &function.dfg[self.back_edge_start];
-        let header = &function.dfg[self.header];
-        let induction_var = header.parameters()[0];
-
-        back.instructions()
-            .iter()
-            .filter(|instruction| {
-                let instruction = &function.dfg[**instruction];
-                matches!(instruction,
-                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
-                        if *lhs == induction_var
-                )
-            })
-            .count()
-    }
+    // fn count_induction_increments(&self, function: &Function) -> usize {
+    //     let back = &function.dfg[self.back_edge_start];
+    //     let header = &function.dfg[self.header];
+    //     let induction_var = header.parameters()[0];
+    //     back.instructions()
+    //         .iter()
+    //         .filter(|instruction| {
+    //             let instruction = &function.dfg[**instruction];
+    //             matches!(instruction,
+    //                 Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
+    //                     if *lhs == induction_var
+    //             )
+    //         })
+    //         .count()
+    // }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number
     /// of unrolled instructions times the number of iterations would result in smaller bytecode
@@ -678,6 +678,8 @@ impl Loop {
         self.boilerplate_stats(function, cfg).map(|s| s.is_small()).unwrap_or_default()
     }
 
+    // TODO: unify this method with the one in the loop invariant pass
+    // probably can unify some other code too
     fn values_defined_in_loop(&self, function: &Function) -> HashSet<ValueId> {
         let mut defined_in_loop = HashSet::default();
         for block in self.blocks.iter() {
@@ -706,22 +708,15 @@ impl Loop {
     ) -> usize {
         let mut useless_instructions = 0;
         let induction_var = self.get_induction_variable(function);
-        let mut new_induction_var = induction_var;
         for block in &self.blocks {
             for instruction in function.dfg[*block].instructions() {
                 let results = function.dfg.instruction_results(*instruction);
                 let instruction = &function.dfg[*instruction];
-                // TODO: unify how all these instructions are checked
+                // TODO: unify how all these instructions are analyzed
                 match instruction {
                     Instruction::Load { address } if refs.contains(address) => {
-                        if !defined_in_loop.contains(&address) {
+                        if !defined_in_loop.contains(address) {
                             defined_in_loop.remove(&results[0]);
-                        }
-                    }
-                    Instruction::Store { value, .. } => {
-                        if *value == new_induction_var || *value == induction_var {
-                            dbg!("got here");
-                            return 0;
                         }
                     }
                     Instruction::ArrayGet { array, index } => {
@@ -733,7 +728,7 @@ impl Loop {
                             useless_instructions += 1;
                         }
                     }
-                    Instruction::ArraySet { array, index, value, mutable } => {
+                    Instruction::ArraySet { array, index, value, .. } => {
                         let index_is_useless = induction_var == *index
                             || function.dfg.is_constant(*index)
                             || !defined_in_loop.contains(index);
@@ -746,11 +741,6 @@ impl Loop {
                         }
                     }
                     Instruction::Binary(_) => {
-                        // TODO: need to check each of these values better
-                        // It is "useless" when:
-                        //  - We have a constant
-                        //  - It is an induction variable
-                        //  - It has not been defined in the loop
                         let mut is_useless = true;
                         instruction.for_each_value(|value| {
                             is_useless &= !defined_in_loop.contains(&value)
@@ -760,12 +750,6 @@ impl Loop {
                         if is_useless {
                             defined_in_loop.remove(&results[0]);
                             useless_instructions += 1;
-                        }
-                    }
-                    Instruction::Cast(value, _) => {
-                        if *value == induction_var {
-                            dbg!("got here");
-                            new_induction_var = results[0];
                         }
                     }
                     _ => {}
@@ -787,6 +771,10 @@ impl Loop {
         let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
+        // If we have a break block, we can potentially directly use the induction variable in that break.
+        // If we then unroll the loop, the induction variable will not exist anymore.
+        // TODO: we should appropriately unroll and account for the break
+        // TODO 2: move this logic out into its own method
         let induction_var = self.get_induction_variable(function);
         let mut uses_induction_var_outside = false;
         for block in self.blocks.iter() {
@@ -806,14 +794,13 @@ impl Loop {
         }
 
         let defined_in_loop = self.values_defined_in_loop(function);
+
         let useless_instructions = if uses_induction_var_outside {
             0
         } else {
             self.redefine_useful_results(function, defined_in_loop, &refs)
         };
-        // let useless_instructions = self.redefine_useful_results(function, defined_in_loop, &refs);
-        dbg!(self.blocks.clone());
-        dbg!(useless_instructions);
+
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         let all_instructions = self.count_all_instructions(function);
 
@@ -871,7 +858,8 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps
+        // Boilerplate only includes two jumps for induction variable comparison
+        // and the back edge jump to the header.
         // The comparison with the upper bound and the increments to the induction variable
         // are included in the `useless_instructions`
         let boilerplate = 2;
@@ -879,7 +867,6 @@ impl BoilerplateStats {
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
         self.all_instructions - load_and_store - boilerplate - self.useless_instructions
-        // self.all_instructions - self.increments - load_and_store - boilerplate
     }
 
     /// Estimated number of instructions if we unroll the loop.
@@ -892,10 +879,6 @@ impl BoilerplateStats {
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access instructions.
     fn is_small(&self) -> bool {
-        // dbg!(self.useful_instructions());
-        // dbg!(self.iterations);
-        // dbg!(self.unrolled_instructions());
-        // dbg!(self.baseline_instructions());
         self.unrolled_instructions() < self.baseline_instructions()
     }
 }
