@@ -269,7 +269,9 @@ impl BrilligGlobals {
             // The global memory space is not shared across entry points.
             // Thus, if a call can be used by two entry points we should not use the hoisted constant allocations.
             if entry_points.len() == 1 {
-                let hoisted_allocations = self.entry_point_hoisted_globals_map.get(&entry_points[0]).unwrap_or_else(|| panic!("ICE: Expected hoisted constant allocations to be set for function {brillig_function_id}"));
+                let hoisted_allocations =
+                    self.entry_point_hoisted_globals_map.get(&brillig_function_id);
+                let hoisted_allocations = hoisted_allocations.unwrap_or_else(|| panic!("ICE: Expected hoisted allocations to be set for function {brillig_function_id}"));
                 hoisted_constants_allocations.extend(hoisted_allocations);
             }
         } else if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
@@ -277,7 +279,9 @@ impl BrilligGlobals {
             // is itself an entry point and we can fetch the global allocations directly from `self.entry_point_globals_map`.
             globals_allocations.extend(globals);
 
-            let hoisted_allocations = self.entry_point_hoisted_globals_map.get(&brillig_function_id).unwrap_or_else(|| panic!("ICE: Expected hoisted constant allocations to be set for function {brillig_function_id}"));
+            let hoisted_allocations =
+                self.entry_point_hoisted_globals_map.get(&brillig_function_id);
+            let hoisted_allocations = hoisted_allocations.unwrap_or_else(|| panic!("ICE: Expected hoisted allocations to be set for function {brillig_function_id}"));
             hoisted_constants_allocations.extend(hoisted_allocations);
         } else {
             unreachable!(
