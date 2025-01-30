@@ -14,6 +14,7 @@ mod attribute;
 mod buffer;
 mod comments_and_whitespace;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
@@ -228,13 +229,11 @@ impl<'a> Formatter<'a> {
     /// Writes the current indentation to the buffer, but only if the buffer
     /// is empty or it ends with a newline (otherwise we'd be indenting when not needed).
     pub(crate) fn write_indentation(&mut self) {
-        if !(self.buffer.is_empty() || self.buffer.ends_with_newline()) {
-            return;
-        }
-
-        for _ in 0..self.indentation {
-            for _ in 0..self.config.tab_spaces {
-                self.write(" ");
+        if self.buffer.is_empty() || self.buffer.ends_with_newline() {
+            for _ in 0..self.indentation {
+                for _ in 0..self.config.tab_spaces {
+                    self.write(" ");
+                }
             }
         }
     }

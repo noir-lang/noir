@@ -787,7 +787,6 @@ impl<'a> Lexer<'a> {
                 ch => content.push(ch),
             }
         }
-
         if depth == 0 {
             if !content.is_ascii() {
                 let span = Span::from(start..self.position);

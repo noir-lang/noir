@@ -1,15 +1,16 @@
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
-use crate::ast::{Path, PathKind, UnresolvedType};
-use crate::hir::def_map::{ModuleDefId, ModuleId};
+use crate::ast::{Ident, Path, PathKind, UnresolvedType};
+use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
 use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
-use crate::Type;
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::{Shared, Type, TypeAlias};
 
 use super::types::SELF_TYPE_NAME;
 use super::Elaborator;
@@ -26,12 +27,12 @@ pub(crate) struct PathResolution {
 #[derive(Debug, Clone)]
 pub enum PathResolutionItem {
     Module(ModuleId),
-    Struct(StructId),
+    Type(TypeId),
     TypeAlias(TypeAliasId),
     Trait(TraitId),
     Global(GlobalId),
     ModuleFunction(FuncId),
-    StructFunction(StructId, Option<Turbofish>, FuncId),
+    Method(TypeId, Option<Turbofish>, FuncId),
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
 }
@@ -40,7 +41,7 @@ impl PathResolutionItem {
     pub fn function_id(&self) -> Option<FuncId> {
         match self {
             PathResolutionItem::ModuleFunction(func_id)
-            | PathResolutionItem::StructFunction(_, _, func_id)
+            | PathResolutionItem::Method(_, _, func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id) => Some(*func_id),
             _ => None,
@@ -57,12 +58,12 @@ impl PathResolutionItem {
     pub fn description(&self) -> &'static str {
         match self {
             PathResolutionItem::Module(..) => "module",
-            PathResolutionItem::Struct(..) => "type",
+            PathResolutionItem::Type(..) => "type",
             PathResolutionItem::TypeAlias(..) => "type alias",
             PathResolutionItem::Trait(..) => "trait",
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::StructFunction(..)
+            | PathResolutionItem::Method(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..) => "function",
         }
@@ -78,13 +79,28 @@ pub struct Turbofish {
 /// Any item that can appear before the last segment in a path.
 #[derive(Debug)]
 enum IntermediatePathResolutionItem {
-    Module(ModuleId),
-    Struct(StructId, Option<Turbofish>),
+    Module,
+    Type(TypeId, Option<Turbofish>),
     TypeAlias(TypeAliasId, Option<Turbofish>),
     Trait(TraitId, Option<Turbofish>),
 }
 
 pub(crate) type PathResolutionResult = Result<PathResolution, PathResolutionError>;
+
+enum MethodLookupResult {
+    /// The method could not be found. There might be trait methods that could be imported,
+    /// but none of them are.
+    NotFound(Vec<TraitId>),
+    /// Found a method.
+    FoundMethod(PerNs),
+    /// Found a trait method and it's currently in scope.
+    FoundTraitMethod(PerNs, TraitId),
+    /// There's only one trait method that matches, but it's not in scope
+    /// (we'll warn about this to avoid introducing a large breaking change)
+    FoundOneTraitMethodButNotInScope(PerNs, TraitId),
+    /// Multiple trait method matches were found and they are all in scope.
+    FoundMultipleTraitMethods(Vec<TraitId>),
+}
 
 impl<'context> Elaborator<'context> {
     pub(super) fn resolve_path_or_error(
@@ -108,16 +124,16 @@ impl<'context> Elaborator<'context> {
         let mut module_id = self.module_id();
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(Type::Struct(struct_type, _)) = &self.self_type {
-                let struct_type = struct_type.borrow();
+            if let Some(Type::DataType(datatype, _)) = &self.self_type {
+                let datatype = datatype.borrow();
                 if path.segments.len() == 1 {
                     return Ok(PathResolution {
-                        item: PathResolutionItem::Struct(struct_type.id),
+                        item: PathResolutionItem::Type(datatype.id),
                         errors: Vec::new(),
                     });
                 }
 
-                module_id = struct_type.id.module_id();
+                module_id = datatype.id.module_id();
                 path.segments.remove(0);
             }
         }
@@ -164,7 +180,7 @@ impl<'context> Elaborator<'context> {
         let mut current_module_id = starting_module;
         let mut current_module = self.get_module(starting_module);
 
-        let mut intermediate_item = IntermediatePathResolutionItem::Module(current_module_id);
+        let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         let first_segment =
             &path.segments.first().expect("ice: could not fetch first segment").ident;
@@ -195,7 +211,9 @@ impl<'context> Elaborator<'context> {
                 last_segment.ident.is_self_type_name(),
             );
 
-            (current_module_id, intermediate_item) = match typ {
+            let current_module_id_is_type;
+
+            (current_module_id, current_module_id_is_type, intermediate_item) = match typ {
                 ModuleDefId::ModuleId(id) => {
                     if last_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
@@ -204,55 +222,26 @@ impl<'context> Elaborator<'context> {
                         });
                     }
 
-                    (id, IntermediatePathResolutionItem::Module(id))
+                    (id, false, IntermediatePathResolutionItem::Module)
                 }
-                ModuleDefId::TypeId(id) => (
-                    id.module_id(),
-                    IntermediatePathResolutionItem::Struct(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
-                ),
+                ModuleDefId::TypeId(id) => {
+                    let item = IntermediatePathResolutionItem::Type(id, last_segment.turbofish());
+                    (id.module_id(), true, item)
+                }
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
-                    let type_alias = type_alias.borrow();
-
-                    let module_id = match &type_alias.typ {
-                        Type::Struct(struct_id, _generics) => struct_id.borrow().id.module_id(),
-                        Type::Error => {
-                            return Err(PathResolutionError::Unresolved(last_ident.clone()));
-                        }
-                        _ => {
-                            // For now we only allow type aliases that point to structs.
-                            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-                            panic!("Type alias in path not pointing to struct not yet supported")
-                        }
+                    let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
+                        return Err(PathResolutionError::Unresolved(last_ident.clone()));
                     };
 
-                    (
-                        module_id,
-                        IntermediatePathResolutionItem::TypeAlias(
-                            id,
-                            last_segment_generics.as_ref().map(|generics| Turbofish {
-                                generics: generics.clone(),
-                                span: last_segment.turbofish_span(),
-                            }),
-                        ),
-                    )
+                    let item =
+                        IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
+                    (module_id, true, item)
                 }
-                ModuleDefId::TraitId(id) => (
-                    id.0,
-                    IntermediatePathResolutionItem::Trait(
-                        id,
-                        last_segment_generics.as_ref().map(|generics| Turbofish {
-                            generics: generics.clone(),
-                            span: last_segment.turbofish_span(),
-                        }),
-                    ),
-                ),
+                ModuleDefId::TraitId(id) => {
+                    let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
+                    (id.0, false, item)
+                }
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
@@ -273,7 +262,54 @@ impl<'context> Elaborator<'context> {
             current_module = self.get_module(current_module_id);
 
             // Check if namespace
-            let found_ns = current_module.find_name(current_ident);
+            let found_ns = if current_module_id_is_type {
+                match self.resolve_method(importing_module, current_module, current_ident) {
+                    MethodLookupResult::NotFound(vec) => {
+                        if vec.is_empty() {
+                            return Err(PathResolutionError::Unresolved(current_ident.clone()));
+                        } else {
+                            let traits = vecmap(vec, |trait_id| {
+                                let trait_ = self.interner.get_trait(trait_id);
+                                self.fully_qualified_trait_path(trait_)
+                            });
+                            return Err(
+                                PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                                    ident: current_ident.clone(),
+                                    traits,
+                                },
+                            );
+                        }
+                    }
+                    MethodLookupResult::FoundMethod(per_ns) => per_ns,
+                    MethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
+                        let trait_ = self.interner.get_trait(trait_id);
+                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                        per_ns
+                    }
+                    MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
+                        let trait_ = self.interner.get_trait(trait_id);
+                        let trait_name = self.fully_qualified_trait_path(trait_);
+                        errors.push(PathResolutionError::TraitMethodNotInScope {
+                            ident: current_ident.clone(),
+                            trait_name,
+                        });
+                        per_ns
+                    }
+                    MethodLookupResult::FoundMultipleTraitMethods(vec) => {
+                        let traits = vecmap(vec, |trait_id| {
+                            let trait_ = self.interner.get_trait(trait_id);
+                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                            self.fully_qualified_trait_path(trait_)
+                        });
+                        return Err(PathResolutionError::MultipleTraitsInScope {
+                            ident: current_ident.clone(),
+                            traits,
+                        });
+                    }
+                }
+            } else {
+                current_module.find_name(current_ident)
+            };
             if found_ns.is_none() {
                 return Err(PathResolutionError::Unresolved(current_ident.clone()));
             }
@@ -311,11 +347,74 @@ impl<'context> Elaborator<'context> {
     }
 
     fn self_type_module_id(&self) -> Option<ModuleId> {
-        if let Some(Type::Struct(struct_type, _)) = &self.self_type {
-            Some(struct_type.borrow().id.module_id())
+        if let Some(Type::DataType(datatype, _)) = &self.self_type {
+            Some(datatype.borrow().id.module_id())
         } else {
             None
         }
+    }
+
+    fn resolve_method(
+        &self,
+        importing_module_id: ModuleId,
+        current_module: &ModuleData,
+        ident: &Ident,
+    ) -> MethodLookupResult {
+        // If the current module is a type, next we need to find a function for it.
+        // The function could be in the type itself, or it could be defined in traits.
+        let item_scope = current_module.scope();
+        let Some(values) = item_scope.values().get(ident) else {
+            return MethodLookupResult::NotFound(vec![]);
+        };
+
+        // First search if the function is defined in the type itself
+        if let Some(item) = values.get(&None) {
+            return MethodLookupResult::FoundMethod(PerNs { types: None, values: Some(*item) });
+        }
+
+        // Otherwise, the function could be defined in zero, one or more traits.
+        let starting_module = self.get_module(importing_module_id);
+
+        // Gather a list of items for which their trait is in scope.
+        let mut results = Vec::new();
+
+        for (trait_id, item) in values.iter() {
+            let trait_id = trait_id.expect("The None option was already considered before");
+            let trait_ = self.interner.get_trait(trait_id);
+            let Some(map) = starting_module.scope().types().get(&trait_.name) else {
+                continue;
+            };
+            let Some(imported_item) = map.get(&None) else {
+                continue;
+            };
+            if imported_item.0 == ModuleDefId::TraitId(trait_id) {
+                results.push((trait_id, item));
+            }
+        }
+
+        if results.is_empty() {
+            if values.len() == 1 {
+                // This is the backwards-compatible case where there's a single trait method but it's not in scope
+                let (trait_id, item) = values.iter().next().expect("Expected an item");
+                let trait_id = trait_id.expect("The None option was already considered before");
+                let per_ns = PerNs { types: None, values: Some(*item) };
+                return MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id);
+            } else {
+                let trait_ids = vecmap(values, |(trait_id, _)| {
+                    trait_id.expect("The none option was already considered before")
+                });
+                return MethodLookupResult::NotFound(trait_ids);
+            }
+        }
+
+        if results.len() > 1 {
+            let trait_ids = vecmap(results, |(trait_id, _)| trait_id);
+            return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
+        }
+
+        let (trait_id, item) = results.remove(0);
+        let per_ns = PerNs { types: None, values: Some(*item) };
+        MethodLookupResult::FoundTraitMethod(per_ns, trait_id)
     }
 }
 
@@ -325,16 +424,14 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
 ) -> PathResolutionItem {
     match module_def_id {
         ModuleDefId::ModuleId(module_id) => PathResolutionItem::Module(module_id),
-        ModuleDefId::TypeId(struct_id) => PathResolutionItem::Struct(struct_id),
+        ModuleDefId::TypeId(type_id) => PathResolutionItem::Type(type_id),
         ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
-            IntermediatePathResolutionItem::Module(_) => {
-                PathResolutionItem::ModuleFunction(func_id)
-            }
-            IntermediatePathResolutionItem::Struct(struct_id, generics) => {
-                PathResolutionItem::StructFunction(struct_id, generics, func_id)
+            IntermediatePathResolutionItem::Module => PathResolutionItem::ModuleFunction(func_id),
+            IntermediatePathResolutionItem::Type(type_id, generics) => {
+                PathResolutionItem::Method(type_id, generics, func_id)
             }
             IntermediatePathResolutionItem::TypeAlias(alias_id, generics) => {
                 PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
@@ -343,5 +440,20 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
                 PathResolutionItem::TraitFunction(trait_id, generics, func_id)
             }
         },
+    }
+}
+
+fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<ModuleId> {
+    let type_alias = type_alias.borrow();
+
+    match &type_alias.typ {
+        Type::DataType(type_id, _generics) => Some(type_id.borrow().id.module_id()),
+        Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
+        Type::Error => None,
+        _ => {
+            // For now we only allow type aliases that point to data types.
+            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
+            panic!("Type alias in path not pointing to a data type is not yet supported")
+        }
     }
 }

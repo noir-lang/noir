@@ -28,7 +28,9 @@ unconstrained fn create_and_assert_inside_brillig(x: Field, y: Field) {
 }
 
 fn main(x: Field, y: Field) {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         let header = Header { params: [1, 2, 3] };
         let note0 = MyNote { array: [1, 2], plain: 3, header };
         let note1 = MyNote { array: [4, 5], plain: 6, header };

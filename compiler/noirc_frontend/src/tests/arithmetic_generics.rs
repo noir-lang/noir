@@ -153,3 +153,49 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         panic!("unexpected error: {:?}", monomorphization_error);
     }
 }
+
+#[test]
+fn global_numeric_generic_larger_than_u32() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6125
+    let source = r#"
+    global A: Field = 4294967297;
+    
+    fn foo<let A: Field>() { }
+    
+    fn main() {
+        let _ = foo::<A>();
+    }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn global_arithmetic_generic_larger_than_u32() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6126
+    let source = r#"
+    struct Foo<let F: Field> {}
+    
+    impl<let F: Field> Foo<F> {
+        fn size(self) -> Field {
+            let _ = self;
+            F
+        }
+    }
+    
+    // 2^32 - 1
+    global A: Field = 4294967295;
+    
+    // Avoiding overflow succeeds:
+    // fn foo<let A: Field>() -> Foo<A> {
+    fn foo<let A: Field>() -> Foo<A + A> {
+        Foo {}
+    }
+    
+    fn main() {
+        let _ = foo::<A>().size();
+    }
+    "#;
+    let errors = get_program_errors(source);
+    assert_eq!(errors.len(), 0);
+}

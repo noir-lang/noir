@@ -9,7 +9,7 @@ use nargo::PrintOutput;
 
 use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
 use crate::errors::CliError;
-use nargo::{foreign_calls::DefaultForeignCallExecutor, ops::execute_program};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 
 use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
 
@@ -35,12 +35,19 @@ pub(crate) struct ExecuteCommand {
     /// Set to print output witness to stdout
     #[clap(long, short, action)]
     print: bool,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[clap(long, default_value = "false")]
+    pedantic_solving: bool,
 }
 
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
     let circuit_inputs = read_inputs_from_file(&args.working_directory, &args.input_witness)?;
-    let output_witness = execute_program_from_witness(circuit_inputs, &bytecode)?;
+    let output_witness =
+        execute_program_from_witness(circuit_inputs, &bytecode, args.pedantic_solving)?;
     assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
     let output_witness_string = create_output_witness_string(
         &output_witness.peek().expect("Should have a witness stack item").witness,
@@ -67,14 +74,20 @@ pub(crate) fn run(args: ExecuteCommand) -> Result<String, CliError> {
 pub(crate) fn execute_program_from_witness(
     inputs_map: WitnessMap<FieldElement>,
     bytecode: &[u8],
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let program: Program<FieldElement> = Program::deserialize_program(bytecode)
         .map_err(|_| CliError::CircuitDeserializationError())?;
     execute_program(
         &program,
         inputs_map,
-        &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
+        &Bn254BlackBoxSolver(pedantic_solving),
+        &mut DefaultForeignCallBuilder {
+            output: PrintOutput::Stdout,
+            enable_mocks: false,
+            ..Default::default()
+        }
+        .build(),
     )
     .map_err(CliError::CircuitExecutionError)
 }

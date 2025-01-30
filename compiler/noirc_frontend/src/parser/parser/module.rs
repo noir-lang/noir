@@ -25,6 +25,7 @@ impl<'a> Parser<'a> {
                 visibility,
                 ident: Ident::default(),
                 outer_attributes,
+                has_semicolon: false,
             });
         };
 
@@ -41,10 +42,16 @@ impl<'a> Parser<'a> {
                 is_contract,
             })
         } else {
-            if !self.eat_semicolons() {
+            let has_semicolon = self.eat_semicolons();
+            if !has_semicolon {
                 self.expected_token(Token::Semicolon);
             }
-            ItemKind::ModuleDecl(ModuleDeclaration { visibility, ident, outer_attributes })
+            ItemKind::ModuleDecl(ModuleDeclaration {
+                visibility,
+                ident,
+                outer_attributes,
+                has_semicolon,
+            })
         }
     }
 }
@@ -74,7 +81,6 @@ mod tests {
     fn parse_submodule() {
         let src = "mod foo { mod bar; }";
         let (module, errors) = parse_program(src);
-        dbg!(&errors);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -90,7 +96,6 @@ mod tests {
     fn parse_contract() {
         let src = "contract foo {}";
         let (module, errors) = parse_program(src);
-        dbg!(&errors);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

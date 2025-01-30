@@ -58,8 +58,12 @@ impl<'a> Formatter<'a> {
             ItemKind::Import(use_tree, item_visibility) => {
                 self.format_import(use_tree, item_visibility);
             }
-            ItemKind::Function(noir_function) => self.format_function(noir_function),
+            ItemKind::Function(noir_function) => self.format_function(
+                noir_function,
+                false, // skip visibility
+            ),
             ItemKind::Struct(noir_struct) => self.format_struct(noir_struct),
+            ItemKind::Enum(noir_enum) => self.format_enum(noir_enum),
             ItemKind::Trait(noir_trait) => self.format_trait(noir_trait),
             ItemKind::TraitImpl(noir_trait_impl) => self.format_trait_impl(noir_trait_impl),
             ItemKind::Impl(type_impl) => self.format_impl(type_impl),

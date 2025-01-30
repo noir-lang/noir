@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-linux-gnu
 
@@ -52,7 +52,7 @@ jobs:
           tool: nextest@0.9.67
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --release --archive-file nextest-archive.tar.zst
+        run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
       
       - name: Upload archive to workflow
         uses: actions/upload-artifact@v4
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
         with:
           targets: x86_64-unknown-linux-gnu
 

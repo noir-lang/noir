@@ -13,6 +13,7 @@ use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReas
 mod arguments;
 mod attributes;
 mod doc_comments;
+mod enums;
 mod expression;
 mod function;
 mod generics;
@@ -83,6 +84,27 @@ pub struct Parser<'a> {
     next_token: SpannedToken,
     current_token_span: Span,
     previous_token_span: Span,
+
+    /// The current statement's doc comments.
+    /// This is used to eventually know if an `unsafe { ... }` expression is documented
+    /// in its containing statement. For example:
+    ///
+    /// ```noir
+    /// /// Safety: test
+    /// let x = unsafe { call() };
+    /// ```
+    statement_doc_comments: Option<StatementDocComments>,
+}
+
+#[derive(Debug)]
+pub(crate) struct StatementDocComments {
+    pub(crate) doc_comments: Vec<String>,
+    pub(crate) start_span: Span,
+    pub(crate) end_span: Span,
+
+    /// Were these doc comments "read" by an unsafe statement?
+    /// If not, these doc comments aren't documenting anything and they produce an error.
+    pub(crate) read: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -107,6 +129,7 @@ impl<'a> Parser<'a> {
             next_token: eof_spanned_token(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
+            statement_doc_comments: None,
         };
         parser.read_two_first_tokens();
         parser
@@ -128,9 +151,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
-    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
+    /// and returns the result (and any warnings) if the parser has no errors, and if the parser consumed all tokens.
     /// Otherwise returns the list of errors.
-    pub fn parse_result<T, F>(mut self, parsing_function: F) -> Result<T, Vec<ParserError>>
+    pub fn parse_result<T, F>(
+        mut self,
+        parsing_function: F,
+    ) -> Result<(T, Vec<ParserError>), Vec<ParserError>>
     where
         F: FnOnce(&mut Parser<'a>) -> T,
     {
@@ -140,23 +166,11 @@ impl<'a> Parser<'a> {
             return Err(self.errors);
         }
 
-        if self.errors.is_empty() {
-            Ok(item)
+        let all_warnings = self.errors.iter().all(|error| error.is_warning());
+        if all_warnings {
+            Ok((item, self.errors))
         } else {
             Err(self.errors)
-        }
-    }
-
-    /// Invokes `parsing_function` (`parsing_function` must be some `parse_*` method of the parser)
-    /// and returns the result if the parser has no errors, and if the parser consumed all tokens.
-    /// Otherwise returns None.
-    pub fn parse_option<T, F>(self, parsing_function: F) -> Option<T>
-    where
-        F: FnOnce(&mut Parser<'a>) -> Option<T>,
-    {
-        match self.parse_result(parsing_function) {
-            Ok(item) => item,
-            Err(_) => None,
         }
     }
 
@@ -178,14 +192,10 @@ impl<'a> Parser<'a> {
 
     fn read_token_internal(&mut self) -> SpannedToken {
         loop {
-            let token = self.tokens.next();
-            if let Some(token) = token {
-                match token {
-                    Ok(token) => return token,
-                    Err(lexer_error) => self.errors.push(lexer_error.into()),
-                }
-            } else {
-                return eof_spanned_token();
+            match self.tokens.next() {
+                Some(Ok(token)) => return token,
+                Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
+                None => return eof_spanned_token(),
             }
         }
     }

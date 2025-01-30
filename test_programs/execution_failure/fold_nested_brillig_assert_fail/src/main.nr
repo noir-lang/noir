@@ -1,5 +1,5 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is using assert on brillig that is triggered through nested ACIR calls.
 // We want to make sure we get a call stack from the original call in main to the failed assert.
 fn main(x: Field) {
@@ -14,7 +14,9 @@ fn fold_conditional_wrapper(x: bool) -> Field {
 
 #[fold]
 fn fold_conditional(x: bool) -> Field {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         conditional_wrapper(x)
     }
 }

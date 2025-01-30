@@ -12,7 +12,7 @@ pub struct I32AndField {
 comptime fn my_comptime_fn(typ: StructDefinition) {
     let _ = typ.as_type();
     assert_eq(typ.generics().len(), 3);
-    assert_eq(typ.fields().len(), 2);
+    assert_eq(typ.fields_as_written().len(), 2);
     assert_eq(typ.name(), quote { MyType });
 }
 
@@ -39,9 +39,29 @@ mod foo {
 
         let generics = s.generics();
         assert_eq(generics.len(), 1);
-        assert_eq(generics[0], new_generic);
+        let (typ, numeric) = generics[0];
+        assert_eq(typ, new_generic);
+        assert(numeric.is_none());
     }
     // docs:end:add-generic-example
 }
 
-fn main() {}
+fn main() {
+    comptime {
+        let typ = quote { MyType<i8, i16, i32> }.as_type();
+        let (struct_def, generics) = typ.as_struct().unwrap();
+
+        let fields = struct_def.fields(generics);
+        assert_eq(fields.len(), 2);
+
+        let (field1_name, field1_type) = fields[0];
+        let (field2_name, field2_type) = fields[1];
+
+        assert_eq(field1_name, quote { field1 });
+        assert_eq(field2_name, quote { field2 });
+
+        // Ensure .fields(generics) actually performs substitutions on generics
+        assert_eq(field1_type, quote { [i8; 10] }.as_type());
+        assert_eq(field2_type, quote { (i16, i32) }.as_type());
+    }
+}

@@ -38,7 +38,14 @@ unconstrained fn lte_hint(x: Field, y: Field) -> bool {
 fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
+    /// Safety: borrow is enforced to be boolean due to its type.
+    /// if borrow is 0, it asserts that (alo > blo && ahi >= bhi)
+    /// if borrow is 1, it asserts that (alo <= blo && ahi > bhi)
     unsafe {
+        /*@safety: borrow is enforced to be boolean due to its type.
+            if borrow is 0, it asserts that (alo > blo && ahi >= bhi)
+            if borrow is 1, it asserts that (alo <= blo && ahi > bhi)
+        */
         let borrow = lte_hint(alo, blo);
 
         let rlo = alo - blo - 1 + (borrow as Field) * TWO_POW_128;
@@ -54,7 +61,9 @@ pub fn decompose(x: Field) -> (Field, Field) {
     if is_unconstrained() {
         compute_decomposition(x)
     } else {
+        /// Safety: decomposition is properly checked below
         unsafe {
+            /*@safety: decomposition is properly checked below*/
             // Take hints of the decomposition
             let (xlo, xhi) = decompose_hint(x);
 
@@ -74,7 +83,10 @@ pub fn decompose(x: Field) -> (Field, Field) {
 
 pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
-        assert(unsafe { field_less_than(b, a) });
+        assert(
+            /// Safety: already unconstrained
+            unsafe { field_less_than(b, a) },
+        );
     } else {
         // Decompose a and b
         let a_limbs = decompose(a);
@@ -91,14 +103,17 @@ pub fn assert_lt(a: Field, b: Field) {
 
 pub fn gt(a: Field, b: Field) -> bool {
     if is_unconstrained() {
+        /// Safety: unsafe in unconstrained
         unsafe {
+            //@safety: unsafe in unconstrained
             field_less_than(b, a)
         }
     } else if a == b {
         false
     } else {
-        // Take a hint of the comparison and verify it
+        /// Safety: Take a hint of the comparison and verify it
         unsafe {
+            //@safety: Take a hint of the comparison and verify it
             if field_less_than(a, b) {
                 assert_gt(b, a);
                 false

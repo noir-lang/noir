@@ -15,7 +15,7 @@ use acir::{
 };
 
 use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
-use acvm_blackbox_solver::StubbedBlackBoxSolver;
+use acvm_blackbox_solver::{BigIntSolver, StubbedBlackBoxSolver};
 use bn254_blackbox_solver::{field_from_hex, Bn254BlackBoxSolver, POSEIDON2_CONFIG};
 use brillig_vm::brillig::HeapValueType;
 
@@ -24,10 +24,10 @@ use proptest::arbitrary::any;
 use proptest::prelude::*;
 use proptest::result::maybe_ok;
 use proptest::sample::select;
-use zkhash::poseidon2::poseidon2_params::Poseidon2Params;
 
 #[test]
 fn bls12_381_circuit() {
+    let solver = StubbedBlackBoxSolver::default();
     type Bls12FieldElement = GenericFieldElement<ark_bls12_381::Fr>;
 
     let addition = Opcode::AssertZero(Expression {
@@ -47,7 +47,7 @@ fn bls12_381_circuit() {
     ])
     .into();
 
-    let mut acvm = ACVM::new(&StubbedBlackBoxSolver, &opcodes, witness_assignments, &[], &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &[], &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
@@ -60,6 +60,7 @@ fn bls12_381_circuit() {
 
 #[test]
 fn inversion_brillig_oracle_equivalence() {
+    let solver = StubbedBlackBoxSolver::default();
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -169,13 +170,7 @@ fn inversion_brillig_oracle_equivalence() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        witness_assignments,
-        &unconstrained_functions,
-        &[],
-    );
+    let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &unconstrained_functions, &[]);
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
 
@@ -204,6 +199,7 @@ fn inversion_brillig_oracle_equivalence() {
 
 #[test]
 fn double_inversion_brillig_oracle() {
+    let solver = StubbedBlackBoxSolver::default();
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -335,13 +331,7 @@ fn double_inversion_brillig_oracle() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        witness_assignments,
-        &unconstrained_functions,
-        &[],
-    );
+    let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &unconstrained_functions, &[]);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -388,6 +378,7 @@ fn double_inversion_brillig_oracle() {
 
 #[test]
 fn oracle_dependent_execution() {
+    let solver = StubbedBlackBoxSolver::default();
     // This test ensures that we properly track the list of opcodes which still need to be resolved
     // across any brillig foreign calls we may have to perform.
     //
@@ -492,13 +483,7 @@ fn oracle_dependent_execution() {
     let witness_assignments =
         BTreeMap::from([(w_x, FieldElement::from(2u128)), (w_y, FieldElement::from(2u128))]).into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        witness_assignments,
-        &unconstrained_functions,
-        &[],
-    );
+    let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &unconstrained_functions, &[]);
 
     // use the partial witness generation solver with our acir program
     let solver_status = acvm.solve();
@@ -544,6 +529,7 @@ fn oracle_dependent_execution() {
 
 #[test]
 fn brillig_oracle_predicate() {
+    let solver = StubbedBlackBoxSolver::default();
     let fe_0 = FieldElement::zero();
     let fe_1 = FieldElement::one();
     let w_x = Witness(1);
@@ -614,13 +600,7 @@ fn brillig_oracle_predicate() {
     ])
     .into();
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm = ACVM::new(
-        &StubbedBlackBoxSolver,
-        &opcodes,
-        witness_assignments,
-        &unconstrained_functions,
-        &[],
-    );
+    let mut acvm = ACVM::new(&solver, &opcodes, witness_assignments, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved, "should be fully solved");
 
@@ -630,6 +610,7 @@ fn brillig_oracle_predicate() {
 
 #[test]
 fn unsatisfied_opcode_resolved() {
+    let solver = StubbedBlackBoxSolver::default();
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -655,8 +636,7 @@ fn unsatisfied_opcode_resolved() {
 
     let opcodes = vec![Opcode::AssertZero(opcode_a)];
     let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -670,6 +650,7 @@ fn unsatisfied_opcode_resolved() {
 
 #[test]
 fn unsatisfied_opcode_resolved_brillig() {
+    let solver = StubbedBlackBoxSolver::default();
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -779,8 +760,7 @@ fn unsatisfied_opcode_resolved_brillig() {
         Opcode::AssertZero(opcode_a),
     ];
     let unconstrained_functions = vec![brillig_bytecode];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, values, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, values, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(
         solver_status,
@@ -795,6 +775,8 @@ fn unsatisfied_opcode_resolved_brillig() {
 
 #[test]
 fn memory_operations() {
+    let solver = StubbedBlackBoxSolver::default();
+
     let initial_witness = WitnessMap::from(BTreeMap::from_iter([
         (Witness(1), FieldElement::from(1u128)),
         (Witness(2), FieldElement::from(2u128)),
@@ -829,46 +811,12 @@ fn memory_operations() {
 
     let opcodes = vec![init, read_op, expression];
     let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
 
     assert_eq!(witness_map[&Witness(8)], FieldElement::from(6u128));
-}
-
-fn allowed_bigint_moduli() -> Vec<Vec<u8>> {
-    let bn254_fq: Vec<u8> = vec![
-        0x47, 0xFD, 0x7C, 0xD8, 0x16, 0x8C, 0x20, 0x3C, 0x8d, 0xca, 0x71, 0x68, 0x91, 0x6a, 0x81,
-        0x97, 0x5d, 0x58, 0x81, 0x81, 0xb6, 0x45, 0x50, 0xb8, 0x29, 0xa0, 0x31, 0xe1, 0x72, 0x4e,
-        0x64, 0x30,
-    ];
-    let bn254_fr: Vec<u8> = vec![
-        1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129,
-        182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
-    ];
-    let secpk1_fr: Vec<u8> = vec![
-        0x41, 0x41, 0x36, 0xD0, 0x8C, 0x5E, 0xD2, 0xBF, 0x3B, 0xA0, 0x48, 0xAF, 0xE6, 0xDC, 0xAE,
-        0xBA, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF,
-    ];
-    let secpk1_fq: Vec<u8> = vec![
-        0x2F, 0xFC, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF,
-    ];
-    let secpr1_fq: Vec<u8> = vec![
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-        0xFF, 0xFF,
-    ];
-    let secpr1_fr: Vec<u8> = vec![
-        81, 37, 99, 252, 194, 202, 185, 243, 132, 158, 23, 167, 173, 250, 230, 188, 255, 255, 255,
-        255, 255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255,
-    ];
-
-    vec![bn254_fq, bn254_fr, secpk1_fr, secpk1_fq, secpr1_fq, secpr1_fr]
 }
 
 /// Whether to use a FunctionInput::constant or FunctionInput::witness:
@@ -917,6 +865,7 @@ fn solve_array_input_blackbox_call<F>(
     inputs: Vec<ConstantOrWitness>,
     num_outputs: usize,
     num_bits: Option<u32>,
+    pedantic_solving: bool,
     f: F,
 ) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>>
 where
@@ -924,6 +873,7 @@ where
         (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
+    let solver = Bn254BlackBoxSolver(pedantic_solving);
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let outputs: Vec<_> = (0..num_outputs)
@@ -935,8 +885,7 @@ where
     let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone()))?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&Bn254BlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -948,7 +897,7 @@ where
 }
 
 prop_compose! {
-    fn bigint_with_modulus()(modulus in select(allowed_bigint_moduli()))
+    fn bigint_with_modulus()(modulus in select(BigIntSolver::allowed_bigint_moduli()))
         (inputs in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
         -> (Vec<ConstantOrWitness>, Vec<u8>) {
         let inputs = inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
@@ -1029,7 +978,9 @@ fn bigint_solve_binary_op_opt(
     modulus: Vec<u8>,
     lhs: Vec<ConstantOrWitness>,
     rhs: Vec<ConstantOrWitness>,
+    pedantic_solving: bool,
 ) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>> {
+    let solver = StubbedBlackBoxSolver(pedantic_solving);
     let initial_witness_vec: Vec<_> = lhs
         .iter()
         .chain(rhs.iter())
@@ -1071,8 +1022,7 @@ fn bigint_solve_binary_op_opt(
     opcodes.push(bigint_to_op);
 
     let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1095,6 +1045,7 @@ fn solve_blackbox_func_call(
     lhs: (FieldElement, bool), // if false, use a Witness
     rhs: (FieldElement, bool), // if false, use a Witness
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
+    let solver = StubbedBlackBoxSolver::default();
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
 
@@ -1114,8 +1065,7 @@ fn solve_blackbox_func_call(
     let op = Opcode::BlackBoxFuncCall(blackbox_func_call(lhs_opt, rhs_opt)?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
-    let mut acvm =
-        ACVM::new(&StubbedBlackBoxSolver, &opcodes, initial_witness, &unconstrained_functions, &[]);
+    let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
     let solver_status = acvm.solve();
     assert_eq!(solver_status, ACVMStatus::Solved);
     let witness_map = acvm.finalize();
@@ -1202,21 +1152,41 @@ where
     fields.into_iter().map(|field| field.into_repr()).collect()
 }
 
-fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
+// fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
+// where
+//     T: IntoIterator<Item = U>,
+//     U: IntoIterator<Item = FieldElement>,
+// {
+//     fields.into_iter().map(|field| into_repr_vec(field)).collect()
+// }
+
+fn into_old_ark_field<T, U>(field: T) -> U
 where
-    T: IntoIterator<Item = U>,
-    U: IntoIterator<Item = FieldElement>,
+    T: AcirField,
+    U: ark_ff_v04::PrimeField,
 {
-    fields.into_iter().map(|field| into_repr_vec(field)).collect()
+    U::from_be_bytes_mod_order(&field.to_be_bytes())
+}
+
+fn into_new_ark_field<T, U>(field: T) -> U
+where
+    T: ark_ff_v04::PrimeField,
+    U: ark_ff::PrimeField,
+{
+    use zkhash::ark_ff::BigInteger;
+
+    U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
 }
 
 fn run_both_poseidon2_permutations(
     inputs: Vec<ConstantOrWitness>,
 ) -> Result<(Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>), OpcodeResolutionError<FieldElement>> {
+    let pedantic_solving = true;
     let result = solve_array_input_blackbox_call(
         inputs.clone(),
         inputs.len(),
         None,
+        pedantic_solving,
         poseidon2_permutation_op,
     )?;
 
@@ -1224,12 +1194,17 @@ fn run_both_poseidon2_permutations(
     let poseidon2_d = 5;
     let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
     let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
-    let mat_internal_diag_m_1 = into_repr_vec(POSEIDON2_CONFIG.internal_matrix_diagonal);
+    let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
+        POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
     let mat_internal = vec![];
-    let round_constants = into_repr_mat(POSEIDON2_CONFIG.round_constant);
+    let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
+        .round_constant
+        .into_iter()
+        .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
+        .collect();
 
-    let external_poseidon2 =
-        zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(Poseidon2Params::new(
+    let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
+        zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
             poseidon2_t,
             poseidon2_d,
             rounds_f,
@@ -1237,11 +1212,16 @@ fn run_both_poseidon2_permutations(
             &mat_internal_diag_m_1,
             &mat_internal,
             &round_constants,
-        )));
+        ),
+    ));
 
-    let expected_result =
-        external_poseidon2.permutation(&into_repr_vec(drop_use_constant(&inputs)));
-    Ok((into_repr_vec(result), expected_result))
+    let expected_result = external_poseidon2.permutation(
+        &drop_use_constant(&inputs)
+            .into_iter()
+            .map(into_old_ark_field)
+            .collect::<Vec<ark_bn254_v04::Fr>>(),
+    );
+    Ok((into_repr_vec(result), expected_result.into_iter().map(into_new_ark_field).collect()))
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -1256,8 +1236,9 @@ fn bigint_solve_binary_op(
     modulus: Vec<u8>,
     lhs: Vec<ConstantOrWitness>,
     rhs: Vec<ConstantOrWitness>,
+    pedantic_solving: bool,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(Some(middle_op), modulus, lhs, rhs).unwrap()
+    bigint_solve_binary_op_opt(Some(middle_op), modulus, lhs, rhs, pedantic_solving).unwrap()
 }
 
 // Using the given BigInt modulus, solve the following circuit:
@@ -1267,8 +1248,38 @@ fn bigint_solve_binary_op(
 fn bigint_solve_from_to_le_bytes(
     modulus: Vec<u8>,
     inputs: Vec<ConstantOrWitness>,
+    pedantic_solving: bool,
 ) -> Vec<FieldElement> {
-    bigint_solve_binary_op_opt(None, modulus, inputs, vec![]).unwrap()
+    bigint_solve_binary_op_opt(None, modulus, inputs, vec![], pedantic_solving).unwrap()
+}
+
+// Test bigint_solve_from_to_le_bytes with a guaranteed-invalid modulus
+// and optional pedantic_solving
+fn bigint_from_to_le_bytes_disallowed_modulus_helper(
+    modulus: &mut Vec<u8>,
+    patch_location: usize,
+    patch_amount: u8,
+    zero_or_ones_constant: bool,
+    use_constant: bool,
+    pedantic_solving: bool,
+) -> (Vec<FieldElement>, Vec<FieldElement>) {
+    let allowed_moduli: HashSet<Vec<u8>> =
+        BigIntSolver::allowed_bigint_moduli().into_iter().collect();
+    let mut patch_location = patch_location % modulus.len();
+    let patch_amount = patch_amount.clamp(1, u8::MAX);
+    while allowed_moduli.contains(modulus) {
+        modulus[patch_location] = patch_amount.wrapping_add(modulus[patch_location]);
+        patch_location += 1;
+        patch_location %= modulus.len();
+    }
+
+    let zero_function_input =
+        if zero_or_ones_constant { FieldElement::zero() } else { FieldElement::one() };
+    let zero: Vec<_> = modulus.iter().map(|_| (zero_function_input, use_constant)).collect();
+    let expected_results: Vec<_> = drop_use_constant(&zero);
+    let results = bigint_solve_from_to_le_bytes(modulus.clone(), zero, pedantic_solving);
+
+    (results, expected_results)
 }
 
 fn function_input_from_option(
@@ -1361,6 +1372,7 @@ fn prop_assert_injective<F>(
     distinct_inputs: Vec<ConstantOrWitness>,
     num_outputs: usize,
     num_bits: Option<u32>,
+    pedantic_solving: bool,
     op: F,
 ) -> (bool, String)
 where
@@ -1372,11 +1384,22 @@ where
 {
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
     let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
-    let outputs_not_equal =
-        solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone())
-            .expect("injectivity test operations to have valid input")
-            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op)
-                .expect("injectivity test operations to have valid input");
+    let outputs_not_equal = solve_array_input_blackbox_call(
+        inputs,
+        num_outputs,
+        num_bits,
+        pedantic_solving,
+        op.clone(),
+    )
+    .expect("injectivity test operations to have valid input")
+        != solve_array_input_blackbox_call(
+            distinct_inputs,
+            num_outputs,
+            num_bits,
+            pedantic_solving,
+            op,
+        )
+        .expect("injectivity test operations to have valid input");
     (equal_inputs || outputs_not_equal, message)
 }
 
@@ -1456,10 +1479,12 @@ fn poseidon2_permutation_zeroes() {
 
 #[test]
 fn sha256_compression_zeros() {
+    let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
-        [(FieldElement::zero(), false); 24].try_into().unwrap(),
+        [(FieldElement::zero(), false); 24].into(),
         8,
         None,
+        pedantic_solving,
         sha256_compression_op,
     );
     let expected_results: Vec<_> = vec![
@@ -1474,7 +1499,8 @@ fn sha256_compression_zeros() {
 
 #[test]
 fn blake2s_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, blake2s_op);
+    let pedantic_solving = true;
+    let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake2s_op);
     let expected_results: Vec<_> = vec![
         105, 33, 122, 48, 121, 144, 128, 148, 225, 17, 33, 208, 66, 53, 74, 124, 31, 85, 182, 72,
         44, 161, 165, 30, 27, 37, 13, 253, 30, 208, 238, 249,
@@ -1487,7 +1513,8 @@ fn blake2s_zeros() {
 
 #[test]
 fn blake3_zeros() {
-    let results = solve_array_input_blackbox_call(vec![], 32, None, blake3_op);
+    let pedantic_solving = true;
+    let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake3_op);
     let expected_results: Vec<_> = vec![
         175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37,
         201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98,
@@ -1500,10 +1527,12 @@ fn blake3_zeros() {
 
 #[test]
 fn keccakf1600_zeros() {
+    let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 25].into(),
         25,
         Some(64),
+        pedantic_solving,
         keccakf1600_op,
     );
     let expected_results: Vec<_> = vec![
@@ -1619,7 +1648,8 @@ proptest! {
     fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         if inputs.len() == 24 && distinct_inputs.len() == 24 {
-            let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, None, sha256_compression_op);
+            let pedantic_solving = true;
+            let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, None, pedantic_solving, sha256_compression_op);
             prop_assert!(result, "{}", message);
         }
     }
@@ -1627,14 +1657,16 @@ proptest! {
     #[test]
     fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake2s_op);
+        let pedantic_solving = true;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake2s_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
     fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake3_op);
+        let pedantic_solving = true;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake3_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1643,7 +1675,8 @@ proptest! {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         assert_eq!(inputs.len(), 25);
         assert_eq!(distinct_inputs.len(), 25);
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), keccakf1600_op);
+        let pedantic_solving = true;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), pedantic_solving, keccakf1600_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1652,12 +1685,13 @@ proptest! {
     #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
     fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, poseidon2_permutation_invalid_len_op);
+        let pedantic_solving = true;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, pedantic_solving, poseidon2_permutation_invalid_len_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn bigint_from_to_le_bytes_zero_one(modulus in select(allowed_bigint_moduli()), zero_or_ones_constant: bool, use_constant: bool) {
+    fn bigint_from_to_le_bytes_zero_one(modulus in select(BigIntSolver::allowed_bigint_moduli()), zero_or_ones_constant: bool, use_constant: bool) {
         let zero_function_input = if zero_or_ones_constant {
             FieldElement::one()
         } else {
@@ -1665,25 +1699,46 @@ proptest! {
         };
         let zero_or_ones: Vec<_> = modulus.iter().map(|_| (zero_function_input, use_constant)).collect();
         let expected_results = drop_use_constant(&zero_or_ones);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), zero_or_ones);
+        let pedantic_solving = true;
+        let results = bigint_solve_from_to_le_bytes(modulus.clone(), zero_or_ones, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     fn bigint_from_to_le_bytes((input, modulus) in bigint_with_modulus()) {
         let expected_results: Vec<_> = drop_use_constant(&input);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input);
+        let pedantic_solving = true;
+        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5580): desired behavior?
-    fn bigint_from_to_le_bytes_extra_input_bytes((input, modulus) in bigint_with_modulus(), extra_bytes_len: u8, extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
-        let mut input = input;
-        let mut extra_bytes: Vec<_> = extra_bytes.into_iter().take(extra_bytes_len as usize).map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant)).collect();
+    fn bigint_from_to_le_bytes_extra_input_bytes((mut input, modulus) in bigint_with_modulus(), extra_bytes_len: u8, extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
+        let mut extra_bytes: Vec<_> = extra_bytes
+            .into_iter()
+            .take(extra_bytes_len as usize)
+            .map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant))
+            .collect();
         input.append(&mut extra_bytes);
         let expected_results: Vec<_> = drop_use_constant(&input);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input);
+        let pedantic_solving = false;
+        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    #[test]
+    #[should_panic(expected = "--pedantic-solving: bigint_from_bytes: inputs.len() > modulus.len()")]
+    fn bigint_from_to_le_bytes_extra_input_bytes_with_pedantic((mut input, modulus) in bigint_with_modulus(), extra_bytes_len: u8, extra_bytes in proptest::collection::vec(any::<(u8, bool)>(), u8::MAX as usize)) {
+        let mut extra_bytes: Vec<_> = extra_bytes
+            .into_iter()
+            .take(extra_bytes_len as usize)
+            .map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant))
+            .collect();
+        input.append(&mut extra_bytes);
+        let expected_results: Vec<_> = drop_use_constant(&input);
+        let pedantic_solving = true;
+        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1696,94 +1751,109 @@ proptest! {
         let larger_value = FieldElement::from(std::cmp::max((u8::MAX as u16) + 1, larger_value) as u128);
         input[patch_location] = (larger_value, use_constant);
         let expected_results: Vec<_> = drop_use_constant(&input);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input);
+        let pedantic_solving = true;
+        let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     // TODO(https://github.com/noir-lang/noir/issues/5578): this test attempts to use a guaranteed-invalid BigInt modulus
     // #[should_panic(expected = "attempt to add with overflow")]
-    fn bigint_from_to_le_bytes_disallowed_modulus(mut modulus in select(allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
-        let allowed_moduli: HashSet<Vec<u8>> = allowed_bigint_moduli().into_iter().collect();
-        let mut patch_location = patch_location % modulus.len();
-        let patch_amount = patch_amount.clamp(1, u8::MAX);
-        while allowed_moduli.contains(&modulus) {
-            modulus[patch_location] = patch_amount.wrapping_add(modulus[patch_location]);
-            patch_location += 1;
-            patch_location %= modulus.len();
-        }
+    fn bigint_from_to_le_bytes_disallowed_modulus(mut modulus in select(BigIntSolver::allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
+        let pedantic_solving = false;
+        let (results, expected_results) = bigint_from_to_le_bytes_disallowed_modulus_helper(
+            &mut modulus,
+            patch_location,
+            patch_amount,
+            zero_or_ones_constant,
+            use_constant,
+            pedantic_solving,
+        );
+        prop_assert_eq!(results, expected_results)
+    }
 
-        let zero_function_input = if zero_or_ones_constant {
-            FieldElement::zero()
-        } else {
-            FieldElement::one()
-        };
-        let zero: Vec<_> = modulus.iter().map(|_| (zero_function_input, use_constant)).collect();
-        let expected_results: Vec<_> = drop_use_constant(&zero);
-        let results = bigint_solve_from_to_le_bytes(modulus.clone(), zero);
-
+    #[test]
+    #[should_panic(expected = "--pedantic-solving: bigint_from_bytes: disallowed modulus [")]
+    fn bigint_from_to_le_bytes_disallowed_modulus_panics_with_pedantic(mut modulus in select(BigIntSolver::allowed_bigint_moduli()), patch_location: usize, patch_amount: u8, zero_or_ones_constant: bool, use_constant: bool) {
+        let pedantic_solving = true;
+        let (results, expected_results) = bigint_from_to_le_bytes_disallowed_modulus_helper(
+            &mut modulus,
+            patch_location,
+            patch_amount,
+            zero_or_ones_constant,
+            use_constant,
+            pedantic_solving,
+        );
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     fn bigint_add_commutative((xs, ys, modulus) in bigint_pair_with_modulus()) {
-        let lhs_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone());
-        let rhs_results = bigint_solve_binary_op(bigint_add_op(), modulus, ys, xs);
+        let pedantic_solving = true;
+        let lhs_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
+        let rhs_results = bigint_solve_binary_op(bigint_add_op(), modulus, ys, xs, pedantic_solving);
 
         prop_assert_eq!(lhs_results, rhs_results)
     }
 
     #[test]
     fn bigint_mul_commutative((xs, ys, modulus) in bigint_pair_with_modulus()) {
-        let lhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone());
-        let rhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus, ys, xs);
+        let pedantic_solving = true;
+        let lhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
+        let rhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus, ys, xs, pedantic_solving);
 
         prop_assert_eq!(lhs_results, rhs_results)
     }
 
     #[test]
     fn bigint_add_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let pedantic_solving = true;
+
         // f(f(xs, ys), zs) ==
-        let op_xs_ys = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone());
+        let op_xs_ys = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
         let xs_ys = use_witnesses(op_xs_ys);
-        let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs_ys, zs.clone());
+        let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs_ys, zs.clone(), pedantic_solving);
 
         // f(xs, f(ys, zs))
-        let op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone());
+        let op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone(), pedantic_solving);
         let ys_zs = use_witnesses(op_ys_zs);
-        let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus, xs, ys_zs);
+        let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus, xs, ys_zs, pedantic_solving);
 
         prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
     }
 
     #[test]
     fn bigint_mul_associative((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let pedantic_solving = true;
+
         // f(f(xs, ys), zs) ==
-        let op_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone());
+        let op_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
         let xs_ys = use_witnesses(op_xs_ys);
-        let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs_ys, zs.clone());
+        let op_xs_ys_op_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs_ys, zs.clone(), pedantic_solving);
 
         // f(xs, f(ys, zs))
-        let op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), ys.clone(), zs.clone());
+        let op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), ys.clone(), zs.clone(), pedantic_solving);
         let ys_zs = use_witnesses(op_ys_zs);
-        let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, ys_zs);
+        let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, ys_zs, pedantic_solving);
 
         prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
     }
 
     #[test]
     fn bigint_mul_add_distributive((xs, ys, zs, modulus) in bigint_triple_with_modulus()) {
+        let pedantic_solving = true;
+
         // xs * (ys + zs) ==
-        let add_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone());
+        let add_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), ys.clone(), zs.clone(), pedantic_solving);
         let add_ys_zs = use_witnesses(add_ys_zs);
-        let mul_xs_add_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), add_ys_zs);
+        let mul_xs_add_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), add_ys_zs, pedantic_solving);
 
         // xs * ys + xs * zs
-        let mul_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys);
+        let mul_xs_ys = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys, pedantic_solving);
         let mul_xs_ys = use_witnesses(mul_xs_ys);
-        let mul_xs_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, zs);
+        let mul_xs_zs = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, zs, pedantic_solving);
         let mul_xs_zs = use_witnesses(mul_xs_zs);
-        let add_mul_xs_ys_mul_xs_zs = bigint_solve_binary_op(bigint_add_op(), modulus, mul_xs_ys, mul_xs_zs);
+        let add_mul_xs_ys_mul_xs_zs = bigint_solve_binary_op(bigint_add_op(), modulus, mul_xs_ys, mul_xs_zs, pedantic_solving);
 
         prop_assert_eq!(mul_xs_add_ys_zs, add_mul_xs_ys_mul_xs_zs)
     }
@@ -1793,7 +1863,8 @@ proptest! {
     fn bigint_add_zero_l((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_add_op(), modulus, zero, xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_add_op(), modulus, zero, xs, pedantic_solving);
 
         prop_assert_eq!(results, expected_results)
     }
@@ -1802,7 +1873,8 @@ proptest! {
     fn bigint_mul_zero_l((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
-        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, zero, xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, zero, xs, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1810,14 +1882,16 @@ proptest! {
     fn bigint_mul_one_l((xs, modulus) in bigint_with_modulus()) {
         let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, one, xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, one, xs, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     fn bigint_sub_self((xs, modulus) in bigint_with_modulus()) {
         let expected_results = drop_use_constant(&bigint_zeroed(&xs));
-        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs.clone(), xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs.clone(), xs, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1825,7 +1899,8 @@ proptest! {
     fn bigint_sub_zero((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, zero);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, zero, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1833,14 +1908,16 @@ proptest! {
     fn bigint_sub_one((xs, modulus) in bigint_with_modulus()) {
         let one = bigint_to_one(&xs);
         let expected_results: Vec<_> = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, one);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, one, pedantic_solving);
         prop_assert!(results != expected_results, "{:?} == {:?}", results, expected_results)
     }
 
     #[test]
     fn bigint_div_self((xs, modulus) in bigint_with_modulus()) {
         let one = drop_use_constant(&bigint_to_one(&xs));
-        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs.clone(), xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs.clone(), xs, pedantic_solving);
         prop_assert_eq!(results, one)
     }
 
@@ -1849,7 +1926,18 @@ proptest! {
     fn bigint_div_by_zero((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
-        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, zero);
+        let pedantic_solving = false;
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, zero, pedantic_solving);
+        prop_assert_eq!(results, expected_results)
+    }
+
+    #[test]
+    #[should_panic(expected = "Attempted to divide BigInt by zero")]
+    fn bigint_div_by_zero_with_pedantic((xs, modulus) in bigint_with_modulus()) {
+        let zero = bigint_zeroed(&xs);
+        let expected_results = drop_use_constant(&zero);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, zero, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1857,7 +1945,8 @@ proptest! {
     fn bigint_div_one((xs, modulus) in bigint_with_modulus()) {
         let one = bigint_to_one(&xs);
         let expected_results = drop_use_constant(&xs);
-        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, one);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, one, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
@@ -1865,16 +1954,18 @@ proptest! {
     fn bigint_div_zero((xs, modulus) in bigint_with_modulus()) {
         let zero = bigint_zeroed(&xs);
         let expected_results = drop_use_constant(&zero);
-        let results = bigint_solve_binary_op(bigint_div_op(), modulus, zero, xs);
+        let pedantic_solving = true;
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, zero, xs, pedantic_solving);
         prop_assert_eq!(results, expected_results)
     }
 
     #[test]
     fn bigint_add_sub((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
-        let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone());
+        let pedantic_solving = true;
+        let add_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs, ys.clone(), pedantic_solving);
         let add_bigint = use_witnesses(add_results);
-        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, add_bigint, ys);
+        let results = bigint_solve_binary_op(bigint_sub_op(), modulus, add_bigint, ys, pedantic_solving);
 
         prop_assert_eq!(results, expected_results)
     }
@@ -1882,9 +1973,10 @@ proptest! {
     #[test]
     fn bigint_sub_add((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
-        let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone());
+        let pedantic_solving = true;
+        let sub_results = bigint_solve_binary_op(bigint_sub_op(), modulus.clone(), xs, ys.clone(), pedantic_solving);
         let add_bigint = use_witnesses(sub_results);
-        let results = bigint_solve_binary_op(bigint_add_op(), modulus, add_bigint, ys);
+        let results = bigint_solve_binary_op(bigint_add_op(), modulus, add_bigint, ys, pedantic_solving);
 
         prop_assert_eq!(results, expected_results)
     }
@@ -1892,9 +1984,10 @@ proptest! {
     #[test]
     fn bigint_div_mul((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
-        let div_results = bigint_solve_binary_op(bigint_div_op(), modulus.clone(), xs, ys.clone());
+        let pedantic_solving = true;
+        let div_results = bigint_solve_binary_op(bigint_div_op(), modulus.clone(), xs, ys.clone(), pedantic_solving);
         let div_bigint = use_witnesses(div_results);
-        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, div_bigint, ys);
+        let results = bigint_solve_binary_op(bigint_mul_op(), modulus, div_bigint, ys, pedantic_solving);
 
         prop_assert_eq!(results, expected_results)
     }
@@ -1902,9 +1995,10 @@ proptest! {
     #[test]
     fn bigint_mul_div((xs, ys, modulus) in bigint_pair_with_modulus()) {
         let expected_results = drop_use_constant(&xs);
-        let mul_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, ys.clone());
+        let pedantic_solving = true;
+        let mul_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs, ys.clone(), pedantic_solving);
         let mul_bigint = use_witnesses(mul_results);
-        let results = bigint_solve_binary_op(bigint_div_op(), modulus, mul_bigint, ys);
+        let results = bigint_solve_binary_op(bigint_div_op(), modulus, mul_bigint, ys, pedantic_solving);
 
         prop_assert_eq!(results, expected_results)
     }

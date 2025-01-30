@@ -17,7 +17,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Kind, Shared, StructType, Type, TypeAlias, TypeBindings,
+    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
 };
 
 use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
@@ -192,7 +192,11 @@ impl<'context> Elaborator<'context> {
         };
 
         let (struct_type, generics) = match self.lookup_type_or_error(name) {
-            Some(Type::Struct(struct_type, struct_generics)) => (struct_type, struct_generics),
+            Some(Type::DataType(struct_type, struct_generics))
+                if struct_type.borrow().is_struct() =>
+            {
+                (struct_type, struct_generics)
+            }
             None => return error_identifier(self),
             Some(typ) => {
                 let typ = typ.to_string();
@@ -210,7 +214,7 @@ impl<'context> Elaborator<'context> {
             turbofish_span,
         );
 
-        let actual_type = Type::Struct(struct_type.clone(), generics);
+        let actual_type = Type::DataType(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
 
         self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
@@ -234,7 +238,7 @@ impl<'context> Elaborator<'context> {
         let struct_id = struct_type.borrow().id;
 
         let reference_location = Location::new(name_span, self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
             let reference_location = Location::new(field.0.span(), self.file);
@@ -250,7 +254,7 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
-        struct_type: Shared<StructType>,
+        struct_type: Shared<DataType>,
         fields: Vec<(Ident, Pattern)>,
         span: Span,
         expected_type: Type,
@@ -260,7 +264,10 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let mut unseen_fields = struct_type.borrow().field_names();
+        let mut unseen_fields = struct_type
+            .borrow()
+            .field_names()
+            .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
             let (field_type, visibility) = expected_type
@@ -434,7 +441,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         generics: Vec<Type>,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
@@ -574,8 +581,8 @@ impl<'context> Elaborator<'context> {
     ///         solve these
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
-            PathResolutionItem::StructFunction(struct_id, Some(generics), _func_id) => {
-                let struct_type = self.interner.get_struct(struct_id);
+            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
+                let struct_type = self.interner.get_type(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
                 self.resolve_struct_turbofish_generics(
@@ -604,17 +611,11 @@ impl<'context> Elaborator<'context> {
                     alias_generics
                 };
 
-                // Now instantiate the underlying struct with those generics, the struct might
+                // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
                 //
                 // type Alias<T> = Struct<T, i32>;
-                let typ = type_alias.get_type(&generics);
-                let Type::Struct(_, generics) = typ else {
-                    // See https://github.com/noir-lang/noir/issues/6398
-                    panic!("Expected type alias to point to struct")
-                };
-
-                generics
+                get_type_alias_generics(&type_alias, &generics)
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
@@ -666,9 +667,7 @@ impl<'context> Elaborator<'context> {
                         self.interner.add_function_reference(func_id, hir_ident.location);
                     }
                     DefinitionKind::Global(global_id) => {
-                        if let Some(global) = self.unresolved_globals.remove(&global_id) {
-                            self.elaborate_global(global);
-                        }
+                        self.elaborate_global_if_unresolved(&global_id);
                         if let Some(current_item) = self.current_item {
                             self.interner.add_global_dependency(current_item, global_id);
                         }
@@ -759,7 +758,11 @@ impl<'context> Elaborator<'context> {
                 let function = self.interner.function_meta(&function);
                 for mut constraint in function.trait_constraints.clone() {
                     constraint.apply_bindings(&bindings);
-                    self.push_trait_constraint(constraint, expr_id);
+
+                    self.push_trait_constraint(
+                        constraint, expr_id,
+                        false, // This constraint shouldn't lead to choosing a trait impl method
+                    );
                 }
             }
         }
@@ -775,7 +778,11 @@ impl<'context> Elaborator<'context> {
                 // Currently only one impl can be selected per expr_id, so this
                 // constraint needs to be pushed after any other constraints so
                 // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(method.constraint, expr_id);
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
             }
         }
 
@@ -864,7 +871,7 @@ impl<'context> Elaborator<'context> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics) => {
+            HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
                     self.interner.get_trait(method_id.trait_id).as_constraint(span);
                 constraint.trait_bound.trait_generics = generics;
@@ -880,5 +887,16 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_type(id, typ.clone());
 
         (id, typ)
+    }
+}
+
+fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
+    let typ = type_alias.get_type(generics);
+    match typ {
+        Type::DataType(_, generics) => generics,
+        Type::Alias(type_alias, generics) => {
+            get_type_alias_generics(&type_alias.borrow(), &generics)
+        }
+        _ => panic!("Expected type alias to point to struct or alias"),
     }
 }

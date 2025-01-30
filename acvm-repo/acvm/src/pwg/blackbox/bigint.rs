@@ -10,14 +10,18 @@ use crate::pwg::OpcodeResolutionError;
 
 /// Resolve BigInt opcodes by storing BigInt values (and their moduli) by their ID in the BigIntSolver
 /// - When it encounters a bigint operation opcode, it performs the operation on the stored values
-/// and store the result using the provided ID.
+///   and store the result using the provided ID.
 /// - When it gets a to_bytes opcode, it simply looks up the value and resolves the output witness accordingly.
-#[derive(Default)]
 pub(crate) struct AcvmBigIntSolver {
     bigint_solver: BigIntSolver,
 }
 
 impl AcvmBigIntSolver {
+    pub(crate) fn with_pedantic_solving(pedantic_solving: bool) -> AcvmBigIntSolver {
+        let bigint_solver = BigIntSolver::with_pedantic_solving(pedantic_solving);
+        AcvmBigIntSolver { bigint_solver }
+    }
+
     pub(crate) fn bigint_from_bytes<F: AcirField>(
         &mut self,
         inputs: &[FunctionInput<F>],
@@ -39,6 +43,9 @@ impl AcvmBigIntSolver {
         outputs: &[Witness],
         initial_witness: &mut WitnessMap<F>,
     ) -> Result<(), OpcodeResolutionError<F>> {
+        if self.bigint_solver.pedantic_solving() && outputs.len() != 32 {
+            panic!("--pedantic-solving: bigint_to_bytes: outputs.len() != 32: {}", outputs.len());
+        }
         let mut bytes = self.bigint_solver.bigint_to_bytes(input)?;
         while bytes.len() < outputs.len() {
             bytes.push(0);

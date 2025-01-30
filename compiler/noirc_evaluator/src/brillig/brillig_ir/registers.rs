@@ -24,6 +24,8 @@ pub(crate) trait RegisterAllocator {
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
     /// Creates a new register context from a set of registers allocated previously.
     fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self;
+    /// Finds the first register that is available based upon the deallocation list
+    fn empty_registers_start(&self) -> MemoryAddress;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
@@ -40,10 +42,6 @@ impl Stack {
     fn is_within_bounds(register: MemoryAddress) -> bool {
         let offset = register.unwrap_relative();
         offset >= Self::start() && offset < Self::end()
-    }
-
-    pub(crate) fn empty_stack_start(&self) -> MemoryAddress {
-        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
     }
 }
 
@@ -83,6 +81,10 @@ impl RegisterAllocator for Stack {
             ),
         }
     }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
+    }
 }
 
 /// Procedure arguments and returns are passed through scratch space.
@@ -109,7 +111,7 @@ impl RegisterAllocator for ScratchSpace {
     }
 
     fn end() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE
+        Self::start() + MAX_SCRATCH_SPACE
     }
 
     fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
@@ -138,6 +140,87 @@ impl RegisterAllocator for ScratchSpace {
                 vecmap(preallocated_registers, |r| r.unwrap_direct()),
             ),
         }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+    }
+}
+
+/// Globals have a separate memory space
+/// This memory space is initialized once at the beginning of a program
+/// and is read-only.
+pub(crate) struct GlobalSpace {
+    storage: DeallocationListAllocator,
+    max_memory_address: usize,
+}
+
+impl GlobalSpace {
+    pub(super) fn new() -> Self {
+        Self {
+            storage: DeallocationListAllocator::new(Self::start()),
+            max_memory_address: Self::start(),
+        }
+    }
+
+    fn is_within_bounds(register: MemoryAddress) -> bool {
+        let index = register.unwrap_direct();
+        index >= Self::start()
+    }
+
+    fn update_max_address(&mut self, register: MemoryAddress) {
+        let index = register.unwrap_direct();
+        assert!(index >= Self::start(), "Global space malformed");
+        if index > self.max_memory_address {
+            self.max_memory_address = index;
+        }
+    }
+
+    pub(super) fn max_memory_address(&self) -> usize {
+        self.max_memory_address
+    }
+}
+
+impl RegisterAllocator for GlobalSpace {
+    fn start() -> usize {
+        ScratchSpace::end()
+    }
+
+    fn end() -> usize {
+        unreachable!("The global space is set by the program");
+    }
+
+    fn allocate_register(&mut self) -> MemoryAddress {
+        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        self.update_max_address(allocated);
+        allocated
+    }
+
+    fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.storage.deallocate_register(register_index.unwrap_direct());
+    }
+
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
+        self.update_max_address(register);
+        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+    }
+
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+        for register in &preallocated_registers {
+            assert!(Self::is_within_bounds(*register), "Register out of global space bounds");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::start(),
+                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+            ),
+            max_memory_address: Self::start(),
+        }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
     }
 }
 

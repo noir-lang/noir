@@ -20,10 +20,10 @@ pub(crate) type ValueId = Id<Value>;
 pub(crate) enum Value {
     /// This value was created due to an instruction
     ///
-    /// instruction -- This is the instruction which defined it
-    /// typ -- This is the `Type` of the instruction
-    /// position -- Returns the position in the results
-    /// vector that this `Value` is located.
+    /// * `instruction`: This is the instruction which defined it
+    /// * `typ`: This is the `Type` of the instruction
+    /// * `position`: Returns the position in the results vector that this `Value` is located.
+    ///
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
@@ -53,6 +53,9 @@ pub(crate) enum Value {
     /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
     ForeignFunction(String),
+
+    /// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
+    Global(Type),
 }
 
 impl Value {
@@ -64,6 +67,7 @@ impl Value {
             Value::Function { .. } | Value::Intrinsic { .. } | Value::ForeignFunction { .. } => {
                 Cow::Owned(Type::Function)
             }
+            Value::Global(typ) => Cow::Borrowed(typ),
         }
     }
 }

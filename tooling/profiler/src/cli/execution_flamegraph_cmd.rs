@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
 
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::foreign_calls::DefaultForeignCallExecutor;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
 
@@ -26,6 +26,12 @@ pub(crate) struct ExecutionFlamegraphCommand {
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
     output: PathBuf,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[clap(long, default_value = "false")]
+    pedantic_solving: bool,
 }
 
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
@@ -34,6 +40,7 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
         &args.prover_toml_path,
         &InfernoFlamegraphGenerator { count_name: "samples".to_string() },
         &args.output,
+        args.pedantic_solving,
     )
 }
 
@@ -42,6 +49,7 @@ fn run_with_generator(
     prover_toml_path: &Path,
     flamegraph_generator: &impl FlamegraphGenerator,
     output_path: &Path,
+    pedantic_solving: bool,
 ) -> eyre::Result<()> {
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -54,8 +62,8 @@ fn run_with_generator(
     let (_, mut profiling_samples) = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(PrintOutput::Stdout, None, None, None),
+        &Bn254BlackBoxSolver(pedantic_solving),
+        &mut DefaultForeignCallBuilder::default().with_output(PrintOutput::Stdout).build(),
     )?;
     println!("Executed");
 

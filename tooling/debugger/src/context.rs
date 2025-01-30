@@ -233,7 +233,7 @@ pub struct ExecutionFrame<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 }
 
 pub(super) struct DebugContext<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    acvm: ACVM<'a, FieldElement, B>,
+    pub(crate) acvm: ACVM<'a, FieldElement, B>,
     current_circuit_id: u32,
     brillig_solver: Option<BrilligSolver<'a, FieldElement, B>>,
 
@@ -971,6 +971,7 @@ mod tests {
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
+        let solver = StubbedBlackBoxSolver::default();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
@@ -1015,10 +1016,10 @@ mod tests {
             outputs: vec![],
             predicate: None,
         }];
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &[brillig_bytecode];
         let current_witness_index = 2;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1031,7 +1032,7 @@ mod tests {
             debug_artifact,
         ));
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1116,6 +1117,7 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
+        let solver = StubbedBlackBoxSolver::default();
         let fe_0 = FieldElement::zero();
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
@@ -1185,7 +1187,7 @@ mod tests {
         ];
         let current_witness_index = 3;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
-        let circuits = &vec![circuit];
+        let circuits = &[circuit];
 
         let debug_symbols = vec![];
         let file_map = BTreeMap::new();
@@ -1197,9 +1199,9 @@ mod tests {
             PrintOutput::Stdout,
             debug_artifact,
         ));
-        let brillig_funcs = &vec![brillig_bytecode];
+        let brillig_funcs = &[brillig_bytecode];
         let mut context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             circuits,
             debug_artifact,
             initial_witness,
@@ -1240,6 +1242,7 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
+        let solver = StubbedBlackBoxSolver::default();
         let brillig_one =
             BrilligBytecode { bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return] };
         let brillig_two = BrilligBytecode {
@@ -1283,10 +1286,10 @@ mod tests {
         };
         let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
-        let brillig_funcs = &vec![brillig_one, brillig_two];
+        let brillig_funcs = &[brillig_one, brillig_two];
 
         let context = DebugContext::new(
-            &StubbedBlackBoxSolver,
+            &solver,
             &circuits,
             &debug_artifact,
             WitnessMap::new(),

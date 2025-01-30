@@ -61,7 +61,9 @@ where
     Event: EventInterface,
 {
     |e: Event| {
+        /// Safety: testing context
         unsafe {
+            //@safety: testing context
             func(context.a);
         }
         emit_with_keys(context, randomness, e, compute);

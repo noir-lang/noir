@@ -2,6 +2,7 @@
 #![allow(clippy::items_after_test_module)]
 use clap::Parser;
 use fm::FileManager;
+use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
 use noirc_driver::{check_crate, file_manager_with_stdlib, CompileOptions};
 use noirc_frontend::hir::FunctionNameMatch;
@@ -80,19 +81,37 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
         opts.function_name_match(),
     );
 
+    let context = std::sync::Mutex::new(context);
+
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
-            let status = run_test(
-                &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                &mut context,
-                &test_function,
-                PrintOutput::Stdout,
-                None,
-                Some(dummy_package.root_dir.clone()),
-                Some(dummy_package.name.to_string()),
-                &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
-            );
+            let pedantic_solving = true;
+            let mut context = match context.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
+            };
+            let status = std::panic::catch_unwind(move || {
+                run_test(
+                    &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
+                    &mut context,
+                    &test_function,
+                    PrintOutput::Stdout,
+                    &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
+                    |output, base| {
+                        DefaultForeignCallBuilder::default()
+                            .with_output(output)
+                            .build_with_base(base)
+                    },
+                )
+            });
+            let status = match status {
+                Ok(status) => status,
+                Err(_panic_cause) => TestStatus::Fail {
+                    message: "panicked; see details in the end summary".to_string(),
+                    error_diagnostic: None,
+                },
+            };
             (test_name, status)
         })
         .collect();

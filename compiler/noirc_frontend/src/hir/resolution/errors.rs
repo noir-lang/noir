@@ -5,10 +5,13 @@ use thiserror::Error;
 
 use crate::{
     ast::{Ident, UnsupportedNumericGenericType},
-    hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    hir::{
+        comptime::{InterpreterError, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
     usage_tracker::UnusedItem,
-    Type,
+    Kind, Type,
 };
 
 use super::import::PathResolutionError;
@@ -95,14 +98,26 @@ pub enum ResolverError {
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, span: Span },
+    #[error("`loop` is only allowed in unconstrained functions")]
+    LoopInConstrainedFn { span: Span },
+    #[error("`loop` must have at least one `break` in it")]
+    LoopWithoutBreak { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
     MutableGlobal { span: Span },
     #[error("Globals must have a specified type")]
     UnspecifiedGlobalType { span: Span, expected_type: Type },
-    #[error("Self-referential structs are not supported")]
-    SelfReferentialStruct { span: Span },
+    #[error("Global failed to evaluate")]
+    UnevaluatedGlobalType { span: Span },
+    #[error("Globals used in a type position must be non-negative")]
+    NegativeGlobalType { span: Span, global_value: Value },
+    #[error("Globals used in a type position must be integers")]
+    NonIntegralGlobalType { span: Span, global_value: Value },
+    #[error("Global value `{global_value}` is larger than its kind's maximum value")]
+    GlobalLargerThanKind { span: Span, global_value: FieldElement, kind: Kind },
+    #[error("Self-referential types are not supported")]
+    SelfReferentialType { span: Span },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
@@ -159,6 +174,8 @@ pub enum ResolverError {
         span: Span,
         missing_trait_location: Location,
     },
+    #[error("`loop` statements are not yet implemented")]
+    LoopNotYetSupported { span: Span },
 }
 
 impl ResolverError {
@@ -421,6 +438,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::LoopInConstrainedFn { span } => {
+                Diagnostic::simple_error(
+                    "loop is only allowed in unconstrained functions".into(),
+                    "Constrained code must always have a known number of loop iterations".into(),
+                    *span,
+                )
+            },
+            ResolverError::LoopWithoutBreak { span } => {
+                Diagnostic::simple_error(
+                    "`loop` must have at least one `break` in it".into(),
+                    "Infinite loops are disallowed".into(),
+                    *span,
+                )
+            },
             ResolverError::JumpOutsideLoop { is_break, span } => {
                 let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
@@ -443,9 +474,37 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
-            ResolverError::SelfReferentialStruct { span } => {
+            ResolverError::UnevaluatedGlobalType { span } => {
                 Diagnostic::simple_error(
-                    "Self-referential structs are not supported".into(),
+                    "Global failed to evaluate".to_string(),
+                    String::new(),
+                    *span,
+                )
+            }
+            ResolverError::NegativeGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be non-negative".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::NonIntegralGlobalType { span, global_value } => {
+                Diagnostic::simple_error(
+                    "Globals used in a type position must be integers".to_string(),
+                    format!("But found value `{global_value:?}`"),
+                    *span,
+                )
+            }
+            ResolverError::GlobalLargerThanKind { span, global_value, kind } => {
+                Diagnostic::simple_error(
+                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
+                    format!("Global's kind inferred to be `{kind}`"),
+                    *span,
+                )
+            }
+            ResolverError::SelfReferentialType { span } => {
+                Diagnostic::simple_error(
+                    "Self-referential types are not supported".into(),
                     "".into(),
                     *span,
                 )
@@ -568,7 +627,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::UnsupportedNumericGenericType(err) => err.into(),
             ResolverError::TypeIsMorePrivateThenItem { typ, item, span } => {
-                Diagnostic::simple_warning(
+                Diagnostic::simple_error(
                     format!("Type `{typ}` is more private than item `{item}`"),
                     String::new(),
                     *span,
@@ -603,6 +662,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic.add_secondary_with_file(format!("required by this bound in `{impl_trait}"), missing_trait_location.span, missing_trait_location.file);
                 diagnostic
             },
+            ResolverError::LoopNotYetSupported { span  } => {
+                Diagnostic::simple_error(
+                    "`loop` statements are not yet implemented".to_string(), 
+                    String::new(),
+                    *span)
+
+            }
         }
     }
 }

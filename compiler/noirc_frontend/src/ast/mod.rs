@@ -5,6 +5,7 @@
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
 mod docs;
+mod enumeration;
 mod expression;
 mod function;
 mod statement;
@@ -24,6 +25,7 @@ use proptest_derive::Arbitrary;
 
 use acvm::FieldElement;
 pub use docs::*;
+pub use enumeration::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -580,12 +582,13 @@ impl std::fmt::Display for ItemVisibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
+    #[default]
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
