@@ -88,21 +88,6 @@ impl BrilligGlobals {
                         im::HashSet::new(),
                         &mut hoisted_global_constants,
                     );
-                    let function = &functions[func_id];
-                    let constants = ConstantAllocation::from_function(function);
-                    for (constant, _) in constants.constant_usage {
-                        let value = function.dfg.get_numeric_constant(constant);
-                        let value = value.unwrap();
-                        let typ = function.dfg.type_of_value(constant);
-                        if !function.dfg.is_global(constant) {
-                            hoisted_global_constants
-                                .entry(*func_id)
-                                .or_default()
-                                .entry((value, typ.unwrap_numeric()))
-                                .and_modify(|counter| *counter += 1)
-                                .or_insert(1);
-                        }
-                    }
                 }
             }
         }
@@ -243,12 +228,6 @@ impl BrilligGlobals {
             let entry_point = *entry_point;
 
             let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
-            // let hoisted_global_constants = if exempt_hoisting.contains(&entry_point) {
-            //     // HashSet::default()
-            //     self.final_hoisted_global_constants.remove(&entry_point).unwrap_or_default()
-            // } else {
-            //     self.final_hoisted_global_constants.remove(&entry_point).unwrap_or_default()
-            // };
             let hoisted_global_constants =
                 self.final_hoisted_global_constants.remove(&entry_point).unwrap_or_default();
             let (artifact, brillig_globals, globals_size, hoisted_global_constants) =
