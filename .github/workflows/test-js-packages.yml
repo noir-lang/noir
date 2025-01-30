@@ -642,7 +642,6 @@ jobs:
         with:
           repository: AztecProtocol/aztec-packages
           path: test-repo
-          ref: noir-projects/noir-contracts
 
       - name: Download nargo binary
         uses: actions/download-artifact@v4
@@ -666,7 +665,7 @@ jobs:
           sed -i '/^compiler_version/d' ./**/Nargo.toml
 
       - name: Run nargo compile
-        working-directory: ./test-repo/${{ matrix.project.path }}
+        working-directory: ./test-repo/noir-projects/noir-contracts
         run: nargo compile --inliner-aggressiveness 0 
 
   upload_critical_library_report:
