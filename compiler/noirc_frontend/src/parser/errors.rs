@@ -1,6 +1,6 @@
 use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
-use crate::lexer::token::Token;
+use crate::lexer::token::{CfgAttribute, Token};
 use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
@@ -79,6 +79,11 @@ pub enum ParserErrorReason {
     ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
+    #[error("Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}")]
+    MultipleCfgAttributesFound {
+        cfg_attribute: CfgAttribute,
+        second_cfg_attribute: CfgAttribute,
+    },
     #[error(
         "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]

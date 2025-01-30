@@ -5,7 +5,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, SpannedTokenResult},
-    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
+    token::{CfgAttribute, FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
 };
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
@@ -570,6 +570,11 @@ impl<'a> Parser<'a> {
 
     fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
         self.errors.push(ParserError::with_reason(reason, span));
+    }
+
+    pub(crate) fn is_enabled_cfg(&self, _opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+        // TODO
+        true
     }
 }
 

@@ -770,8 +770,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
-        if let Some(statement) = self.parse_statement() {
-            Some(statement)
+        if let Some((statement, semicolon, opt_cfg_attribute)) = self.parse_statement() {
+            if !self.is_enabled_cfg(opt_cfg_attribute) {
+                return None;
+            }
+            Some((statement, semicolon))
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
             None

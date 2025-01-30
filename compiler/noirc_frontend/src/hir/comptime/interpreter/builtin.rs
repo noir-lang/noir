@@ -797,14 +797,20 @@ fn quoted_as_expr(
     );
 
     let value =
-        result.ok().map(
-            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
-                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
-                StatementOrExpressionOrLValue::Statement(statement) => {
-                    Value::statement(statement.kind)
+        result.ok().and_then(
+            |(statement_or_expression_or_lvalue, opt_cfg_attribute)| {
+                if elaborator.is_cfg_attribute_enabled(opt_cfg_attribute) {
+                    Some(match statement_or_expression_or_lvalue {
+                        StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                        StatementOrExpressionOrLValue::Statement(statement) => {
+                            Value::statement(statement.kind)
+                        }
+                        StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+                    })
+                } else {
+                    None
                 }
-                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
-            },
+            }
         );
 
     option(return_type, value, location.span)

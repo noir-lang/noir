@@ -34,7 +34,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
-    token::SecondaryAttribute,
+    token::{CfgAttribute, SecondaryAttribute},
     Shared, Type, TypeVariable,
 };
 use crate::{
@@ -2002,5 +2002,10 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => true,
             })
+    }
+
+    pub(crate) fn is_cfg_attribute_enabled(&self, _opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+        // TODO
+        true
     }
 }

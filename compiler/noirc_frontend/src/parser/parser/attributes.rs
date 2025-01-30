@@ -69,7 +69,6 @@ impl<'a> Parser<'a> {
     ///     | 'varargs'
     ///     | MetaAttribute
     ///
-    /// TODO: ??
     /// CfgAttribute
     ///     = Arguments
     ///
@@ -182,9 +181,7 @@ impl<'a> Parser<'a> {
         let name = self.eat_str().unwrap_or_else(|| {
             self.push_error(
                 ParserErrorReason::WrongNumberOfAttributeArguments {
-                    // name: "cfg".to_string(),
-                    // TODO: revert name after debugging
-                    name: format!("cfg: {:?}", (self.token.token(), self.next_token.token())),
+                    name: "cfg".to_string(),
                     min: 1,
                     max: 1,
                     found: 0,

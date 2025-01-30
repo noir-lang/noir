@@ -1,6 +1,6 @@
 use crate::{
     ast::{AssignStatement, Expression, LValue, Statement, StatementKind},
-    token::{Token, TokenKind},
+    token::{CfgAttribute, Token, TokenKind},
 };
 
 use super::Parser;
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     /// This method is only used in `Quoted::as_expr`.
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
-    ) -> StatementOrExpressionOrLValue {
+    ) -> (StatementOrExpressionOrLValue, Option<CfgAttribute>) {
         let start_span = self.current_token_span;
 
         // First check if it's an interned LValue
@@ -32,12 +32,12 @@ impl<'a> Parser<'a> {
                     if self.eat(Token::Assign) {
                         let expression = self.parse_expression_or_error();
                         let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
-                        return StatementOrExpressionOrLValue::Statement(Statement {
+                        return (StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
                             span: self.span_since(start_span),
-                        });
+                        }), None);
                     } else {
-                        return StatementOrExpressionOrLValue::LValue(lvalue);
+                        return (StatementOrExpressionOrLValue::LValue(lvalue), None);
                     }
                 }
                 _ => unreachable!(),
@@ -45,11 +45,11 @@ impl<'a> Parser<'a> {
         }
 
         // Otherwise, check if it's a statement (which in turn checks if it's an expression)
-        let statement = self.parse_statement_or_error();
+        let (statement, opt_cfg_attribute) = self.parse_statement_or_error();
         if let StatementKind::Expression(expr) = statement.kind {
-            StatementOrExpressionOrLValue::Expression(expr)
+            (StatementOrExpressionOrLValue::Expression(expr), opt_cfg_attribute)
         } else {
-            StatementOrExpressionOrLValue::Statement(statement)
+            (StatementOrExpressionOrLValue::Statement(statement), opt_cfg_attribute)
         }
     }
 }
