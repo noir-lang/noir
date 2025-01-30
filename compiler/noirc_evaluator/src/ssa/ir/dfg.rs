@@ -1,6 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
+use crate::ssa::{
+    function_builder::data_bus::DataBus,
+    ir::instruction::SimplifyResult,
+    opt::pure::{FunctionPurities, Purity},
+};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -104,6 +108,9 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 
     pub(crate) globals: Arc<GlobalsGraph>,
+
+    #[serde(skip)]
+    pub(crate) function_purities: Arc<FunctionPurities>,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -424,7 +431,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function(function))
+        let result = self.values.insert(Value::Function(function));
+        self.functions.insert(function, result);
+        result
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -432,7 +441,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
+        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        self.foreign_functions.insert(function.to_owned(), result);
+        result
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
@@ -752,6 +763,14 @@ impl DataFlowGraph {
             }
             _ => None,
         }
+    }
+
+    pub(crate) fn set_function_purities(&mut self, purities: Arc<FunctionPurities>) {
+        self.function_purities = purities;
+    }
+
+    pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
+        self.function_purities.get(&function).copied()
     }
 }
 

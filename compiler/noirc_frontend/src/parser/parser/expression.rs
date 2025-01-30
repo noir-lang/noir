@@ -295,11 +295,13 @@ impl<'a> Parser<'a> {
         }
 
         // A constructor where the type is an interned unresolved type data is valid
-        if matches!(self.token.token(), Token::InternedUnresolvedTypeData(..))
-            && self.next_is(Token::LeftBrace)
+        if matches!(
+            self.token.token(),
+            Token::InternedUnresolvedTypeData(..) | Token::QuotedType(..)
+        ) && self.next_is(Token::LeftBrace)
         {
             let span = self.current_token_span;
-            let typ = self.parse_interned_type().unwrap();
+            let typ = self.parse_interned_type().or_else(|| self.parse_resolved_type()).unwrap();
             self.eat_or_error(Token::LeftBrace);
             let typ = UnresolvedType { typ, span };
             return Some(self.parse_constructor(typ));
