@@ -4,7 +4,9 @@ unconstrained fn return_array(val: Field) -> [Field; 1] {
 }
 
 fn main(val: Field) {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         let array = return_array(val);
         assert_constant(array.as_slice().len());
     }

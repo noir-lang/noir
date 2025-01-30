@@ -6,7 +6,9 @@ struct myStruct {
 //
 // The features being tested is the identity function in Brillig
 fn main(x: Field) {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         assert(x == identity(x));
         // TODO: add support for array comparison
         let arr = identity_array([x, x]);

@@ -10,6 +10,7 @@ fn main(x: Field) {
     value.assert_max_bit_size::<1>();
 
     // Regression test for #6447 (Aztec Packages issue #9488)
+    /// Safety: testing context
     let y = unsafe { empty(x + 1) };
     let z = y + x + 1;
     let z1 = z + y;

@@ -157,7 +157,7 @@ where
     /// }
     /// ```
     pub fn sort(self) -> Self {
-        self.sort_via(|a: T, b: T| a <= b)
+        self.sort_via(|a, b| a <= b)
     }
 }
 
@@ -184,10 +184,10 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
+        /// Safety: `sorted` array is checked to be:
+        /// a. a permutation of `input`'s elements
+        /// b. satisfying the predicate `ordering`
         unsafe {
-            // Safety: `sorted` array is checked to be:
-            //   a. a permutation of `input`'s elements
-            //   b. satisfying the predicate `ordering`
             let sorted = quicksort::quicksort(self, ordering);
 
             if !is_unconstrained() {

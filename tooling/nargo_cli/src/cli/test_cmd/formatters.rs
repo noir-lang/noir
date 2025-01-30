@@ -417,6 +417,7 @@ impl Formatter for JsonFormatter {
         let mut json = Map::new();
         json.insert("type".to_string(), json!("test"));
         json.insert("name".to_string(), json!(&test_result.name));
+        json.insert("suite".to_string(), json!(&test_result.package_name));
         json.insert("exec_time".to_string(), json!(test_result.time_to_run.as_secs_f64()));
 
         let mut stdout = String::new();
@@ -513,7 +514,10 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
     Ok(())
 }
 
-fn diagnostic_to_string(file_diagnostic: &FileDiagnostic, file_manager: &FileManager) -> String {
+pub(crate) fn diagnostic_to_string(
+    file_diagnostic: &FileDiagnostic,
+    file_manager: &FileManager,
+) -> String {
     let file_map = file_manager.as_file_map();
 
     let custom_diagnostic = &file_diagnostic.diagnostic;

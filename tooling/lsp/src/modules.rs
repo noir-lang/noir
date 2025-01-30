@@ -16,7 +16,7 @@ pub(crate) fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> Refer
     match module_def_id {
         ModuleDefId::ModuleId(id) => ReferenceId::Module(id),
         ModuleDefId::FunctionId(id) => ReferenceId::Function(id),
-        ModuleDefId::TypeId(id) => ReferenceId::Struct(id),
+        ModuleDefId::TypeId(id) => ReferenceId::Type(id),
         ModuleDefId::TypeAliasId(id) => ReferenceId::Alias(id),
         ModuleDefId::TraitId(id) => ReferenceId::Trait(id),
         ModuleDefId::GlobalId(id) => ReferenceId::Global(id),
@@ -41,9 +41,7 @@ pub(crate) fn relative_module_full_path(
             interner,
         );
     } else {
-        let Some(parent_module) = get_parent_module(interner, module_def_id) else {
-            return None;
-        };
+        let parent_module = get_parent_module(interner, module_def_id)?;
 
         full_path = relative_module_id_path(
             parent_module,

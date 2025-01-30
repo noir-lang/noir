@@ -16,6 +16,7 @@ pub enum HirStatement {
     Constrain(HirConstrainStatement),
     Assign(HirAssignStatement),
     For(HirForStatement),
+    Loop(ExprId),
     Break,
     Continue,
     Expression(ExprId),
@@ -31,14 +32,30 @@ pub struct HirLetStatement {
     pub expression: ExprId,
     pub attributes: Vec<SecondaryAttribute>,
     pub comptime: bool,
+    pub is_global_let: bool,
 }
 
 impl HirLetStatement {
+    pub fn new(
+        pattern: HirPattern,
+        r#type: Type,
+        expression: ExprId,
+        attributes: Vec<SecondaryAttribute>,
+        comptime: bool,
+        is_global_let: bool,
+    ) -> HirLetStatement {
+        Self { pattern, r#type, expression, attributes, comptime, is_global_let }
+    }
+
     pub fn ident(&self) -> HirIdent {
         match &self.pattern {
             HirPattern::Identifier(ident) => ident.clone(),
             _ => panic!("can only fetch hir ident from HirPattern::Identifier"),
         }
+    }
+
+    pub fn runs_comptime(&self) -> bool {
+        self.comptime || self.is_global_let
     }
 }
 

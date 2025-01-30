@@ -2,7 +2,9 @@
 //
 // The features being tested is not instruction on brillig
 fn main(x: Field, y: Field) {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         assert(false == not_operator(x as bool));
         assert(true == not_operator(y as bool));
     }

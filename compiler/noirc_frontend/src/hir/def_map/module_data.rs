@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -31,8 +31,8 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    /// True if this module is actually a struct
-    pub is_struct: bool,
+    /// True if this module is actually a type
+    pub is_type: bool,
 
     pub attributes: Vec<SecondaryAttribute>,
 }
@@ -44,7 +44,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
-        is_struct: bool,
+        is_type: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -57,7 +57,7 @@ impl ModuleData {
             definitions: ItemScope::default(),
             location,
             is_contract,
-            is_struct,
+            is_type,
             attributes,
         }
     }
@@ -120,11 +120,11 @@ impl ModuleData {
         self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_struct(
+    pub fn declare_type(
         &mut self,
         name: Ident,
         visibility: ItemVisibility,
-        id: StructId,
+        id: TypeId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, visibility, ModuleDefId::TypeId(id), None)
     }

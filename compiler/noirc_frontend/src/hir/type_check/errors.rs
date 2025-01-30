@@ -66,9 +66,6 @@ pub enum TypeCheckError {
         from_value: FieldElement,
         span: Span,
     },
-    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
-    #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
-    EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -208,6 +205,10 @@ pub enum TypeCheckError {
     CyclicType { typ: Type, span: Span },
     #[error("Type annotations required before indexing this array or slice")]
     TypeAnnotationsNeededForIndex { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    UnnecessaryUnsafeBlock { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    NestedUnsafeBlock { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -273,15 +274,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     format!("Evaluating {to} resulted in {to_value}, but {from_value} was expected"),
                     format!("from evaluating {from} without simplifications"),
                     *span,
-                )
-            }
-            // TODO(https://github.com/noir-lang/noir/issues/6238): implement
-            // handling for larger types
-            TypeCheckError::EvaluatedGlobalIsntU32 { expected_kind, expr_kind, expr_span } => {
-                Diagnostic::simple_warning(
-                    format!("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)"),
-                    String::new(),
-                    *expr_span,
                 )
             }
             TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
@@ -504,10 +496,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
             TypeCheckError::Unsafe { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnsafeFn { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnspecifiedType { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
@@ -526,6 +518,20 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Type annotations required before indexing this array or slice".into(), 
                     "Type annotations needed before this point, can't decide if this is an array or slice".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::UnnecessaryUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::NestedUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "Because it's nested inside another `unsafe` block".into(),
                     *span,
                 )
             },

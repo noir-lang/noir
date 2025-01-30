@@ -370,6 +370,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
+            formatter.format_outer_doc_comments();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
@@ -1910,18 +1911,35 @@ global y = 1;
 
     #[test]
     fn format_unsafe_one_expression() {
-        let src = "global x = unsafe { 1  } ;";
+        let src = "global x = unsafe { 
+        1  } ;";
         let expected = "global x = unsafe { 1 };\n";
         assert_format(src, expected);
     }
 
     #[test]
     fn format_unsafe_two_expressions() {
-        let src = "global x = unsafe { 1; 2  } ;";
+        let src = "global x = unsafe { 
+        1; 2  } ;";
         let expected = "global x = unsafe {
     1;
     2
 };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_with_doc_comment() {
+        let src = "fn foo() {
+        /// Comment 
+        unsafe { 1  } }";
+        let expected = "fn foo() {
+    /// Comment
+    unsafe {
+        1
+    }
+}
 ";
         assert_format(src, expected);
     }

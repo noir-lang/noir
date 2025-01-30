@@ -21,12 +21,17 @@ use crate::{
 use super::Elaborator;
 
 impl<'context> Elaborator<'context> {
-    pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
+    pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
+
+                let the_trait = this.interner.get_trait(*trait_id);
+                let self_typevar = the_trait.self_type_typevar.clone();
+                let self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = Some(self_type.clone());
 
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
@@ -34,8 +39,13 @@ impl<'context> Elaborator<'context> {
                     &resolved_generics,
                 );
 
+                let new_generics =
+                    this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+                this.generics.extend(new_generics);
+
                 let where_clause =
                     this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+                this.remove_trait_constraints_from_scope(&where_clause);
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
@@ -48,12 +58,16 @@ impl<'context> Elaborator<'context> {
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
+                    trait_def.set_visibility(unresolved_trait.trait_def.visibility);
+                });
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.set_trait_bounds(resolved_trait_bounds);
-                    trait_def.set_where_clause(where_clause);
                 });
             });
 
@@ -94,7 +108,7 @@ impl<'context> Elaborator<'context> {
                 parameters,
                 return_type,
                 where_clause,
-                body: _,
+                body,
                 is_unconstrained,
                 visibility: _,
                 is_comptime: _,
@@ -103,7 +117,6 @@ impl<'context> Elaborator<'context> {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let self_type = Type::TypeVariable(self_typevar.clone());
                     let name_span = the_trait.name.span();
 
                     this.add_existing_generic(
@@ -115,9 +128,12 @@ impl<'context> Elaborator<'context> {
                             span: name_span,
                         },
                     );
-                    this.self_type = Some(self_type.clone());
 
                     let func_id = unresolved_trait.method_ids[&name.0.contents];
+                    let mut where_clause = where_clause.to_vec();
+
+                    // Attach any trait constraints on the trait to the function,
+                    where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
 
                     this.resolve_trait_function(
                         trait_id,
@@ -127,6 +143,8 @@ impl<'context> Elaborator<'context> {
                         parameters,
                         return_type,
                         where_clause,
+                        body,
+                        unresolved_trait.trait_def.visibility,
                         func_id,
                     );
 
@@ -188,29 +206,45 @@ impl<'context> Elaborator<'context> {
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
-        where_clause: &[UnresolvedTraitConstraint],
+        where_clause: Vec<UnresolvedTraitConstraint>,
+        body: &Option<BlockExpression>,
+        trait_visibility: ItemVisibility,
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
 
         self.scopes.start_function();
 
-        let kind = FunctionKind::Normal;
+        let has_body = body.is_some();
+
+        let body = match body {
+            Some(body) => body.clone(),
+            None => BlockExpression { statements: Vec::new() },
+        };
+        let kind =
+            if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let mut def = FunctionDefinition::normal(
             name,
             is_unconstrained,
             generics,
             parameters,
-            &BlockExpression { statements: Vec::new() },
+            body,
             where_clause,
             return_type,
         );
-        // Trait functions are always public
-        def.visibility = ItemVisibility::Public;
+
+        // Trait functions always have the same visibility as the trait they are in
+        def.visibility = trait_visibility;
 
         let mut function = NoirFunction { kind, def };
         self.define_function_meta(&mut function, func_id, Some(trait_id));
-        self.elaborate_function(func_id);
+
+        // Here we elaborate functions without a body, mainly to check the arguments and return types.
+        // Later on we'll elaborate functions with a body by fully type-checking them.
+        if !has_body {
+            self.elaborate_function(func_id);
+        }
+
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);

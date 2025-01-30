@@ -7,7 +7,7 @@ use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
-use nargo::foreign_calls::DefaultForeignCallExecutor;
+use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::package::Package;
 use nargo::PrintOutput;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
@@ -73,6 +73,7 @@ pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliEr
             args.oracle_resolver.as_deref(),
             Some(workspace.root_dir.clone()),
             Some(package.name.to_string()),
+            args.compile_options.pedantic_solving,
         )?;
 
         println!("[{}] Circuit witness successfully solved", package.name);
@@ -108,12 +109,19 @@ fn execute_program_and_decode(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    pedantic_solving: bool,
 ) -> Result<ExecutionResults, CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, expected_return) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
-    let witness_stack =
-        execute_program(&program, &inputs_map, foreign_call_resolver_url, root_path, package_name)?;
+    let witness_stack = execute_program(
+        &program,
+        &inputs_map,
+        foreign_call_resolver_url,
+        root_path,
+        package_name,
+        pedantic_solving,
+    )?;
     // Get the entry point witness for the ABI
     let main_witness =
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
@@ -134,19 +142,22 @@ pub(crate) fn execute_program(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
     let solved_witness_stack_err = nargo::ops::execute_program(
         &compiled_program.program,
         initial_witness,
-        &Bn254BlackBoxSolver,
-        &mut DefaultForeignCallExecutor::new(
-            PrintOutput::Stdout,
-            foreign_call_resolver_url,
+        &Bn254BlackBoxSolver(pedantic_solving),
+        &mut DefaultForeignCallBuilder {
+            output: PrintOutput::Stdout,
+            enable_mocks: false,
+            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
             root_path,
             package_name,
-        ),
+        }
+        .build(),
     );
     match solved_witness_stack_err {
         Ok(solved_witness_stack) => Ok(solved_witness_stack),
@@ -162,7 +173,7 @@ pub(crate) fn execute_program(
                 diagnostic.report(&debug_artifact, false);
             }
 
-            Err(crate::errors::CliError::NargoError(err))
+            Err(CliError::NargoError(err))
         }
     }
 }

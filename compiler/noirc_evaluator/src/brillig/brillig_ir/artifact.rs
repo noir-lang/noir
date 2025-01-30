@@ -27,7 +27,7 @@ pub(crate) struct GeneratedBrillig<F> {
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     pub(crate) name: String,
-    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+    pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -61,7 +61,7 @@ pub(crate) struct BrilligArtifact<F> {
     /// This is created as artifacts are linked together and allows us to determine
     /// which opcodes originate from reusable procedures.s
     /// The range is inclusive for both start and end opcode locations.
-    pub(crate) procedure_locations: HashMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+    pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
 }
 
 /// A pointer to a location in the opcode.
@@ -75,6 +75,8 @@ pub(crate) enum LabelType {
     Function(FunctionId, Option<BasicBlockId>),
     /// Labels for intrinsic procedures
     Procedure(ProcedureId),
+    /// Label for initialization of globals
+    GlobalInit,
 }
 
 impl std::fmt::Display for LabelType {
@@ -89,6 +91,7 @@ impl std::fmt::Display for LabelType {
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
             LabelType::Procedure(procedure_id) => write!(f, "Procedure({:?})", procedure_id),
+            LabelType::GlobalInit => write!(f, "Globals Initialization"),
         }
     }
 }
@@ -122,6 +125,10 @@ impl Label {
 
     pub(crate) fn procedure(procedure_id: ProcedureId) -> Self {
         Label { label_type: LabelType::Procedure(procedure_id), section: None }
+    }
+
+    pub(crate) fn globals_init() -> Self {
+        Label { label_type: LabelType::GlobalInit, section: None }
     }
 }
 

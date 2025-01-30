@@ -1,5 +1,7 @@
 fn main(x: Field, y: Field) -> pub Field {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         let notes = create_notes(x, y);
         sum_x(notes, x, y)
     }

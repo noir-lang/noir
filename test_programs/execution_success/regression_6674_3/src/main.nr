@@ -166,7 +166,7 @@ pub unconstrained fn sort_by_counter_desc<T, let N: u32>(array: [T; N]) -> [T; N
 
 pub unconstrained fn sort_by<T, let N: u32>(array: [T; N]) -> [T; N] {
     let mut result = array;
-    unsafe { get_sorting_index(array) };
+    get_sorting_index(array);
     result
 }
 

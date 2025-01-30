@@ -3,22 +3,24 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
-    constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallExecutor, package::Package,
-    PrintOutput,
+    constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::program::ProgramArtifact;
+use noirc_artifacts_info::{
+    count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
+};
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
-use prettytable::{row, table, Row};
+use prettytable::{row, Row};
 use rayon::prelude::*;
 use serde::Serialize;
 
-use crate::{cli::fs::inputs::read_inputs_from_file, errors::CliError};
+use crate::errors::CliError;
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
-    fs::program::read_program_from_file,
+    fs::{inputs::read_inputs_from_file, program::read_program_from_file},
     NargoConfig, PackageOptions,
 };
 
@@ -84,6 +86,7 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
             binary_packages,
             &args.prover_name,
             args.compile_options.expression_width,
+            args.compile_options.pedantic_solving,
         )?
     } else {
         binary_packages
@@ -94,72 +97,16 @@ pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliE
                     package.expression_width,
                     args.compile_options.expression_width,
                 );
-                count_opcodes_and_gates_in_program(program, &package, target_width)
+                let package_name = package.name.to_string();
+                count_opcodes_and_gates_in_program(program, package_name, Some(target_width))
             })
             .collect()
     };
 
     let info_report = InfoReport { programs: program_info };
-
-    if args.json {
-        // Expose machine-readable JSON data.
-        println!("{}", serde_json::to_string(&info_report).unwrap());
-    } else {
-        // Otherwise print human-readable table.
-        if !info_report.programs.is_empty() {
-            let mut program_table = table!([Fm->"Package", Fm->"Function", Fm->"Expression Width", Fm->"ACIR Opcodes", Fm->"Brillig Opcodes"]);
-
-            for program_info in info_report.programs {
-                let program_rows: Vec<Row> = program_info.into();
-                for row in program_rows {
-                    program_table.add_row(row);
-                }
-            }
-            program_table.printstd();
-        }
-    }
+    show_info_report(info_report, args.json);
 
     Ok(())
-}
-
-#[derive(Debug, Default, Serialize)]
-struct InfoReport {
-    programs: Vec<ProgramInfo>,
-}
-
-#[derive(Debug, Serialize)]
-struct ProgramInfo {
-    package_name: String,
-    #[serde(skip)]
-    expression_width: ExpressionWidth,
-    functions: Vec<FunctionInfo>,
-    #[serde(skip)]
-    unconstrained_functions_opcodes: usize,
-    unconstrained_functions: Vec<FunctionInfo>,
-}
-
-impl From<ProgramInfo> for Vec<Row> {
-    fn from(program_info: ProgramInfo) -> Self {
-        let mut main = vecmap(program_info.functions, |function| {
-            row![
-                Fm->format!("{}", program_info.package_name),
-                Fc->format!("{}", function.name),
-                format!("{:?}", program_info.expression_width),
-                Fc->format!("{}", function.opcodes),
-                Fc->format!("{}", program_info.unconstrained_functions_opcodes),
-            ]
-        });
-        main.extend(vecmap(program_info.unconstrained_functions, |function| {
-            row![
-                Fm->format!("{}", program_info.package_name),
-                Fc->format!("{}", function.name),
-                format!("N/A", ),
-                Fc->format!("N/A"),
-                Fc->format!("{}", function.opcodes),
-            ]
-        }));
-        main
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -169,12 +116,6 @@ struct ContractInfo {
     expression_width: ExpressionWidth,
     // TODO(https://github.com/noir-lang/noir/issues/4720): Settle on how to display contract functions with non-inlined Acir calls
     functions: Vec<FunctionInfo>,
-}
-
-#[derive(Debug, Serialize)]
-struct FunctionInfo {
-    name: String,
-    opcodes: usize,
 }
 
 impl From<ContractInfo> for Vec<Row> {
@@ -190,59 +131,15 @@ impl From<ContractInfo> for Vec<Row> {
     }
 }
 
-fn count_opcodes_and_gates_in_program(
-    compiled_program: ProgramArtifact,
-    package: &Package,
-    expression_width: ExpressionWidth,
-) -> ProgramInfo {
-    let functions = compiled_program
-        .bytecode
-        .functions
-        .into_par_iter()
-        .enumerate()
-        .map(|(i, function)| FunctionInfo {
-            name: compiled_program.names[i].clone(),
-            opcodes: function.opcodes.len(),
-        })
-        .collect();
-
-    let opcodes_len: Vec<usize> = compiled_program
-        .bytecode
-        .unconstrained_functions
-        .iter()
-        .map(|func| func.bytecode.len())
-        .collect();
-    let unconstrained_functions_opcodes = compiled_program
-        .bytecode
-        .unconstrained_functions
-        .into_par_iter()
-        .map(|function| function.bytecode.len())
-        .sum();
-    let unconstrained_info: Vec<FunctionInfo> = compiled_program
-        .brillig_names
-        .clone()
-        .iter()
-        .zip(opcodes_len)
-        .map(|(name, len)| FunctionInfo { name: name.clone(), opcodes: len })
-        .collect();
-
-    ProgramInfo {
-        package_name: package.name.to_string(),
-        expression_width,
-        functions,
-        unconstrained_functions_opcodes,
-        unconstrained_functions: unconstrained_info,
-    }
-}
-
 fn profile_brillig_execution(
     binary_packages: Vec<(Package, ProgramArtifact)>,
     prover_name: &str,
     expression_width: Option<ExpressionWidth>,
+    pedantic_solving: bool,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
-        // Parse the initial witness values from Prover.toml
+        // Parse the initial witness values from Prover.toml or Prover.json
         let (inputs_map, _) = read_inputs_from_file(
             &package.root_dir,
             prover_name,
@@ -254,15 +151,22 @@ fn profile_brillig_execution(
         let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
             &program_artifact.bytecode,
             initial_witness,
-            &Bn254BlackBoxSolver,
-            &mut DefaultForeignCallExecutor::new(PrintOutput::None, None, None, None),
-        )?;
+            &Bn254BlackBoxSolver(pedantic_solving),
+            &mut DefaultForeignCallBuilder::default().build(),
+        )
+        .map_err(|e| {
+            CliError::Generic(format!(
+                "failed to execute '{}': {}",
+                package.root_dir.to_string_lossy(),
+                e
+            ))
+        })?;
 
         let expression_width = get_target_width(package.expression_width, expression_width);
 
         program_info.push(ProgramInfo {
             package_name: package.name.to_string(),
-            expression_width,
+            expression_width: Some(expression_width),
             functions: vec![FunctionInfo { name: "main".to_string(), opcodes: 0 }],
             unconstrained_functions_opcodes: profiling_samples.len(),
             unconstrained_functions: vec![FunctionInfo {

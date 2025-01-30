@@ -1,10 +1,11 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, RwLock};
 
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
-use noirc_frontend::monomorphization::ast::{self, InlineType, LocalId, Parameters};
+use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 
 use crate::errors::RuntimeError;
@@ -19,6 +20,7 @@ use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
 
 use super::value::{Tree, Value, Values};
+use super::GlobalsGraph;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The FunctionContext is the main context object for translating a
@@ -71,6 +73,14 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
+    /// A pseudo function that represents global values.
+    /// Globals are only concerned with the values and instructions (due to Instruction::MakeArray)
+    /// in a function's DataFlowGraph. However, in order to re-use various codegen methods
+    /// we need to use the same `Function` type.
+    pub(super) globals_context: Function,
+
+    pub(super) globals: BTreeMap<GlobalId, Values>,
+
     /// The entire monomorphized source program
     pub(super) program: Program,
 }
@@ -78,7 +88,8 @@ pub(super) struct SharedContext {
 #[derive(Copy, Clone)]
 pub(super) struct Loop {
     pub(super) loop_entry: BasicBlockId,
-    pub(super) loop_index: ValueId,
+    /// The loop index will be `Some` for a `for` and `None` for a `loop`
+    pub(super) loop_index: Option<ValueId>,
     pub(super) loop_end: BasicBlockId,
 }
 
@@ -100,6 +111,7 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
+        globals: GlobalsGraph,
     ) -> Self {
         let function_id = shared_context
             .pop_next_function_in_queue()
@@ -108,6 +120,8 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
+        builder.set_globals(Arc::new(globals));
+
         let definitions = HashMap::default();
         let mut this = Self { definitions, builder, shared_context, loops: Vec::new() };
         this.add_parameters_to_scope(parameters);
@@ -119,18 +133,17 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(
-        &mut self,
-        id: IrFunctionId,
-        func: &ast::Function,
-        force_brillig_runtime: bool,
-    ) {
+    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
         self.definitions.clear();
-        if func.unconstrained || (force_brillig_runtime && func.inline_type != InlineType::Inline) {
+
+        let globals = self.builder.current_function.dfg.globals.clone();
+        if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id, func.inline_type);
         } else {
             self.builder.new_function(func.name.clone(), id, func.inline_type);
         }
+        self.builder.set_globals(globals);
+
         self.add_parameters_to_scope(&func.parameters);
     }
 
@@ -322,12 +335,24 @@ impl<'a> FunctionContext<'a> {
         // We use unsafe casts here, this is fine as we're casting to a `field` type.
         let as_field = self.builder.insert_cast(input, NumericType::NativeField);
         let sign_field = self.builder.insert_cast(sign, NumericType::NativeField);
-        let positive_predicate = self.builder.insert_binary(sign_field, BinaryOp::Mul, as_field);
-        let two_complement = self.builder.insert_binary(bit_width, BinaryOp::Sub, as_field);
+
+        // All of these operations are unchecked because they deal with fields
+        let positive_predicate =
+            self.builder.insert_binary(sign_field, BinaryOp::Mul { unchecked: true }, as_field);
+        let two_complement =
+            self.builder.insert_binary(bit_width, BinaryOp::Sub { unchecked: true }, as_field);
         let sign_not_field = self.builder.insert_cast(sign_not, NumericType::NativeField);
-        let negative_predicate =
-            self.builder.insert_binary(sign_not_field, BinaryOp::Mul, two_complement);
-        self.builder.insert_binary(positive_predicate, BinaryOp::Add, negative_predicate)
+        let negative_predicate = self.builder.insert_binary(
+            sign_not_field,
+            BinaryOp::Mul { unchecked: true },
+            two_complement,
+        );
+        // Unchecked addition because either `positive_predicate` or `negative_predicate` will be 0
+        self.builder.insert_binary(
+            positive_predicate,
+            BinaryOp::Add { unchecked: true },
+            negative_predicate,
+        )
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -482,8 +507,12 @@ impl<'a> FunctionContext<'a> {
                 //Check the result has the same sign as its inputs
                 let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
                 let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
-                let sign_diff_with_predicate =
-                    self.builder.insert_binary(sign_diff, BinaryOp::Mul, same_sign);
+                // Unchecked multiplication because boolean inputs
+                let sign_diff_with_predicate = self.builder.insert_binary(
+                    sign_diff,
+                    BinaryOp::Mul { unchecked: true },
+                    same_sign,
+                );
                 let overflow_check = Instruction::Constrain(
                     sign_diff_with_predicate,
                     same_sign,
@@ -496,7 +525,9 @@ impl<'a> FunctionContext<'a> {
                 // First we compute the absolute value of operands, and their product
                 let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
                 let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
-                let product_field = self.builder.insert_binary(lhs_abs, BinaryOp::Mul, rhs_abs);
+                // Unchecked mul because these are fields
+                let product_field =
+                    self.builder.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
                 // It must not already overflow the bit_size
                 self.builder.set_location(location).insert_range_check(
                     product_field,
@@ -510,8 +541,12 @@ impl<'a> FunctionContext<'a> {
                 let not_same = self.builder.insert_not(same_sign);
                 let not_same_sign_field =
                     self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                let positive_maximum_with_offset =
-                    self.builder.insert_binary(half_width, BinaryOp::Add, not_same_sign_field);
+                // Unchecked add because adding 1 to half_width can't overflow
+                let positive_maximum_with_offset = self.builder.insert_binary(
+                    half_width,
+                    BinaryOp::Add { unchecked: true },
+                    not_same_sign_field,
+                );
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
 
@@ -615,7 +650,8 @@ impl<'a> FunctionContext<'a> {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
+            address =
+                self.builder.insert_binary(address, BinaryOp::Add { unchecked: true }, offset);
         }
         address
     }
@@ -636,6 +672,10 @@ impl<'a> FunctionContext<'a> {
     /// been previously defined or panics otherwise.
     pub(super) fn lookup(&self, id: LocalId) -> Values {
         self.definitions.get(&id).expect("lookup: variable not defined").clone()
+    }
+
+    pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
+        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
     }
 
     /// Extract the given field of the tuple. Panics if the given Values is not
@@ -873,14 +913,20 @@ impl<'a> FunctionContext<'a> {
             self.builder.numeric_constant(self.element_size(array), NumericType::length_type());
 
         // The actual base index is the user's index * the array element type's size
-        let mut index =
-            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
+        // Unchecked mul because we are reaching for an array element: if it overflows here
+        // it would have overflowed when creating the array.
+        let mut index = self.builder.set_location(location).insert_binary(
+            index,
+            BinaryOp::Mul { unchecked: true },
+            element_size,
+        );
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
 
         new_value.for_each(|value| {
             let value = value.eval(self);
             array = self.builder.insert_array_set(array, index, value);
-            index = self.builder.insert_binary(index, BinaryOp::Add, one);
+            // Unchecked add because this can't overflow (it would have overflowed when creating the array)
+            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
         array
     }
@@ -965,13 +1011,8 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(crate) fn enter_loop(
-        &mut self,
-        loop_entry: BasicBlockId,
-        loop_index: ValueId,
-        loop_end: BasicBlockId,
-    ) {
-        self.loops.push(Loop { loop_entry, loop_index, loop_end });
+    pub(crate) fn enter_loop(&mut self, loop_: Loop) {
+        self.loops.push(loop_);
     }
 
     pub(crate) fn exit_loop(&mut self) {
@@ -1005,9 +1046,9 @@ fn operator_requires_swapped_operands(op: BinaryOpKind) -> bool {
 /// to represent the full operation correctly.
 fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     match op {
-        BinaryOpKind::Add => BinaryOp::Add,
-        BinaryOpKind::Subtract => BinaryOp::Sub,
-        BinaryOpKind::Multiply => BinaryOp::Mul,
+        BinaryOpKind::Add => BinaryOp::Add { unchecked: false },
+        BinaryOpKind::Subtract => BinaryOp::Sub { unchecked: false },
+        BinaryOpKind::Multiply => BinaryOp::Mul { unchecked: false },
         BinaryOpKind::Divide => BinaryOp::Div,
         BinaryOpKind::Modulo => BinaryOp::Mod,
         BinaryOpKind::Equal => BinaryOp::Eq,
@@ -1027,11 +1068,46 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
+        let globals_shared_context = SharedContext::new_for_globals();
+
+        let globals_id = Program::global_space_id();
+
+        // Queue the function representing the globals space for compilation
+        globals_shared_context.get_or_queue_function(globals_id);
+
+        let mut context = FunctionContext::new(
+            "globals".to_owned(),
+            &vec![],
+            RuntimeType::Brillig(InlineType::default()),
+            &globals_shared_context,
+            GlobalsGraph::default(),
+        );
+        let mut globals = BTreeMap::default();
+        for (id, global) in program.globals.iter() {
+            let values = context.codegen_expression(global).unwrap();
+            globals.insert(*id, values);
+        }
+
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
+            globals_context: context.builder.current_function,
+            globals,
+        }
+    }
+
+    pub(super) fn new_for_globals() -> Self {
+        let globals_context = Function::new_for_globals();
+
+        Self {
+            functions: Default::default(),
+            function_queue: Default::default(),
+            function_counter: Default::default(),
+            program: Default::default(),
+            globals_context,
+            globals: Default::default(),
         }
     }
 

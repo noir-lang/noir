@@ -362,12 +362,17 @@ impl<F: AcirField> GeneratedAcir<F> {
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_big = BigUint::from(radix);
+        let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+        assert!(
+            radix_range.contains(&radix_big),
+            "ICE: Radix must be in the range 2..=256, but found: {:?}",
+            radix
+        );
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
             radix_big,
             "ICE: Radix must be a power of 2"
         );
-
         let limb_witnesses = self.brillig_to_radix(input_expr, radix, limb_count);
 
         let mut composed_limbs = Expression::default();
@@ -479,7 +484,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     pub(crate) fn is_equal(&mut self, lhs: &Expression<F>, rhs: &Expression<F>) -> Witness {
         let t = lhs - rhs;
 
-        self.is_zero(&t)
+        self.is_zero(t)
     }
 
     /// Returns a `Witness` that is constrained to be:
@@ -497,7 +502,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// This implies that either `y` or `t` or both is `0`.
     /// - If `t == 0`, then by definition `t == 0`.
     /// - If `y == 0`, this does not mean anything at this point in time, due to it having no
-    /// constraints.
+    ///   constraints.
     ///
     /// Naively, we could apply the following constraint: `y == 1 - t`.
     /// This along with the previous `y * t == 0` constraint means that
@@ -534,36 +539,32 @@ impl<F: AcirField> GeneratedAcir<F> {
     /// By setting `z` to be `0`, we can make `y` equal to `1`.
     /// This is easily observed: `y = 1 - t * 0`
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
-    fn is_zero(&mut self, t_expr: &Expression<F>) -> Witness {
-        // We're checking for equality with zero so we can negate the expression without changing the result.
-        // This is useful as it will sometimes allow us to simplify an expression down to a witness.
-        let t_witness = if let Some(witness) = t_expr.to_witness() {
-            witness
+    fn is_zero(&mut self, t_expr: Expression<F>) -> Witness {
+        // We're going to be multiplying this expression by two different witnesses in a second so we want to
+        // ensure that this expression only contains a single witness. We can tolerate coefficients and constant terms however.
+        let linear_t = if t_expr.is_degree_one_univariate() {
+            t_expr
         } else {
-            let negated_expr = t_expr * -F::one();
-            self.get_or_create_witness(&negated_expr)
+            Expression::<F>::from(self.get_or_create_witness(&t_expr))
         };
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.
-        let z = self.brillig_inverse(t_witness.into());
+        let z = self.brillig_inverse(linear_t.clone());
+        let z_expr = Expression::<F>::from(z);
 
         let y = self.next_witness_index();
+        let y_expr = Expression::<F>::from(y);
 
         // Add constraint y == 1 - tz => y + tz - 1 == 0
-        let y_is_boolean_constraint = Expression {
-            mul_terms: vec![(F::one(), t_witness, z)],
-            linear_combinations: vec![(F::one(), y)],
-            q_c: -F::one(),
-        };
+        let mut y_is_boolean_constraint =
+            (&z_expr * &linear_t).expect("multiplying two linear expressions");
+        y_is_boolean_constraint.push_addition_term(F::one(), y);
+        let y_is_boolean_constraint = y_is_boolean_constraint - F::one();
         self.assert_is_zero(y_is_boolean_constraint);
 
         // Add constraint that y * t == 0;
-        let ty_zero_constraint = Expression {
-            mul_terms: vec![(F::one(), t_witness, y)],
-            linear_combinations: vec![],
-            q_c: F::zero(),
-        };
+        let ty_zero_constraint = (&y_expr * &linear_t).expect("multiplying two linear expressions");
         self.assert_is_zero(ty_zero_constraint);
 
         y
@@ -604,7 +605,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         // Check whether we have a call to this Brillig function already exists.
         // This helps us optimize the Brillig metadata to only be stored once per Brillig entry point.
-        let inserted_func_before = self.brillig_locations.get(&brillig_function_index).is_some();
+        let inserted_func_before = self.brillig_locations.contains_key(&brillig_function_index);
 
         let opcode =
             AcirOpcode::BrilligCall { id: brillig_function_index, inputs, outputs, predicate };

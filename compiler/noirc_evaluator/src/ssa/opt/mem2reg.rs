@@ -32,9 +32,11 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
+//!     
 //!     This removal requires a couple conditions:
-//!     - No store occurs to that address before the next load,
-//!     - The address is not used as an argument to a call
+//!       - No store occurs to that address before the next load,
+//!       - The address is not used as an argument to a call
+//!
 //!     This optimization helps us remove repeated loads for which there are not known values.
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
@@ -77,6 +79,7 @@ mod block;
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use vec_collections::VecSet;
 
 use crate::ssa::{
     ir::{
@@ -200,7 +203,7 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
 
-                if self.last_loads.get(store_address).is_none()
+                if !self.last_loads.contains_key(store_address)
                     && !store_alias_used
                     && !is_dereference
                 {
@@ -617,7 +620,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, BTreeSet<ValueId>> = HashMap::default();
+                let mut arg_set = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -630,7 +633,8 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                let seen_parameters = arg_set.entry(argument).or_default();
+                                let seen_parameters =
+                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
                                 seen_parameters.insert(*parameter);
@@ -907,8 +911,8 @@ mod tests {
         }
         ";
 
-        let mut ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main_mut();
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
 
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 6); // The final return is not counted
@@ -1000,7 +1004,7 @@ mod tests {
         let two = builder.field_constant(2u128);
         builder.insert_store(v5, two);
         let one = builder.field_constant(1u128);
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add, one);
+        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add { unchecked: false }, one);
         builder.terminate_with_jmp(b1, vec![v3_plus_one]);
 
         builder.switch_to_block(b3);

@@ -13,6 +13,7 @@
     "version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
+    "@cookbookdev/docsbot": "^4.24.9",
     "@docusaurus/core": "^3.5.2",
     "@docusaurus/preset-classic": "^3.5.2",
     "@easyops-cn/docusaurus-search-local": "^0.35.0",

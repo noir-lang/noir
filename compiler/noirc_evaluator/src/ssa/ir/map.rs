@@ -1,4 +1,3 @@
-use fxhash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -180,11 +179,6 @@ pub(crate) struct DenseMap<T> {
 }
 
 impl<T> DenseMap<T> {
-    /// Returns the number of elements in the map.
-    pub(crate) fn len(&self) -> usize {
-        self.storage.len()
-    }
-
     /// Adds an element to the map.
     /// Returns the identifier/reference to that element.
     pub(crate) fn insert(&mut self, element: T) -> Id<T> {
@@ -193,18 +187,10 @@ impl<T> DenseMap<T> {
         id
     }
 
-    /// Given the Id of the element being created, adds the element
-    /// returned by the given function to the map
-    pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
-        let id = Id::new(self.storage.len().try_into().unwrap());
-        self.storage.push(f(id));
-        id
-    }
-
     /// Gets an iterator to a reference to each element in the dense map paired with its id.
     ///
     /// The id-element pairs are ordered by the numeric values of the ids.
-    pub(crate) fn iter(&self) -> impl ExactSizeIterator<Item = (Id<T>, &T)> {
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<T>, &T)> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
@@ -246,32 +232,12 @@ pub(crate) struct SparseMap<T> {
 }
 
 impl<T> SparseMap<T> {
-    /// Returns the number of elements in the map.
-    pub(crate) fn len(&self) -> usize {
-        self.storage.len()
-    }
-
-    /// Adds an element to the map.
-    /// Returns the identifier/reference to that element.
-    pub(crate) fn insert(&mut self, element: T) -> Id<T> {
-        let id = Id::new(self.storage.len().try_into().unwrap());
-        self.storage.insert(id, element);
-        id
-    }
-
     /// Given the Id of the element being created, adds the element
     /// returned by the given function to the map
     pub(crate) fn insert_with_id(&mut self, f: impl FnOnce(Id<T>) -> T) -> Id<T> {
         let id = Id::new(self.storage.len().try_into().unwrap());
         self.storage.insert(id, f(id));
         id
-    }
-
-    /// Remove an element from the map and return it.
-    /// This may return None if the element was already
-    /// previously removed from the map.
-    pub(crate) fn remove(&mut self, id: Id<T>) -> Option<T> {
-        self.storage.remove(&id)
     }
 
     /// Unwraps the inner storage of this map
@@ -297,65 +263,6 @@ impl<T> std::ops::Index<Id<T>> for SparseMap<T> {
 impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut Self::Output {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
-    }
-}
-
-/// A TwoWayMap is a map from both key to value and value to key.
-/// This is accomplished by keeping the map bijective - for every
-/// value there is exactly one key and vice-versa. Any duplicate values
-/// are prevented in the call to insert.
-#[derive(Debug)]
-pub(crate) struct TwoWayMap<K, V> {
-    key_to_value: HashMap<K, V>,
-    value_to_key: HashMap<V, K>,
-}
-
-impl<K: Clone + Eq + Hash, V: Clone + Hash + Eq> TwoWayMap<K, V> {
-    /// Returns the number of elements in the map.
-    pub(crate) fn len(&self) -> usize {
-        self.key_to_value.len()
-    }
-
-    /// Adds an element to the map.
-    /// Returns the identifier/reference to that element.
-    pub(crate) fn insert(&mut self, key: K, element: V) -> K {
-        if let Some(existing) = self.value_to_key.get(&element) {
-            return existing.clone();
-        }
-
-        self.key_to_value.insert(key.clone(), element.clone());
-        self.value_to_key.insert(element, key.clone());
-
-        key
-    }
-
-    pub(crate) fn get(&self, key: &K) -> Option<&V> {
-        self.key_to_value.get(key)
-    }
-}
-
-impl<K, V> Default for TwoWayMap<K, V> {
-    fn default() -> Self {
-        Self { key_to_value: HashMap::default(), value_to_key: HashMap::default() }
-    }
-}
-
-// Note that there is no impl for IndexMut<T>,
-// if we allowed mutable access to map elements they may be
-// mutated such that elements are no longer unique
-impl<K: Eq + Hash, V> std::ops::Index<K> for TwoWayMap<K, V> {
-    type Output = V;
-
-    fn index(&self, id: K) -> &Self::Output {
-        &self.key_to_value[&id]
-    }
-}
-
-impl<K: Eq + Hash, V> std::ops::Index<&K> for TwoWayMap<K, V> {
-    type Output = V;
-
-    fn index(&self, id: &K) -> &Self::Output {
-        &self.key_to_value[id]
     }
 }
 

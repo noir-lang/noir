@@ -3,10 +3,10 @@ set -e
 
 # These tests are incompatible with gas reporting
 excluded_dirs=(
-  "workspace" 
-  "workspace_default_member" 
-  "double_verify_nested_proof" 
-  "overlapping_dep_and_mod" 
+  "workspace"
+  "workspace_default_member"
+  "double_verify_nested_proof"
+  "overlapping_dep_and_mod"
   "comptime_println"
   #  bit sizes for bigint operation doesn't match up.
   "bigint"
@@ -33,11 +33,15 @@ for dir in $test_dirs; do
       continue
     fi
 
+    if [[ ! -f "${base_path}/${dir}/Nargo.toml" ]]; then
+      continue
+    fi
+
     echo "  \"execution_success/$dir\"," >> Nargo.toml
 done
 
 echo "]" >> Nargo.toml
 
-nargo info --profile-execution --json > gates_report_brillig_execution.json
+nargo info --silence-warnings --profile-execution --json --inliner-aggressiveness $1 | jq -r ".programs[].functions = []" > gates_report_brillig_execution.json
 
 rm Nargo.toml

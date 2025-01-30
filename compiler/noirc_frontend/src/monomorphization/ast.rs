@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -36,6 +36,7 @@ pub enum Expression {
     Index(Index),
     Cast(Cast),
     For(For),
+    Loop(Box<Expression>),
     If(If),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
@@ -59,6 +60,7 @@ impl Expression {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Definition {
     Local(LocalId),
+    Global(GlobalId),
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
@@ -70,6 +72,10 @@ pub enum Definition {
 /// function parameter that should be compiled before it is referenced.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct LocalId(pub u32);
+
+/// A function ID corresponds directly to an index of `Program::globals`
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GlobalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -222,7 +228,9 @@ pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -322,13 +330,14 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Default)]
 pub struct Program {
     pub functions: Vec<Function>,
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
     pub return_visibility: Visibility,
+    pub globals: BTreeMap<GlobalId, Expression>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -342,6 +351,7 @@ impl Program {
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
         return_visibility: Visibility,
+        globals: BTreeMap<GlobalId, Expression>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -352,6 +362,7 @@ impl Program {
             main_function_signature,
             return_location,
             return_visibility,
+            globals,
             debug_variables,
             debug_functions,
             debug_types,
@@ -367,6 +378,13 @@ impl Program {
     }
 
     pub fn main_id() -> FuncId {
+        FuncId(0)
+    }
+
+    /// Globals are expected to be generated within a different context than
+    /// all other functions in the program. Thus, the globals space has the same
+    /// ID as `main`, although we should never expect a clash in these IDs.
+    pub fn global_space_id() -> FuncId {
         FuncId(0)
     }
 

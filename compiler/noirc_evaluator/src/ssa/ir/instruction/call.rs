@@ -3,7 +3,7 @@ use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
     acir::{AcirField, BlackBoxFunc},
-    BlackBoxResolutionError, FieldElement,
+    FieldElement,
 };
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
@@ -142,8 +142,7 @@ pub(super) fn simplify_call(
                         slice.push_back(*elem);
                     }
 
-                    let new_slice_length =
-                        update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                    let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
                     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
@@ -161,7 +160,7 @@ pub(super) fn simplify_call(
                     slice.push_front(*elem);
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
                 let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -201,7 +200,7 @@ pub(super) fn simplify_call(
                     slice.pop_front().expect("There are no elements in this slice to be removed")
                 });
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+                let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
 
                 results.push(new_slice_length);
 
@@ -234,7 +233,7 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+                let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -272,7 +271,7 @@ pub(super) fn simplify_call(
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 results.insert(0, new_slice);
 
-                let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+                let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
 
                 results.insert(0, new_slice_length);
 
@@ -330,33 +329,11 @@ pub(super) fn simplify_call(
         Intrinsic::BlackBox(bb_func) => {
             simplify_black_box_func(bb_func, arguments, dfg, block, call_stack)
         }
-        Intrinsic::AsField => {
-            let instruction = Instruction::Cast(arguments[0], NumericType::NativeField);
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
-        Intrinsic::FromField => {
-            let incoming_type = Type::field();
-            let target_type = return_type.clone().unwrap();
-
-            let truncate = Instruction::Truncate {
-                value: arguments[0],
-                bit_size: target_type.bit_size(),
-                max_bit_size: incoming_type.bit_size(),
-            };
-            let truncated_value = dfg
-                .insert_instruction_and_results(
-                    truncate,
-                    block,
-                    Some(vec![incoming_type]),
-                    call_stack,
-                )
-                .first();
-
-            let instruction = Instruction::Cast(truncated_value, target_type.unwrap_numeric());
-            SimplifyResult::SimplifiedToInstruction(instruction)
-        }
         Intrinsic::AsWitness => SimplifyResult::None,
-        Intrinsic::IsUnconstrained => SimplifyResult::None,
+        Intrinsic::IsUnconstrained => {
+            let result = dfg.runtime().is_brillig().into();
+            SimplifyResult::SimplifiedTo(dfg.make_constant(result, NumericType::bool()))
+        }
         Intrinsic::DerivePedersenGenerators => {
             if let Some(Type::Array(_, len)) = return_type.clone() {
                 simplify_derive_generators(dfg, arguments, len, block, call_stack)
@@ -410,6 +387,22 @@ fn update_slice_length(
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
+fn increment_slice_length(
+    slice_len: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+) -> ValueId {
+    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: false }, block)
+}
+
+fn decrement_slice_length(
+    slice_len: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+) -> ValueId {
+    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block)
+}
+
 fn simplify_slice_push_back(
     mut slice: im::Vector<ValueId>,
     element_type: Type,
@@ -430,7 +423,7 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
-    let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Add, block);
+    let new_slice_length = increment_slice_length(arguments[0], dfg, block);
 
     for elem in &arguments[2..] {
         slice.push_back(*elem);
@@ -479,14 +472,17 @@ fn simplify_slice_pop_back(
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_slice_length = update_slice_length(arguments[0], dfg, BinaryOp::Sub, block);
+    let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
-    let flattened_len_instr = Instruction::binary(BinaryOp::Mul, arguments[0], element_size);
+    // Compute the flattened length doing an unchecked mul
+    // (it shouldn't overflow because it would have overflowed before when the slice was created)
+    let flattened_len_instr =
+        Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
-    flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
+    flattened_len = decrement_slice_length(flattened_len, dfg, block);
 
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
@@ -500,7 +496,7 @@ fn simplify_slice_pop_back(
             .first();
         results.push_front(get_last_elem);
 
-        flattened_len = update_slice_length(flattened_len, dfg, BinaryOp::Sub, block);
+        flattened_len = decrement_slice_length(flattened_len, dfg, block);
     }
 
     results.push_front(arguments[1]);
@@ -518,20 +514,29 @@ fn simplify_black_box_func(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    let pedantic_solving = true;
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
         } else {
-            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
         }
     };
     match bb_func {
-        BlackBoxFunc::Blake2s => {
-            simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s, block, call_stack)
-        }
-        BlackBoxFunc::Blake3 => {
-            simplify_hash(dfg, arguments, acvm::blackbox_solver::blake3, block, call_stack)
-        }
+        BlackBoxFunc::Blake2s => blackbox::simplify_hash(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::blake2s,
+            block,
+            call_stack,
+        ),
+        BlackBoxFunc::Blake3 => blackbox::simplify_hash(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::blake3,
+            block,
+            call_stack,
+        ),
         BlackBoxFunc::Keccakf1600 => {
             if let Some((array_input, _)) = dfg.get_array_constant(arguments[0]) {
                 if array_is_constant(dfg, &array_input) {
@@ -645,7 +650,12 @@ fn constant_to_radix(
 ) -> SimplifyResult {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
-    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
+    let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+    if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
+        // NOTE: expect an error to be thrown later in
+        // acir::generated_acir::radix_le_decompose
+        return SimplifyResult::None;
+    }
     let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
 
     // Decompose the integer into its radix digits in little endian form.
@@ -681,78 +691,6 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<Id<Value>>) -> Vec<u8> {
 
 fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<Id<Value>>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
-}
-
-fn simplify_hash(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    hash_function: fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
-    block: BasicBlockId,
-    call_stack: CallStackId,
-) -> SimplifyResult {
-    match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) if array_is_constant(dfg, &input) => {
-            let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
-
-            let hash = hash_function(&input_bytes)
-                .expect("Rust solvable black box function should not fail");
-
-            let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
-
-            let u8_type = NumericType::Unsigned { bit_size: 8 };
-            let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
-            SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
-}
-
-type ECDSASignatureVerifier = fn(
-    hashed_msg: &[u8],
-    public_key_x: &[u8; 32],
-    public_key_y: &[u8; 32],
-    signature: &[u8; 64],
-) -> Result<bool, BlackBoxResolutionError>;
-fn simplify_signature(
-    dfg: &mut DataFlowGraph,
-    arguments: &[ValueId],
-    signature_verifier: ECDSASignatureVerifier,
-) -> SimplifyResult {
-    match (
-        dfg.get_array_constant(arguments[0]),
-        dfg.get_array_constant(arguments[1]),
-        dfg.get_array_constant(arguments[2]),
-        dfg.get_array_constant(arguments[3]),
-    ) {
-        (
-            Some((public_key_x, _)),
-            Some((public_key_y, _)),
-            Some((signature, _)),
-            Some((hashed_message, _)),
-        ) if array_is_constant(dfg, &public_key_x)
-            && array_is_constant(dfg, &public_key_y)
-            && array_is_constant(dfg, &signature)
-            && array_is_constant(dfg, &hashed_message) =>
-        {
-            let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let public_key_y: [u8; 32] = to_u8_vec(dfg, public_key_y)
-                .try_into()
-                .expect("ECDSA public key fields are 32 bytes");
-            let signature: [u8; 64] =
-                to_u8_vec(dfg, signature).try_into().expect("ECDSA signatures are 64 bytes");
-            let hashed_message: Vec<u8> = to_u8_vec(dfg, hashed_message);
-
-            let valid_signature =
-                signature_verifier(&hashed_message, &public_key_x, &public_key_y, &signature)
-                    .expect("Rust solvable black box function should not fail");
-
-            let valid_signature = dfg.make_constant(valid_signature.into(), NumericType::bool());
-            SimplifyResult::SimplifiedTo(valid_signature)
-        }
-        _ => SimplifyResult::None,
-    }
 }
 
 fn simplify_derive_generators(
@@ -819,7 +757,7 @@ mod tests {
                 return v2
             }
             "#;
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = r#"
             brillig(inline) fn main f0 {

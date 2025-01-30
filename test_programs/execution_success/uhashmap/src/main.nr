@@ -293,6 +293,7 @@ unconstrained fn doc_tests() {
 
 // docs:start:get_example
 fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+    /// Safety: testing context
     let x = unsafe { map.get(12) };
 
     if x.is_some() {
@@ -318,6 +319,7 @@ fn entries_examples(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hash
     let keys = map.keys();
 
     for key in keys {
+        /// Safety: testing context
         let value = unsafe { map.get(key) }.unwrap_unchecked();
         println(f"{key} -> {value}");
     }

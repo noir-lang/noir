@@ -12,11 +12,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
-    ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Pattern,
-    TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
+    NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
+    UnresolvedTypeData,
 };
 use crate::hir::resolution::errors::ResolverError;
-use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, StructId};
+use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::{UnusedItem, UsageTracker};
 use crate::{
@@ -27,8 +28,8 @@ use crate::{
 };
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
-use super::dc_crate::CollectedItems;
 use super::dc_crate::ModuleAttribute;
+use super::dc_crate::{CollectedItems, UnresolvedEnum};
 use super::{
     dc_crate::{
         CompilationError, DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTraitImpl,
@@ -91,7 +92,9 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_traits(context, ast.traits, crate_id));
 
-    errors.extend(collector.collect_structs(context, ast.types, crate_id));
+    errors.extend(collector.collect_structs(context, ast.structs, crate_id));
+
+    errors.extend(collector.collect_enums(context, ast.enums, crate_id));
 
     errors.extend(collector.collect_type_aliases(context, ast.type_aliases, crate_id));
 
@@ -317,7 +320,34 @@ impl<'a> ModCollector<'a> {
                 krate,
                 &mut definition_errors,
             ) {
-                self.def_collector.items.types.insert(id, the_struct);
+                self.def_collector.items.structs.insert(id, the_struct);
+            }
+        }
+        definition_errors
+    }
+
+    /// Collect any enum definitions declared within the ast.
+    /// Returns a vector of errors if any enums were already defined,
+    /// or if an enum has duplicate variants in it.
+    fn collect_enums(
+        &mut self,
+        context: &mut Context,
+        types: Vec<Documented<NoirEnumeration>>,
+        krate: CrateId,
+    ) -> Vec<(CompilationError, FileId)> {
+        let mut definition_errors = vec![];
+        for enum_definition in types {
+            if let Some((id, the_enum)) = collect_enum(
+                &mut context.def_interner,
+                &mut self.def_collector.def_map,
+                &mut context.usage_tracker,
+                enum_definition,
+                self.file_id,
+                self.module_id,
+                krate,
+                &mut definition_errors,
+            ) {
+                self.def_collector.items.enums.insert(id, the_enum);
             }
         }
         definition_errors
@@ -336,6 +366,7 @@ impl<'a> ModCollector<'a> {
             let doc_comments = type_alias.doc_comments;
             let type_alias = type_alias.item;
             let name = type_alias.name.clone();
+            let location = Location::new(name.span(), self.file_id);
             let visibility = type_alias.visibility;
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
@@ -389,6 +420,7 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_type_alias(
                     type_alias_id,
                     name,
+                    location,
                     visibility,
                     parent_module_id,
                 );
@@ -410,6 +442,7 @@ impl<'a> ModCollector<'a> {
             let doc_comments = trait_definition.doc_comments;
             let trait_definition = trait_definition.item;
             let name = trait_definition.name.clone();
+            let location = Location::new(trait_definition.name.span(), self.file_id);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -482,12 +515,14 @@ impl<'a> ModCollector<'a> {
                         is_comptime,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
-                        method_ids.insert(name.to_string(), func_id);
+                        if !method_ids.contains_key(&name.0.contents) {
+                            method_ids.insert(name.to_string(), func_id);
+                        }
 
                         let location = Location::new(name.span(), self.file_id);
                         let modifiers = FunctionModifiers {
                             name: name.to_string(),
-                            visibility: ItemVisibility::Public,
+                            visibility: trait_definition.visibility,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
                             is_unconstrained: *is_unconstrained,
@@ -499,6 +534,12 @@ impl<'a> ModCollector<'a> {
                         context
                             .def_interner
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
+
+                        let referenced = ReferenceId::Function(func_id);
+                        let module_id = Some(trait_id.0);
+                        context
+                            .def_interner
+                            .add_definition_location(referenced, location, module_id);
 
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
@@ -518,8 +559,8 @@ impl<'a> ModCollector<'a> {
                                             *is_unconstrained,
                                             generics,
                                             parameters,
-                                            body,
-                                            where_clause,
+                                            body.clone(),
+                                            where_clause.clone(),
                                             return_type,
                                         ));
                                     unresolved_functions.push_fn(
@@ -628,6 +669,7 @@ impl<'a> ModCollector<'a> {
                 context.def_interner.register_trait(
                     trait_id,
                     name.to_string(),
+                    location,
                     visibility,
                     parent_module_id,
                 );
@@ -813,7 +855,7 @@ impl<'a> ModCollector<'a> {
         inner_attributes: Vec<SecondaryAttribute>,
         add_to_parent_scope: bool,
         is_contract: bool,
-        is_struct: bool,
+        is_type: bool,
     ) -> Result<ModuleId, DefCollectorErrorKind> {
         push_child_module(
             &mut context.def_interner,
@@ -826,7 +868,7 @@ impl<'a> ModCollector<'a> {
             inner_attributes,
             add_to_parent_scope,
             is_contract,
-            is_struct,
+            is_type,
         )
     }
 
@@ -862,7 +904,7 @@ fn push_child_module(
     inner_attributes: Vec<SecondaryAttribute>,
     add_to_parent_scope: bool,
     is_contract: bool,
-    is_struct: bool,
+    is_type: bool,
 ) -> Result<ModuleId, DefCollectorErrorKind> {
     // Note: the difference between `location` and `mod_location` is:
     // - `mod_location` will point to either the token "foo" in `mod foo { ... }`
@@ -878,7 +920,7 @@ fn push_child_module(
         outer_attributes,
         inner_attributes,
         is_contract,
-        is_struct,
+        is_type,
     );
 
     let module_id = def_map.modules.insert(new_module);
@@ -992,7 +1034,7 @@ pub fn collect_struct(
     module_id: LocalModuleId,
     krate: CrateId,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
-) -> Option<(StructId, UnresolvedStruct)> {
+) -> Option<(TypeId, UnresolvedStruct)> {
     let doc_comments = struct_definition.doc_comments;
     let struct_definition = struct_definition.item;
 
@@ -1025,7 +1067,11 @@ pub fn collect_struct(
         true,  // is struct
     ) {
         Ok(module_id) => {
-            interner.new_struct(&unresolved, resolved_generics, krate, module_id.local_id, file_id)
+            let name = unresolved.struct_def.name.clone();
+            let span = unresolved.struct_def.span;
+            let attributes = unresolved.struct_def.attributes.clone();
+            let local_id = module_id.local_id;
+            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
         }
         Err(error) => {
             definition_errors.push((error.into(), file_id));
@@ -1033,7 +1079,7 @@ pub fn collect_struct(
         }
     };
 
-    interner.set_doc_comments(ReferenceId::Struct(id), doc_comments);
+    interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
 
     for (index, field) in unresolved.struct_def.fields.iter().enumerate() {
         if !field.doc_comments.is_empty() {
@@ -1044,7 +1090,7 @@ pub fn collect_struct(
 
     // Add the struct to scope so its path can be looked up later
     let visibility = unresolved.struct_def.visibility;
-    let result = def_map.modules[module_id.0].declare_struct(name.clone(), visibility, id);
+    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -1067,7 +1113,102 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_struct(id, name.to_string(), visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+    }
+
+    Some((id, unresolved))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn collect_enum(
+    interner: &mut NodeInterner,
+    def_map: &mut CrateDefMap,
+    usage_tracker: &mut UsageTracker,
+    enum_def: Documented<NoirEnumeration>,
+    file_id: FileId,
+    module_id: LocalModuleId,
+    krate: CrateId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) -> Option<(TypeId, UnresolvedEnum)> {
+    let doc_comments = enum_def.doc_comments;
+    let enum_def = enum_def.item;
+
+    check_duplicate_variant_names(&enum_def, file_id, definition_errors);
+
+    let name = enum_def.name.clone();
+
+    let unresolved = UnresolvedEnum { file_id, module_id, enum_def };
+
+    let resolved_generics = Context::resolve_generics(
+        interner,
+        &unresolved.enum_def.generics,
+        definition_errors,
+        file_id,
+    );
+
+    // Create the corresponding module for the enum namespace
+    let location = Location::new(name.span(), file_id);
+    let id = match push_child_module(
+        interner,
+        def_map,
+        module_id,
+        &name,
+        ItemVisibility::Public,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // add to parent scope
+        false, // is contract
+        true,  // is type
+    ) {
+        Ok(module_id) => {
+            let name = unresolved.enum_def.name.clone();
+            let span = unresolved.enum_def.span;
+            let attributes = unresolved.enum_def.attributes.clone();
+            let local_id = module_id.local_id;
+            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
+        }
+        Err(error) => {
+            definition_errors.push((error.into(), file_id));
+            return None;
+        }
+    };
+
+    interner.set_doc_comments(ReferenceId::Type(id), doc_comments);
+
+    for (index, variant) in unresolved.enum_def.variants.iter().enumerate() {
+        if !variant.doc_comments.is_empty() {
+            let id = ReferenceId::EnumVariant(id, index);
+            interner.set_doc_comments(id, variant.doc_comments.clone());
+        }
+    }
+
+    // Add the enum to scope so its path can be looked up later
+    let visibility = unresolved.enum_def.visibility;
+    let result = def_map.modules[module_id.0].declare_type(name.clone(), visibility, id);
+
+    let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    if !unresolved.enum_def.is_abi() {
+        usage_tracker.add_unused_item(
+            parent_module_id,
+            name.clone(),
+            UnusedItem::Enum(id),
+            visibility,
+        );
+    }
+
+    if let Err((first_def, second_def)) = result {
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::TypeDefinition,
+            first_def,
+            second_def,
+        };
+        definition_errors.push((error.into(), file_id));
+    }
+
+    if interner.is_in_lsp_mode() {
+        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
     }
 
     Some((id, unresolved))
@@ -1222,7 +1363,12 @@ pub(crate) fn collect_trait_impl_items(
 
     for item in std::mem::take(&mut trait_impl.items) {
         match item.item.kind {
-            TraitImplItemKind::Function(impl_method) => {
+            TraitImplItemKind::Function(mut impl_method) => {
+                // Set the impl method visibility as temporarily private.
+                // Eventually when we find out what trait is this impl for we'll set it
+                // to the trait's visibility.
+                impl_method.def.visibility = ItemVisibility::Private;
+
                 let func_id = interner.push_empty_fn();
                 let location = Location::new(impl_method.span(), file_id);
                 interner.push_function(func_id, &impl_method.def, module, location);
@@ -1308,14 +1454,35 @@ fn check_duplicate_field_names(
         }
 
         let previous_field_name = *seen_field_names.get(field_name).unwrap();
-        definition_errors.push((
-            DefCollectorErrorKind::DuplicateField {
-                first_def: previous_field_name.clone(),
-                second_def: field_name.clone(),
-            }
-            .into(),
-            file,
-        ));
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::StructField,
+            first_def: previous_field_name.clone(),
+            second_def: field_name.clone(),
+        };
+        definition_errors.push((error.into(), file));
+    }
+}
+
+fn check_duplicate_variant_names(
+    enum_def: &NoirEnumeration,
+    file: FileId,
+    definition_errors: &mut Vec<(CompilationError, FileId)>,
+) {
+    let mut seen_variant_names = std::collections::HashSet::new();
+    for variant in &enum_def.variants {
+        let variant_name = &variant.item.name;
+
+        if seen_variant_names.insert(variant_name) {
+            continue;
+        }
+
+        let previous_variant_name = *seen_variant_names.get(variant_name).unwrap();
+        let error = DefCollectorErrorKind::Duplicate {
+            typ: DuplicateType::EnumVariant,
+            first_def: previous_variant_name.clone(),
+            second_def: variant_name.clone(),
+        };
+        definition_errors.push((error.into(), file));
     }
 }
 

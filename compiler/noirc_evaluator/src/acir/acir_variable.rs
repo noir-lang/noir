@@ -112,9 +112,6 @@ impl From<NumericType> for AcirType {
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     blackbox_solver: B,
 
-    /// Two-way map that links `AcirVar` to `AcirVarData`.
-    ///
-    /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
     constant_witnesses: HashMap<F, Witness>,
@@ -544,6 +541,29 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         Ok(())
     }
 
+    /// Constrains the `lhs` and `rhs` to be non-equal.
+    ///
+    /// This is done by asserting the existence of an inverse for the value `lhs - rhs`.
+    /// The constraint `(lhs - rhs) * inverse == 1` will only be satisfiable if `lhs` and `rhs` are non-equal.
+    pub(crate) fn assert_neq_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        assert_message: Option<AssertionPayload<F>>,
+    ) -> Result<(), RuntimeError> {
+        let diff_var = self.sub_var(lhs, rhs)?;
+
+        let one = self.add_constant(F::one());
+        let _ = self.inv_var(diff_var, one)?;
+        if let Some(payload) = assert_message {
+            self.acir_ir
+                .assertion_payloads
+                .insert(self.acir_ir.last_acir_opcode_location(), payload);
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn vars_to_expressions_or_memory(
         &self,
         values: &[AcirValue],
@@ -954,6 +974,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         offset: AcirVar,
         bits: u32,
     ) -> Result<(), RuntimeError> {
+        #[allow(unused_qualifications)]
         const fn num_bits<T>() -> usize {
             std::mem::size_of::<T>() * 8
         }
@@ -1423,7 +1444,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     }
                 }?;
                 output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![F::from(output_count as u128)])
+                (vec![], vec![])
             }
             BlackBoxFunc::RecursiveAggregation => {
                 let proof_type_var = match inputs.pop() {

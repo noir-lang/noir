@@ -2,7 +2,7 @@
 name = "bn254_blackbox_solver"
 description = "Solvers for black box functions which are specific for the bn254 curve"
 # x-release-please-start-version
-version = "1.0.0-beta.0"
+version = "1.0.0-beta.1"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -22,7 +22,7 @@ hex.workspace = true
 lazy_static.workspace = true
 
 ark-bn254.workspace = true
-grumpkin.workspace = true
+ark-grumpkin.workspace = true
 ark-ec.workspace = true
 ark-ff.workspace = true
 num-bigint.workspace = true

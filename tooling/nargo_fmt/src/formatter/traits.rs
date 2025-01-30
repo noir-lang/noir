@@ -113,6 +113,7 @@ impl<'a> Formatter<'a> {
                     return_visibility: Visibility::Private,
                     where_clause,
                     body,
+                    skip_visibility: true,
                 };
                 self.format_function_impl(func);
             }
@@ -236,12 +237,12 @@ mod tests {
     fn format_trait_with_function_without_body() {
         let src = " mod moo { trait Foo { 
     /// hello 
-            pub  fn  foo ( );
+            fn  foo ( );
          } }";
         let expected = "mod moo {
     trait Foo {
         /// hello
-        pub fn foo();
+        fn foo();
     }
 }
 ";
@@ -252,12 +253,12 @@ mod tests {
     fn format_trait_with_function_with_body() {
         let src = " mod moo { trait Foo { 
     /// hello 
-            pub  fn  foo ( ) { 1 }
+            fn  foo ( ) { 1 }
          } }";
         let expected = "mod moo {
     trait Foo {
         /// hello
-        pub fn foo() {
+        fn foo() {
             1
         }
     }
@@ -270,12 +271,12 @@ mod tests {
     fn format_trait_with_function_with_params() {
         let src = " mod moo { trait Foo { 
     /// hello 
-            pub  fn  foo ( x : i32 , y : Field );
+            fn  foo ( x : i32 , y : Field );
          } }";
         let expected = "mod moo {
     trait Foo {
         /// hello
-        pub fn foo(x: i32, y: Field);
+        fn foo(x: i32, y: Field);
     }
 }
 ";
@@ -292,6 +293,24 @@ mod tests {
         fn foo<T>()
         where
             T: Bar;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_function_with_visibility() {
+        let src = " mod moo { trait Foo { 
+    /// hello 
+            pub  fn  foo ( ) { 1 }
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        /// hello
+        fn foo() {
+            1
+        }
     }
 }
 ";

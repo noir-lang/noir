@@ -2,7 +2,9 @@
 //
 // The features being tested are cast operations on brillig
 fn main() {
+    /// Safety: testing context
     unsafe {
+        //@safety: testing context
         bool_casts();
         field_casts();
         uint_casts();
