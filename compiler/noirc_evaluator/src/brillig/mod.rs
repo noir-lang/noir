@@ -2,7 +2,7 @@ pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
-use brillig_gen::brillig_globals::convert_ssa_globals;
+use brillig_gen::brillig_globals::BrilligGlobals;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 
 use self::{
@@ -12,15 +12,18 @@ use self::{
         procedures::compile_procedure,
     },
 };
+
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        value::ValueId,
+        instruction::Instruction,
+        value::{Value, ValueId},
     },
+    opt::inlining::called_functions_vec,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -31,8 +34,8 @@ pub use self::brillig_ir::procedures::ProcedureId;
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
-    globals: BrilligArtifact<FieldElement>,
-    globals_memory_size: usize,
+    globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    globals_memory_size: HashMap<FunctionId, usize>,
 }
 
 impl Brillig {
@@ -58,7 +61,7 @@ impl Brillig {
             }
             // Procedures are compiled as needed
             LabelType::Procedure(procedure_id) => Some(Cow::Owned(compile_procedure(procedure_id))),
-            LabelType::GlobalInit => Some(Cow::Borrowed(&self.globals)),
+            LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
     }
@@ -72,9 +75,18 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn to_brillig(&self, enable_debug_trace: bool) -> Brillig {
+        self.to_brillig_with_globals(enable_debug_trace, HashMap::default())
+    }
+
+    /// Compile Brillig functions and ACIR functions reachable from them
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn to_brillig_with_globals(
+        &self,
+        enable_debug_trace: bool,
+        used_globals_map: HashMap<FunctionId, HashSet<ValueId>>,
+    ) -> Brillig {
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
         let brillig_reachable_function_ids = self
@@ -89,17 +101,21 @@ impl Ssa {
             return brillig;
         }
 
-        // Globals are computed once at compile time and shared across all functions,
+        let mut brillig_globals =
+            BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
+
+        // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
+        // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
-        let (artifact, brillig_globals, globals_size) =
-            convert_ssa_globals(enable_debug_trace, globals, &self.used_global_values);
-        brillig.globals = artifact;
-        brillig.globals_memory_size = globals_size;
+        let globals_dfg = DataFlowGraph::from(globals);
+        brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);
 
         for brillig_function_id in brillig_reachable_function_ids {
+            let globals_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
+
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, enable_debug_trace, &brillig_globals);
+            brillig.compile(func, enable_debug_trace, &globals_allocations);
         }
 
         brillig
