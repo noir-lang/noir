@@ -232,7 +232,6 @@ impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
         /// Safety: cf div() above
         unsafe {
-            //@safety : cf div() above
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
             assert_eq(self, a);
