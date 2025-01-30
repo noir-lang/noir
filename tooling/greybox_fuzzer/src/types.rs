@@ -13,8 +13,12 @@ pub struct FuzzTestResult {
     /// (has the `should_fail` attribute)
     pub success: bool,
 
+    /// Set if the PUT failed because of a foreign call
+    pub foreign_call_failure: bool,
+
     /// If there was a constraint failure, this field will be populated. Note that the test can
     /// still be successful (i.e self.success == true) when it's expected to fail.
+    /// It will also contain the foreign call failure string if there was a foreign call failure
     pub reason: Option<String>,
 
     /// Minimal reproduction test case for failing fuzz tests
@@ -70,10 +74,17 @@ pub struct CounterExampleOutcome {
     pub exit_reason: String,
 }
 
+/// Foreign Call issues
+#[derive(Clone, Debug)]
+pub struct ForeignCallErrorInFuzzing {
+    pub exit_reason: String,
+}
+
 /// Outcome of a single fuzz
 #[derive(Clone, Debug)]
 pub enum FuzzOutcome {
     Case(SuccessfulCaseOutcome),
     Discrepancy(DiscrepancyOutcome),
     CounterExample(CounterExampleOutcome),
+    ForeignCallFailure(ForeignCallErrorInFuzzing),
 }

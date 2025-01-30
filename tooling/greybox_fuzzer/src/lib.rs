@@ -2,6 +2,7 @@ use std::{cmp::max, time::Instant};
 
 use acvm::{
     acir::{
+        brillig,
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
@@ -35,6 +36,7 @@ use rand_xorshift::XorShiftRng;
 
 use rayon::prelude::IntoParallelIterator;
 
+const FOREIGN_CALL_FAILURE_SUBSTRING: &str = "Failed calling external resolver.";
 #[derive(Default)]
 struct Metrics {
     total_acir_execution_time: u128,
@@ -172,6 +174,7 @@ impl<
         save_to_disk: bool,
     ) -> Result<(), FuzzTestResult> {
         for result in fuzz_results.iter() {
+            //dbg!(result);
             // Check if the execution was successful
             match result {
                 FuzzOutcome::Case(_) => {}
@@ -196,6 +199,7 @@ impl<
                         success: false,
                         reason,
                         counterexample: Some(counterexample.clone()),
+                        foreign_call_failure: false,
                     });
                 }
                 FuzzOutcome::CounterExample(CounterExampleOutcome {
@@ -210,7 +214,16 @@ impl<
                         success: false,
                         reason,
                         counterexample: Some(counterexample.clone()),
+                        foreign_call_failure: false,
                     });
+                }
+                FuzzOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => {
+                    return Err(FuzzTestResult {
+                        success: false,
+                        foreign_call_failure: true,
+                        reason: Some(foreign_call_error_in_fuzzing.exit_reason.to_string()),
+                        counterexample: None,
+                    })
                 }
             }
 
@@ -286,6 +299,7 @@ impl<
                             success: false,
                             reason: Some(error_string),
                             counterexample: None,
+                            foreign_call_failure: false,
                         })
                     }
                 }
@@ -319,6 +333,7 @@ impl<
                     success: false,
                     reason: Some(error_string),
                     counterexample: None,
+                    foreign_call_failure: false,
                 };
             }
         }
@@ -450,6 +465,22 @@ impl<
                                     bool_witness_list = &default_list;
                                 }
 
+                                // // TODO: figure out what is wrong with brillig coverage (is it brillig machine that fails)
+                                // if brillig_coverage.is_none() {
+                                //     return (
+                                //         FuzzOutcome::Case(SuccessfulCaseOutcome {
+                                //             case_id,
+                                //             case,
+                                //             witness,
+                                //             brillig_coverage,
+                                //             acir_time,
+                                //             brillig_time,
+                                //         }),
+                                //         false,
+                                //         acir_time,
+                                //         brillig_time,
+                                //     );
+                                // }
                                 let new_coverage = SingleTestCaseCoverage::new(
                                     case_id,
                                     &witness,
@@ -607,6 +638,7 @@ impl<
                                     success: false,
                                     reason: Some(error_string),
                                     counterexample: None,
+                                    foreign_call_failure: false,
                                 }
                             }
                         }
@@ -707,6 +739,9 @@ impl<
                                 acir_failed: true,
                                 exit_reason,
                             }),
+                            FuzzOutcome::ForeignCallFailure(..) => {
+                                panic!("Can't get a foreign call problem in ACIR while having none in brillig")
+                            }
                         }
                     })
                     .collect::<Vec<FuzzOutcome>>()
@@ -766,6 +801,7 @@ impl<
                                     success: false,
                                     reason: Some(error_string),
                                     counterexample: None,
+                                    foreign_call_failure: false,
                                 }
                             }
                         }
@@ -780,9 +816,12 @@ impl<
         };
         println!("Total iterations: {current_iteration}");
         match fuzz_res {
-            FuzzOutcome::Case(_) => {
-                FuzzTestResult { success: true, reason: None, counterexample: None }
-            }
+            FuzzOutcome::Case(_) => FuzzTestResult {
+                success: true,
+                reason: None,
+                counterexample: None,
+                foreign_call_failure: false,
+            },
             FuzzOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: _,
                 exit_reason: status,
@@ -803,6 +842,7 @@ impl<
                     success: false,
                     reason,
                     counterexample: Some(counterexample.clone()),
+                    foreign_call_failure: false,
                 }
             }
             FuzzOutcome::CounterExample(CounterExampleOutcome {
@@ -817,8 +857,15 @@ impl<
                     success: false,
                     reason,
                     counterexample: Some(counterexample.clone()),
+                    foreign_call_failure: false,
                 }
             }
+            FuzzOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => FuzzTestResult {
+                success: false,
+                foreign_call_failure: true,
+                reason: Some(foreign_call_error_in_fuzzing.exit_reason.to_string()),
+                counterexample: None,
+            },
         }
     }
 
@@ -830,6 +877,7 @@ impl<
         let initial_witness2 = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let acir_start = Instant::now();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
+        //dbg!(&result_acir);
         let acir_elapsed = acir_start.elapsed();
         let brillig_start = Instant::now();
         let result_brillig = (self.brillig_executor)(
@@ -866,16 +914,25 @@ impl<
                 counterexample: testcase.value().clone(),
             }),
             (Err(..), Err((err, coverage))) => {
+                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
+                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
+                        exit_reason: err,
+                    });
+                }
                 if self.fail_on_specific_asserts
                     && !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),
                     )
                 {
+                    // // TODO: figure out why there might not be coverage here at all
+                    // if (coverage.is_none()) {
+                    //     println!("Brillig coverage is dead");
+                    // }
                     return FuzzOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
                         witness: None,
-                        brillig_coverage: Some(coverage.unwrap()),
+                        brillig_coverage: coverage,
                         acir_time: acir_elapsed.as_micros(),
                         brillig_time: brillig_elapsed.as_micros(),
                     });
@@ -907,11 +964,33 @@ impl<
                 acir_time: acir_elapsed.as_micros(),
                 brillig_time: 0,
             }),
-            Err(err) => FuzzOutcome::CounterExample(CounterExampleOutcome {
-                case_id: testcase.id(),
-                exit_reason: err,
-                counterexample: testcase.value().clone(),
-            }),
+            Err(err) => {
+                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
+                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
+                        exit_reason: err,
+                    });
+                }
+                if self.fail_on_specific_asserts
+                    && !err.contains(
+                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                    )
+                {
+                    // TODO: in the future we can add partial witness propagation from ACIR
+                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                        case_id: testcase.id(),
+                        case: testcase.value().clone(),
+                        witness: None,
+                        brillig_coverage: None,
+                        acir_time: acir_elapsed.as_micros(),
+                        brillig_time: 0,
+                    });
+                }
+                FuzzOutcome::CounterExample(CounterExampleOutcome {
+                    case_id: testcase.id(),
+                    exit_reason: err,
+                    counterexample: testcase.value().clone(),
+                })
+            }
         }
     }
 
@@ -937,6 +1016,11 @@ impl<
                 brillig_time: brillig_elapsed.as_micros(),
             }),
             Err((err, coverage)) => {
+                if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
+                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
+                        exit_reason: err,
+                    });
+                }
                 if self.fail_on_specific_asserts {
                     if !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),

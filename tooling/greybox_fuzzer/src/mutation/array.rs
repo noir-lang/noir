@@ -8,7 +8,7 @@ use crate::mutation::configurations::{SpliceMutation, BASIC_SPLICE_MUTATION_CONF
 
 use super::configurations::{
     SpliceCandidate, StructuralMutation, BASIC_SPLICE_CANDIDATE_PRIORITIZATION_CONFIGURATION,
-    BASIC_STRUCTURE_MUTATION_CONFIGURATION, BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION,
+    BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION,
 };
 struct ArrayMutator<'a> {
     prng: &'a mut XorShiftRng,
