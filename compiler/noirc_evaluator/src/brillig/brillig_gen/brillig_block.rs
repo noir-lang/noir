@@ -24,6 +24,7 @@ use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use super::brillig_black_box::convert_black_box_call;
@@ -103,7 +104,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         &mut self,
         globals: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
-        hoisted_global_constants: &HashSet<(FieldElement, NumericType)>,
+        hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
         let mut new_hoisted_constants = HashMap::default();
 

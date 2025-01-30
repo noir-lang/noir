@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -299,7 +299,7 @@ pub(crate) fn convert_ssa_globals(
     enable_debug_trace: bool,
     globals_dfg: &DataFlowGraph,
     used_globals: &HashSet<ValueId>,
-    hoisted_global_constants: &HashSet<(FieldElement, NumericType)>,
+    hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     entry_point: FunctionId,
 ) -> BrilligGlobalsArtifact {
     let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
@@ -335,12 +335,16 @@ pub(crate) fn convert_ssa_globals(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use acvm::{
-        acir::brillig::{BitSize, Opcode},
+        acir::brillig::{BitSize, IntegerBitSize, Opcode},
         FieldElement,
     };
 
     use crate::brillig::{brillig_ir::registers::RegisterAllocator, GlobalSpace, LabelType, Ssa};
+
+    use super::ConstantAllocation;
 
     #[test]
     fn entry_points_different_globals() {
@@ -537,6 +541,156 @@ mod tests {
             } else {
                 panic!("Unexpected function id: {func_id}");
             }
+        }
+    }
+
+    #[test]
+    fn hoist_shared_constants() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            call f1(v0, v1)
+            return
+        }
+        brillig(inline) predicate_pure fn entry_point f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            v4 = add v2, Field 1
+            v6 = eq v4, Field 5
+            constrain v6 == u1 0
+            call f2(v0, v1)
+            return
+        }
+        brillig(inline) predicate_pure fn inner_func f2 {
+          b0(v0: Field, v1: Field):
+            v3 = eq v0, Field 20
+            constrain v3 == u1 0
+            v5 = add v0, v1
+            v7 = add v5, Field 10
+            v9 = add v7, Field 1
+            v11 = eq v9, Field 20
+            constrain v11 == u1 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
+        let mut ssa = ssa.dead_instruction_elimination();
+
+        // Show that the constants in each function have different SSA value IDs
+        for (func_id, function) in &ssa.functions {
+            let constant_allocation = ConstantAllocation::from_function(function);
+            let mut constants = constant_allocation.get_constants().into_iter().collect::<Vec<_>>();
+            // We want to order the constants by ID
+            constants.sort();
+            if func_id.to_u32() == 1 {
+                assert_eq!(constants.len(), 3);
+                let one = function.dfg.get_numeric_constant(constants[0]).unwrap();
+                assert_eq!(one, FieldElement::from(1u128));
+                let five = function.dfg.get_numeric_constant(constants[1]).unwrap();
+                assert_eq!(five, FieldElement::from(5u128));
+                let zero = function.dfg.get_numeric_constant(constants[2]).unwrap();
+                assert_eq!(zero, FieldElement::from(0u128));
+            } else if func_id.to_u32() == 2 {
+                assert_eq!(constants.len(), 4);
+                let twenty = function.dfg.get_numeric_constant(constants[0]).unwrap();
+                assert_eq!(twenty, FieldElement::from(20u128));
+                let zero = function.dfg.get_numeric_constant(constants[1]).unwrap();
+                assert_eq!(zero, FieldElement::from(0u128));
+                let ten = function.dfg.get_numeric_constant(constants[2]).unwrap();
+                assert_eq!(ten, FieldElement::from(10u128));
+                let one = function.dfg.get_numeric_constant(constants[3]).unwrap();
+                assert_eq!(one, FieldElement::from(1u128));
+            }
+        }
+
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+
+        assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
+        for (func_id, artifact) in brillig.globals {
+            assert_eq!(func_id.to_u32(), 1);
+            assert_eq!(
+                artifact.byte_code.len(),
+                3,
+                "Expected enough opcodes to initialize the hoisted constants"
+            );
+            let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                panic!("First opcode is expected to be `Const`");
+            };
+            assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+            assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
+            assert_eq!(*value, FieldElement::from(0u128));
+
+            let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[1] else {
+                panic!("First opcode is expected to be `Const`");
+            };
+            assert_eq!(destination.unwrap_direct(), GlobalSpace::start() + 1);
+            assert!(matches!(bit_size, BitSize::Field));
+            assert_eq!(*value, FieldElement::from(1u128));
+
+            assert!(matches!(&artifact.byte_code[2], Opcode::Return));
+        }
+    }
+
+    #[test]
+    fn do_not_hoist_shared_constants_different_entry_points() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            call f1(v0, v1)
+            call f2(v0, v1)
+            return
+        }
+        brillig(inline) predicate_pure fn entry_point f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            v4 = add v2, Field 1
+            v6 = eq v4, Field 5
+            constrain v6 == u1 0
+            return
+        }
+        brillig(inline) predicate_pure fn entry_point_two f2 {
+          b0(v0: Field, v1: Field):
+            v3 = eq v0, Field 20
+            constrain v3 == u1 0
+            v5 = add v0, v1
+            v7 = add v5, Field 10
+            v9 = add v7, Field 1
+            v10 = eq v9, Field 20
+            constrain v10 == u1 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
+        let mut ssa = ssa.dead_instruction_elimination();
+
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+
+        assert_eq!(
+            brillig.globals.len(),
+            2,
+            "Should have a globals artifact associated with each entry point"
+        );
+        for (func_id, mut artifact) in brillig.globals {
+            let labels = artifact.take_labels();
+            // When entering a context two labels are created.
+            // One is a context label and another is a section label.
+            assert_eq!(labels.len(), 2);
+            for (label, position) in labels {
+                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+                assert_eq!(position, 0);
+            }
+            assert_eq!(
+                artifact.byte_code.len(),
+                1,
+                "Expected enough opcodes to initialize the hoisted constants"
+            );
+            assert!(matches!(&artifact.byte_code[0], Opcode::Return));
         }
     }
 }
