@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738333570847,
+  "lastUpdate": 1738333586840,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19808,6 +19808,140 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
             "value": 370,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d39337bc25bed77d03413ce02b90a2a30863ec1",
+          "message": "fix(ssa): Use number of SSA instructions for the Brillig unrolling bytecode size limit (#7242)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-31T14:03:50Z",
+          "tree_id": "276bf2ded89bdcde92140f04af040d5a237d80e9",
+          "url": "https://github.com/noir-lang/noir/commit/8d39337bc25bed77d03413ce02b90a2a30863ec1"
+        },
+        "date": 1738333585320,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "noir-lang_sparse_array_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_schnorr_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_string_search_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_sort_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_rsa_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 8,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_check_shuffle_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_bigcurve_",
+            "value": 291,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_base64_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-edwards_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-bignum_",
+            "value": 299,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_mimc_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_eddsa_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_ec_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 53,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 274,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 11,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 195,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 63,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 344,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 372,
             "unit": "s"
           }
         ]
