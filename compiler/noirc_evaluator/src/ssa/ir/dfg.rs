@@ -367,6 +367,11 @@ impl DataFlowGraph {
         }
     }
 
+    /// Replace an existing instruction with a new one.
+    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
+        self.instructions[id] = instruction;
+    }
+
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
     ///
     /// This is the preferred method to call for optimizations simplifying

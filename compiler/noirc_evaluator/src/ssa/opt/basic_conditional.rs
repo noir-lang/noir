@@ -348,7 +348,10 @@ impl<'f> Context<'f> {
 
         self.inserter.map_data_bus_in_place();
         // we need to map all the subsequent blocks in case some instructions are using the ones
-        // that have been optimised
+        // that have been optimized
+        // Note that this is not efficient because flattening several blocks in the same function
+        // will lead to mapping the blocks at the end several times, while it can be done only once
+        // for all blocks flattening.
         while let Some(block) = next_blocks.pop_back() {
             self.map_block(block);
             let successors = self.inserter.function.dfg[block].successors();
@@ -367,7 +370,7 @@ impl<'f> Context<'f> {
         // Map all instructions in the block
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         for instruction in instructions {
-            self.inserter.map_instruction_in_place(instruction, block);
+            self.inserter.map_instruction_in_place(instruction);
         }
         self.inserter.map_terminator_in_place(block);
     }
