@@ -1,4 +1,4 @@
-use std::collections::{vec_deque, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use acvm::AcirField;
 use fxhash::FxHashMap;
@@ -365,8 +365,7 @@ impl<'f> Context<'f> {
 
     fn map_block(&mut self, block: BasicBlockId) {
         // Map all instructions in the block
-        let instructions = self.inserter.function.dfg[block].instructions();
-        let instructions = instructions.iter().cloned().collect::<Vec<_>>();
+        let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         for instruction in instructions {
             self.inserter.map_instruction_in_place(instruction, block);
         }

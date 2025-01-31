@@ -7,7 +7,7 @@ use super::{
     call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
-    instruction::{BinaryOp, Instruction, InstructionId},
+    instruction::{Instruction, InstructionId},
     value::ValueId,
 };
 use fxhash::FxHashMap as HashMap;
