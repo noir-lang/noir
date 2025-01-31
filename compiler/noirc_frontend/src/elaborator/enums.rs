@@ -66,7 +66,6 @@ impl Elaborator<'_> {
         self_type: &Type,
     ) {
         let name = &variant.name;
-        let name_string = name.to_string();
         let location = Location::new(variant.name.span(), self.file);
 
         let global_id = self.interner.push_empty_global(
@@ -79,16 +78,13 @@ impl Elaborator<'_> {
             false,
         );
 
-        let kind = DefinitionKind::Global(global_id);
-        let definition_id =
-            self.interner.push_definition(name_string, false, false, kind, location);
-
         let mut typ = self_type.clone();
         if !datatype.borrow().generics.is_empty() {
             let typevars = vecmap(&datatype.borrow().generics, |generic| generic.type_var.clone());
             typ = Type::Forall(typevars, Box::new(typ));
         }
 
+        let definition_id = self.interner.get_global(global_id).definition_id;
         self.interner.push_definition_type(definition_id, typ.clone());
 
         let no_parameters = Parameters(Vec::new());

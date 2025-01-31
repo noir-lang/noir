@@ -3,7 +3,6 @@ fn main() {
     let _b: Foo<u16> = Foo::B(3);
     let _c = Foo::C(4);
 
-    // (#7172): Single variant enums must be called as functions currently
     let _d: fn() -> Foo<(i32, i32)> = Foo::D;
     let _d: Foo<(i32, i32)> = Foo::D();
     let _e: Foo<u16> = Foo::E;
