@@ -2209,7 +2209,7 @@ fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
 ) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
-    match typ.follow_bindings() {
+    match typ.unwrap_forall().1.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {

@@ -76,7 +76,7 @@ impl Ssa {
                 if max_bytecode_increase_percent < i32::MAX {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
-                    let orig_size = function.num_instructions();
+                    let orig_size = orig_function.num_instructions();
                     if !is_new_size_ok(orig_size, new_size, max_bytecode_increase_percent) {
                         *function = orig_function;
                     }
