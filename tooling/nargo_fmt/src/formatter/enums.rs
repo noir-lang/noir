@@ -118,6 +118,7 @@ mod tests {
   Variant  ( Field  ,  i32    )  ,
   // comment
  Another ( ),
+ Constant ,
         } }";
         let expected = "mod moo {
     enum Foo {
@@ -125,7 +126,8 @@ mod tests {
         /// comment
         Variant(Field, i32),
         // comment
-        Another,
+        Another(),
+        Constant,
     }
 }
 ";
