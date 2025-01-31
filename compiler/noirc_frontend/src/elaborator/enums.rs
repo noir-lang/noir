@@ -8,7 +8,7 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::HirPattern,
     },
-    node_interner::{DefinitionKind, FuncId, FunctionModifiers, TypeId},
+    node_interner::{DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     token::Attributes,
     DataType, Shared, Type,
 };
@@ -16,8 +16,96 @@ use crate::{
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Defines the value of an enum variant that we resolve an enum
+    /// variant expression to. E.g. `Foo::Bar` in `Foo::Bar(baz)`.
+    ///
+    /// If the variant requires arguments we should define a function,
+    /// otherwise we define a polymorphic global containing the tag value.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn define_enum_variant_function(
+    pub(super) fn define_enum_variant_constructor(
+        &mut self,
+        enum_: &NoirEnumeration,
+        type_id: TypeId,
+        variant: &EnumVariant,
+        variant_arg_types: Option<Vec<Type>>,
+        variant_index: usize,
+        datatype: &Shared<DataType>,
+        self_type: &Type,
+        self_type_unresolved: UnresolvedType,
+    ) {
+        match variant_arg_types {
+            Some(args) => self.define_enum_variant_function(
+                enum_,
+                type_id,
+                variant,
+                args,
+                variant_index,
+                datatype,
+                self_type,
+                self_type_unresolved,
+            ),
+            None => self.define_enum_variant_global(
+                enum_,
+                type_id,
+                variant,
+                variant_index,
+                datatype,
+                self_type,
+            ),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn define_enum_variant_global(
+        &mut self,
+        enum_: &NoirEnumeration,
+        type_id: TypeId,
+        variant: &EnumVariant,
+        variant_index: usize,
+        datatype: &Shared<DataType>,
+        self_type: &Type,
+    ) {
+        let name = &variant.name;
+        let location = Location::new(variant.name.span(), self.file);
+
+        let global_id = self.interner.push_empty_global(
+            name.clone(),
+            type_id.local_module_id(),
+            type_id.krate(),
+            self.file,
+            Vec::new(),
+            false,
+            false,
+        );
+
+        let mut typ = self_type.clone();
+        if !datatype.borrow().generics.is_empty() {
+            let typevars = vecmap(&datatype.borrow().generics, |generic| generic.type_var.clone());
+            typ = Type::Forall(typevars, Box::new(typ));
+        }
+
+        let definition_id = self.interner.get_global(global_id).definition_id;
+        self.interner.push_definition_type(definition_id, typ.clone());
+
+        let no_parameters = Parameters(Vec::new());
+        let global_body =
+            self.make_enum_variant_constructor(datatype, variant_index, &no_parameters, location);
+        let let_statement = crate::hir_def::stmt::HirStatement::Expression(global_body);
+
+        let statement_id = self.interner.get_global(global_id).let_statement;
+        self.interner.replace_statement(statement_id, let_statement);
+
+        self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
+            crate::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
+        );
+
+        Self::get_module_mut(self.def_maps, type_id.module_id())
+            .declare_global(name.clone(), enum_.visibility, global_id)
+            .ok();
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn define_enum_variant_function(
         &mut self,
         enum_: &NoirEnumeration,
         type_id: TypeId,
@@ -48,7 +136,10 @@ impl Elaborator<'_> {
 
         let hir_name = HirIdent::non_trait_method(definition_id, location);
         let parameters = self.make_enum_variant_parameters(variant_arg_types, location);
-        self.push_enum_variant_function_body(id, datatype, variant_index, &parameters, location);
+
+        let body =
+            self.make_enum_variant_constructor(datatype, variant_index, &parameters, location);
+        self.interner.update_fn(id, HirFunction::unchecked_from_expr(body));
 
         let function_type =
             datatype_ref.variant_function_type_with_forall(variant_index, datatype.clone());
@@ -106,14 +197,13 @@ impl Elaborator<'_> {
     //     }
     // }
     // ```
-    fn push_enum_variant_function_body(
+    fn make_enum_variant_constructor(
         &mut self,
-        id: FuncId,
         self_type: &Shared<DataType>,
         variant_index: usize,
         parameters: &Parameters,
         location: Location,
-    ) {
+    ) -> ExprId {
         // Each parameter of the enum variant function is used as a parameter of the enum
         // constructor expression
         let arguments = vecmap(&parameters.0, |(pattern, typ, _)| match pattern {
@@ -126,18 +216,18 @@ impl Elaborator<'_> {
             _ => unreachable!(),
         });
 
-        let enum_generics = self_type.borrow().generic_types();
-        let construct_variant = HirExpression::EnumConstructor(HirEnumConstructorExpression {
+        let constructor = HirExpression::EnumConstructor(HirEnumConstructorExpression {
             r#type: self_type.clone(),
             arguments,
             variant_index,
         });
-        let body = self.interner.push_expr(construct_variant);
-        self.interner.update_fn(id, HirFunction::unchecked_from_expr(body));
 
+        let body = self.interner.push_expr(constructor);
+        let enum_generics = self_type.borrow().generic_types();
         let typ = Type::DataType(self_type.clone(), enum_generics);
         self.interner.push_expr_type(body, typ);
         self.interner.push_expr_location(body, location.span, location.file);
+        body
     }
 
     fn make_enum_variant_parameters(
