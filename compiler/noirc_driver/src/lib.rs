@@ -156,7 +156,7 @@ pub struct CompileOptions {
     /// as it required fewer SSA instructions.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i32::MAX)]
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = 0)]
     pub max_bytecode_increase_percent: i32,
 
     /// Use pedantic ACVM solving, i.e. double-check some black-box function

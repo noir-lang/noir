@@ -60,7 +60,7 @@ impl Ssa {
 
             // Take a snapshot in case we have to restore it.
             let orig_function =
-                (max_bytecode_increase_percent == i32::MAX && is_brillig).then(|| function.clone());
+                (max_bytecode_increase_percent < i32::MAX && is_brillig).then(|| function.clone());
 
             // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
             let has_unrolled = function.unroll_loops_iteratively()?;
