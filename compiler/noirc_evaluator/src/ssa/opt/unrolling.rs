@@ -74,7 +74,7 @@ impl Ssa {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
-                    let orig_size = function.num_instructions();
+                    let orig_size = orig_function.num_instructions();
                     if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
                         *function = orig_function;
                     }
