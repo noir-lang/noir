@@ -799,8 +799,10 @@ impl NoirEnumeration {
         }
 
         for variant in &self.variants {
-            for parameter in &variant.item.parameters {
-                parameter.accept(visitor);
+            if let Some(parameters) = &variant.item.parameters {
+                for parameter in parameters {
+                    parameter.accept(visitor);
+                }
             }
         }
     }
