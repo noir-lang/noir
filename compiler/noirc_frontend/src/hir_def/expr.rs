@@ -36,6 +36,7 @@ pub enum HirExpression {
     MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
+    Match(HirMatchExpression),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(Tokens),
@@ -169,6 +170,25 @@ pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
     pub alternative: Option<ExprId>,
+}
+
+/// Unlike `MatchExpression` in the AST, this version has been greatly simplified by the match
+/// compiler and resembles a C `switch` statement more than the original match expression.
+/// All nested expressions are compiled out of this and into separate `HirMatchExpressions` so
+/// that each one need only switch on a single tag value.
+///
+/// Each HirMatchExpression is always of the form:
+/// match `value_to_match` {
+///     `rule_tag` => `rule_branch`,
+///     _ => `default_branch`
+/// }
+#[derive(Debug, Clone)]
+pub struct HirMatchExpression {
+    pub value_to_match: ExprId,
+
+    pub rule_tag: usize,
+    pub rule_branch: ExprId,
+    pub default_branch: ExprId,
 }
 
 // `lhs as type` in the source code

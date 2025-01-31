@@ -1,10 +1,15 @@
+use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    ast::{EnumVariant, FunctionKind, NoirEnumeration, UnresolvedType, Visibility},
+    ast::{EnumVariant, Expression, FunctionKind, NoirEnumeration, UnresolvedType, Visibility},
+    hir::resolution::errors::ResolverError,
     hir_def::{
-        expr::{HirEnumConstructorExpression, HirExpression, HirIdent},
+        expr::{
+            HirArrayLiteral, HirEnumConstructorExpression, HirExpression, HirIdent, HirLiteral,
+            HirMatchExpression,
+        },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::HirPattern,
     },
@@ -242,5 +247,159 @@ impl Elaborator<'_> {
             let pattern = HirPattern::Identifier(HirIdent::non_trait_method(id, location));
             (pattern, parameter_type, Visibility::Private)
         }))
+    }
+
+    /// This is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
+    pub(super) fn elaborate_match_rules(
+        &mut self,
+        value_to_match: ExprId,
+        mut rules: MatchRules,
+    ) -> Result<HirExpression, ResolverError> {
+        self.push_tests_against_bare_variables(&mut rules);
+        let case = self.select_case(&rules)?;
+        self.generate_match_for_case(value_to_match, case, rules)
+    }
+
+    pub(super) fn push_tests_against_bare_variables(&mut self, _rules: &mut MatchRules) {}
+
+    pub(super) fn select_case(&mut self, rules: &MatchRules) -> Result<usize, ResolverError> {
+        // Start by always selecting the first case.
+        // TODO: Use heuristic instead
+        match rules.first() {
+            Some((pattern, _)) => pattern.get_variant_index(self),
+            None => Ok(0),
+        }
+    }
+
+    /// Generate:
+    /// case a {
+    ///     C(a0, .., aN) -> <A>
+    ///     _             -> <B>
+    /// }
+    /// where:
+    ///   C == case == variant_index
+    ///   a0, .., aN = arguments to constructor C
+    ///   <A> = sub problem A
+    ///   <B> = sub problem B
+    pub(super) fn generate_match_for_case(
+        &mut self,
+        case: usize,
+        rules: MatchRules,
+    ) -> Result<(), ResolverError> {
+        let mut sub_problem_a = Vec::new();
+        let mut sub_problem_b = Vec::new();
+
+        for (pattern, branch) in rules {
+            let pattern_expr = self.interner.expression(&pattern);
+
+            if pattern_expr.is_match_all() {
+                sub_problem_a.push((pattern, branch.clone()));
+                sub_problem_b.push((pattern, branch));
+            } else if pattern.get_variant_index(self)? == case {
+                sub_problem_a.push((pattern, branch));
+            } else {
+                sub_problem_b.push((pattern, branch));
+            }
+        }
+
+        let rule_branch = self.elaborate_match_rules(value_to_match, sub_problem_a);
+        let default_branch = self.elaborate_match_rules(value_to_match, sub_problem_b);
+
+        Ok(HirExpression::Match(HirMatchExpression {
+            value_to_match,
+            rule_tag: case,
+            rule_branch: default_branch,
+        }))
+    }
+}
+
+type MatchRules = Vec<(ExprId, Expression)>;
+
+impl HirExpression {
+    pub(crate) fn is_match_all(&self) -> bool {
+        matches!(self, HirExpression::Ident(_, _))
+    }
+}
+
+impl ExprId {
+    pub(crate) fn get_variant_index(
+        &self,
+        elaborator: &mut Elaborator,
+    ) -> Result<usize, ResolverError> {
+        Ok(match elaborator.interner.expression(self) {
+            HirExpression::Ident(_, _) => 0, // unreachable?
+            HirExpression::Literal(literal) => match literal {
+                HirLiteral::Array(_) => 0,
+
+                // We're considering each slice length to be its own constuctor
+                // to let users match on different lengths of the slice.
+                HirLiteral::Slice(array) => match array {
+                    HirArrayLiteral::Standard(elems) => elems.len(),
+                    HirArrayLiteral::Repeated { length, .. } => {
+                        let span = elaborator.interner.expr_span(self);
+                        match length.evaluate_to_u32(span) {
+                            Ok(length) => length as usize,
+                            Err(error) => {
+                                elaborator.push_err(error);
+                                0
+                            }
+                        }
+                    }
+                },
+                HirLiteral::Bool(value) => value as usize,
+                HirLiteral::Integer(element, is_negative) => {
+                    // We can't represent all Field values unfortunately so we'll have to error
+                    // that we can't match on fields that are too big or small.
+                    // Currently this is arbitrarily any field that doesn't fit into a u32.
+                    if !is_negative {
+                        if let Some(Ok(value)) = element.try_to_u64().map(TryInto::try_into) {
+                            return Ok(value);
+                        }
+                    }
+                    let span = elaborator.interner.expr_span(self);
+                    return Err(ResolverError::IntegerPatternTooLarge { span });
+                }
+                HirLiteral::Unit => 0,
+
+                // Str and FmtStr matching is a bit more difficult since we can't compare integers.
+                // In the future we could do it with a full Eq call but we'll just error for now.
+                HirLiteral::Str(_) | HirLiteral::FmtStr(..) => {
+                    let span = elaborator.interner.expr_span(self);
+                    return Err(ResolverError::CantMatchOnStrings { span });
+                }
+            },
+
+            // These can resolve to enums, we'll need to check the metadata
+            HirExpression::Call(expr) => return expr.func.get_variant_index(elaborator),
+
+            // Enum constructors are usually represented by call expressions
+            // or globals. We'll only get this variant if we're looking at the
+            // value of a global enum or the body of an auto-generated enum
+            // constructor function.
+            HirExpression::EnumConstructor(expr) => expr.variant_index,
+
+            // Struct & tuple types only have 1 constructor
+            HirExpression::Tuple(_) => 0,
+            HirExpression::Constructor(_) => 0,
+
+            // None of these are valid pattern syntax
+            HirExpression::Block(_)
+            | HirExpression::Prefix(_)
+            | HirExpression::Infix(_)
+            | HirExpression::Index(_)
+            | HirExpression::MemberAccess(_)
+            | HirExpression::MethodCall(_)
+            | HirExpression::Cast(_)
+            | HirExpression::If(_)
+            | HirExpression::Lambda(_)
+            | HirExpression::Quote(_)
+            | HirExpression::Unquote(_)
+            | HirExpression::Comptime(_)
+            | HirExpression::Unsafe(_) => {
+                // TODO: error here
+                0
+            }
+            HirExpression::Error => 0,
+        })
     }
 }
