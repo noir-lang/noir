@@ -24,10 +24,6 @@ use acvm::{acir::AcirField, FieldElement};
 use im::HashSet;
 
 use crate::{
-    brillig::{
-        brillig_gen::{brillig_globals::convert_ssa_globals, convert_ssa_function},
-        brillig_ir::brillig_variable::BrilligVariable,
-    },
     errors::RuntimeError,
     ssa::{
         ir::{
@@ -60,8 +56,6 @@ impl Ssa {
         mut self,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
-        let mut global_cache = None;
-
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
 
@@ -78,20 +72,9 @@ impl Ssa {
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
             if has_unrolled && is_brillig {
                 if let Some(max_incr_pct) = max_bytecode_increase_percent {
-                    if global_cache.is_none() {
-                        let globals = (*function.dfg.globals).clone();
-                        let used_globals = &globals.values_iter().map(|(id, _)| id).collect();
-                        let globals_dfg = DataFlowGraph::from(globals);
-                        // DIE is run at the end of our SSA optimizations, so we mark all globals as in use here.
-                        let (_, brillig_globals, _) =
-                            convert_ssa_globals(false, &globals_dfg, used_globals, function.id());
-                        global_cache = Some(brillig_globals);
-                    }
-                    let brillig_globals = global_cache.as_ref().unwrap();
-
                     let orig_function = orig_function.expect("took snapshot to compare");
-                    let new_size = brillig_bytecode_size(function, brillig_globals);
-                    let orig_size = brillig_bytecode_size(&orig_function, brillig_globals);
+                    let new_size = function.num_instructions();
+                    let orig_size = function.num_instructions();
                     if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
                         *function = orig_function;
                     }
@@ -1020,25 +1003,6 @@ fn simplify_between_unrolls(function: &mut Function) {
     function.simplify_function();
     // Do another mem2reg after simplify_cfg to aid the next unroll
     function.mem2reg();
-}
-
-/// Convert the function to Brillig bytecode and return the resulting size.
-fn brillig_bytecode_size(
-    function: &Function,
-    globals: &HashMap<ValueId, BrilligVariable>,
-) -> usize {
-    // We need to do some SSA passes in order for the conversion to be able to go ahead,
-    // otherwise we can hit `unreachable!()` instructions in `convert_ssa_instruction`.
-    // Creating a clone so as not to modify the originals.
-    let mut temp = function.clone();
-
-    // Might as well give it the best chance.
-    simplify_between_unrolls(&mut temp);
-
-    // This is to try to prevent hitting ICE.
-    temp.dead_instruction_elimination(false, true);
-
-    convert_ssa_function(&temp, false, globals).byte_code.len()
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
