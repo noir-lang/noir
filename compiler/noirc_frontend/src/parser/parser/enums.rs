@@ -92,12 +92,10 @@ impl<'a> Parser<'a> {
             self.bump();
         }
 
-        let mut parameters = Vec::new();
-
-        if self.eat_left_paren() {
+        let parameters = self.eat_left_paren().then(|| {
             let comma_separated = separated_by_comma_until_right_paren();
-            parameters = self.parse_many("variant parameters", comma_separated, Self::parse_type);
-        }
+            self.parse_many("variant parameters", comma_separated, Self::parse_type)
+        });
 
         Some(Documented::new(EnumVariant { name, parameters }, doc_comments))
     }
@@ -189,18 +187,19 @@ mod tests {
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("X", variant.name.to_string());
         assert!(matches!(
-            variant.parameters[0].typ,
+            variant.parameters.as_ref().unwrap()[0].typ,
             UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
         ));
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("y", variant.name.to_string());
-        assert!(matches!(variant.parameters[0].typ, UnresolvedTypeData::FieldElement));
-        assert!(matches!(variant.parameters[1].typ, UnresolvedTypeData::Integer(..)));
+        let parameters = variant.parameters.as_ref().unwrap();
+        assert!(matches!(parameters[0].typ, UnresolvedTypeData::FieldElement));
+        assert!(matches!(parameters[1].typ, UnresolvedTypeData::Integer(..)));
 
         let variant = noir_enum.variants.remove(0).item;
         assert_eq!("Z", variant.name.to_string());
-        assert_eq!(variant.parameters.len(), 0);
+        assert!(variant.parameters.is_none());
     }
 
     #[test]
