@@ -26,6 +26,13 @@ export default {
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
+  middleware: [async function setGzHeader(ctx, next) {
+    if (ctx.url.endsWith('.gz')) {
+      ctx.set('Content-Encoding', 'gzip');
+      ctx.res.removeHeader('Content-Length');
+    }
+    await next();
+  }],
   plugins: [
     esbuildPlugin({
       ts: true,

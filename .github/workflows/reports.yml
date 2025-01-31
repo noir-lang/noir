@@ -73,7 +73,7 @@ jobs:
           ./rebuild.sh
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
-      
+
       - name: Compare gates reports
         id: gates_diff
         uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
@@ -150,7 +150,7 @@ jobs:
           message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
 
   compare_brillig_execution_reports:
-    name: Brillig execution trace sizes  
+    name: Brillig execution trace sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -210,7 +210,7 @@ jobs:
           message: ${{ steps.brillig_execution_diff.outputs.markdown }}
 
   generate_memory_report:
-    name: Peak memory usage  
+    name: Peak memory usage
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
