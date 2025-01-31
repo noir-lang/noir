@@ -53,14 +53,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(
         mut self,
-        max_bytecode_increase_percent: Option<i32>,
+        max_bytecode_increase_percent: i32,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
 
             // Take a snapshot in case we have to restore it.
             let orig_function =
-                (max_bytecode_increase_percent.is_some() && is_brillig).then(|| function.clone());
+                (max_bytecode_increase_percent == i32::MAX && is_brillig).then(|| function.clone());
 
             // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
             let has_unrolled = function.unroll_loops_iteratively()?;
@@ -73,11 +73,11 @@ impl Ssa {
                 // TODO: As we unroll more loops, this is potentially going to lead to panics
                 // when we have a non-aggressiveness inliner as the compiler is not going to have yet resolved
                 // certain intrinsics which we expect to be entirely known at compile-time (e.g. DerivePedersenGenerators).
-                if let Some(max_incr_pct) = max_bytecode_increase_percent {
+                if max_bytecode_increase_percent < i32::MAX {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
                     let orig_size = function.num_instructions();
-                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                    if !is_new_size_ok(orig_size, new_size, max_bytecode_increase_percent) {
                         *function = orig_function;
                     }
                 }
@@ -1416,7 +1416,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(-90).unwrap();
         // Check that it's still the original
         assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
     }
@@ -1424,7 +1424,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(50).unwrap();
         // Check that it did the unroll
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }

@@ -77,7 +77,7 @@ pub struct SsaEvaluatorOptions {
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
-    pub max_bytecode_increase_percent: Option<i32>,
+    pub max_bytecode_increase_percent: i32,
 }
 
 pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
