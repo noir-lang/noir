@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738359418074,
+  "lastUpdate": 1738359422789,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14142,95 +14142,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "966d8a607436f371079f2e7fa3774046fb9785a5",
-          "message": "fix: allow calling trait impl method from struct if multiple impls exist (#7124)",
-          "timestamp": "2025-01-21T15:38:14Z",
-          "tree_id": "8760f53493a43b391bb456fd57f7908048feb7db",
-          "url": "https://github.com/noir-lang/noir/commit/966d8a607436f371079f2e7fa3774046fb9785a5"
-        },
-        "date": 1737475063861,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.69,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.56,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.98,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 730.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 591.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "fd3377b3ae279fafc6d72a62c7661c542c713117",
           "message": "feat: parse globals in SSA parser (#7112)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
           "timestamp": "2025-01-21T19:00:21Z",
@@ -18600,6 +18511,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 124.1,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.25,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 213.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a9e985064303b0843cbf68fb5a9d41f9ade1e30d",
+          "message": "fix: Add missing `is_empty` check for enums (#7257)",
+          "timestamp": "2025-01-31T21:14:07Z",
+          "tree_id": "b0efbf49a0d8efb8459d4697bcb6f9ef3248c92f",
+          "url": "https://github.com/noir-lang/noir/commit/a9e985064303b0843cbf68fb5a9d41f9ade1e30d"
+        },
+        "date": 1738359421316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.01,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.44,
             "unit": "MB"
           },
           {
