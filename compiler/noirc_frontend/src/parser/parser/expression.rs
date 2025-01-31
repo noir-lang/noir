@@ -1072,8 +1072,8 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses() {
         let src = "
-        ( 
-         ^
+        (
+        ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
@@ -1560,8 +1560,8 @@ mod tests {
     #[test]
     fn parses_cast_missing_type() {
         let src = "
-        1 as 
-            ^
+        1 as
+           ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);

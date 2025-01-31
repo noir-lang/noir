@@ -392,6 +392,7 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
+        let func_type = func_type.follow_bindings();
         let func_arg_types =
             if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
 

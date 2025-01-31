@@ -310,21 +310,45 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
         }
-        BlackBoxOp::ToRadix { input, radix, output, output_bits } => {
+        BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
             let radix = memory
                 .read(*radix)
                 .expect_integer_with_bit_size(IntegerBitSize::U32)
                 .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
+            let num_limbs = memory.read(*num_limbs).to_usize();
+            let output_bits = !memory
+                .read(*output_bits)
+                .expect_integer_with_bit_size(IntegerBitSize::U1)
+                .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
+                .is_zero();
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
 
-            for i in (0..output.size).rev() {
+            assert!(
+                radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
+                "Radix out of the valid range [2,256]. Value: {}",
+                radix
+            );
+
+            assert!(
+                num_limbs >= 1 || input == BigUint::from(0u32),
+                "Input value {} is not zero but number of limbs is zero.",
+                input
+            );
+
+            assert!(
+                !output_bits || radix == BigUint::from(2u32),
+                "Radix {} is not equal to 2 and bit mode is activated.",
+                radix
+            );
+
+            for i in (0..num_limbs).rev() {
                 let limb = &input % &radix;
-                if *output_bits {
+                if output_bits {
                     limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
@@ -336,7 +360,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 input /= &radix;
             }
 
-            memory.write_slice(memory.read_ref(output.pointer), &limbs);
+            memory.write_slice(memory.read_ref(*output_pointer), &limbs);
 
             Ok(())
         }

@@ -261,17 +261,18 @@ impl DataFlowGraph {
 
     pub(crate) fn insert_instruction_and_results_without_simplification(
         &mut self,
-        instruction_data: Instruction,
+        instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        if !self.is_handled_by_runtime(&instruction_data) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
+        if !self.is_handled_by_runtime(&instruction) {
+            // Panicking to raise attention. If we're not supposed to simplify it immediately,
+            // pushing the instruction would just cause a potential panic later on.
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
-
         let id = self.insert_instruction_without_simplification(
-            instruction_data,
+            instruction,
             block,
             ctrl_typevars,
             call_stack,
@@ -308,7 +309,10 @@ impl DataFlowGraph {
         existing_id: Option<InstructionId>,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            // BUG: With panicking it fails to build the `token_contract`; see:
+            // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102
+            // panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            return InsertInstructionResult::InstructionRemoved;
         }
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
