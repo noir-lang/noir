@@ -7,7 +7,7 @@ use super::{
     call_stack::CallStackId,
     dfg::InsertInstructionResult,
     function::Function,
-    instruction::{Instruction, InstructionId},
+    instruction::{BinaryOp, Instruction, InstructionId},
     value::ValueId,
 };
 use fxhash::FxHashMap as HashMap;
@@ -79,6 +79,24 @@ impl<'f> FunctionInserter<'f> {
         (instruction, self.function.dfg.get_instruction_call_stack_id(id))
     }
 
+    /// Get an instruction, map all its values, and replace it with the resolved instruction.
+    pub(crate) fn map_instruction_in_place(&mut self, id: InstructionId, block: BasicBlockId) {
+        let mut instruction = self.function.dfg[id].clone();
+        instruction.map_values_mut(|id| self.resolve(id));
+        let call_stack = self.function.dfg.get_instruction_call_stack_id(id);
+        let old_results = self.function.dfg.instruction_results(id).to_vec();
+        let ctrl_typevars = instruction
+            .requires_ctrl_typevars()
+            .then(|| vecmap(old_results, |result| self.function.dfg.type_of_value(result)));
+
+        self.function.dfg.insert_instruction_and_results_if_simplified(
+            instruction,
+            block,
+            ctrl_typevars,
+            call_stack,
+            Some(id),
+        );
+    }
     /// Maps a terminator in place, replacing any ValueId in the terminator with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {

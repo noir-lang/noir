@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{vec_deque, HashSet, VecDeque};
 
 use acvm::AcirField;
 use fxhash::FxHashMap;
@@ -9,8 +9,10 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
+        dom::DominatorTree,
         function::{Function, FunctionId, RuntimeType},
         instruction::{BinaryOp, Instruction, TerminatorInstruction},
+        post_order::PostOrder,
     },
     Ssa,
 };
@@ -185,7 +187,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
             | Instruction::Call { .. }  //TODO support calls with no-predicate set to true
             |      Instruction::Load { .. }
             | Instruction::Store { .. }
-            | Instruction::ArraySet { .. } => {return u32::MAX},
+            | Instruction::ArraySet { .. } => return u32::MAX,
 
             Instruction::ArrayGet { array, index  } => {
                 // check if index is in bound
@@ -263,16 +265,19 @@ impl<'f> Context<'f> {
         let mut branch_ends = FxHashMap::default();
         branch_ends.insert(conditional.block_entry, conditional.block_exit);
         let cfg = ControlFlowGraph::with_function(function);
+        let post_order = PostOrder::with_function(function);
+        let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let mut context = Context::new(function, cfg, branch_ends, conditional.block_entry);
         context.no_predicate = true;
 
-        context.flatten_single_conditional(conditional, no_predicates);
+        context.flatten_single_conditional(conditional, no_predicates, &mut dominator_tree);
     }
 
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
         no_predicates: &mut FxHashMap<FunctionId, bool>,
+        dom: &mut DominatorTree,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         let mut queue = vec![];
@@ -312,6 +317,7 @@ impl<'f> Context<'f> {
         // Manually set the terminator of the entry block to the one of the exit block
         let terminator =
             self.inserter.function.dfg[conditional.block_exit].terminator().unwrap().clone();
+        let mut next_blocks = VecDeque::new();
         let new_terminator = match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
@@ -320,6 +326,7 @@ impl<'f> Context<'f> {
                 call_stack,
             } => {
                 let condition = self.inserter.resolve(condition);
+                next_blocks.extend([then_destination, else_destination]);
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
@@ -329,6 +336,7 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let arguments = vecmap(arguments, |value| self.inserter.resolve(value));
+                next_blocks.push_back(destination);
                 TerminatorInstruction::Jmp { destination, arguments, call_stack }
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
@@ -339,5 +347,29 @@ impl<'f> Context<'f> {
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);
 
         self.inserter.map_data_bus_in_place();
+        // we need to map all the subsequent blocks in case some instructions are using the ones
+        // that have been optimised
+        while let Some(block) = next_blocks.pop_back() {
+            self.map_block(block);
+            let successors = self.inserter.function.dfg[block].successors();
+            for successor in successors {
+                // The function does not process the CFG from the root but from 'any' block (given as input),
+                // so we avoid looping backward instead of checking for already visited blocks
+                if !dom.dominates(successor, block) {
+                    // 'push front' ensures a block is mapped after his predecessors
+                    next_blocks.push_front(successor);
+                }
+            }
+        }
+    }
+
+    fn map_block(&mut self, block: BasicBlockId) {
+        // Map all instructions in the block
+        let instructions = self.inserter.function.dfg[block].instructions();
+        let instructions = instructions.iter().cloned().collect::<Vec<_>>();
+        for instruction in instructions {
+            self.inserter.map_instruction_in_place(instruction, block);
+        }
+        self.inserter.map_terminator_in_place(block);
     }
 }
