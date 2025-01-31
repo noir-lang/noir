@@ -38,7 +38,7 @@ use crate::acir::{Artifacts, GeneratedAcir};
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;
-mod opt;
+pub(crate) mod opt;
 #[cfg(test)]
 pub(crate) mod parser;
 pub mod ssa_gen;
@@ -122,8 +122,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
+    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig(options.enable_brillig_logging)
+        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -169,6 +170,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         )?
+        .run_pass(Ssa::purity_analysis, "Purity Analysis")
         .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
@@ -189,6 +191,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Inlining (2nd)",
         )
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
+        .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")

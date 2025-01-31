@@ -114,6 +114,7 @@ impl Function {
         let mut new_function = Function::new(another.name.clone(), id);
         new_function.set_runtime(another.runtime());
         new_function.set_globals(another.dfg.globals.clone());
+        new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function
     }
 
