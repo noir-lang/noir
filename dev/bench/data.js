@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738328304076,
+  "lastUpdate": 1738333378416,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5028,100 +5028,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bf32a22b4f813602123aa377cb50b1baac7f856c",
-          "message": "fix: proper cleanup when breaking from comptime loop on error (#7125)",
-          "timestamp": "2025-01-21T13:45:30Z",
-          "tree_id": "79de7a15170f6db780d15724b9374d045584ff2e",
-          "url": "https://github.com/noir-lang/noir/commit/bf32a22b4f813602123aa377cb50b1baac7f856c"
-        },
-        "date": 1737468097737,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.962,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.791,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 18.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.728,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.07,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 113,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 84.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.706,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 25.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.023,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.194,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.038,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -9791,6 +9697,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 2.084,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d39337bc25bed77d03413ce02b90a2a30863ec1",
+          "message": "fix(ssa): Use number of SSA instructions for the Brillig unrolling bytecode size limit (#7242)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-01-31T14:03:50Z",
+          "tree_id": "276bf2ded89bdcde92140f04af040d5a237d80e9",
+          "url": "https://github.com/noir-lang/noir/commit/8d39337bc25bed77d03413ce02b90a2a30863ec1"
+        },
+        "date": 1738333377432,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.957,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.843,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.565,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.522,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.968,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 81.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 69.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.566,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 26.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.866,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.998,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.616,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.128,
             "unit": "s"
           }
         ]
