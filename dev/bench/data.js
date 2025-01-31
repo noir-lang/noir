@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738340515998,
+  "lastUpdate": 1738340599843,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19952,6 +19952,115 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
             "value": 372,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5841122627ed7f786d24ea2fef3008126569fd55",
+          "message": "fix(unrolling): Fetch original bytecode size from the original function (#7253)",
+          "timestamp": "2025-01-31T16:02:30Z",
+          "tree_id": "ee7d7bd1ff8e10ec0dc01b7ace0015be1bdb7d08",
+          "url": "https://github.com/noir-lang/noir/commit/5841122627ed7f786d24ea2fef3008126569fd55"
+        },
+        "date": 1738340598859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "noir-lang_sparse_array_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_schnorr_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_string_search_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_sort_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_rsa_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 8,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_check_shuffle_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_base64_",
+            "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-edwards_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_mimc_",
+            "value": 0,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_eddsa_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_ec_",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 51,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 11,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 50,
             "unit": "s"
           }
         ]
