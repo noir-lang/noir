@@ -96,7 +96,7 @@ pub(crate) fn collect_lenses_for_package(
     let fm = &context.file_manager;
     let files = fm.as_file_map();
     let tests =
-        context.get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
+        context.get_all_test_functions_in_crate_matching(&crate_id, &FunctionNameMatch::Anything);
     for (func_name, test_function) in tests {
         let location = context.function_meta(&test_function.get_id()).name.location;
         let file_id = location.file;

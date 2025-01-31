@@ -55,8 +55,6 @@ impl Ssa {
         mut self,
         max_bytecode_increase_percent: Option<i32>,
     ) -> Result<Ssa, RuntimeError> {
-        // let mut global_cache = None;
-
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
 

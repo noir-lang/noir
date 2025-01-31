@@ -33,7 +33,7 @@ pub struct Options {
 impl Options {
     pub fn function_name_match(&self) -> FunctionNameMatch {
         match self.args.as_slice() {
-            [_test_name, lib] => FunctionNameMatch::Contains(lib.as_str()),
+            [_test_name, lib] => FunctionNameMatch::Contains(vec![lib.clone()]),
             _ => FunctionNameMatch::Anything,
         }
     }
@@ -78,23 +78,40 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
 
     let test_functions = context.get_all_test_functions_in_crate_matching(
         context.stdlib_crate_id(),
-        opts.function_name_match(),
+        &opts.function_name_match(),
     );
+
+    let context = std::sync::Mutex::new(context);
 
     let test_report: Vec<(String, TestStatus)> = test_functions
         .into_iter()
         .map(|(test_name, test_function)| {
             let pedantic_solving = true;
-            let status = run_test(
-                &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
-                &mut context,
-                &test_function,
-                PrintOutput::Stdout,
-                &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
-                |output, base| {
-                    DefaultForeignCallBuilder::default().with_output(output).build_with_base(base)
+            let mut context = match context.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(), // Ignore, it happened during execution.
+            };
+            let status = std::panic::catch_unwind(move || {
+                run_test(
+                    &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
+                    &mut context,
+                    &test_function,
+                    PrintOutput::Stdout,
+                    &CompileOptions { force_brillig, inliner_aggressiveness, ..Default::default() },
+                    |output, base| {
+                        DefaultForeignCallBuilder::default()
+                            .with_output(output)
+                            .build_with_base(base)
+                    },
+                )
+            });
+            let status = match status {
+                Ok(status) => status,
+                Err(_panic_cause) => TestStatus::Fail {
+                    message: "panicked; see details in the end summary".to_string(),
+                    error_diagnostic: None,
                 },
-            );
+            };
             (test_name, status)
         })
         .collect();
