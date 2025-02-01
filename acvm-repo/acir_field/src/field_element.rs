@@ -274,12 +274,16 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn to_be_bytes(self) -> Vec<u8> {
-        // to_be_bytes! uses little endian which is why we reverse the output
-        // TODO: Add a little endian equivalent, so the caller can use whichever one
-        // TODO they desire
         let mut bytes = Vec::new();
         self.0.serialize_uncompressed(&mut bytes).unwrap();
         bytes.reverse();
+        bytes
+    }
+
+    /// Converts the field element to a vector of bytes in little-endian order
+    fn to_le_bytes(self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        self.0.serialize_uncompressed(&mut bytes).unwrap();
         bytes
     }
 
@@ -403,6 +407,24 @@ mod tests {
     fn max_num_bits_smoke() {
         let max_num_bits_bn254 = FieldElement::<ark_bn254::Fr>::max_num_bits();
         assert_eq!(max_num_bits_bn254, 254);
+    }
+
+    #[test]
+    fn test_endianness() {
+        let field = FieldElement::<ark_bn254::Fr>::from(0x1234_5678_u32);
+        let le_bytes = field.to_le_bytes();
+        let be_bytes = field.to_be_bytes();
+        
+        // Check that the bytes are reversed between BE and LE
+        let mut reversed_le = le_bytes.clone();
+        reversed_le.reverse();
+        assert_eq!(be_bytes, reversed_le);
+
+        // Verify we can reconstruct the same field element from either byte order
+        let from_le = FieldElement::from_be_bytes_reduce(&reversed_le);
+        let from_be = FieldElement::from_be_bytes_reduce(&be_bytes);
+        assert_eq!(from_le, from_be);
+        assert_eq!(from_le, field);
     }
 
     proptest! {
