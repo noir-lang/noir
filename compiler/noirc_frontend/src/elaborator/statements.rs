@@ -92,11 +92,12 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        let expr_span = let_stmt.expression.span;
-        let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        let expr_span = let_stmt.expression.span;
+        let (expression, expr_type) =
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
