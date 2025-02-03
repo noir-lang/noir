@@ -3094,6 +3094,7 @@ fn main() {
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
         assert_eq!(item.label, "Variant(…)".to_string());
 
         let details = item.label_details.as_ref().unwrap();

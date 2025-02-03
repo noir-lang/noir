@@ -368,6 +368,8 @@ impl<'a> NodeFinder<'a> {
         if let (Some(type_id), Some(variant_index)) =
             (func_meta.type_id, func_meta.enum_variant_index)
         {
+            completion_item.kind = Some(CompletionItemKind::ENUM_MEMBER);
+
             self.completion_item_with_doc_comments(
                 ReferenceId::EnumVariant(type_id, variant_index),
                 completion_item,
