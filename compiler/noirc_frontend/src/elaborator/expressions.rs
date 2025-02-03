@@ -61,7 +61,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
             ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
-            ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
+            ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
             ExpressionKind::Lambda(lambda) => {
                 self.elaborate_lambda_with_target_type(*lambda, target_type)
             }
@@ -958,12 +958,18 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Error, Type::Error)
     }
 
-    fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {
+    fn elaborate_tuple(
+        &mut self,
+        tuple: Vec<Expression>,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
-        for element in tuple {
-            let (id, typ) = self.elaborate_expression(element);
+        for (index, element) in tuple.into_iter().enumerate() {
+            let expr_target_type =
+                if let Some(Type::Tuple(types)) = target_type { types.get(index) } else { None };
+            let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
             element_ids.push(id);
             element_types.push(typ);
         }

@@ -4121,6 +4121,20 @@ fn infers_lambda_argument_from_variable_alias_type() {
 }
 
 #[test]
+fn infers_lambda_argument_from_variable_tuple_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    fn main() {
+      let _: (fn(Foo) -> Field, _) = (|foo| foo.value, 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn regression_7088() {
     // A test for code that initially broke when implementing inferring
     // lambda parameter types from the function type related to the call
