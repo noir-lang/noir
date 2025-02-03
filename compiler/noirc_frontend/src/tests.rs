@@ -4054,6 +4054,26 @@ fn infers_lambda_argument_from_call_function_type_in_generic_call() {
 }
 
 #[test]
+fn infers_lambda_argument_from_call_function_type_as_alias() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    type MyFn = fn(Foo) -> Field;
+
+    fn call(f: MyFn) -> Field {
+        f(Foo { value: 1 })
+    }
+
+    fn main() {
+        let _ = call(|foo| foo.value);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn infers_lambda_argument_from_function_return_type() {
     let src = r#"
     pub struct Foo {
