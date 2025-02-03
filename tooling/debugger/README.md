@@ -59,9 +59,9 @@ Available commands:
   next                             step until a new source location is reached
   delete LOCATION:OpcodeLocation   delete breakpoint at an opcode location
   step                             step to the next ACIR opcode
-  registers                        show Brillig registers (valid when executing
+  registerers                        show Brillig registerers (valid when executing
                                    a Brillig block)
-  regset index:usize value:String  update a Brillig register with the given
+  regset index:usize value:String  update a Brillig registerer with the given
                                    value
   restart                          restart the debugging session
   witness                          show witness map
@@ -79,10 +79,10 @@ Other commands:
   quit  Quit repl
 ```
 
-The command menu is pretty self-explanatory. Some commands operate only at Brillig level, such as `memory`, `memset`, `registers`, `regset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing Brillig code:
+The command menu is pretty self-explanatory. Some commands operate only at Brillig level, such as `memory`, `memset`, `registerers`, `regset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing Brillig code:
 
 ```
-> registers
+> registerers
 Not executing a Brillig block
 > 
 ```
@@ -173,7 +173,7 @@ We can see two arrow `->` cursors: one indicates where we are from the perspecti
 
 Note: REPL commands are autocompleted when not ambiguous, so `opcodes` can be run just with `op`, `into` with `i`, etc.
 
-The next opcode to execute is a `JumpIfNot`, which reads from register 0. Let's inspect Brillig register state:
+The next opcode to execute is a `JumpIfNot`, which reads from registerer 0. Let's inspect Brillig registerer state:
 
 ```
 > op
@@ -187,30 +187,30 @@ The next opcode to execute is a `JumpIfNot`, which reads from register 0. Let's 
   2    EXPR [ (1, _3, _4) (1, _5) -1 ]
   3    EXPR [ (1, _3, _5) 0 ]
   4    EXPR [ (-1, _5) 0 ]
-> registers
-Brillig VM registers not available
+> registerers
+Brillig VM registerers not available
 ```
 
-Oops. This is unexpected, even though we were already in a Brillig block, we couldn't access the Brillig registers. This is a known issue: when just entering the Brillig block, the ACVM has not yet initialized the Brillig VM, so we can't introspect it.
+Oops. This is unexpected, even though we were already in a Brillig block, we couldn't access the Brillig registerers. This is a known issue: when just entering the Brillig block, the ACVM has not yet initialized the Brillig VM, so we can't introspect it.
 
-Note: In order to solve this, we would have to change the way the ACVM works, or add special handling for this case (after all, the debugger does know we're at the first opcode of a Brillig block and could keep track of how registers will be initialized). At the time of writing, we haven't yet solved this case. 
+Note: In order to solve this, we would have to change the way the ACVM works, or add special handling for this case (after all, the debugger does know we're at the first opcode of a Brillig block and could keep track of how registerers will be initialized). At the time of writing, we haven't yet solved this case. 
 
 For now, let's just step once more:
 
 ```
 > i
 At opcode 1.1: Const { destination: RegisterIndex(1), value: Value { inner: 1 } }
-> registers
+> registerers
 0 = 1
 >
 ```
 
-Now we can see that register 0 was initialized with a value of 1, so the `JumpIfNot` didn't activate. After executing opcode 1, we should see register 1 gets a value of 1:
+Now we can see that registerer 0 was initialized with a value of 1, so the `JumpIfNot` didn't activate. After executing opcode 1, we should see registerer 1 gets a value of 1:
 
 ```
 > i
 At opcode 1.2: BinaryFieldOp { destination: RegisterIndex(0), op: Div, lhs: RegisterIndex(1), rhs: RegisterIndex(0) }
-> regist
+> register
 0 = 1
 1 = 1
 >
@@ -221,7 +221,7 @@ The last operation will compute `Reg0 <- Reg1 / Reg0`:
 ```
 > i
 At opcode 1.3: Stop
-> registers
+> registerers
 0 = 1
 1 = 1
 >
@@ -409,7 +409,7 @@ In this section, we'll explain how to test the VS Code Noir debugger combining t
 
 7. Go to a Noir file you want to debug. Navigate again to the debug section of VS Code, and click the "play" icon.
 
-The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registers and memory are not being exposed, but they will soon be.  
+The debugger should now have started. Current features exposed to the debugger include different kinds of stepping interactions, variable inspection and stacktraces. At the time of writing, Brillig registerers and memory are not being exposed, but they will soon be.  
 
 ![Screen Recording 2023-12-18 at 14 14 28](https://github.com/manastech/noir/assets/651693/36b4becb-953a-4158-9c5a-7a185673f54f)
 
