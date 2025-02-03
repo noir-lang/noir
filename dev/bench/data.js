@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738588542689,
+  "lastUpdate": 1738588735878,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14172,95 +14172,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a1cf830b3cdf17a9265b8bdbf366d65c253f0ca4",
-          "message": "feat: Resolve enums & prepare type system (#7115)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-01-21T20:37:44Z",
-          "tree_id": "0d0f36713e23c6607329a532b93f246e48afc044",
-          "url": "https://github.com/noir-lang/noir/commit/a1cf830b3cdf17a9265b8bdbf366d65c253f0ca4"
-        },
-        "date": 1737493095332,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.69,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.76,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.98,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 730.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 591.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -18655,6 +18566,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 123.86,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.25,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 213.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "97073b2af2b8527c6332fe1f621adef6b9460ee6",
+          "message": "feat(experimental): Parse match expressions (#7243)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-02-03T12:54:39Z",
+          "tree_id": "c0f565e801eae97f46068eb3ea13d7134f979762",
+          "url": "https://github.com/noir-lang/noir/commit/97073b2af2b8527c6332fe1f621adef6b9460ee6"
+        },
+        "date": 1738588735084,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.01,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.39,
             "unit": "MB"
           },
           {
