@@ -113,20 +113,18 @@ impl<'a> NodeFinder<'a> {
         name: impl Into<String>,
         id: ModuleId,
     ) -> CompletionItem {
-        let completion_item = module_completion_item(name);
-        self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
+        let item = module_completion_item(name);
+        self.completion_item_with_doc_comments(ReferenceId::Module(id), item)
     }
 
     fn struct_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
+        let items = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), items)
     }
 
     fn enum_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
+        let item = simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), item)
     }
 
     pub(super) fn struct_field_completion_item(
@@ -137,33 +135,27 @@ impl<'a> NodeFinder<'a> {
         field_index: usize,
         self_type: bool,
     ) -> CompletionItem {
-        let completion_item = struct_field_completion_item(field, typ, self_type);
-        self.completion_item_with_doc_comments(
-            ReferenceId::StructMember(struct_id, field_index),
-            completion_item,
-        )
+        let item = struct_field_completion_item(field, typ, self_type);
+        let reference_id = ReferenceId::StructMember(struct_id, field_index);
+        self.completion_item_with_doc_comments(reference_id, item)
     }
 
     fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Alias(id), completion_item)
+        let item = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Alias(id), item)
     }
 
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), completion_item)
+        let item = simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), item)
     }
 
     fn global_completion_item(&self, name: String, global_id: GlobalId) -> CompletionItem {
         let global = self.interner.get_global(global_id);
         let typ = self.interner.definition_type(global.definition_id);
         let description = typ.to_string();
-
-        let completion_item =
-            simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
-        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
+        let item = simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
+        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), item)
     }
 
     pub(super) fn enum_variant_completion_item(
@@ -172,15 +164,12 @@ impl<'a> NodeFinder<'a> {
         type_id: TypeId,
         variant_index: usize,
     ) -> CompletionItem {
-        let completion_item = simple_completion_item(
-            name.clone(),
-            CompletionItemKind::ENUM_MEMBER,
-            Some(name.clone()),
-        );
-        let completion_item = completion_item_with_detail(completion_item, name);
+        let kind = CompletionItemKind::ENUM_MEMBER;
+        let item = simple_completion_item(name.clone(), kind, Some(name.clone()));
+        let item = completion_item_with_detail(item, name);
         self.completion_item_with_doc_comments(
             ReferenceId::EnumVariant(type_id, variant_index),
-            completion_item,
+            item,
         )
     }
 
