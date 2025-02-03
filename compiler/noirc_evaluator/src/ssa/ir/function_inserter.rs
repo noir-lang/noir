@@ -257,4 +257,22 @@ impl<'f> FunctionInserter<'f> {
             self.values.entry(*param).or_insert(*new_param);
         }
     }
+
+    /// Merge the internal mapping into the given mapping
+    /// The merge is guaranteed to be coherent because ambiguous cases are prevented
+    pub(crate) fn extract_mapping(&self, mapping: &mut HashMap<ValueId, ValueId>) {
+        for (k, v) in &self.values {
+            if mapping.contains_key(k) {
+                unreachable!("cannot merge key");
+            }
+            if mapping.contains_key(v) {
+                unreachable!("cannot merge value");
+            }
+            mapping.insert(*k, *v);
+        }
+    }
+
+    pub(crate) fn set_mapping(&mut self, mapping: HashMap<ValueId, ValueId>) {
+        self.values = mapping;
+    }
 }
