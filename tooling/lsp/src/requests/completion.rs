@@ -804,18 +804,14 @@ impl<'a> NodeFinder<'a> {
         };
 
         for (index, variant) in variants.iter().enumerate() {
+            // Variants with parameters are represented as functions and are suggested in `complete_type_methods`
             if variant.is_function || !name_matches(&variant.name.0.contents, prefix) {
                 continue;
             }
 
-            if !variant.is_function {
-                let item = self.enum_variant_completion_item(
-                    variant.name.to_string(),
-                    data_type.id,
-                    index,
-                );
-                self.completion_items.push(item);
-            }
+            let item =
+                self.enum_variant_completion_item(variant.name.to_string(), data_type.id, index);
+            self.completion_items.push(item);
         }
     }
 
