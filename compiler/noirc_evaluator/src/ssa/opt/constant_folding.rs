@@ -734,7 +734,6 @@ impl<'brillig> Context<'brillig> {
                 _ => return,
             };
 
-
             if matches!(instruction, Instruction::MakeArray { .. }) {
                 self.cached_instruction_results.remove(instruction);
             }
