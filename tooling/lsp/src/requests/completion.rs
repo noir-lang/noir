@@ -322,6 +322,7 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(id) => module_id = id,
                 ModuleDefId::TypeId(type_id) => {
                     let data_type = self.interner.get_type(type_id);
+                    self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
                         &Type::DataType(data_type, vec![]),
                         &prefix,
@@ -793,6 +794,24 @@ impl<'a> NodeFinder<'a> {
                     self.completion_items.extend(completion_items);
                     self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(*func_id));
                 }
+            }
+        }
+    }
+
+    fn complete_enum_variants_without_parameters(&mut self, data_type: &DataType, prefix: &str) {
+        let Some(variants) = data_type.get_variants_as_written() else {
+            return;
+        };
+
+        for (index, variant) in variants.iter().enumerate() {
+            if variant.is_function || !name_matches(&variant.name.0.contents, prefix) {
+                continue;
+            }
+
+            if !variant.is_function {
+                let item =
+                    self.enum_member_completion_item(variant.name.to_string(), data_type.id, index);
+                self.completion_items.push(item);
             }
         }
     }

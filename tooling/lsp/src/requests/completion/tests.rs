@@ -3108,4 +3108,35 @@ fn main() {
         };
         assert!(markdown.value.contains("Some docs"));
     }
+
+    #[test]
+    async fn test_suggests_enum_variant_without_parameters() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
+        assert_eq!(item.label, "Variant".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant".to_string()));
+
+        assert_eq!(item.detail, None);
+        assert_eq!(item.insert_text, None);
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
+    }
 }
