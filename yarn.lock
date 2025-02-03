@@ -221,19 +221,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:0.66.0":
-  version: 0.66.0
-  resolution: "@aztec/bb.js@npm:0.66.0"
+"@aztec/bb.js@npm:0.72.1":
+  version: 0.72.1
+  resolution: "@aztec/bb.js@npm:0.72.1"
   dependencies:
     comlink: ^4.4.1
-    commander: ^10.0.1
+    commander: ^12.1.0
     debug: ^4.3.4
     fflate: ^0.8.0
     pako: ^2.1.0
     tslib: ^2.4.0
   bin:
     bb.js: dest/node/main.js
-  checksum: 7295bf6543afe1c2db795a95c7ed40806de63c77e44bb4dacb2ec6a9171d1d34749150844ab47bc2499d06676e623acb408857b6aa9da702d3c576efadb8c906
+  checksum: 143f0062a31e262ceff6e454d31e2a2672afd8dcbff0dafb17d5308f8c5312048e5d3503d80e7ad9ff4b17b6c3d36e8ffbff8d2deda2cdb684f19fa64d5a04ab
   languageName: node
   linkType: hard
 
@@ -11833,6 +11833,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"commander@npm:^12.1.0":
+  version: 12.1.0
+  resolution: "commander@npm:12.1.0"
+  checksum: 68e9818b00fc1ed9cdab9eb16905551c2b768a317ae69a5e3c43924c2b20ac9bb65b27e1cab36aeda7b6496376d4da908996ba2c0b5d79463e0fb1e77935d514
+  languageName: node
+  linkType: hard
+
 "commander@npm:^2.20.0":
   version: 2.20.3
   resolution: "commander@npm:2.20.3"
@@ -16391,7 +16398,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": 0.66.0
+    "@aztec/bb.js": 0.72.1
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": ^2.0.0
@@ -20315,27 +20322,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"playwright-core@npm:1.42.1":
-  version: 1.42.1
-  resolution: "playwright-core@npm:1.42.1"
+"playwright-core@npm:1.50.0":
+  version: 1.50.0
+  resolution: "playwright-core@npm:1.50.0"
   bin:
     playwright-core: cli.js
-  checksum: e7081ff0f43b4b9053255109eb1d82164b7c6b55c7d022e25fca935d0f4fc547cb2e02a7b64f0c2a9462729be7bb45edb082f8b038306415944f1061d00d9c90
+  checksum: aca5222d7859039bc579b4b860db57c8adc1cc94c3de990ed08cec911bf888e2decb331560bd456991c98222a55c58526187a2a070e6f101fbef43a8e07e1dea
   languageName: node
   linkType: hard
 
 "playwright@npm:^1.22.2":
-  version: 1.42.1
-  resolution: "playwright@npm:1.42.1"
+  version: 1.50.0
+  resolution: "playwright@npm:1.50.0"
   dependencies:
     fsevents: 2.3.2
-    playwright-core: 1.42.1
+    playwright-core: 1.50.0
   dependenciesMeta:
     fsevents:
       optional: true
   bin:
     playwright: cli.js
-  checksum: 06c16bcd07d03993126ee6c168bde28c59d3cab7f7d4721eaf57bd5c51e9c929e10a286758de062b5fc02874413ceae2684d14cbb7865c0a51fc8df6d9001ad1
+  checksum: 44004e3082433f6024665fcf04bd37cda2b284bd5262682a40a60c66943ccf66f68fbc9ca859908dfd0d117235424580a55e9ccd07e2ad9c30df363b6445448b
   languageName: node
   linkType: hard
 

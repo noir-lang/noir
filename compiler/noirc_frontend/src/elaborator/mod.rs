@@ -1841,16 +1841,16 @@ impl<'context> Elaborator<'context> {
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
-                let types = vecmap(&variant.item.parameters, |typ| self.resolve_type(typ.clone()));
+                let parameters = variant.item.parameters.as_ref();
+                let types =
+                    parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
                 let name = variant.item.name.clone();
 
-                // false here is for the eventual change to allow enum "constants" rather than
-                // always having them be called as functions. This can be replaced with an actual
-                // check once #7172 is implemented.
-                datatype.borrow_mut().push_variant(EnumVariant::new(name, types.clone(), false));
+                let is_function = types.is_some();
+                let params = types.clone().unwrap_or_default();
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, params, is_function));
 
-                // Define a function for each variant to construct it
-                self.define_enum_variant_function(
+                self.define_enum_variant_constructor(
                     &typ.enum_def,
                     *type_id,
                     &variant.item,

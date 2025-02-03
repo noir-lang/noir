@@ -228,8 +228,10 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
     Ok(builder
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
-        // .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
-        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
+        // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
+        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
+        //.run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
             |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),

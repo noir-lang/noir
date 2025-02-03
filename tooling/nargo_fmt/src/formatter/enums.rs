@@ -48,9 +48,9 @@ impl<'a> Formatter<'a> {
                 self.write_indentation();
                 self.write_identifier(variant.name);
 
-                if !variant.parameters.is_empty() {
+                if let Some(parameters) = variant.parameters {
                     self.write_token(Token::LeftParen);
-                    for (i, parameter) in variant.parameters.into_iter().enumerate() {
+                    for (i, parameter) in parameters.into_iter().enumerate() {
                         if i != 0 {
                             self.write_comma();
                             self.write_space();
@@ -118,6 +118,7 @@ mod tests {
   Variant  ( Field  ,  i32    )  ,
   // comment
  Another ( ),
+ Constant ,
         } }";
         let expected = "mod moo {
     enum Foo {
@@ -125,7 +126,8 @@ mod tests {
         /// comment
         Variant(Field, i32),
         // comment
-        Another,
+        Another(),
+        Constant,
     }
 }
 ";

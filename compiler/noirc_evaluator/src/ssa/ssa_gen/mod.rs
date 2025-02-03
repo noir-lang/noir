@@ -125,7 +125,8 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    Ok(function_context.builder.finish())
+    let ssa = function_context.builder.finish();
+    Ok(ssa)
 }
 
 impl<'a> FunctionContext<'a> {
