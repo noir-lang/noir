@@ -86,7 +86,14 @@ impl<'a> NodeFinder<'a> {
                 None,  // trait_id
                 false, // self_prefix
             ),
-            ModuleDefId::TypeId(struct_id) => vec![self.struct_completion_item(name, struct_id)],
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                if data_type.borrow().is_struct() {
+                    vec![self.struct_completion_item(name, type_id)]
+                } else {
+                    vec![self.enum_completion_item(name, type_id)]
+                }
+            }
             ModuleDefId::TypeAliasId(id) => vec![self.type_alias_completion_item(name, id)],
             ModuleDefId::TraitId(trait_id) => vec![self.trait_completion_item(name, trait_id)],
             ModuleDefId::GlobalId(global_id) => vec![self.global_completion_item(name, global_id)],
@@ -110,10 +117,16 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
     }
 
-    fn struct_completion_item(&self, name: String, struct_id: TypeId) -> CompletionItem {
+    fn struct_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
         let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Type(struct_id), completion_item)
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
+    }
+
+    fn enum_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
+        let completion_item =
+            simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
     }
 
     pub(super) fn struct_field_completion_item(

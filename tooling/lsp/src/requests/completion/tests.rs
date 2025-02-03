@@ -3140,4 +3140,21 @@ fn main() {
         };
         assert!(markdown.value.contains("Some docs"));
     }
+
+    #[test]
+    async fn test_suggests_enum_type() {
+        let src = r#"
+        enum ThisIsAnEnum {
+        }
+
+        fn foo() {
+            ThisIsA>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM));
+    }
 }
