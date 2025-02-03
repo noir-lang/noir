@@ -1,4 +1,5 @@
 use acvm::AcirField;
+use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
@@ -7,13 +8,13 @@ use crate::{
     hir::resolution::errors::ResolverError,
     hir_def::{
         expr::{
-            HirArrayLiteral, HirEnumConstructorExpression, HirExpression, HirIdent, HirLiteral,
-            HirMatchExpression,
+            HirArrayLiteral, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
+            HirIdent, HirLiteral, HirMatchExpression,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
-        stmt::HirPattern,
+        stmt::{HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     token::Attributes,
     DataType, Shared, Type,
 };
@@ -249,157 +250,303 @@ impl Elaborator<'_> {
         }))
     }
 
-    /// This is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
-    pub(super) fn elaborate_match_rules(
-        &mut self,
-        value_to_match: ExprId,
-        mut rules: MatchRules,
-    ) -> Result<HirExpression, ResolverError> {
-        self.push_tests_against_bare_variables(&mut rules);
-        let case = self.select_case(&rules)?;
-        self.generate_match_for_case(value_to_match, case, rules)
-    }
+    /// Compiles the rows of a match expression, outputting a decision tree for the match.
+    ///
+    /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
+    /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
+    fn elaborate_match_rows(&mut self, mut rows: Vec<Row>) -> Result<Decision, ResolverError> {
+        if rows.is_empty() {
+            return Err(todo!("missing case"));
+        }
 
-    pub(super) fn push_tests_against_bare_variables(&mut self, _rules: &mut MatchRules) {}
+        self.push_tests_against_bare_variables(&mut rows);
 
-    pub(super) fn select_case(&mut self, rules: &MatchRules) -> Result<usize, ResolverError> {
-        // Start by always selecting the first case.
-        // TODO: Use heuristic instead
-        match rules.first() {
-            Some((pattern, _)) => pattern.get_variant_index(self),
-            None => Ok(0),
+        // If the first row is a match-all we match it and the remaining rows are ignored.
+        if rows.first().map_or(false, |row| row.columns.is_empty()) {
+            let row = rows.remove(0);
+
+            return Ok(match row.guard {
+                None => Decision::Success(row.body),
+                Some(expr) => {
+                    let remaining = self.elaborate_match_rows(rows)?;
+                    Decision::Guard(expr, row.body, Box::new(remaining))
+                }
+            });
+        }
+
+        let branch_var = self.branch_variable(&rows);
+
+        match self.interner.definition_type(branch_var) {
+            Type::FieldElement | Type::Integer(_, _) => {
+                let (cases, fallback) = self.compile_int_cases(rows, branch_var);
+
+                Ok(Decision::Switch(branch_var, cases, Some(fallback)))
+            }
+
+            Type::Array(_, _) => todo!(),
+            Type::Slice(_) => todo!(),
+            Type::Bool => todo!(),
+            Type::String(_) => todo!(),
+            Type::FmtString(_, _) => todo!(),
+            Type::Unit => todo!(),
+            Type::Tuple(_) => todo!(),
+            Type::DataType(_, _) => todo!(),
+            Type::Alias(_, _) => todo!(),
+            Type::TypeVariable(_) => todo!(),
+            Type::TraitAsType(_, _, _) => todo!(),
+            Type::NamedGeneric(_, _) => todo!(),
+            Type::CheckedCast { from, to } => todo!(),
+            Type::Function(_, _, _, _) => todo!(),
+            Type::MutableReference(_) => todo!(),
+            Type::Forall(_, _) => todo!(),
+            Type::Constant(_, _) => todo!(),
+            Type::Quoted(_) => todo!(),
+            Type::InfixExpr(_, _, _, _) => todo!(),
+            Type::Error => todo!(),
         }
     }
 
-    /// Generate:
-    /// case a {
-    ///     C(a0, .., aN) -> <A>
-    ///     _             -> <B>
-    /// }
-    /// where:
-    ///   C == case == variant_index
-    ///   a0, .., aN = arguments to constructor C
-    ///   <A> = sub problem A
-    ///   <B> = sub problem B
-    pub(super) fn generate_match_for_case(
+    /// Compiles the cases and fallback cases for integer and range patterns.
+    ///
+    /// Integers have an infinite number of constructors, so we specialise the
+    /// compilation of integer and range patterns.
+    fn compile_int_cases(
         &mut self,
-        case: usize,
-        rules: MatchRules,
-    ) -> Result<(), ResolverError> {
-        let mut sub_problem_a = Vec::new();
-        let mut sub_problem_b = Vec::new();
+        rows: Vec<Row>,
+        branch_var: Variable,
+    ) -> (Vec<Case>, Box<Decision>) {
+        let mut raw_cases: Vec<(Constructor, Vec<Variable>, Vec<Row>)> = Vec::new();
+        let mut fallback_rows = Vec::new();
+        let mut tested: HashMap<(i64, i64), usize> = HashMap::new();
 
-        for (pattern, branch) in rules {
-            let pattern_expr = self.interner.expression(&pattern);
+        for mut row in rows {
+            if let Some(col) = row.remove_column(&branch_var) {
+                let (key, cons) = match col.pattern {
+                    Pattern::Int(val) => ((val, val), Constructor::Int(val)),
+                    Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
+                    _ => unreachable!(),
+                };
 
-            if pattern_expr.is_match_all() {
-                sub_problem_a.push((pattern, branch.clone()));
-                sub_problem_b.push((pattern, branch));
-            } else if pattern.get_variant_index(self)? == case {
-                sub_problem_a.push((pattern, branch));
+                if let Some(index) = tested.get(&key) {
+                    raw_cases[*index].2.push(row);
+                    continue;
+                }
+
+                tested.insert(key, raw_cases.len());
+
+                let mut rows = fallback_rows.clone();
+
+                rows.push(row);
+                raw_cases.push((cons, Vec::new(), rows));
             } else {
-                sub_problem_b.push((pattern, branch));
+                for (_, _, rows) in &mut raw_cases {
+                    rows.push(row.clone());
+                }
+
+                fallback_rows.push(row);
             }
         }
 
-        let rule_branch = self.elaborate_match_rules(value_to_match, sub_problem_a);
-        let default_branch = self.elaborate_match_rules(value_to_match, sub_problem_b);
+        let cases = raw_cases
+            .into_iter()
+            .map(|(cons, vars, rows)| Case::new(cons, vars, self.compile_rows(rows)))
+            .collect();
 
-        Ok(HirExpression::Match(HirMatchExpression {
-            value_to_match,
-            rule_tag: case,
-            rule_branch: default_branch,
-        }))
+        (cases, Box::new(self.compile_rows(fallback_rows)))
+    }
+
+    /// Compiles the cases and sub cases for the constructor located at the
+    /// column of the branching variable.
+    ///
+    /// What exactly this method does may be a bit hard to understand from the
+    /// code, as there's simply quite a bit going on. Roughly speaking, it does
+    /// the following:
+    ///
+    /// 1. It takes the column we're branching on (based on the branching
+    ///    variable) and removes it from every row.
+    /// 2. We add additional columns to this row, if the constructor takes any
+    ///    arguments (which we'll handle in a nested match).
+    /// 3. We turn the resulting list of rows into a list of cases, then compile
+    ///    those into decision (sub) trees.
+    ///
+    /// If a row didn't include the branching variable, we simply copy that row
+    /// into the list of rows for every constructor to test.
+    ///
+    /// For this to work, the `cases` variable must be prepared such that it has
+    /// a triple for every constructor we need to handle. For an ADT with 10
+    /// constructors, that means 10 triples. This is needed so this method can
+    /// assign the correct sub matches to these constructors.
+    ///
+    /// Types with infinite constructors (e.g. int and string) are handled
+    /// separately; they don't need most of this work anyway.
+    fn compile_constructor_cases(
+        &mut self,
+        rows: Vec<Row>,
+        branch_var: DefinitionId,
+        mut cases: Vec<(Pattern, Vec<DefinitionId>, Vec<Row>)>,
+    ) -> Vec<Case> {
+        for mut row in rows {
+            if let Some(col) = row.remove_column(branch_var) {
+                if let Pattern::Constructor(cons, args) = col.pattern {
+                    let idx = cons.variant_index();
+                    let mut cols = row.columns;
+
+                    for (var, pat) in cases[idx].1.iter().zip(args.into_iter()) {
+                        cols.push(Column::new(*var, pat));
+                    }
+
+                    cases[idx].2.push(Row::new(cols, row.guard, row.body));
+                }
+            } else {
+                for (_, _, rows) in &mut cases {
+                    rows.push(row.clone());
+                }
+            }
+        }
+
+        cases
+            .into_iter()
+            .map(|(cons, vars, rows)| Case::new(cons, vars, self.compile_rows(rows)))
+            .collect()
+    }
+
+    /// Return the variable that was referred to the most in `rows`
+    fn branch_variable(&mut self, rows: &[Row]) -> DefinitionId {
+        let mut counts = HashMap::default();
+
+        for row in rows {
+            for col in &row.columns {
+                *counts.entry(&col.variable_to_match).or_insert(0_usize) += 1
+            }
+        }
+
+        rows[0]
+            .columns
+            .iter()
+            .map(|col| col.variable_to_match)
+            .max_by_key(|var| counts[var])
+            .unwrap()
+    }
+
+    fn push_tests_against_bare_variables(&self, rows: &mut Vec<Row>) {
+        for row in rows {
+            row.columns.retain(|col| {
+                if let Pattern::Binding(variable) = col.pattern {
+                    row.body = self.let_binding(variable, col.variable_to_match, row.body);
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+    }
+
+    /// Creates:
+    /// `{ let <variable> = <rhs>; <body> }`
+    fn let_binding(&mut self, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -> ExprId {
+        let location = self.interner.definition(rhs).location;
+
+        let r#type = self.interner.definition_type(variable);
+        let variable = HirIdent::non_trait_method(variable, location);
+
+        // TODO: push locs and types
+        let rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), None);
+        let rhs = self.interner.push_expr(rhs);
+
+        let let_ = HirStatement::Let(HirLetStatement {
+            pattern: HirPattern::Identifier(variable),
+            r#type,
+            expression: rhs,
+            attributes: Vec::new(),
+            comptime: false,
+            is_global_let: false,
+        });
+
+        let let_ = self.interner.push_stmt(let_);
+        let body = self.interner.push_stmt(HirStatement::Expression(body));
+
+        let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
+        self.interner.push_expr(block)
     }
 }
 
 type MatchRules = Vec<(ExprId, Expression)>;
 
-impl HirExpression {
-    pub(crate) fn is_match_all(&self) -> bool {
-        matches!(self, HirExpression::Ident(_, _))
+/// Patterns are represented as resolved expressions currently.
+/// This type alias just makes code involving them more clear.
+enum Pattern {
+    /// A pattern such as `Some(42)`.
+    Constructor(Constructor, Vec<Pattern>),
+    Int(i64),
+    Binding(DefinitionId),
+    Or(Vec<Pattern>),
+    Range(i64, i64),
+}
+
+enum Constructor {
+    True,
+    False,
+    Int(i64),
+    Tuple(Vec<Type>),
+    Variant(TypeId, usize),
+    Range(i64, i64),
+}
+
+impl Constructor {
+    fn variant_index(&self) -> usize {
+        match self {
+            Constructor::False
+            | Constructor::Int(_)
+            | Constructor::Tuple(_)
+            | Constructor::Range(_, _) => 0,
+            Constructor::True => 1,
+            Constructor::Variant(_, index) => *index,
+        }
     }
 }
 
-impl ExprId {
-    pub(crate) fn get_variant_index(
-        &self,
-        elaborator: &mut Elaborator,
-    ) -> Result<usize, ResolverError> {
-        Ok(match elaborator.interner.expression(self) {
-            HirExpression::Ident(_, _) => 0, // unreachable?
-            HirExpression::Literal(literal) => match literal {
-                HirLiteral::Array(_) => 0,
+/// The RHS/branch of a `pattern -> branch` rule.
+type Body = ExprId;
 
-                // We're considering each slice length to be its own constuctor
-                // to let users match on different lengths of the slice.
-                HirLiteral::Slice(array) => match array {
-                    HirArrayLiteral::Standard(elems) => elems.len(),
-                    HirArrayLiteral::Repeated { length, .. } => {
-                        let span = elaborator.interner.expr_span(self);
-                        match length.evaluate_to_u32(span) {
-                            Ok(length) => length as usize,
-                            Err(error) => {
-                                elaborator.push_err(error);
-                                0
-                            }
-                        }
-                    }
-                },
-                HirLiteral::Bool(value) => value as usize,
-                HirLiteral::Integer(element, is_negative) => {
-                    // We can't represent all Field values unfortunately so we'll have to error
-                    // that we can't match on fields that are too big or small.
-                    // Currently this is arbitrarily any field that doesn't fit into a u32.
-                    if !is_negative {
-                        if let Some(Ok(value)) = element.try_to_u64().map(TryInto::try_into) {
-                            return Ok(value);
-                        }
-                    }
-                    let span = elaborator.interner.expr_span(self);
-                    return Err(ResolverError::IntegerPatternTooLarge { span });
-                }
-                HirLiteral::Unit => 0,
+struct Column {
+    variable_to_match: DefinitionId,
+    pattern: Pattern,
+}
 
-                // Str and FmtStr matching is a bit more difficult since we can't compare integers.
-                // In the future we could do it with a full Eq call but we'll just error for now.
-                HirLiteral::Str(_) | HirLiteral::FmtStr(..) => {
-                    let span = elaborator.interner.expr_span(self);
-                    return Err(ResolverError::CantMatchOnStrings { span });
-                }
-            },
+struct Row {
+    columns: Vec<Column>,
+    guard: Option<ExprId>,
+    body: ExprId,
+}
 
-            // These can resolve to enums, we'll need to check the metadata
-            HirExpression::Call(expr) => return expr.func.get_variant_index(elaborator),
-
-            // Enum constructors are usually represented by call expressions
-            // or globals. We'll only get this variant if we're looking at the
-            // value of a global enum or the body of an auto-generated enum
-            // constructor function.
-            HirExpression::EnumConstructor(expr) => expr.variant_index,
-
-            // Struct & tuple types only have 1 constructor
-            HirExpression::Tuple(_) => 0,
-            HirExpression::Constructor(_) => 0,
-
-            // None of these are valid pattern syntax
-            HirExpression::Block(_)
-            | HirExpression::Prefix(_)
-            | HirExpression::Infix(_)
-            | HirExpression::Index(_)
-            | HirExpression::MemberAccess(_)
-            | HirExpression::MethodCall(_)
-            | HirExpression::Cast(_)
-            | HirExpression::If(_)
-            | HirExpression::Lambda(_)
-            | HirExpression::Quote(_)
-            | HirExpression::Unquote(_)
-            | HirExpression::Comptime(_)
-            | HirExpression::Unsafe(_) => {
-                // TODO: error here
-                0
-            }
-            HirExpression::Error => 0,
-        })
+impl Row {
+    fn remove_column(&mut self, variable: DefinitionId) -> Option<Column> {
+        self.columns
+            .iter()
+            .position(|c| c.variable_to_match == variable)
+            .map(|idx| self.columns.remove(idx))
     }
+}
+
+struct Case {
+    constructor: Constructor,
+
+    arguments: Vec<DefinitionId>,
+
+    body: Decision,
+}
+
+enum Decision {
+    Success(Body),
+
+    Failure,
+
+    /// Run `Body` if the given expression is true.
+    /// Otherwise continue with the given decision tree.
+    Guard(ExprId, Body, Box<Decision>),
+
+    /// Switch on the given variable with the given cases to test.
+    /// The final argument is an optional match-all case to take if
+    /// none of the cases matched.
+    Switch(DefinitionId, Vec<Case>, Option<Box<Decision>>),
 }
