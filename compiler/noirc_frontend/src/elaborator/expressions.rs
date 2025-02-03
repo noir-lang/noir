@@ -37,9 +37,17 @@ use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
 impl<'context> Elaborator<'context> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
+        self.elaborate_expression_with_target_type(expr, None)
+    }
+
+    pub(crate) fn elaborate_expression_with_target_type(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
-            ExpressionKind::Block(block) => self.elaborate_block(block),
+            ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
             ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
@@ -54,8 +62,18 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
-            ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda, None),
-            ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
+            ExpressionKind::Lambda(lambda) => {
+                let parameter_type_hints = if let Some(Type::Function(args, _, _, _)) = target_type
+                {
+                    Some(args)
+                } else {
+                    None
+                };
+                self.elaborate_lambda(*lambda, parameter_type_hints)
+            }
+            ExpressionKind::Parenthesized(expr) => {
+                return self.elaborate_expression_with_target_type(*expr, target_type)
+            }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.span),
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.span)
@@ -112,18 +130,33 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
-        let (block, typ) = self.elaborate_block_expression(block);
+    pub(super) fn elaborate_block(
+        &mut self,
+        block: BlockExpression,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
+        let (block, typ) = self.elaborate_block_expression_with_target_type(block, target_type);
         (HirExpression::Block(block), typ)
     }
 
     fn elaborate_block_expression(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
+        self.elaborate_block_expression_with_target_type(block, None)
+    }
+
+    fn elaborate_block_expression_with_target_type(
+        &mut self,
+        block: BlockExpression,
+        target_type: Option<&Type>,
+    ) -> (HirBlockExpression, Type) {
         self.push_scope();
         let mut block_type = Type::Unit;
         let mut statements = Vec::with_capacity(block.statements.len());
+        let one_statement = block.statements.len() == 1;
 
         for (i, statement) in block.statements.into_iter().enumerate() {
-            let (id, stmt_type) = self.elaborate_statement(statement);
+            let statement_target_type = if one_statement { target_type } else { None };
+            let (id, stmt_type) =
+                self.elaborate_statement_with_target_type(statement, statement_target_type);
             statements.push(id);
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {

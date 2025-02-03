@@ -4054,6 +4054,23 @@ fn infers_lambda_argument_from_call_function_type_in_generic_call() {
 }
 
 #[test]
+fn infers_lambda_argument_from_function_return_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        |foo| foo.value
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn regression_7088() {
     // A test for code that initially broke when implementing inferring
     // lambda parameter types from the function type related to the call
