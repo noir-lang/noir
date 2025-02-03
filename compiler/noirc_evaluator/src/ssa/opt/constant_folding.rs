@@ -726,6 +726,7 @@ impl<'brillig> Context<'brillig> {
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         if let Store { value: array, .. } | ArraySet { array, .. } = instruction {
             if function.dfg.is_global(*array) {
+                // Early return as we expect globals to be immutable.
                 return;
             };
 
