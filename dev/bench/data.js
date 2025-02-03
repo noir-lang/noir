@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738607327770,
+  "lastUpdate": 1738607337017,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5068,100 +5068,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b00facbbf9f9ec2b4d8887155770c6b288a7bb60",
-          "message": "fix(ssa): Use post order when mapping instructions in loop invariant pass (#7140)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-01-22T11:49:33Z",
-          "tree_id": "91c0af82e08eb3d5dacb550354ed461744d8d380",
-          "url": "https://github.com/noir-lang/noir/commit/b00facbbf9f9ec2b4d8887155770c6b288a7bb60"
-        },
-        "date": 1737547663752,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.969,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.832,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 18.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.114,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 82.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.05,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 86.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.616,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 25.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.44,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.232,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.054,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -9871,6 +9777,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 1.982,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b6c382104714c8369124d2b064f5c1e83c93b71",
+          "message": "chore: early check type equality in try_unify (#7263)",
+          "timestamp": "2025-02-03T18:07:07Z",
+          "tree_id": "7c4da3ba9885fe093c607042e6d860d1b9ddf4d7",
+          "url": "https://github.com/noir-lang/noir/commit/0b6c382104714c8369124d2b064f5c1e83c93b71"
+        },
+        "date": 1738607336154,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.981,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.84,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.614,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.054,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 68.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 73.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.524,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 27.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.786,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.66,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.1,
             "unit": "s"
           }
         ]
