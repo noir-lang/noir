@@ -124,7 +124,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn enum_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
-        let completion_item =
+        let mut completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
         self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
     }
@@ -166,7 +166,7 @@ impl<'a> NodeFinder<'a> {
         self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
     }
 
-    pub(super) fn enum_member_completion_item(
+    pub(super) fn enum_variant_completion_item(
         &self,
         name: String,
         type_id: TypeId,

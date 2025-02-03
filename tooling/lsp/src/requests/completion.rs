@@ -809,8 +809,11 @@ impl<'a> NodeFinder<'a> {
             }
 
             if !variant.is_function {
-                let item =
-                    self.enum_member_completion_item(variant.name.to_string(), data_type.id, index);
+                let item = self.enum_variant_completion_item(
+                    variant.name.to_string(),
+                    data_type.id,
+                    index,
+                );
                 self.completion_items.push(item);
             }
         }
