@@ -63,13 +63,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => {
-                let parameter_type_hints = if let Some(Type::Function(args, _, _, _)) = target_type
-                {
-                    Some(args)
-                } else {
-                    None
-                };
-                self.elaborate_lambda(*lambda, parameter_type_hints)
+                self.elaborate_lambda_with_target_type(*lambda, target_type)
             }
             ExpressionKind::Parenthesized(expr) => {
                 return self.elaborate_expression_with_target_type(*expr, target_type)
@@ -605,7 +599,7 @@ impl<'context> Elaborator<'context> {
         let span = arg.span;
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
-        let (hir_expr, typ) = self.elaborate_lambda(*lambda, type_hint);
+        let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, span, self.file);
         self.interner.push_expr_type(id, typ.clone());
@@ -977,10 +971,28 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
     }
 
+    fn elaborate_lambda_with_target_type(
+        &mut self,
+        lambda: Lambda,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
+        if let Some(Type::Alias(type_alias, generics)) = target_type {
+            if let Type::Function(args, _, _, _) = type_alias.borrow().get_type(generics) {
+                return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+            }
+        }
+
+        if let Some(Type::Function(args, _, _, _)) = target_type {
+            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(args));
+        }
+
+        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
+    }
+
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
     /// call that has this lambda as the argument.
     /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
-    fn elaborate_lambda(
+    fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
