@@ -158,7 +158,7 @@
 
 ### Bug Fixes
 
-* Allow range checks to be performed within the comptime intepreter ([#6514](https://github.com/noir-lang/noir/issues/6514)) ([852c87a](https://github.com/noir-lang/noir/commit/852c87ae9ecdd441ee4c2ab3e78e86b2da07d8a4))
+* Allow range checks to be performed within the comptime interpreter ([#6514](https://github.com/noir-lang/noir/issues/6514)) ([852c87a](https://github.com/noir-lang/noir/commit/852c87ae9ecdd441ee4c2ab3e78e86b2da07d8a4))
 * Disallow `#[test]` on associated functions ([#6449](https://github.com/noir-lang/noir/issues/6449)) ([35408ab](https://github.com/noir-lang/noir/commit/35408ab303f1018c1e2c38e6ea55430a2c89dc4c))
 * Do a shallow follow_bindings before unification ([#6558](https://github.com/noir-lang/noir/issues/6558)) ([32a9ed9](https://github.com/noir-lang/noir/commit/32a9ed9ad19cf81275c31ca77e4970bc1598c112))
 * **docs:** Fix broken links in oracles doc ([#6488](https://github.com/noir-lang/noir/issues/6488)) ([aa37cd5](https://github.com/noir-lang/noir/commit/aa37cd5be25412919f466a938260ae1a485ee096))
@@ -1389,7 +1389,7 @@
 * Apply trait constraints from method calls ([#4152](https://github.com/noir-lang/noir/issues/4152)) ([68c5486](https://github.com/noir-lang/noir/commit/68c5486fda5a32eef74dd5b83b51024c1b3ab40c))
 * Better errors for missing `fn` keyword ([#4154](https://github.com/noir-lang/noir/issues/4154)) ([057c208](https://github.com/noir-lang/noir/commit/057c2083a61bdad7dfcdc8c3f39769b41ae6926e))
 * Check for tests in all packages before failing due to an unsatisfied test filter ([#4114](https://github.com/noir-lang/noir/issues/4114)) ([1107373](https://github.com/noir-lang/noir/commit/1107373bbbb9a8ca088dd6ac43131392cb2f33e1))
-* Clean error when attemping to return a slice from Brillig to ACIR ([#4280](https://github.com/noir-lang/noir/issues/4280)) ([bcad4ec](https://github.com/noir-lang/noir/commit/bcad4ec5cc3e3f606e5bf673c7e367f1b63b20a2))
+* Clean error when attempting to return a slice from Brillig to ACIR ([#4280](https://github.com/noir-lang/noir/issues/4280)) ([bcad4ec](https://github.com/noir-lang/noir/commit/bcad4ec5cc3e3f606e5bf673c7e367f1b63b20a2))
 * Correct result when assigning shared arrays in unconstrained code ([#4210](https://github.com/noir-lang/noir/issues/4210)) ([bdd8a96](https://github.com/noir-lang/noir/commit/bdd8a96fb8364edcab4db06804e4949bacf18bf4))
 * **docs:** Codegen docs before cutting a new version ([#4183](https://github.com/noir-lang/noir/issues/4183)) ([2914310](https://github.com/noir-lang/noir/commit/29143104fa907b446d534ac204069572cdc6f2f9))
 * Ensure that destination register is allocated when moving between registers in brillig gen ([#4316](https://github.com/noir-lang/noir/issues/4316)) ([ca0a56e](https://github.com/noir-lang/noir/commit/ca0a56ee6bd07af8a3af5317d487ac94847115fc))
@@ -1777,7 +1777,7 @@
 * Fix should_fail_with ([#2940](https://github.com/noir-lang/noir/issues/2940)) ([4f07b84](https://github.com/noir-lang/noir/commit/4f07b84458dba97530d8179a3b9b19101b472616))
 * Fix subtract with underflow in flattening pass ([#2796](https://github.com/noir-lang/noir/issues/2796)) ([f2ed505](https://github.com/noir-lang/noir/commit/f2ed5054b0b0335dd3ecb17369b0d2e6eafb1171))
 * Fixing versioning workflow ([#3296](https://github.com/noir-lang/noir/issues/3296)) ([3d5e43a](https://github.com/noir-lang/noir/commit/3d5e43a4b8cd9d2bb67d44a2eff93374c3603e42))
-* Flatten public inputs according to their index in numerial rather than ascii order ([#3605](https://github.com/noir-lang/noir/issues/3605)) ([a1f6343](https://github.com/noir-lang/noir/commit/a1f6343b7df1b166b1be4db09527694a3df2738a))
+* Flatten public inputs according to their index in numeral, numerical rather than ascii order ([#3605](https://github.com/noir-lang/noir/issues/3605)) ([a1f6343](https://github.com/noir-lang/noir/commit/a1f6343b7df1b166b1be4db09527694a3df2738a))
 * Follow dependencies when looking for a struct ([#3405](https://github.com/noir-lang/noir/issues/3405)) ([561b1b8](https://github.com/noir-lang/noir/commit/561b1b8f0b22d8b1800cb3552942a442a27c2a2c))
 * Force recompilation when `output_debug` flag is set. ([#2898](https://github.com/noir-lang/noir/issues/2898)) ([9854416](https://github.com/noir-lang/noir/commit/9854416f5ac03c9da6538edc6a0a540ccccb4b61))
 * **frontend:** Error on unsupported integer annotation ([#2778](https://github.com/noir-lang/noir/issues/2778)) ([90c3d8b](https://github.com/noir-lang/noir/commit/90c3d8baa3b7ae10bc99f6a767121f556ff75967))
@@ -1848,7 +1848,7 @@
 * Corrected the formatting of error message parameters in index out of bounds error ([#3630](https://github.com/noir-lang/noir/issues/3630)) ([3bba386](https://github.com/noir-lang/noir/commit/3bba3862dc8703410681300be894bfd1ebca7336))
 * Do not simply divisions ([#3664](https://github.com/noir-lang/noir/issues/3664)) ([e5b981b](https://github.com/noir-lang/noir/commit/e5b981b08c2b345f00426acafe47b76d5262254d))
 * Docker builds ([#3620](https://github.com/noir-lang/noir/issues/3620)) ([f3eac52](https://github.com/noir-lang/noir/commit/f3eac5282860c1954ea2cee6a21633df5b1865fd))
-* Flatten public inputs according to their index in numerial rather than ascii order ([#3605](https://github.com/noir-lang/noir/issues/3605)) ([a1f6343](https://github.com/noir-lang/noir/commit/a1f6343b7df1b166b1be4db09527694a3df2738a))
+* Flatten public inputs according to their index in numeral, numerical rather than ascii order ([#3605](https://github.com/noir-lang/noir/issues/3605)) ([a1f6343](https://github.com/noir-lang/noir/commit/a1f6343b7df1b166b1be4db09527694a3df2738a))
 * Restrict fill_internal_slices pass to acir functions ([#3634](https://github.com/noir-lang/noir/issues/3634)) ([0cad9aa](https://github.com/noir-lang/noir/commit/0cad9aa9c19091b3679bdc6e7fe044194c5db7e0))
 
 ## [0.19.4](https://github.com/noir-lang/noir/compare/v0.19.3...v0.19.4) (2023-11-28)
