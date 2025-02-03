@@ -405,7 +405,8 @@ impl Value {
                 })
             }
             Value::Enum(variant_index, args, typ) => {
-                let r#type = match typ.follow_bindings() {
+                // Enum constants can have generic types but aren't functions
+                let r#type = match typ.unwrap_forall().1.follow_bindings() {
                     Type::DataType(def, _) => def,
                     _ => return Err(InterpreterError::NonEnumInConstructor { typ, location }),
                 };

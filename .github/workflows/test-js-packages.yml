@@ -16,7 +16,7 @@ jobs:
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -492,7 +492,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1.2.0
         with:
           version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
-          
+
 
       - name: Install `bb`
         run: |
@@ -530,10 +530,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-   
+
       - name: Build list of libraries
         id: get_critical_libraries
-        run: |         
+        run: |
           LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: ""})')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
@@ -593,7 +593,7 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           sed -i '/^compiler_version/d' ./**/Nargo.toml
-      
+
       - name: Run nargo test
         id: test_report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -630,6 +630,43 @@ jobs:
           path: ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json
           retention-days: 3
           overwrite: true
+
+  compile-noir-contracts:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    name: Compile `noir-contracts` zero inliner aggressiveness
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: AztecProtocol/aztec-packages
+          path: test-repo
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo compile
+        working-directory: ./test-repo/noir-projects/noir-contracts
+        run: nargo compile --inliner-aggressiveness 0 
 
   upload_critical_library_report:
     name: Upload critical library report 
@@ -695,6 +732,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
+      - compile-noir-contracts
 
     steps:
         - name: Report overall success
