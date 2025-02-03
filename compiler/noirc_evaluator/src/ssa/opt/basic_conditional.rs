@@ -9,7 +9,6 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
-        dom::DominatorTree,
         function::{Function, FunctionId, RuntimeType},
         instruction::{BinaryOp, Instruction, TerminatorInstruction},
         post_order::PostOrder,
@@ -268,15 +267,18 @@ impl<'f> Context<'f> {
         }
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
-        let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let cfg_root = function.entry_block();
         let mut context = Context::new(function, cfg, branch_ends, cfg_root);
         context.no_predicate = true;
         for conditional in conditionals {
             context.flatten_single_conditional(conditional, no_predicates);
         }
-        // 2. re-map the full program for values that have been simplified.
-        context.map_cfg(cfg_root, &mut dominator_tree);
+        // 2. re-map the full program for values that may been simplified.
+        if !conditionals.is_empty() {
+            for block in post_order.as_slice() {
+                context.map_block(*block);
+            }
+        }
     }
 
     fn flatten_single_conditional(
@@ -362,27 +364,5 @@ impl<'f> Context<'f> {
             self.inserter.map_instruction_in_place(instruction);
         }
         self.inserter.map_terminator_in_place(block);
-    }
-
-    fn map_cfg(&mut self, entry_block: BasicBlockId, dom: &mut DominatorTree) {
-        // we need to map all the subsequent blocks in case some instructions are using the ones
-        // that have been optimized
-        // Note that this is not efficient because flattening several blocks in the same function
-        // will lead to mapping the blocks at the end several times, while it can be done only once
-        // for all blocks flattening.
-        let mut next_blocks = VecDeque::new();
-        next_blocks.push_back(entry_block);
-        while let Some(block) = next_blocks.pop_back() {
-            self.map_block(block);
-            let successors = self.inserter.function.dfg[block].successors();
-            for successor in successors {
-                // The function does not process the CFG from the root but from 'any' block (given as input),
-                // so we avoid looping backward instead of checking for already visited blocks
-                if !dom.dominates(successor, block) {
-                    // 'push front' ensures a block is mapped after his predecessors are also mapped
-                    next_blocks.push_front(successor);
-                }
-            }
-        }
     }
 }
