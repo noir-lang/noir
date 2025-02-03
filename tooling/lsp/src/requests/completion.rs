@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{self, Future},
+    ops::Deref,
 };
 
 use async_lsp::ResponseError;
@@ -1915,7 +1916,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
 }
 
 fn get_type_type_id(typ: &Type) -> Option<TypeId> {
-    match typ {
+    match typ.follow_bindings_shallow().deref() {
         Type::DataType(struct_type, _) => Some(struct_type.borrow().id),
         Type::Alias(type_alias, generics) => {
             let type_alias = type_alias.borrow();
