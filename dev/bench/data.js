@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738596282020,
+  "lastUpdate": 1738596283683,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14192,95 +14192,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f73dc9a0830b8484684b2ce1bc7fdde938cf537b",
-          "message": "fix: preserve types when reading from calldata arrays (#7144)",
-          "timestamp": "2025-01-22T11:47:04Z",
-          "tree_id": "85d1ce7f7ee58e8a6c40e437fb546e59d6b46333",
-          "url": "https://github.com/noir-lang/noir/commit/f73dc9a0830b8484684b2ce1bc7fdde938cf537b"
-        },
-        "date": 1737547654224,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.69,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.87,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.98,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 730.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 591.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 208,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -18680,6 +18591,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "workspace",
             "value": 124.39,
+            "unit": "MB"
+          },
+          {
+            "name": "regression_4709",
+            "value": 316.25,
+            "unit": "MB"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 512.78,
+            "unit": "MB"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 383.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 213.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fc7529850bf76df5e771f6d7b95bbcf8702eb570",
+          "message": "feat(LSP): suggest enum variants without parameters (#7261)",
+          "timestamp": "2025-02-03T15:01:48Z",
+          "tree_id": "028cc60b844a68a1d6a3b3a615c278a900958ea0",
+          "url": "https://github.com/noir-lang/noir/commit/fc7529850bf76df5e771f6d7b95bbcf8702eb570"
+        },
+        "date": 1738596282724,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "keccak256",
+            "value": 75.01,
+            "unit": "MB"
+          },
+          {
+            "name": "workspace",
+            "value": 124.19,
             "unit": "MB"
           },
           {
