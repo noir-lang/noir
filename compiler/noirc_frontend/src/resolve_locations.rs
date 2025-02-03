@@ -155,7 +155,7 @@ impl NodeInterner {
         };
 
         let struct_type = lhs_self_struct.borrow();
-        let field_names = struct_type.field_names();
+        let field_names = struct_type.field_names()?;
 
         field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
             Location::new(found_field_name.span(), struct_type.location.file)

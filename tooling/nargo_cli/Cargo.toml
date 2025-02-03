@@ -43,6 +43,7 @@ noirc_frontend = { workspace = true, features = ["bn254"] }
 noirc_abi.workspace = true
 noirc_errors.workspace = true
 noirc_artifacts.workspace = true
+noirc_artifacts_info.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true

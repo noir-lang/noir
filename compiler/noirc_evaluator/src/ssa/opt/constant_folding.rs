@@ -119,7 +119,9 @@ impl Ssa {
                     let func_value = &function.dfg[*func_id];
                     let Value::Function(func_id) = func_value else { continue };
 
-                    brillig_functions.remove(func_id);
+                    if function.runtime().is_acir() {
+                        brillig_functions.remove(func_id);
+                    }
                 }
             }
         }
@@ -336,17 +338,22 @@ impl<'brillig> Context<'brillig> {
         };
 
         // First try to inline a call to a brillig function with all constant arguments.
-        let new_results = Self::try_inline_brillig_call_with_all_constants(
-            &instruction,
-            &old_results,
-            block,
-            dfg,
-            self.brillig_info,
-        )
-        // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-        .unwrap_or_else(|| {
+        let new_results = if runtime_is_brillig {
             Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
-        });
+        } else {
+            // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
+            Self::try_inline_brillig_call_with_all_constants(
+                &instruction,
+                &old_results,
+                block,
+                dfg,
+                self.brillig_info,
+            )
+            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+            .unwrap_or_else(|| {
+                Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+            })
+        };
 
         Self::replace_result_ids(dfg, &old_results, &new_results);
 
@@ -404,7 +411,7 @@ impl<'brillig> Context<'brillig> {
         instruction.map_values_mut(|value_id| {
             resolve_cache(block, dfg, dom, constraint_simplification_mapping, value_id)
         });
-        instruction
+        instruction.map_values(|v| dfg.resolve(v))
     }
 
     /// Pushes a new [`Instruction`] into the [`DataFlowGraph`] which applies any optimizations
@@ -764,6 +771,7 @@ impl ResultCache {
     }
 }
 
+#[derive(Debug)]
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId),
@@ -1485,6 +1493,82 @@ mod test {
     }
 
     #[test]
+    fn inlines_brillig_call_with_entry_point_globals() {
+        let src = "
+        g0 = Field 2
+
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+
+        brillig(inline) fn one f1 {
+          b0():
+            v1 = add g0, Field 3
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.dead_instruction_elimination();
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+
+        let expected = "
+        g0 = Field 2
+
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        ";
+
+        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn inlines_brillig_call_with_non_entry_point_globals() {
+        let src = "
+        g0 = Field 2
+
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+
+        brillig(inline) fn entry_point f1 {
+          b0():
+            v1 = call f2() -> Field
+            return v1
+        }
+
+        brillig(inline) fn one f2 {
+          b0():
+            v1 = add g0, Field 3
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut ssa = ssa.dead_instruction_elimination();
+        let used_globals_map = std::mem::take(&mut ssa.used_globals);
+        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+
+        let expected = "
+        g0 = Field 2
+
+        acir(inline) fn main f0 {
+          b0():
+            return Field 5
+        }
+        ";
+
+        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
     fn does_not_use_cached_constrain_in_block_that_is_not_dominated() {
         let src = "
             brillig(inline) fn main f0 {
@@ -1633,6 +1717,41 @@ mod test {
         }
         ";
         let ssa = ssa.fold_constants_using_constraints();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn pure_call_is_deduplicated() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            constrain v1 == Field 0
+            constrain v2 == Field 0
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+
+        let expected = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            constrain v2 == Field 0
+            return
+        }
+        acir(inline) pure fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis().fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, expected);
     }
 }

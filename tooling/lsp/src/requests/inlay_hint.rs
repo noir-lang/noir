@@ -109,8 +109,7 @@ impl<'a> InlayHintCollector<'a> {
                         self.push_type_hint(lsp_location, &variant_type, false, include_colon);
                     }
                     ReferenceId::Module(_)
-                    | ReferenceId::Struct(_)
-                    | ReferenceId::Enum(_)
+                    | ReferenceId::Type(_)
                     | ReferenceId::Trait(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
@@ -173,6 +172,11 @@ impl<'a> InlayHintCollector<'a> {
         let referenced = self.interner.find_referenced(Location::new(at, self.file_id));
         if let Some(ReferenceId::Function(func_id)) = referenced {
             let func_meta = self.interner.function_meta(&func_id);
+
+            // No hints for enum variants
+            if func_meta.enum_variant_index.is_some() {
+                return;
+            }
 
             let mut parameters = func_meta.parameters.iter().peekable();
             let mut parameters_count = func_meta.parameters.len();
@@ -586,6 +590,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::InternedStatement(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
+        | ExpressionKind::Match(_)
         | ExpressionKind::Error => None,
     }
 }

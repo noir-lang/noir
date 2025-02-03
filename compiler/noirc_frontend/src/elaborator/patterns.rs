@@ -192,7 +192,11 @@ impl<'context> Elaborator<'context> {
         };
 
         let (struct_type, generics) = match self.lookup_type_or_error(name) {
-            Some(Type::DataType(struct_type, struct_generics)) => (struct_type, struct_generics),
+            Some(Type::DataType(struct_type, struct_generics))
+                if struct_type.borrow().is_struct() =>
+            {
+                (struct_type, struct_generics)
+            }
             None => return error_identifier(self),
             Some(typ) => {
                 let typ = typ.to_string();
@@ -234,7 +238,7 @@ impl<'context> Elaborator<'context> {
         let struct_id = struct_type.borrow().id;
 
         let reference_location = Location::new(name_span, self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
             let reference_location = Location::new(field.0.span(), self.file);
@@ -260,7 +264,10 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let mut unseen_fields = struct_type.borrow().field_names();
+        let mut unseen_fields = struct_type
+            .borrow()
+            .field_names()
+            .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
             let (field_type, visibility) = expected_type

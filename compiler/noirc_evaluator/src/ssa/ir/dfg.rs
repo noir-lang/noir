@@ -1,6 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
+use crate::ssa::{
+    function_builder::data_bus::DataBus,
+    ir::instruction::SimplifyResult,
+    opt::pure::{FunctionPurities, Purity},
+};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -104,6 +108,9 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 
     pub(crate) globals: Arc<GlobalsGraph>,
+
+    #[serde(skip)]
+    pub(crate) function_purities: Arc<FunctionPurities>,
 }
 
 /// The GlobalsGraph contains the actual global data.
@@ -254,17 +261,18 @@ impl DataFlowGraph {
 
     pub(crate) fn insert_instruction_and_results_without_simplification(
         &mut self,
-        instruction_data: Instruction,
+        instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        if !self.is_handled_by_runtime(&instruction_data) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
+        if !self.is_handled_by_runtime(&instruction) {
+            // Panicking to raise attention. If we're not supposed to simplify it immediately,
+            // pushing the instruction would just cause a potential panic later on.
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
-
         let id = self.insert_instruction_without_simplification(
-            instruction_data,
+            instruction,
             block,
             ctrl_typevars,
             call_stack,
@@ -301,7 +309,10 @@ impl DataFlowGraph {
         existing_id: Option<InstructionId>,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            // BUG: With panicking it fails to build the `token_contract`; see:
+            // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102
+            // panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            return InsertInstructionResult::InstructionRemoved;
         }
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
@@ -424,7 +435,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function(function))
+        let result = self.values.insert(Value::Function(function));
+        self.functions.insert(function, result);
+        result
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -432,7 +445,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
+        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        self.foreign_functions.insert(function.to_owned(), result);
+        result
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
@@ -752,6 +767,14 @@ impl DataFlowGraph {
             }
             _ => None,
         }
+    }
+
+    pub(crate) fn set_function_purities(&mut self, purities: Arc<FunctionPurities>) {
+        self.function_purities = purities;
+    }
+
+    pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
+        self.function_purities.get(&function).copied()
     }
 }
 

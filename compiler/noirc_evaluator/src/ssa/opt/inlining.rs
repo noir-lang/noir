@@ -184,7 +184,7 @@ struct PerFunctionContext<'function> {
 /// Utility function to find out the direct calls of a function.
 ///
 /// Returns the function IDs from all `Call` instructions without deduplication.
-fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
+pub(crate) fn called_functions_vec(func: &Function) -> Vec<FunctionId> {
     let mut called_function_ids = Vec::new();
     for block_id in func.reachable_blocks() {
         for instruction_id in func.dfg[block_id].instructions() {
@@ -575,10 +575,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa, entry_point: FunctionId) -> Self {
         let source = &ssa.functions[&entry_point];
-        let mut builder = FunctionBuilder::new(source.name().to_owned(), entry_point);
-        builder.set_runtime(source.runtime());
-        builder.current_function.set_globals(source.dfg.globals.clone());
-
+        let builder = FunctionBuilder::from_existing(source, entry_point);
         Self { builder, recursion_level: 0, entry_point, call_stack: CallStackId::root() }
     }
 

@@ -32,9 +32,7 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_le_bits)]
-    // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_le_bits
+    fn _to_le_bits<let N: u32>(self: Self) -> [u1; N] {}
 
     /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
@@ -48,9 +46,71 @@ impl Field {
     /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
     /// wrap around due to overflow when verifying the decomposition.
     #[builtin(to_be_bits)]
+    fn _to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
+
+    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+    /// This slice will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
+    // docs:start:to_le_bits
+    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+        // docs:end:to_le_bits
+        let bits = self._to_le_bits();
+
+        if !is_unconstrained() {
+            // Ensure that the byte decomposition does not overflow the modulus
+            let p = modulus_le_bits();
+            assert(bits.len() <= p.len());
+            let mut ok = bits.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bits[N - 1 - i] != p[N - 1 - i]) {
+                        assert(p[N - 1 - i] == 1);
+                        ok = true;
+                    }
+                }
+            }
+            assert(ok);
+        }
+        bits
+    }
+
+    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+    /// This array will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// # Failures
+    /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting slice will not
+    /// be able to represent the original `Field`.
+    ///
+    /// # Safety
+    /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {}
-    // docs:end:to_be_bits
+    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+        // docs:end:to_be_bits
+        let bits = self._to_be_bits();
+
+        if !is_unconstrained() {
+            // Ensure that the decomposition does not overflow the modulus
+            let p = modulus_be_bits();
+            assert(bits.len() <= p.len());
+            let mut ok = bits.len() != p.len();
+            for i in 0..N {
+                if !ok {
+                    if (bits[i] != p[i]) {
+                        assert(p[i] == 1);
+                        ok = true;
+                    }
+                }
+            }
+            assert(ok);
+        }
+        bits
+    }
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
@@ -324,9 +384,15 @@ mod tests {
     #[test]
     // docs:start:to_be_radix_example
     fn test_to_be_radix() {
-        let field = 2;
+        // 259, in base 256, big endian, is [1, 3].
+        // i.e. 3 * 256^0 + 1 * 256^1
+        let field = 259;
+
+        // The radix (in this example, 256) must be a power of 2.
+        // The length of the returned byte array can be specified to be
+        // >= the amount of space needed.
         let bytes: [u8; 8] = field.to_be_radix(256);
-        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 0, 2]);
+        assert_eq(bytes, [0, 0, 0, 0, 0, 0, 1, 3]);
         assert_eq(Field::from_be_bytes::<8>(bytes), field);
     }
     // docs:end:to_be_radix_example
@@ -334,9 +400,15 @@ mod tests {
     #[test]
     // docs:start:to_le_radix_example
     fn test_to_le_radix() {
-        let field = 2;
+        // 259, in base 256, little endian, is [3, 1].
+        // i.e. 3 * 256^0 + 1 * 256^1
+        let field = 259;
+
+        // The radix (in this example, 256) must be a power of 2.
+        // The length of the returned byte array can be specified to be
+        // >= the amount of space needed.
         let bytes: [u8; 8] = field.to_le_radix(256);
-        assert_eq(bytes, [2, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq(bytes, [3, 1, 0, 0, 0, 0, 0, 0]);
         assert_eq(Field::from_le_bytes::<8>(bytes), field);
     }
     // docs:end:to_le_radix_example
@@ -352,17 +424,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_to_le_radix_brillig_1() {
-        // this test should only fail in constrained mode
-        if runtime::is_unconstrained() {
-            let field = 1;
-            let out: [u8; 8] = field.to_le_radix(1);
-            crate::println(out);
-            let expected = [0; 8];
-            assert(out == expected, "unexpected result");
-        }
-    }
+    // TODO: Update this test to account for the Brillig restriction that the radix must be greater than 2
+    //#[test]
+    //fn test_to_le_radix_brillig_1() {
+    //    // this test should only fail in constrained mode
+    //    if runtime::is_unconstrained() {
+    //        let field = 1;
+    //        let out: [u8; 8] = field.to_le_radix(1);
+    //        crate::println(out);
+    //        let expected = [0; 8];
+    //        assert(out == expected, "unexpected result");
+    //    }
+    //}
 
     #[test(should_fail_with = "radix must be a power of 2")]
     fn test_to_le_radix_3() {
@@ -398,17 +471,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_to_le_radix_brillig_512() {
-        // this test should only fail in constrained mode
-        if runtime::is_unconstrained() {
-            let field = 1;
-            let out: [u8; 8] = field.to_le_radix(512);
-            let mut expected = [0; 8];
-            expected[0] = 1;
-            assert(out == expected, "unexpected result");
-        }
-    }
+    // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
+    //#[test]
+    //fn test_to_le_radix_brillig_512() {
+    //    // this test should only fail in constrained mode
+    //    if runtime::is_unconstrained() {
+    //        let field = 1;
+    //        let out: [u8; 8] = field.to_le_radix(512);
+    //        let mut expected = [0; 8];
+    //        expected[0] = 1;
+    //        assert(out == expected, "unexpected result");
+    //    }
+    //}
 
     #[test]
     unconstrained fn test_field_less_than() {
