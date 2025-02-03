@@ -249,38 +249,44 @@ fn flatten_function(function: &mut Function, no_predicates: &mut FxHashMap<Funct
     }
 
     // 2. Flatten all simple conditionals
-    // process in reverse order because the process of a conditional does not impact the previous ones
+    // process basic conditional in reverse order so that a conditional
+    // does not impact the previous ones
     conditionals.reverse();
-    for simple_if in conditionals {
-        Context::flatten_single(&simple_if, function, no_predicates);
-    }
+    Context::flatten_multiple(&conditionals, function, no_predicates);
 }
 
 impl<'f> Context<'f> {
-    fn flatten_single(
-        conditional: &BasicConditional,
+    fn flatten_multiple(
+        conditionals: &Vec<BasicConditional>,
         function: &mut Function,
         no_predicates: &mut FxHashMap<FunctionId, bool>,
     ) {
+        // 1. process each basic conditional
         let mut branch_ends = FxHashMap::default();
-        branch_ends.insert(conditional.block_entry, conditional.block_exit);
+        for conditional in conditionals {
+            branch_ends.insert(conditional.block_entry, conditional.block_exit);
+        }
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_function(function);
         let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
-        let mut context = Context::new(function, cfg, branch_ends, conditional.block_entry);
+        let cfg_root = function.entry_block();
+        let mut context = Context::new(function, cfg, branch_ends, cfg_root);
         context.no_predicate = true;
-
-        context.flatten_single_conditional(conditional, no_predicates, &mut dominator_tree);
+        for conditional in conditionals {
+            context.flatten_single_conditional(conditional, no_predicates);
+        }
+        // 2. re-map the full program for values that have been simplified.
+        context.map_cfg(cfg_root, &mut dominator_tree);
     }
 
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
         no_predicates: &mut FxHashMap<FunctionId, bool>,
-        dom: &mut DominatorTree,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         let mut queue = vec![];
+        self.target_block = conditional.block_entry;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
         let to_process = self.handle_terminator(conditional.block_entry, &queue);
@@ -347,23 +353,6 @@ impl<'f> Context<'f> {
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);
 
         self.inserter.map_data_bus_in_place();
-        // we need to map all the subsequent blocks in case some instructions are using the ones
-        // that have been optimized
-        // Note that this is not efficient because flattening several blocks in the same function
-        // will lead to mapping the blocks at the end several times, while it can be done only once
-        // for all blocks flattening.
-        while let Some(block) = next_blocks.pop_back() {
-            self.map_block(block);
-            let successors = self.inserter.function.dfg[block].successors();
-            for successor in successors {
-                // The function does not process the CFG from the root but from 'any' block (given as input),
-                // so we avoid looping backward instead of checking for already visited blocks
-                if !dom.dominates(successor, block) {
-                    // 'push front' ensures a block is mapped after his predecessors
-                    next_blocks.push_front(successor);
-                }
-            }
-        }
     }
 
     fn map_block(&mut self, block: BasicBlockId) {
@@ -373,5 +362,27 @@ impl<'f> Context<'f> {
             self.inserter.map_instruction_in_place(instruction);
         }
         self.inserter.map_terminator_in_place(block);
+    }
+
+    fn map_cfg(&mut self, entry_block: BasicBlockId, dom: &mut DominatorTree) {
+        // we need to map all the subsequent blocks in case some instructions are using the ones
+        // that have been optimized
+        // Note that this is not efficient because flattening several blocks in the same function
+        // will lead to mapping the blocks at the end several times, while it can be done only once
+        // for all blocks flattening.
+        let mut next_blocks = VecDeque::new();
+        next_blocks.push_back(entry_block);
+        while let Some(block) = next_blocks.pop_back() {
+            self.map_block(block);
+            let successors = self.inserter.function.dfg[block].successors();
+            for successor in successors {
+                // The function does not process the CFG from the root but from 'any' block (given as input),
+                // so we avoid looping backward instead of checking for already visited blocks
+                if !dom.dominates(successor, block) {
+                    // 'push front' ensures a block is mapped after his predecessors are also mapped
+                    next_blocks.push_front(successor);
+                }
+            }
+        }
     }
 }

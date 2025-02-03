@@ -183,7 +183,7 @@ pub(crate) struct Context<'f> {
     cfg: ControlFlowGraph,
 
     /// Target block of the flattening
-    target_block: BasicBlockId,
+    pub(crate) target_block: BasicBlockId,
 
     /// Maps start of branch -> end of branch
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
