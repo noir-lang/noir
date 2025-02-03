@@ -124,7 +124,7 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn enum_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
-        let mut completion_item =
+        let completion_item =
             simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
         self.completion_item_with_doc_comments(ReferenceId::Type(type_id), completion_item)
     }
@@ -172,8 +172,12 @@ impl<'a> NodeFinder<'a> {
         type_id: TypeId,
         variant_index: usize,
     ) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::ENUM_MEMBER, Some(name));
+        let completion_item = simple_completion_item(
+            name.clone(),
+            CompletionItemKind::ENUM_MEMBER,
+            Some(name.clone()),
+        );
+        let completion_item = completion_item_with_detail(completion_item, name);
         self.completion_item_with_doc_comments(
             ReferenceId::EnumVariant(type_id, variant_index),
             completion_item,

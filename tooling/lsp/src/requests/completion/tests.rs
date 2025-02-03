@@ -3132,7 +3132,7 @@ fn main() {
         let details = item.label_details.as_ref().unwrap();
         assert_eq!(details.description, Some("Variant".to_string()));
 
-        assert_eq!(item.detail, None);
+        assert_eq!(item.detail, Some("Variant".to_string()));
         assert_eq!(item.insert_text, None);
 
         let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
