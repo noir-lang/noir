@@ -783,12 +783,17 @@ impl<
                             .update(witness.as_ref().unwrap());
                     }
                 }
+                // If we ran just brillig at the start, we won't have a potential bool witness list, so we need a dummy
+                let mut dummy_witness_list_for_brillig = PotentialBoolWitnessList::default();
 
                 let new_coverage = SingleTestCaseCoverage::new(
                     case_id,
                     &witness,
                     brillig_coverage,
-                    accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                    accumulated_coverage
+                        .potential_bool_witness_list
+                        .as_mut()
+                        .unwrap_or(&mut dummy_witness_list_for_brillig),
                 );
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
