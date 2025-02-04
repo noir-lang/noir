@@ -4054,6 +4054,159 @@ fn infers_lambda_argument_from_call_function_type_in_generic_call() {
 }
 
 #[test]
+fn infers_lambda_argument_from_call_function_type_as_alias() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    type MyFn = fn(Foo) -> Field;
+
+    fn call(f: MyFn) -> Field {
+        f(Foo { value: 1 })
+    }
+
+    fn main() {
+        let _ = call(|foo| foo.value);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_function_return_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        |foo| foo.value
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_function_return_type_multiple_statements() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        let _ = 1;
+        |foo| foo.value
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_function_return_type_when_inside_if() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        if true {
+            |foo| foo.value
+        } else {
+            |foo| foo.value
+        }
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_variable_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    fn main() {
+      let _: fn(Foo) -> Field = |foo| foo.value;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_variable_alias_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    type FooFn = fn(Foo) -> Field;
+
+    fn main() {
+      let _: FooFn = |foo| foo.value;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_variable_double_alias_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    type FooFn = fn(Foo) -> Field;
+    type FooFn2 = FooFn;
+
+    fn main() {
+      let _: FooFn2 = |foo| foo.value;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_variable_tuple_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    fn main() {
+      let _: (fn(Foo) -> Field, _) = (|foo| foo.value, 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn infers_lambda_argument_from_variable_tuple_type_aliased() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    type Alias = (fn(Foo) -> Field, Field);
+
+    fn main() {
+      let _: Alias = (|foo| foo.value, 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn regression_7088() {
     // A test for code that initially broke when implementing inferring
     // lambda parameter types from the function type related to the call

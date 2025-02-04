@@ -28,6 +28,14 @@ use super::{lints, Elaborator, Loop};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
+        self.elaborate_statement_value_with_target_type(statement, None)
+    }
+
+    fn elaborate_statement_value_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
@@ -38,7 +46,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
-                let (expr, typ) = self.elaborate_expression(expr);
+                let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
             }
             StatementKind::Semi(expr) => {
@@ -48,15 +56,24 @@ impl<'context> Elaborator<'context> {
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
                 let statement = Statement { kind: kind.clone(), span: statement.span };
-                self.elaborate_statement_value(statement)
+                self.elaborate_statement_value_with_target_type(statement, target_type)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+        self.elaborate_statement_with_target_type(statement, None)
+    }
+
+    pub(crate) fn elaborate_statement_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let span = statement.span;
-        let (hir_statement, typ) = self.elaborate_statement_value(statement);
+        let (hir_statement, typ) =
+            self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
         self.interner.push_stmt_location(id, span, self.file);
         (id, typ)
@@ -75,11 +92,12 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        let expr_span = let_stmt.expression.span;
-        let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        let expr_span = let_stmt.expression.span;
+        let (expression, expr_type) =
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
