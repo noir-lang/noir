@@ -73,10 +73,10 @@ jobs:
           ./rebuild.sh
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
-      
+
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@7e4ddaa91c69380f15ccba514eac17bc7432a8cc
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
@@ -132,7 +132,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@7e4ddaa91c69380f15ccba514eac17bc7432a8cc
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report_brillig.json
           header: |
@@ -150,7 +150,7 @@ jobs:
           message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
 
   compare_brillig_execution_reports:
-    name: Brillig execution trace sizes  
+    name: Brillig execution trace sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -192,7 +192,7 @@ jobs:
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
-        uses: noir-lang/noir-gates-diff@c1503343c3e264925ef67c68a2a5eeadd245a77b
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report_brillig_execution.json
           header: |
@@ -210,7 +210,7 @@ jobs:
           message: ${{ steps.brillig_execution_diff.outputs.markdown }}
 
   generate_memory_report:
-    name: Peak memory usage  
+    name: Peak memory usage
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -365,6 +365,13 @@ jobs:
           repository: ${{ matrix.project.repo }}
           path: test-repo
           ref: ${{ matrix.project.ref }}
+      
+      - name: Fetch noir dependencies
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
+          # when benchmarking.
+          nargo check
 
       - name: Generate compilation report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -568,7 +575,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -617,7 +624,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -668,7 +675,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
@@ -718,7 +725,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "110%"
+          alert-threshold: "120%"
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"

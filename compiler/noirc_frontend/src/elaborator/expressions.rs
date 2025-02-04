@@ -7,8 +7,9 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
         Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
+        ItemVisibility, Lambda, Literal, MatchExpression, MemberAccessExpression,
+        MethodCallExpression, Path, PathSegment, PrefixExpression, StatementKind, UnaryOp,
+        UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -29,7 +30,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
     token::{FmtStrFragment, Tokens},
-    Kind, QuotedType, Shared, StructType, Type,
+    DataType, Kind, QuotedType, Shared, Type,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
@@ -50,6 +51,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_),
+            ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
             ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda, None),
@@ -75,7 +77,10 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => todo!("Implement AsTraitPath"),
+            ExpressionKind::AsTraitPath(_) => {
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                (HirExpression::Error, Type::Error)
+            }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
@@ -387,6 +392,7 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_call(&mut self, call: CallExpression, span: Span) -> (HirExpression, Type) {
         let (func, func_type) = self.elaborate_expression(*call.func);
+        let func_type = func_type.follow_bindings();
         let func_arg_types =
             if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
 
@@ -600,6 +606,12 @@ impl<'context> Elaborator<'context> {
         if let UnresolvedTypeData::Interned(id) = typ {
             typ = self.interner.get_unresolved_type_data(id).clone();
         }
+        if let UnresolvedTypeData::Resolved(id) = typ {
+            // If this type is already resolved we can skip the rest of this function
+            // which just resolves the type, and go straight to resolving the fields.
+            let resolved = self.interner.get_quoted_type(id).clone();
+            return self.elaborate_constructor_with_type(resolved, constructor.fields, span, None);
+        }
         let UnresolvedTypeData::Named(mut path, generics, _) = typ else {
             self.push_err(ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span });
             return (HirExpression::Error, Type::Error);
@@ -611,58 +623,84 @@ impl<'context> Elaborator<'context> {
         }
 
         let last_segment = path.last_segment();
-        let is_self_type = last_segment.ident.is_self_type_name();
 
-        let (r#type, struct_generics) = if let Some(struct_id) = constructor.struct_type {
-            let typ = self.interner.get_struct(struct_id);
+        let typ = if let Some(struct_id) = constructor.struct_type {
+            let typ = self.interner.get_type(struct_id);
             let generics = typ.borrow().instantiate(self.interner);
-            (typ, generics)
+            Type::DataType(typ, generics)
         } else {
             match self.lookup_type_or_error(path) {
-                Some(Type::Struct(r#type, struct_generics)) => (r#type, struct_generics),
-                Some(typ) => {
-                    self.push_err(ResolverError::NonStructUsedInConstructor {
-                        typ: typ.to_string(),
-                        span,
-                    });
-                    return (HirExpression::Error, Type::Error);
-                }
+                Some(typ) => typ,
                 None => return (HirExpression::Error, Type::Error),
             }
         };
 
+        self.elaborate_constructor_with_type(typ, constructor.fields, span, Some(last_segment))
+    }
+
+    fn elaborate_constructor_with_type(
+        &mut self,
+        typ: Type,
+        fields: Vec<(Ident, Expression)>,
+        span: Span,
+        last_segment: Option<PathSegment>,
+    ) -> (HirExpression, Type) {
+        let typ = typ.follow_bindings_shallow();
+        let (r#type, generics) = match typ.as_ref() {
+            Type::DataType(r#type, struct_generics) if r#type.borrow().is_struct() => {
+                (r#type, struct_generics)
+            }
+            typ => {
+                self.push_err(ResolverError::NonStructUsedInConstructor {
+                    typ: typ.to_string(),
+                    span,
+                });
+                return (HirExpression::Error, Type::Error);
+            }
+        };
         self.mark_struct_as_constructed(r#type.clone());
 
-        let turbofish_span = last_segment.turbofish_span();
+        // `last_segment` is optional if this constructor was resolved from a quoted type
+        let mut generics = generics.clone();
+        let mut is_self_type = false;
+        let mut constructor_type_span = span;
 
-        let struct_generics = self.resolve_struct_turbofish_generics(
-            &r#type.borrow(),
-            struct_generics,
-            last_segment.generics,
-            turbofish_span,
-        );
+        if let Some(last_segment) = last_segment {
+            let turbofish_span = last_segment.turbofish_span();
+            is_self_type = last_segment.ident.is_self_type_name();
+            constructor_type_span = last_segment.ident.span();
+
+            generics = self.resolve_struct_turbofish_generics(
+                &r#type.borrow(),
+                generics,
+                last_segment.generics,
+                turbofish_span,
+            );
+        }
 
         let struct_type = r#type.clone();
-        let generics = struct_generics.clone();
 
-        let fields = constructor.fields;
-        let field_types = r#type.borrow().get_fields_with_visibility(&struct_generics);
+        let field_types = r#type
+            .borrow()
+            .get_fields_with_visibility(&generics)
+            .expect("This type should already be validated to be a struct");
+
         let fields =
             self.resolve_constructor_expr_fields(struct_type.clone(), field_types, fields, span);
         let expr = HirExpression::Constructor(HirConstructorExpression {
             fields,
-            r#type,
-            struct_generics,
+            r#type: struct_type.clone(),
+            struct_generics: generics.clone(),
         });
 
         let struct_id = struct_type.borrow().id;
-        let reference_location = Location::new(last_segment.ident.span(), self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        let reference_location = Location::new(constructor_type_span, self.file);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
-        (expr, Type::Struct(struct_type, generics))
+        (expr, Type::DataType(struct_type, generics))
     }
 
-    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<StructType>) {
+    pub(super) fn mark_struct_as_constructed(&mut self, struct_type: Shared<DataType>) {
         let struct_type = struct_type.borrow();
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         self.usage_tracker.mark_as_used(parent_module_id, &struct_type.name);
@@ -673,14 +711,17 @@ impl<'context> Elaborator<'context> {
     /// are part of the struct.
     fn resolve_constructor_expr_fields(
         &mut self,
-        struct_type: Shared<StructType>,
+        struct_type: Shared<DataType>,
         field_types: Vec<(String, ItemVisibility, Type)>,
         fields: Vec<(Ident, Expression)>,
         span: Span,
     ) -> Vec<(Ident, ExprId)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let mut unseen_fields = struct_type.borrow().field_names();
+        let mut unseen_fields = struct_type
+            .borrow()
+            .field_names()
+            .expect("This type should already be validated to be a struct");
 
         for (field_name, field) in fields {
             let expected_field_with_index = field_types
@@ -884,6 +925,10 @@ impl<'context> Elaborator<'context> {
 
         let if_expr = HirIfExpression { condition, consequence, alternative };
         (HirExpression::If(if_expr), ret_type)
+    }
+
+    fn elaborate_match(&mut self, _match_expr: MatchExpression) -> (HirExpression, Type) {
+        (HirExpression::Error, Type::Error)
     }
 
     fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {

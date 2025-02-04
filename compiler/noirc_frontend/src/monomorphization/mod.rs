@@ -594,6 +594,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Comptime(_) => {
                 unreachable!("comptime expression remaining in runtime code")
             }
+            HirExpression::EnumConstructor(constructor) => {
+                self.enum_constructor(constructor, expr)?
+            }
         };
 
         Ok(expr)
@@ -773,6 +776,47 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(ast::Expression::Block(new_exprs))
     }
 
+    /// For an enum like:
+    /// enum Foo {
+    ///    A(i32, u32),
+    ///    B(Field),
+    ///    C
+    /// }
+    ///
+    /// this will translate the call `Foo::A(1, 2)` into `(0, (1, 2), (0,), ())` where
+    /// the first field `0` is the tag value, the second is `A`, third is `B`, and fourth is `C`.
+    /// Each variant that isn't the desired variant has zeroed values filled in for its data.
+    fn enum_constructor(
+        &mut self,
+        constructor: HirEnumConstructorExpression,
+        id: node_interner::ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let location = self.interner.expr_location(&id);
+        let typ = self.interner.id_type(id);
+        let variants = unwrap_enum_type(&typ, location)?;
+
+        // Fill in each field of the translated enum tuple.
+        // For most fields this will be simply `std::mem::zeroed::<T>()`,
+        // but for the given variant we just pack all the arguments into a tuple for that field.
+        let mut fields = try_vecmap(variants.into_iter().enumerate(), |(i, (_, arg_types))| {
+            let fields = if i == constructor.variant_index {
+                try_vecmap(&constructor.arguments, |arg| self.expr(*arg))
+            } else {
+                try_vecmap(arg_types, |typ| {
+                    let typ = Self::convert_type(&typ, location)?;
+                    Ok(self.zeroed_value_of_type(&typ, location))
+                })
+            }?;
+            Ok(ast::Expression::Tuple(fields))
+        })?;
+
+        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag = ast::Literal::Integer(tag_value, false, ast::Type::Field, location);
+        fields.insert(0, ast::Expression::Literal(tag));
+
+        Ok(ast::Expression::Tuple(fields))
+    }
+
     fn block(
         &mut self,
         statement_ids: Vec<StmtId>,
@@ -882,6 +926,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn local_ident(
         &mut self,
         ident: &HirIdent,
+        typ: &Type,
     ) -> Result<Option<ast::Ident>, MonomorphizationError> {
         let definition = self.interner.definition(ident.id);
         let name = definition.name.clone();
@@ -891,7 +936,7 @@ impl<'interner> Monomorphizer<'interner> {
             return Ok(None);
         };
 
-        let typ = Self::convert_type(&self.interner.definition_type(ident.id), ident.location)?;
+        let typ = Self::convert_type(typ, ident.location)?;
         Ok(Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ }))
     }
 
@@ -956,7 +1001,7 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => expr,
                 None => {
-                    let Some(ident) = self.local_ident(&ident)? else {
+                    let Some(ident) = self.local_ident(&ident, &typ)? else {
                         let location = self.interner.id_location(expr_id);
                         let message = "ICE: Variable not found during monomorphization";
                         return Err(MonomorphizationError::InternalError { location, message });
@@ -1159,16 +1204,30 @@ impl<'interner> Monomorphizer<'interner> {
                 monomorphized_default
             }
 
-            HirType::Struct(def, args) => {
-                // Not all generic arguments may be used in a struct's fields so we have to check
+            HirType::DataType(def, args) => {
+                // Not all generic arguments may be used in a datatype's fields so we have to check
                 // the arguments as well as the fields in case any need to be defaulted or are unbound.
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
 
-                let fields = def.borrow().get_fields(args);
-                let fields = try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
-                ast::Type::Tuple(fields)
+                let def = def.borrow();
+                if let Some(fields) = def.get_fields(args) {
+                    let fields =
+                        try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
+                    ast::Type::Tuple(fields)
+                } else if let Some(variants) = def.get_variants(args) {
+                    // Enums are represented as (tag, variant1, variant2, .., variantN)
+                    let mut fields = vec![ast::Type::Field];
+                    for (_, variant_fields) in variants {
+                        let variant_fields =
+                            try_vecmap(variant_fields, |typ| Self::convert_type(&typ, location))?;
+                        fields.push(ast::Type::Tuple(variant_fields));
+                    }
+                    ast::Type::Tuple(fields)
+                } else {
+                    unreachable!("Data type has no body")
+                }
             }
 
             HirType::Alias(def, args) => {
@@ -1279,7 +1338,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::check_type(&default, location)
             }
 
-            HirType::Struct(_def, args) => {
+            HirType::DataType(_def, args) => {
                 for arg in args {
                     Self::check_type(arg, location)?;
                 }
@@ -1696,9 +1755,9 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn lvalue(&mut self, lvalue: HirLValue) -> Result<ast::LValue, MonomorphizationError> {
         let value = match lvalue {
-            HirLValue::Ident(ident, _) => match self.lookup_captured_lvalue(ident.id) {
+            HirLValue::Ident(ident, typ) => match self.lookup_captured_lvalue(ident.id) {
                 Some(value) => value,
-                None => ast::LValue::Ident(self.local_ident(&ident)?.unwrap()),
+                None => ast::LValue::Ident(self.local_ident(&ident, &typ)?.unwrap()),
             },
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
@@ -1831,7 +1890,8 @@ impl<'interner> Monomorphizer<'interner> {
                         Ok(ast::Expression::ExtractTupleField(ident, field_index))
                     }
                     None => {
-                        let ident = self.local_ident(&capture.ident)?.unwrap();
+                        let typ = self.interner.definition_type(capture.ident.id);
+                        let ident = self.local_ident(&capture.ident, &typ)?.unwrap();
                         Ok(ast::Expression::Ident(ident))
                     }
                 }
@@ -2133,15 +2193,32 @@ fn unwrap_struct_type(
     location: Location,
 ) -> Result<Vec<(String, HirType)>, MonomorphizationError> {
     match typ.follow_bindings() {
-        HirType::Struct(def, args) => {
+        HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {
                 Monomorphizer::check_type(arg, location)?;
             }
 
-            Ok(def.borrow().get_fields(&args))
+            Ok(def.borrow().get_fields(&args).unwrap())
         }
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
+    }
+}
+
+fn unwrap_enum_type(
+    typ: &HirType,
+    location: Location,
+) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
+    match typ.unwrap_forall().1.follow_bindings() {
+        HirType::DataType(def, args) => {
+            // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
+            for arg in &args {
+                Monomorphizer::check_type(arg, location)?;
+            }
+
+            Ok(def.borrow().get_variants(&args).unwrap())
+        }
+        other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
     }
 }
 

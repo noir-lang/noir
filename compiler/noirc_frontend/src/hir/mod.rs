@@ -9,7 +9,7 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
@@ -54,11 +54,11 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub package_build_path: PathBuf,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum FunctionNameMatch<'a> {
+#[derive(Debug)]
+pub enum FunctionNameMatch {
     Anything,
-    Exact(&'a str),
-    Contains(&'a str),
+    Exact(Vec<String>),
+    Contains(Vec<String>),
 }
 
 impl Context<'_, '_> {
@@ -151,7 +151,7 @@ impl Context<'_, '_> {
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
-    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: TypeId) -> String {
         fully_qualified_module_path(&self.def_maps, &self.crate_graph, crate_id, id.module_id())
     }
 
@@ -175,7 +175,7 @@ impl Context<'_, '_> {
     pub fn get_all_test_functions_in_crate_matching(
         &self,
         crate_id: &CrateId,
-        pattern: FunctionNameMatch,
+        pattern: &FunctionNameMatch,
     ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
@@ -187,10 +187,13 @@ impl Context<'_, '_> {
                     self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                    FunctionNameMatch::Exact(patterns) => patterns
+                        .iter()
+                        .any(|pattern| &fully_qualified_name == pattern)
                         .then_some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
-                        .contains(pattern)
+                    FunctionNameMatch::Contains(patterns) => patterns
+                        .iter()
+                        .any(|pattern| fully_qualified_name.contains(pattern))
                         .then_some((fully_qualified_name, test_function)),
                 }
             })

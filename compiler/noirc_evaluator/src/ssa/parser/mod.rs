@@ -13,8 +13,9 @@ use super::{
 
 use acvm::{AcirField, FieldElement};
 use ast::{
-    AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedInstruction, ParsedParameter,
-    ParsedSsa, ParsedValue,
+    AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
+    ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
+    ParsedValue,
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
@@ -99,6 +100,8 @@ pub(crate) enum SsaError {
     ParserError(ParserError),
     #[error("Unknown variable '{0}'")]
     UnknownVariable(Identifier),
+    #[error("Unknown global '{0}'")]
+    UnknownGlobal(Identifier),
     #[error("Unknown block '{0}'")]
     UnknownBlock(Identifier),
     #[error("Unknown function '{0}'")]
@@ -107,6 +110,8 @@ pub(crate) enum SsaError {
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
     #[error("Variable '{0}' already defined")]
     VariableAlreadyDefined(Identifier),
+    #[error("Global '{0}' already defined")]
+    GlobalAlreadyDefined(Identifier),
 }
 
 impl SsaError {
@@ -114,8 +119,10 @@ impl SsaError {
         match self {
             SsaError::ParserError(parser_error) => parser_error.span(),
             SsaError::UnknownVariable(identifier)
+            | SsaError::UnknownGlobal(identifier)
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
+            | SsaError::GlobalAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
         }
@@ -138,16 +145,47 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_ssa(&mut self) -> ParseResult<ParsedSsa> {
+        let globals = self.parse_globals()?;
+
         let mut functions = Vec::new();
         while !self.at(Token::Eof) {
             let function = self.parse_function()?;
             functions.push(function);
         }
-        Ok(ParsedSsa { functions })
+        Ok(ParsedSsa { globals, functions })
+    }
+
+    fn parse_globals(&mut self) -> ParseResult<Vec<ParsedGlobal>> {
+        let mut globals = Vec::new();
+
+        while let Some(name) = self.eat_identifier()? {
+            self.eat_or_error(Token::Assign)?;
+
+            let value = self.parse_global_value()?;
+            globals.push(ParsedGlobal { name, value });
+        }
+
+        Ok(globals)
+    }
+
+    fn parse_global_value(&mut self) -> ParseResult<ParsedGlobalValue> {
+        if let Some(constant) = self.parse_numeric_constant()? {
+            return Ok(ParsedGlobalValue::NumericConstant(constant));
+        }
+
+        if let Some(make_array) = self.parse_make_array()? {
+            return Ok(ParsedGlobalValue::MakeArray(make_array));
+        }
+
+        self.expected_global_value()
     }
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
+
+        // Ignore function purity if it is in the input
+        self.eat_identifier().ok();
+
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_error()?;
@@ -461,40 +499,12 @@ impl<'a> Parser<'a> {
             return Ok(ParsedInstruction::Load { target, value, typ });
         }
 
-        if self.eat_keyword(Keyword::MakeArray)? {
-            if self.eat(Token::Ampersand)? {
-                let Some(string) = self.eat_byte_str()? else {
-                    return self.expected_byte_string();
-                };
-                let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-                let typ = Type::Slice(Arc::new(vec![u8.clone()]));
-                let elements = string
-                    .bytes()
-                    .map(|byte| ParsedValue::NumericConstant {
-                        constant: FieldElement::from(byte as u128),
-                        typ: u8.clone(),
-                    })
-                    .collect();
-                return Ok(ParsedInstruction::MakeArray { target, elements, typ });
-            } else if let Some(string) = self.eat_byte_str()? {
-                let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-                let typ = Type::Array(Arc::new(vec![u8.clone()]), string.len() as u32);
-                let elements = string
-                    .bytes()
-                    .map(|byte| ParsedValue::NumericConstant {
-                        constant: FieldElement::from(byte as u128),
-                        typ: u8.clone(),
-                    })
-                    .collect();
-                return Ok(ParsedInstruction::MakeArray { target, elements, typ });
-            } else {
-                self.eat_or_error(Token::LeftBracket)?;
-                let elements = self.parse_comma_separated_values()?;
-                self.eat_or_error(Token::RightBracket)?;
-                self.eat_or_error(Token::Colon)?;
-                let typ = self.parse_type()?;
-                return Ok(ParsedInstruction::MakeArray { target, elements, typ });
-            }
+        if let Some(make_array) = self.parse_make_array()? {
+            return Ok(ParsedInstruction::MakeArray {
+                target,
+                elements: make_array.elements,
+                typ: make_array.typ,
+            });
         }
 
         if self.eat_keyword(Keyword::Not)? {
@@ -522,6 +532,52 @@ impl<'a> Parser<'a> {
         }
 
         self.expected_instruction_or_terminator()
+    }
+
+    fn parse_make_array(&mut self) -> ParseResult<Option<ParsedMakeArray>> {
+        if !self.eat_keyword(Keyword::MakeArray)? {
+            return Ok(None);
+        }
+
+        let make_array = if self.eat(Token::Ampersand)? {
+            let Some(string) = self.eat_byte_str()? else {
+                return self.expected_byte_string();
+            };
+            let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
+            let typ = Type::Slice(Arc::new(vec![u8.clone()]));
+            let elements = string
+                .bytes()
+                .map(|byte| {
+                    ParsedValue::NumericConstant(ParsedNumericConstant {
+                        value: FieldElement::from(byte as u128),
+                        typ: u8.clone(),
+                    })
+                })
+                .collect();
+            ParsedMakeArray { elements, typ }
+        } else if let Some(string) = self.eat_byte_str()? {
+            let u8 = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
+            let typ = Type::Array(Arc::new(vec![u8.clone()]), string.len() as u32);
+            let elements = string
+                .bytes()
+                .map(|byte| {
+                    ParsedValue::NumericConstant(ParsedNumericConstant {
+                        value: FieldElement::from(byte as u128),
+                        typ: u8.clone(),
+                    })
+                })
+                .collect();
+            ParsedMakeArray { elements, typ }
+        } else {
+            self.eat_or_error(Token::LeftBracket)?;
+            let elements = self.parse_comma_separated_values()?;
+            self.eat_or_error(Token::RightBracket)?;
+            self.eat_or_error(Token::Colon)?;
+            let typ = self.parse_type()?;
+            ParsedMakeArray { elements, typ }
+        };
+
+        Ok(Some(make_array))
     }
 
     fn parse_terminator(&mut self) -> ParseResult<ParsedTerminator> {
@@ -617,12 +673,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
-        if let Some(value) = self.parse_field_value()? {
-            return Ok(Some(value));
-        }
-
-        if let Some(value) = self.parse_int_value()? {
-            return Ok(Some(value));
+        if let Some(constant) = self.parse_numeric_constant()? {
+            return Ok(Some(ParsedValue::NumericConstant(constant)));
         }
 
         if let Some(identifier) = self.eat_identifier()? {
@@ -632,23 +684,35 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn parse_field_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+    fn parse_numeric_constant(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
+        if let Some(constant) = self.parse_field_value()? {
+            return Ok(Some(constant));
+        }
+
+        if let Some(constant) = self.parse_int_value()? {
+            return Ok(Some(constant));
+        }
+
+        Ok(None)
+    }
+
+    fn parse_field_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if self.eat_keyword(Keyword::Field)? {
-            let constant = self.eat_int_or_error()?;
-            Ok(Some(ParsedValue::NumericConstant { constant, typ: Type::field() }))
+            let value = self.eat_int_or_error()?;
+            Ok(Some(ParsedNumericConstant { value, typ: Type::field() }))
         } else {
             Ok(None)
         }
     }
 
-    fn parse_int_value(&mut self) -> ParseResult<Option<ParsedValue>> {
+    fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
-            let constant = self.eat_int_or_error()?;
+            let value = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
-            Ok(Some(ParsedValue::NumericConstant { constant, typ }))
+            Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
             Ok(None)
         }
@@ -932,6 +996,13 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn expected_global_value<T>(&mut self) -> ParseResult<T> {
+        Err(ParserError::ExpectedGlobalValue {
+            found: self.token.token().clone(),
+            span: self.token.to_span(),
+        })
+    }
+
     fn expected_token<T>(&mut self, token: Token) -> ParseResult<T> {
         Err(ParserError::ExpectedToken {
             token,
@@ -971,6 +1042,10 @@ pub(crate) enum ParserError {
     ExpectedByteString { found: Token, span: Span },
     #[error("Expected a value, found '{found}'")]
     ExpectedValue { found: Token, span: Span },
+    #[error(
+        "Expected a global value (Field literal, integer literal or make_array), found '{found}'"
+    )]
+    ExpectedGlobalValue { found: Token, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
 }
@@ -987,7 +1062,8 @@ impl ParserError {
             | ParserError::ExpectedInstructionOrTerminator { span, .. }
             | ParserError::ExpectedStringOrData { span, .. }
             | ParserError::ExpectedByteString { span, .. }
-            | ParserError::ExpectedValue { span, .. } => *span,
+            | ParserError::ExpectedValue { span, .. }
+            | ParserError::ExpectedGlobalValue { span, .. } => *span,
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span
             }

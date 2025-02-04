@@ -12,7 +12,7 @@ use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
-use super::types::{StructType, Type};
+use super::types::{DataType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
 /// name resolution. It is almost identical to the Expression AST node, but
@@ -30,6 +30,7 @@ pub enum HirExpression {
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
     Constructor(HirConstructorExpression),
+    EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
@@ -273,7 +274,7 @@ impl HirMethodCallExpression {
 
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
-    pub r#type: Shared<StructType>,
+    pub r#type: Shared<DataType>,
     pub struct_generics: Vec<Type>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
@@ -282,6 +283,27 @@ pub struct HirConstructorExpression {
     //       arguments to be alphabetical rather than the ordering the user
     //       included in the source code.
     pub fields: Vec<(Ident, ExprId)>,
+}
+
+/// An enum constructor is an expression such as `Option::Some(foo)`
+/// to construct an enum. These are usually inserted by the compiler itself
+/// since `Some` is actually a function with the body implicitly being an
+/// enum constructor expression, but in the future these may be directly
+/// represented when using enums with named fields.
+///
+/// During monomorphization, these expressions are translated to tuples of
+/// (tag, variant0_fields, variant1_fields, ..) since we cannot actually
+/// make a true union in a circuit.
+#[derive(Debug, Clone)]
+pub struct HirEnumConstructorExpression {
+    pub r#type: Shared<DataType>,
+    pub variant_index: usize,
+
+    /// This refers to just the arguments that are passed. E.g. just
+    /// `foo` in `Foo::Bar(foo)`, even if other variants have their
+    /// "fields" defaulted to `std::mem::zeroed`, these aren't specified
+    /// at this step.
+    pub arguments: Vec<ExprId>,
 }
 
 /// Indexing, as in `array[index]`

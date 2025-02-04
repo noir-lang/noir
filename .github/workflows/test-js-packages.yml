@@ -16,7 +16,7 @@ jobs:
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -492,7 +492,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1.2.0
         with:
           version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
-          
+
 
       - name: Install `bb`
         run: |
@@ -530,10 +530,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-   
+
       - name: Build list of libraries
         id: get_critical_libraries
-        run: |         
+        run: |
           LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: ""})')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
@@ -593,12 +593,25 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           sed -i '/^compiler_version/d' ./**/Nargo.toml
-      
+
       - name: Run nargo test
+        id: test_report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
+
           output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          BEFORE=$SECONDS
           nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
+          TIME=$(($SECONDS-$BEFORE))
+
+          NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
+          # Replace any slashes with underscores
+          NAME=${NAME//\//_}
+          TEST_REPORT_NAME=test_report_$NAME
+          echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
+
+          jq --null-input "{ test_reports: [{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]}" > $TEST_REPORT_NAME.json
+
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
             rm -f $output_file
@@ -609,6 +622,97 @@ jobs:
       - name: Compare test results
         working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.test_report.outputs.test_report_name }}
+          path: ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  compile-noir-contracts:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    name: Compile `noir-contracts` zero inliner aggressiveness
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: AztecProtocol/aztec-packages
+          path: test-repo
+
+      - name: Download nargo binary
+        uses: actions/download-artifact@v4
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Set nargo on PATH
+        run: |
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
+          chmod +x $nargo_binary
+          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+          export PATH="$PATH:$(dirname $nargo_binary)"
+          nargo -V
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo compile
+        working-directory: ./test-repo/noir-projects/noir-contracts
+        run: nargo compile --inliner-aggressiveness 0 
+
+  upload_critical_library_report:
+    name: Upload critical library report 
+    needs: [external-repo-checks]
+    # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test_report_*
+          path: ./reports
+
+      - name: Merge test reports using jq
+        run: |
+          jq --null-input "{ test_reports: [] }" > test_report.json
+          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
+          ./merge-bench-reports.sh test_report
+          jq ".test_reports" < ./test_report.json > test_bench.json
+
+      - name: Store benchmark result
+        continue-on-error: true
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Test Suite Duration"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./test_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -628,6 +732,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
+      - compile-noir-contracts
 
     steps:
         - name: Report overall success

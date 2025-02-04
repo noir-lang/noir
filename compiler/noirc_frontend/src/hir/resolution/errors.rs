@@ -98,8 +98,10 @@ pub enum ResolverError {
     DependencyCycle { span: Span, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
     JumpInConstrainedFn { is_break: bool, span: Span },
-    #[error("loop is only allowed in unconstrained functions")]
+    #[error("`loop` is only allowed in unconstrained functions")]
     LoopInConstrainedFn { span: Span },
+    #[error("`loop` must have at least one `break` in it")]
+    LoopWithoutBreak { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
@@ -114,8 +116,8 @@ pub enum ResolverError {
     NonIntegralGlobalType { span: Span, global_value: Value },
     #[error("Global value `{global_value}` is larger than its kind's maximum value")]
     GlobalLargerThanKind { span: Span, global_value: FieldElement, kind: Kind },
-    #[error("Self-referential structs are not supported")]
-    SelfReferentialStruct { span: Span },
+    #[error("Self-referential types are not supported")]
+    SelfReferentialType { span: Span },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
     NoPredicatesAttributeOnUnconstrained { ident: Ident },
     #[error("#[fold] attribute is only allowed on constrained functions")]
@@ -443,6 +445,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             },
+            ResolverError::LoopWithoutBreak { span } => {
+                Diagnostic::simple_error(
+                    "`loop` must have at least one `break` in it".into(),
+                    "Infinite loops are disallowed".into(),
+                    *span,
+                )
+            },
             ResolverError::JumpOutsideLoop { is_break, span } => {
                 let item = if *is_break { "break" } else { "continue" };
                 Diagnostic::simple_error(
@@ -493,9 +502,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span,
                 )
             }
-            ResolverError::SelfReferentialStruct { span } => {
+            ResolverError::SelfReferentialType { span } => {
                 Diagnostic::simple_error(
-                    "Self-referential structs are not supported".into(),
+                    "Self-referential types are not supported".into(),
                     "".into(),
                     *span,
                 )

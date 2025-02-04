@@ -1,5 +1,6 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
+use crate::static_assert;
 use super::{convert::AsPrimitive, default::Default};
 
 global pow64: Field = 18446744073709551616; //2^64;
@@ -67,11 +68,10 @@ impl U128 {
     }
 
     pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
-        let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
         assert((bytes[0] == 48) & (bytes[1] == 120), "Invalid hexadecimal string");
-        assert(N < 35, "Input does not fit into a U128");
+        static_assert(N < 35, "Input does not fit into a U128");
 
         let mut lo = 0;
         let mut hi = 0;
@@ -95,7 +95,7 @@ impl U128 {
         U128 { lo: lo as Field, hi: hi as Field }
     }
 
-    unconstrained fn uconstrained_check_is_upper_ascii(ascii: u8) -> bool {
+    unconstrained fn unconstrained_check_is_upper_ascii(ascii: u8) -> bool {
         ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
@@ -106,7 +106,7 @@ impl U128 {
             } else {
                 /// Safety: optionally adds 32 and then check (below) the result is in 'a..f' range
                 let ascii =
-                    ascii + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
+                    ascii + 32 * (unsafe { U128::unconstrained_check_is_upper_ascii(ascii) as u8 });
                 assert(ascii >= 97); // enforce >= 'a'
                 assert(ascii <= 102); // enforce <= 'f'
                 ascii - 87

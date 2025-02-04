@@ -13,10 +13,11 @@ use noirc_frontend::{
         traits::Trait,
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId,
-        StructId, TraitId, TraitImplKind, TypeAliasId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
+        TraitImplKind, TypeAliasId, TypeId,
     },
-    Generics, Shared, StructType, Type, TypeAlias, TypeBinding, TypeVariable,
+    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    TypeVariable,
 };
 
 use crate::{
@@ -73,9 +74,12 @@ pub(crate) fn on_hover_request(
 fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -> Option<String> {
     match reference {
         ReferenceId::Module(id) => format_module(id, args),
-        ReferenceId::Struct(id) => Some(format_struct(id, args)),
+        ReferenceId::Type(id) => Some(format_type(id, args)),
         ReferenceId::StructMember(id, field_index) => {
             Some(format_struct_member(id, field_index, args))
+        }
+        ReferenceId::EnumVariant(id, variant_index) => {
+            Some(format_enum_variant(id, variant_index, args))
         }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
@@ -122,20 +126,33 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     Some(string)
 }
 
-fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
-    let struct_type = args.interner.get_struct(id);
-    let struct_type = struct_type.borrow();
+fn format_type(id: TypeId, args: &ProcessRequestCallbackArgs) -> String {
+    let typ = args.interner.get_type(id);
+    let typ = typ.borrow();
+    if let Some(fields) = typ.get_fields_as_written() {
+        format_struct(&typ, fields, args)
+    } else if let Some(variants) = typ.get_variants_as_written() {
+        format_enum(&typ, variants, args)
+    } else {
+        unreachable!("Type should either be a struct or an enum")
+    }
+}
 
+fn format_struct(
+    typ: &DataType,
+    fields: Vec<StructField>,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
     string.push_str("struct ");
-    string.push_str(&struct_type.name.0.contents);
-    format_generics(&struct_type.generics, &mut string);
+    string.push_str(&typ.name.0.contents);
+    format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
-    for field in struct_type.get_fields_as_written() {
+    for field in fields {
         string.push_str("        ");
         string.push_str(&field.name.0.contents);
         string.push_str(": ");
@@ -144,22 +161,56 @@ fn format_struct(id: StructId, args: &ProcessRequestCallbackArgs) -> String {
     }
     string.push_str("    }");
 
-    append_doc_comments(args.interner, ReferenceId::Struct(id), &mut string);
+    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
+
+    string
+}
+
+fn format_enum(
+    typ: &DataType,
+    variants: Vec<EnumVariant>,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("enum ");
+    string.push_str(&typ.name.0.contents);
+    format_generics(&typ.generics, &mut string);
+    string.push_str(" {\n");
+    for field in variants {
+        string.push_str("        ");
+        string.push_str(&field.name.0.contents);
+
+        if !field.params.is_empty() {
+            let types = field.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+            string.push('(');
+            string.push_str(&types.join(", "));
+            string.push(')');
+        }
+
+        string.push_str(",\n");
+    }
+    string.push_str("    }");
+
+    append_doc_comments(args.interner, ReferenceId::Type(typ.id), &mut string);
 
     string
 }
 
 fn format_struct_member(
-    id: StructId,
+    id: TypeId,
     field_index: usize,
     args: &ProcessRequestCallbackArgs,
 ) -> String {
-    let struct_type = args.interner.get_struct(id);
+    let struct_type = args.interner.get_type(id);
     let struct_type = struct_type.borrow();
     let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Struct(id), args, &mut string) {
+    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(&struct_type.name.0.contents);
@@ -171,6 +222,39 @@ fn format_struct_member(
     string.push_str(&go_to_type_links(&field.typ, args.interner, args.files));
 
     append_doc_comments(args.interner, ReferenceId::StructMember(id, field_index), &mut string);
+
+    string
+}
+
+fn format_enum_variant(
+    id: TypeId,
+    field_index: usize,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let enum_type = args.interner.get_type(id);
+    let enum_type = enum_type.borrow();
+    let variant = enum_type.variant_at(field_index);
+
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
+        string.push_str("::");
+    }
+    string.push_str(&enum_type.name.0.contents);
+    string.push('\n');
+    string.push_str("    ");
+    string.push_str(&variant.name.0.contents);
+    if !variant.params.is_empty() {
+        let types = variant.params.iter().map(ToString::to_string).collect::<Vec<_>>();
+        string.push('(');
+        string.push_str(&types.join(", "));
+        string.push(')');
+    }
+
+    for typ in variant.params.iter() {
+        string.push_str(&go_to_type_links(typ, args.interner, args.files));
+    }
+
+    append_doc_comments(args.interner, ReferenceId::EnumVariant(id, field_index), &mut string);
 
     string
 }
@@ -307,9 +391,19 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     let func_name_definition_id = args.interner.definition(func_meta.name.id);
 
+    let enum_variant = match (func_meta.type_id, func_meta.enum_variant_index) {
+        (Some(type_id), Some(index)) => Some((type_id, index)),
+        _ => None,
+    };
+
+    let reference_id = if let Some((type_id, variant_index)) = enum_variant {
+        ReferenceId::EnumVariant(type_id, variant_index)
+    } else {
+        ReferenceId::Function(id)
+    };
+
     let mut string = String::new();
-    let formatted_parent_module =
-        format_parent_module(ReferenceId::Function(id), args, &mut string);
+    let formatted_parent_module = format_parent_module(reference_id, args, &mut string);
 
     let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
         let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
@@ -367,28 +461,30 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         format_generics(&trait_.generics, &mut string);
 
         true
-    } else if let Some(struct_id) = func_meta.struct_id {
-        let struct_type = args.interner.get_struct(struct_id);
-        let struct_type = struct_type.borrow();
+    } else if let Some(type_id) = func_meta.type_id {
+        let data_type = args.interner.get_type(type_id);
+        let data_type = data_type.borrow();
         if formatted_parent_module {
             string.push_str("::");
         }
-        string.push_str(&struct_type.name.0.contents);
-        string.push('\n');
-        string.push_str("    ");
-        string.push_str("impl");
+        string.push_str(&data_type.name.0.contents);
+        if enum_variant.is_none() {
+            string.push('\n');
+            string.push_str("    ");
+            string.push_str("impl");
 
-        let impl_generics: Vec<_> = func_meta
-            .all_generics
-            .iter()
-            .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-            .cloned()
-            .collect();
-        format_generics(&impl_generics, &mut string);
+            let impl_generics: Vec<_> = func_meta
+                .all_generics
+                .iter()
+                .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
+                .cloned()
+                .collect();
+            format_generics(&impl_generics, &mut string);
 
-        string.push(' ');
-        string.push_str(&struct_type.name.0.contents);
-        format_generic_names(&impl_generics, &mut string);
+            string.push(' ');
+            string.push_str(&data_type.name.0.contents);
+            format_generic_names(&impl_generics, &mut string);
+        }
 
         true
     } else {
@@ -415,20 +511,36 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     let func_name = &func_name_definition_id.name;
 
-    string.push_str("fn ");
+    if enum_variant.is_none() {
+        string.push_str("fn ");
+    }
     string.push_str(func_name);
     format_generics(&func_meta.direct_generics, &mut string);
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        format_pattern(pattern, args.interner, &mut string);
-        if !pattern_is_self(pattern, args.interner) {
-            string.push_str(": ");
-            if matches!(visibility, Visibility::Public) {
-                string.push_str("pub ");
-            }
-            string.push_str(&format!("{}", typ));
+        let is_self = pattern_is_self(pattern, args.interner);
+
+        // `&mut self` is represented as a mutable reference type, not as a mutable pattern
+        if is_self && matches!(typ, Type::MutableReference(..)) {
+            string.push_str("&mut ");
         }
+
+        if enum_variant.is_some() {
+            string.push_str(&format!("{}", typ));
+        } else {
+            format_pattern(pattern, args.interner, &mut string);
+
+            // Don't add type for `self` param
+            if !is_self {
+                string.push_str(": ");
+                if matches!(visibility, Visibility::Public) {
+                    string.push_str("pub ");
+                }
+                string.push_str(&format!("{}", typ));
+            }
+        }
+
         if index != parameters.len() - 1 {
             string.push_str(", ");
         }
@@ -436,28 +548,34 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
     string.push(')');
 
-    let return_type = func_meta.return_type();
-    match return_type {
-        Type::Unit => (),
-        _ => {
-            string.push_str(" -> ");
-            string.push_str(&format!("{}", return_type));
+    if enum_variant.is_none() {
+        let return_type = func_meta.return_type();
+        match return_type {
+            Type::Unit => (),
+            _ => {
+                string.push_str(" -> ");
+                string.push_str(&format!("{}", return_type));
+            }
         }
+
+        string.push_str(&go_to_type_links(return_type, args.interner, args.files));
     }
 
-    string.push_str(&go_to_type_links(return_type, args.interner, args.files));
-
-    let had_doc_comments =
-        append_doc_comments(args.interner, ReferenceId::Function(id), &mut string);
-    if !had_doc_comments {
-        // If this function doesn't have doc comments, but it's a trait impl method,
-        // use the trait method doc comments.
-        if let Some(trait_impl_id) = func_meta.trait_impl {
-            let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
-            let trait_impl = trait_impl.borrow();
-            let trait_ = args.interner.get_trait(trait_impl.trait_id);
-            if let Some(func_id) = trait_.method_ids.get(func_name) {
-                append_doc_comments(args.interner, ReferenceId::Function(*func_id), &mut string);
+    if enum_variant.is_some() {
+        append_doc_comments(args.interner, reference_id, &mut string);
+    } else {
+        let had_doc_comments = append_doc_comments(args.interner, reference_id, &mut string);
+        if !had_doc_comments {
+            // If this function doesn't have doc comments, but it's a trait impl method,
+            // use the trait method doc comments.
+            if let Some(trait_impl_id) = func_meta.trait_impl {
+                let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                let trait_ = args.interner.get_trait(trait_impl.trait_id);
+                if let Some(func_id) = trait_.method_ids.get(func_name) {
+                    let reference_id = ReferenceId::Function(*func_id);
+                    append_doc_comments(args.interner, reference_id, &mut string);
+                }
             }
         }
     }
@@ -685,8 +803,8 @@ impl<'a> TypeLinksGatherer<'a> {
                     self.gather_type_links(typ);
                 }
             }
-            Type::Struct(struct_type, generics) => {
-                self.gather_struct_type_links(struct_type);
+            Type::DataType(data_type, generics) => {
+                self.gather_struct_type_links(data_type);
                 for generic in generics {
                     self.gather_type_links(generic);
                 }
@@ -739,7 +857,7 @@ impl<'a> TypeLinksGatherer<'a> {
         }
     }
 
-    fn gather_struct_type_links(&mut self, struct_type: &Shared<StructType>) {
+    fn gather_struct_type_links(&mut self, struct_type: &Shared<DataType>) {
         let struct_type = struct_type.borrow();
         if let Some(lsp_location) =
             to_lsp_location(self.files, struct_type.location.file, struct_type.name.span())
@@ -1167,5 +1285,76 @@ mod hover_tests {
             get_hover_text("workspace", "two/src/lib.nr", Position { line: 92, character: 8 })
                 .await;
         assert!(hover_text.contains("Some docs"));
+    }
+
+    #[test]
+    async fn hover_on_function_with_mut_self() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 96, character: 10 })
+                .await;
+        assert!(hover_text.contains("fn mut_self(&mut self)"));
+    }
+
+    #[test]
+    async fn hover_on_empty_enum_type() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 100, character: 8 })
+                .await;
+        assert!(hover_text.contains(
+            "    two
+    enum EmptyColor {
+    }
+
+---
+
+ Red, blue, etc."
+        ));
+    }
+
+    #[test]
+    async fn hover_on_non_empty_enum_type() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 103, character: 8 })
+                .await;
+        assert!(hover_text.contains(
+            "    two
+    enum Color {
+        Red(Field),
+    }
+
+---
+
+ Red, blue, etc."
+        ));
+    }
+
+    #[test]
+    async fn hover_on_enum_variant() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 105, character: 6 })
+                .await;
+        assert!(hover_text.contains(
+            "    two::Color
+    Red(Field)
+
+---
+
+ Like a tomato"
+        ));
+    }
+
+    #[test]
+    async fn hover_on_enum_variant_in_call() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 109, character: 12 })
+                .await;
+        assert!(hover_text.contains(
+            "    two::Color
+    Red(Field)
+
+---
+
+ Like a tomato"
+        ));
     }
 }

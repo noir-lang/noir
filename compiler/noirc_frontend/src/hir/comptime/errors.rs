@@ -133,6 +133,10 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    NonEnumInConstructor {
+        typ: Type,
+        location: Location,
+    },
     CannotInlineMacro {
         value: String,
         typ: Type,
@@ -300,6 +304,7 @@ impl InterpreterError {
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
+            | InterpreterError::NonEnumInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
@@ -503,6 +508,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NonStructInConstructor { typ, location } => {
                 let msg = format!("`{typ}` is not a struct type");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::NonEnumInConstructor { typ, location } => {
+                let msg = format!("`{typ}` is not an enum type");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::CannotInlineMacro { value, typ, location } => {
