@@ -500,7 +500,13 @@ impl<'interner> Monomorphizer<'interner> {
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.statements)?,
-            HirExpression::Unsafe(block) => self.block(block.statements)?,
+            HirExpression::Unsafe(block) => {
+                let was_in_unconstrained_function = self.in_unconstrained_function;
+                self.in_unconstrained_function = true;
+                let res = self.block(block.statements);
+                self.in_unconstrained_function = was_in_unconstrained_function;
+                res?
+            }
 
             HirExpression::Prefix(prefix) => {
                 let rhs = self.expr(prefix.rhs)?;
@@ -936,7 +942,11 @@ impl<'interner> Monomorphizer<'interner> {
             return Ok(None);
         };
 
+        let hir_typ = typ.clone();
         let typ = Self::convert_type(typ, ident.location)?;
+        if name == "ordering" {
+            println!("local_ident: hir={hir_typ:?} typ={typ:?} def={definition:?}");
+        }
         Ok(Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ }))
     }
 

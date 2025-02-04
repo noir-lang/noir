@@ -309,10 +309,8 @@ impl DataFlowGraph {
         existing_id: Option<InstructionId>,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            // BUG: With panicking it fails to build the `token_contract`; see:
-            // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102
-            // panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
-            return InsertInstructionResult::InstructionRemoved;
+            // It would be okay to simplify away these instructions here, but if they appear it's most likely a bug.
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
