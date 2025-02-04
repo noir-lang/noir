@@ -501,10 +501,10 @@ mod tests {
         for quoted_type in QuotedType::iter() {
             let src = quoted_type.to_string();
             let typ = parse_type_no_errors(&src);
-            let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
+            let UnresolvedTypeData::Quoted(parsed_quoted_type) = typ.typ else {
                 panic!("Expected a quoted type for {}", quoted_type)
             };
-            assert_eq!(parsed_qouted_type, quoted_type);
+            assert_eq!(parsed_quoted_type, quoted_type);
         }
     }
 

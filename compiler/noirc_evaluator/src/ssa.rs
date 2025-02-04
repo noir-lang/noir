@@ -136,6 +136,9 @@ pub(crate) fn optimize_into_acir(
         print_codegen_timings: options.print_codegen_timings,
     }
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    // It could happen that we inlined all calls to a given brillig function.
+    // In that case it's unused so we can remove it. This is what we check next.
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
@@ -154,7 +157,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
-        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
+        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
+        //.run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
             |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),

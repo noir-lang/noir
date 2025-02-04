@@ -155,6 +155,11 @@ impl Binary {
                 }
             }
             BinaryOp::Sub { .. } => {
+                if lhs == rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }

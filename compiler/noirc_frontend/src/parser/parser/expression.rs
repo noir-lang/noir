@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
+        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
@@ -91,8 +91,7 @@ impl<'a> Parser<'a> {
     }
 
     /// AtomOrUnaryRightExpression
-    ///     = Atom
-    ///     | UnaryRightExpression
+    ///     = Atom UnaryRightExpression*
     fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut atom = self.parse_atom(allow_constructors)?;
@@ -311,6 +310,10 @@ impl<'a> Parser<'a> {
             return Some(kind);
         }
 
+        if let Some(kind) = self.parse_match_expr() {
+            return Some(kind);
+        }
+
         if let Some(kind) = self.parse_lambda() {
             return Some(kind);
         }
@@ -516,6 +519,49 @@ impl<'a> Parser<'a> {
         };
 
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
+    }
+
+    /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
+    pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+        if !self.eat_keyword(Keyword::Match) {
+            return None;
+        }
+
+        let expression = self.parse_expression_except_constructor_or_error();
+
+        self.eat_left_brace();
+
+        let rules = self.parse_many(
+            "match cases",
+            without_separator().until(Token::RightBrace),
+            Self::parse_match_rule,
+        );
+
+        self.push_error(ParserErrorReason::ExperimentalFeature("Match expressions"), start_span);
+        Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
+    }
+
+    /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
+    fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
+        let pattern = self.parse_expression()?;
+        self.eat_or_error(Token::FatArrow);
+
+        let start_span = self.current_token_span;
+        let branch = match self.parse_block() {
+            Some(block) => {
+                let span = self.span_since(start_span);
+                let block = Expression::new(ExpressionKind::Block(block), span);
+                self.eat_comma(); // comma is optional if we have a block
+                block
+            }
+            None => {
+                let branch = self.parse_expression_or_error();
+                self.eat_or_error(Token::Comma);
+                branch
+            }
+        };
+        Some((pattern, branch))
     }
 
     /// ComptimeExpression = 'comptime' Block
@@ -1026,8 +1072,8 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses() {
         let src = "
-        ( 
-         ^
+        (
+        ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
@@ -1514,8 +1560,8 @@ mod tests {
     #[test]
     fn parses_cast_missing_type() {
         let src = "
-        1 as 
-            ^
+        1 as
+           ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);

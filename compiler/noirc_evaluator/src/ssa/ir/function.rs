@@ -211,6 +211,16 @@ impl Function {
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
+
+    pub(crate) fn num_instructions(&self) -> usize {
+        self.reachable_blocks()
+            .iter()
+            .map(|block| {
+                let block = &self.dfg[*block];
+                block.instructions().len() + block.terminator().is_some() as usize
+            })
+            .sum()
+    }
 }
 
 impl Clone for Function {
