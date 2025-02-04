@@ -155,9 +155,6 @@ impl BrilligGlobals {
                 im::HashSet::new(),
             );
         }
-        // dbg!(brillig_entry_points.clone());
-        // let brillig_entry_points_set = get_brillig_entry_points(functions);
-        // dbg!(brillig_entry_points_set.clone());
 
         Self { used_globals, brillig_entry_points, ..Default::default() }
     }
