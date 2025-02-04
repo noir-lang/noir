@@ -1,6 +1,6 @@
 //! This module implements printing of the monomorphized AST, for debugging purposes.
 
-use super::ast::{Definition, Expression, Function, LValue};
+use super::ast::{Definition, Expression, Function, LValue, While};
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
 
@@ -50,7 +50,7 @@ impl AstPrinter {
             }
             Expression::For(for_expr) => self.print_for(for_expr, f),
             Expression::Loop(block) => self.print_loop(block, f),
-            Expression::While(condition, block) => self.print_while(condition, block, f),
+            Expression::While(while_) => self.print_while(while_, f),
             Expression::If(if_expr) => self.print_if(if_expr, f),
             Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
@@ -220,17 +220,12 @@ impl AstPrinter {
         write!(f, "}}")
     }
 
-    fn print_while(
-        &mut self,
-        condition: &Expression,
-        block: &Expression,
-        f: &mut Formatter,
-    ) -> Result<(), std::fmt::Error> {
+    fn print_while(&mut self, while_: &While, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "while ")?;
-        self.print_expr(condition, f)?;
+        self.print_expr(&while_.condition, f)?;
         write!(f, " {{")?;
         self.indent_level += 1;
-        self.print_expr_expect_block(block, f)?;
+        self.print_expr_expect_block(&while_.body, f)?;
         self.indent_level -= 1;
         self.next_line(f)?;
         write!(f, "}}")
