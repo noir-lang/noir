@@ -5291,11 +5291,6 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "sha256_regression",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "regression_4709",
             "value": 0.833,
             "unit": "s"
@@ -8698,11 +8693,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 10.092,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -18834,73 +18824,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 280,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 340,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -18921,11 +18851,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 218,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -18968,73 +18893,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 285,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 301,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -19055,11 +18920,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 217,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19102,73 +18962,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 303,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 309,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -19189,11 +18989,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 224,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19231,73 +19026,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 294,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 299,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -19318,11 +19053,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 212,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 2,
             "unit": "s"
           },
           {
@@ -19365,73 +19095,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 297,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 303,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -19452,11 +19122,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 212,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19499,73 +19164,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 275,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 296,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -19586,11 +19191,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 214,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19633,73 +19233,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 291,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 300,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -19720,11 +19260,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 213,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19767,73 +19302,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 304,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 301,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -19854,11 +19329,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 224,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -19901,73 +19371,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 300,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 306,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -19988,11 +19398,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 191,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20035,73 +19440,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 291,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 299,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -20122,11 +19467,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 195,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20169,66 +19509,6 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
             "value": 51,
             "unit": "s"
@@ -20241,11 +19521,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20278,73 +19553,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 281,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 298,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -20365,11 +19580,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 191,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20412,73 +19622,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 271,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 300,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -20499,11 +19649,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 191,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20546,73 +19691,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 7,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 286,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 302,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -20633,11 +19718,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20680,73 +19760,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 290,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 297,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -20767,11 +19787,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 199,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20814,73 +19829,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 312,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 312,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -20901,11 +19856,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 190,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -20948,73 +19898,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 281,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 336,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -21035,11 +19925,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 200,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -21082,73 +19967,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 9,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 283,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 346,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 0,
             "unit": "s"
           },
           {
@@ -21169,11 +19994,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 210,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
@@ -21216,73 +20036,13 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "noir-lang_sparse_array_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_schnorr_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_string_search_",
-            "value": 0,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_sort_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_check_shuffle_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir_bigcurve_",
             "value": 275,
             "unit": "s"
           },
           {
-            "name": "noir-lang_noir_base64_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-edwards_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
             "name": "noir-lang_noir-bignum_",
             "value": 350,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_mimc_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_eddsa_",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_ec_",
-            "value": 1,
             "unit": "s"
           },
           {
@@ -21303,11 +20063,6 @@ window.BENCHMARK_DATA = {
           {
             "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
             "value": 202,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_parity-lib",
-            "value": 3,
             "unit": "s"
           },
           {
