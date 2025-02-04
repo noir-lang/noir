@@ -339,43 +339,51 @@ impl DependencyContext {
                         if all_functions[&callee].runtime().is_brillig() {
                             // Skip already visited locations (happens often in unrolled functions)
                             let call_stack = function.dfg.get_instruction_call_stack(*instruction);
-                            if let Some(location) = call_stack.last() {
-                                if !self.visited_locations.contains(location) {
-                                    let results = function.dfg.instruction_results(*instruction);
-                                    let current_tainted =
-                                        BrilligTaintedIds::new(function, arguments, results);
+                            let location = call_stack.last();
 
-                                    // Record arguments/results for each Brillig call for the check.
-                                    //
-                                    // Do not track Brillig calls acting as simple wrappers over
-                                    // another registered Brillig call, update the tainted sets of
-                                    // the wrapped call instead
-                                    let mut wrapped_call_found = false;
-                                    for (_, tainted_call) in self.tainted.iter_mut() {
-                                        if current_tainted.is_wrapper(tainted_call) {
-                                            tainted_call.update_results_children(results);
-                                            wrapped_call_found = true;
-                                            break;
-                                        }
+                            // If there is no call stack (happens for tests), consider unvisited
+                            let mut visited = false;
+                            if let Some(location) = location {
+                                visited = self.visited_locations.contains(location);
+                            }
+
+                            if !visited {
+                                let results = function.dfg.instruction_results(*instruction);
+                                let current_tainted =
+                                    BrilligTaintedIds::new(function, arguments, results);
+
+                                // Record arguments/results for each Brillig call for the check.
+                                //
+                                // Do not track Brillig calls acting as simple wrappers over
+                                // another registered Brillig call, update the tainted sets of
+                                // the wrapped call instead
+                                let mut wrapped_call_found = false;
+                                for (_, tainted_call) in self.tainted.iter_mut() {
+                                    if current_tainted.is_wrapper(tainted_call) {
+                                        tainted_call.update_results_children(results);
+                                        wrapped_call_found = true;
+                                        break;
                                     }
+                                }
 
-                                    if !wrapped_call_found {
-                                        // Record the current call, remember the argument values involved
-                                        self.tainted.insert(*instruction, current_tainted);
-                                        arguments.iter().for_each(|value| {
-                                            self.call_arguments
-                                                .entry(*value)
-                                                .or_default()
-                                                .push(*instruction);
-                                        });
+                                if !wrapped_call_found {
+                                    // Record the current call, remember the argument values involved
+                                    self.tainted.insert(*instruction, current_tainted);
+                                    arguments.iter().for_each(|value| {
+                                        self.call_arguments
+                                            .entry(*value)
+                                            .or_default()
+                                            .push(*instruction);
+                                    });
 
-                                        // Set the constraint search limit for the call
-                                        self.search_limits.insert(
-                                            block_index + BRILLIG_CONSTRAINT_SEARCH_DEPTH,
-                                            *instruction,
-                                        );
-                                    }
+                                    // Set the constraint search limit for the call
+                                    self.search_limits.insert(
+                                        block_index + BRILLIG_CONSTRAINT_SEARCH_DEPTH,
+                                        *instruction,
+                                    );
+                                }
 
+                                if let Some(location) = location {
                                     self.visited_locations.insert(*location);
                                 }
                             }
