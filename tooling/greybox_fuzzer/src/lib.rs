@@ -1,7 +1,9 @@
+use core::panic;
 use std::{cmp::max, time::Instant};
 
 use acvm::{
     acir::{
+        self,
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
@@ -43,6 +45,114 @@ const FOREIGN_CALL_FAILURE_SUBSTRING: &str = "Failed calling external resolver."
 /// We aim the number of testcases per round so one round takes these many microseconds
 const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 500_000u128;
 
+/// A seed for the XorShift RNG for use during mutation
+type SimpleXorShiftRNGSeed = <XorShiftRng as SeedableRng>::Seed;
+
+/// A structure with the values for a single mutation-fuzz iteration in the fuzzer
+struct FuzzTask {
+    /// The id of the main testcase that is going to be mutated
+    main_testcase_id: TestCaseId,
+    /// An optional id of a second testcase that will be used for splicing
+    additional_testcase_id: Option<TestCaseId>,
+    /// A seed for the PRNG that will be used for mutating/splicing
+    seed: SimpleXorShiftRNGSeed,
+}
+
+impl FuzzTask {
+    /// Create a new FuzzTask where everything is given
+    pub fn new(
+        main_testcase_id: TestCaseId,
+        additional_testcase_id: Option<TestCaseId>,
+        seed: SimpleXorShiftRNGSeed,
+    ) -> Self {
+        Self { main_testcase_id, additional_testcase_id, seed }
+    }
+
+    /// Create a task for executing a testcase without mutation
+    pub fn mutationless(main_testcase_id: TestCaseId) -> Self {
+        Self {
+            main_testcase_id,
+            additional_testcase_id: None,
+            seed: SimpleXorShiftRNGSeed::default(),
+        }
+    }
+
+    pub fn prng_seed(&self) -> SimpleXorShiftRNGSeed {
+        self.seed
+    }
+    pub fn main_id(&self) -> TestCaseId {
+        self.main_testcase_id
+    }
+    pub fn additional_id(&self) -> Option<TestCaseId> {
+        self.additional_testcase_id
+    }
+}
+
+/// Contains information from parallel execution of testcases for quick single-threaded processing
+/// If no new coverage is detected, the fuzzer can simply quickly update the timing metrics without parsing the outcome
+#[derive(Debug)]
+struct FastParallelFuzzResult {
+    /// Contains the result of executing the testcase and the testcase itself
+    outcome: FuzzOutcome,
+    /// If new coverage has been detected when executing the testcase
+    new_coverage_detected: bool,
+    /// If the fuzzer has detected a condition that will not allow it to continue (a discrepancy, an unexpected execution failure or a failed foreign call)
+    failure_detected: bool,
+    /// How much time mutating the testcase took before execution (microseconds)
+    mutation_time: u128,
+    /// How much time executing the ACIR version took (microseconds). Zero, if there was only brillig execution
+    acir_time: u128,
+    /// How much time executing the brillig version took (microseconds)
+    brillig_time: u128,
+}
+
+impl FastParallelFuzzResult {
+    pub fn new(
+        outcome: FuzzOutcome,
+        new_coverage_detected: bool,
+        failure_detected: bool,
+        mutation_time: u128,
+        acir_time: u128,
+        brillig_time: u128,
+    ) -> Self {
+        Self {
+            outcome,
+            new_coverage_detected,
+            failure_detected,
+            mutation_time,
+            acir_time,
+            brillig_time,
+        }
+    }
+
+    /// True if there is no need to perform the merge check
+    pub fn skip_check(&self) -> bool {
+        !self.new_coverage_detected
+    }
+
+    /// Executing the testcase resulted in failure
+    pub fn failed(&self) -> bool {
+        self.failure_detected
+    }
+
+    /// Get the outcome of the execution
+    pub fn outcome(&self) -> &FuzzOutcome {
+        &self.outcome
+    }
+
+    /// Get mutation time
+    pub fn mutation_time(&self) -> u128 {
+        self.mutation_time
+    }
+    /// Get acir execution time
+    pub fn acir_time(&self) -> u128 {
+        self.acir_time
+    }
+    /// Get brillig execution time
+    pub fn brillig_time(&self) -> u128 {
+        self.brillig_time
+    }
+}
 /// The metrics of the fuzzing process being output to the user
 #[derive(Default)]
 struct Metrics {
@@ -240,7 +350,7 @@ impl<
             bool_witness_list,
         );
         // Quickly detect if there is any new coverage so that later single-threaded check can quickly discard this testcase
-        !accumulated_coverage.detect_new_coverage(&new_coverage)
+        accumulated_coverage.detect_new_coverage(&new_coverage)
     }
 
     /// Start the fuzzing campaign
@@ -303,38 +413,13 @@ impl<
             .build()
             .unwrap();
 
-        // // Execute initial corpus
-        // let fuzzing_results: Vec<FuzzOutcome> =
-        //     self.execute_testcases_in_parallel(&pool, &starting_corpus);
-
-        // // Parse the result from the initial corpus execution
-        // let initial_corpus_result = self
-        //     .parse_fuzzing_results_and_update_accumulated_coverage_and_corpus(
-        //         &fuzzing_results,
-        //         &mut accumulated_coverage,
-        //         &mut corpus,
-        //         start_with_only_default_input,
-        //     );
-
-        // // It is possible that there is already an erroneous input or a foreign call failed to resolve, so check
-        // match initial_corpus_result {
-        //     Ok(_) => {}
-        //     Err(fuzz_outcome) => {
-        //         return fuzz_outcome;
-        //     }
-        // }
-
         let testcases_per_iteration = self.num_threads * 2;
         let mut time_tracker = Instant::now();
         let mut brillig_executions_multiplier = 1usize;
         let mut acir_executions_multiplier = 1usize;
         let mut processed_starting_corpus = false;
         let fuzz_res = loop {
-            let mut testcase_set: Vec<(
-                TestCaseId,
-                Option<TestCaseId>,
-                <XorShiftRng as SeedableRng>::Seed,
-            )> = Vec::new();
+            let mut testcase_set: Vec<FuzzTask> = Vec::new();
 
             // If the total time spent in brillig is more than the time spent in ACIR, then enable ACIR for execution, otherwise execute just brillig
             // The reason is that brillig can be hundreds of times faster than ACIR and we want to balance execution so we don't waste an opportunity
@@ -345,6 +430,7 @@ impl<
             if processed_starting_corpus {
                 // If this is a standard and not a starting round
                 // We want to send so many testcases to the multithreaded pool that we lose very little execution in relative terms while we wait for all threads to finish
+                // So we scale so that the time to execute all of them in parallel is `SINGLE_FUZZING_ROUND_TARGET_TIME`
                 let current_testcase_set_size = if acir_round {
                     acir_executions_multiplier * testcases_per_iteration
                 } else {
@@ -362,95 +448,109 @@ impl<
                     };
 
                     // Generate seeds for use by individual threads (we can't reuse our main PRNG because of parallelism)
-                    let mut seed_bytes: <XorShiftRng as SeedableRng>::Seed = [0; 16];
+                    let mut seed_bytes: SimpleXorShiftRNGSeed = [0; 16];
                     prng.fill_bytes(&mut seed_bytes);
 
-                    testcase_set.push((main_testcase, additional_testcase, seed_bytes));
+                    testcase_set.push(FuzzTask::new(
+                        main_testcase,
+                        additional_testcase,
+                        seed_bytes,
+                    ));
                 }
             } else {
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
                 for id in starting_corpus_ids.iter() {
-                    testcase_set.push((*id, None, [0; 16]));
+                    testcase_set.push(FuzzTask::mutationless(*id));
                 }
             }
             let mutation_and_fuzzing_time_tracker = Instant::now();
             let current_round_size = testcase_set.len();
             // Mutate and execute the testcases
-            let all_fuzzing_results: Vec<(FuzzOutcome, bool, u128, u128, u128)> =
-                pool.install(|| {
-                    testcase_set
-                        .into_par_iter()
-                        .map(|(main_testcase_index, additional_testcase_index, thread_seed)| {
-                            // Initialize a prng from per-thread seed
-                            let mut thread_prng = XorShiftRng::from_seed(thread_seed);
+            let all_fuzzing_results: Vec<FastParallelFuzzResult> = pool.install(|| {
+                testcase_set
+                    .into_par_iter()
+                    .map(|fuzz_task| {
+                        // Initialize a prng from per-thread seed
+                        let mut thread_prng = XorShiftRng::from_seed(fuzz_task.prng_seed());
 
-                            let mutation_time_tracker = Instant::now();
+                        let mutation_time_tracker = Instant::now();
 
-                            // Generate a mutated input by using the main and additional testcases in the corpus
-                            let input = if processed_starting_corpus {
-                                self.mutator.generate_mutated_input(
-                                    corpus.get_testcase_by_id(main_testcase_index).clone(),
-                                    additional_testcase_index.map(|additional_testcase_index| {
-                                        corpus.get_testcase_by_id(additional_testcase_index).clone()
-                                    }),
-                                    &mut thread_prng,
-                                )
-                            } else {
-                                // Or just get the input from the starting corpus if this is the first round
-                                corpus.get_testcase_by_id(main_testcase_index).clone()
-                            };
+                        // Generate a mutated input by using the main and additional testcases in the corpus
+                        let input = if processed_starting_corpus {
+                            self.mutator.generate_mutated_input(
+                                corpus.get_testcase_by_id(fuzz_task.main_id()).clone(),
+                                fuzz_task.additional_id().map(|additional_testcase_index| {
+                                    corpus.get_testcase_by_id(additional_testcase_index).clone()
+                                }),
+                                &mut thread_prng,
+                            )
+                        } else {
+                            // Or just get the input from the starting corpus if this is the first round
+                            corpus.get_testcase_by_id(fuzz_task.main_id()).clone()
+                        };
 
-                            // Time mutations
-                            let mutation_elapsed = mutation_time_tracker.elapsed().as_micros();
-                            // Form a testcase from input (assign a unique id)
-                            let testcase = TestCase::from(&input);
+                        // Time mutations
+                        let mutation_elapsed = mutation_time_tracker.elapsed().as_micros();
 
-                            let fuzz_call_outcome = if acir_round {
-                                // If the round uses ACIR, run both ACIR and brillig execution
-                                self.single_fuzz_acir_and_brillig(&testcase)
-                            } else {
-                                // If this is a brillig round, execute just the brillig program
-                                self.single_fuzz_brillig(&testcase)
-                            };
+                        // Form a testcase from input (assign a unique id)
+                        let testcase = TestCase::from(&input);
 
-                            if let FuzzOutcome::Case(SuccessfulCaseOutcome {
-                                case_id,
-                                case,
-                                witness,
-                                brillig_coverage,
-                                acir_time,
-                                brillig_time,
-                            }) = fuzz_call_outcome
-                            {
-                                // If the outcome is successful, collect coverage
-                                let new_coverage_detected =
-                                    Self::detect_new_coverage_from_witness_and_brillig(
-                                        &accumulated_coverage,
-                                        &witness,
-                                        &brillig_coverage,
-                                    );
-                                (
-                                    FuzzOutcome::Case(SuccessfulCaseOutcome {
-                                        case_id,
-                                        case,
-                                        witness,
-                                        brillig_coverage,
-                                        acir_time,
-                                        brillig_time,
-                                    }),
-                                    new_coverage_detected,
-                                    mutation_elapsed,
+                        let fuzz_call_outcome = if acir_round {
+                            // If the round uses ACIR, run both ACIR and brillig execution
+                            self.single_fuzz_acir_and_brillig(&testcase)
+                        } else {
+                            // If this is a brillig round, execute just the brillig program
+                            self.single_fuzz_brillig(&testcase)
+                        };
+
+                        if let FuzzOutcome::Case(SuccessfulCaseOutcome {
+                            case_id,
+                            case,
+                            witness,
+                            brillig_coverage,
+                            acir_time,
+                            brillig_time,
+                        }) = fuzz_call_outcome
+                        {
+                            // If the outcome is successful, collect coverage
+                            let new_coverage_detected =
+                                Self::detect_new_coverage_from_witness_and_brillig(
+                                    &accumulated_coverage,
+                                    &witness,
+                                    &brillig_coverage,
+                                );
+
+                            FastParallelFuzzResult::new(
+                                FuzzOutcome::Case(SuccessfulCaseOutcome {
+                                    case_id,
+                                    case,
+                                    witness,
+                                    brillig_coverage,
                                     acir_time,
                                     brillig_time,
-                                )
-                            } else {
-                                // We don't care abut acir and brillig time any more if we now need to inform the user that something went wrong or we found the bug
-                                (fuzz_call_outcome, false, mutation_elapsed, 0, 0)
-                            }
-                        })
-                        .collect::<Vec<(FuzzOutcome, bool, u128, u128, u128)>>()
-                });
+                                }),
+                                new_coverage_detected,
+                                /*failure_detected=*/ false,
+                                mutation_elapsed,
+                                acir_time,
+                                brillig_time,
+                            )
+                        } else {
+                            // We don't care abut acir and brillig time any more if we now need to inform the user that something went wrong or we found a bug
+                            FastParallelFuzzResult::new(
+                                fuzz_call_outcome,
+                                /*new_coverage_detected=*/
+                                false, // we don't care about new coverage if we've detected a failure
+                                /*failure_detected=*/ true,
+                                mutation_elapsed,
+                                /*acir_time=*/ 0,
+                                /*brillig_time=*/ 0,
+                            )
+                        }
+                    })
+                    .collect::<Vec<FastParallelFuzzResult>>()
+            });
             let fuzz_time_micros = mutation_and_fuzzing_time_tracker.elapsed().as_micros();
 
             if processed_starting_corpus {
@@ -474,147 +574,136 @@ impl<
                     }
                 }
             }
-            let mut potential_res = None;
-            let mut acir_cases_to_execute = Vec::new();
+
+            let mut failing_result = None;
             let updating_time_tracker = Instant::now();
 
             self.metrics.increase_processed_testcase_count(&current_round_size);
-            // Count how many testcases we skipped this round and update metrics
-            for (_, _, mutation_time_micros, acir_time_micros, brillig_time_micros) in
-                all_fuzzing_results
-                    .iter()
-                    .filter(|(_, should_skip_check, _, _, _)| *should_skip_check)
-            {
-                self.metrics.increase_total_acir_time(acir_time_micros);
-                self.metrics.increase_total_brillig_time(brillig_time_micros);
-                self.metrics.increase_total_mutation_time(mutation_time_micros);
-            }
-            let mut results_to_analyze = Vec::new();
 
-            // Find testcases with new coverage and update metrics for them
-            for (index, (_, __, mutation_time_micros, acir_time_micros, brillig_time_micros)) in
-                all_fuzzing_results
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, (_, should_skip_check, _, _, _))| !*should_skip_check)
+            // Check if there are any failures and immediately break the loop if some are found
+            for fast_result in all_fuzzing_results.iter().filter(|fast_result| fast_result.failed())
             {
-                self.metrics.increase_total_acir_time(acir_time_micros);
-                self.metrics.increase_total_brillig_time(brillig_time_micros);
-                self.metrics.increase_total_mutation_time(mutation_time_micros);
-                results_to_analyze.push(index);
+                failing_result = Some(fast_result.outcome().clone());
+                break;
+            }
+            if let Some(result) = failing_result {
+                break result;
             }
 
+            let mut analysis_queue = Vec::new();
+
+            // Update metrics for everything and push interesting results to the analysis queue
+            for (index, fast_result) in all_fuzzing_results.iter().enumerate() {
+                self.metrics.increase_total_acir_time(&fast_result.acir_time());
+                self.metrics.increase_total_brillig_time(&fast_result.brillig_time());
+                self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
+                if !fast_result.skip_check() {
+                    analysis_queue.push(index)
+                }
+            }
+
+            let mut acir_cases_to_execute = Vec::new();
             // Go through each interesting testcase (new coverage or some issue)
-            for index in results_to_analyze.into_iter() {
-                let fuzz_res = all_fuzzing_results[index].0.clone();
-                let (case_id, case, witness, brillig_coverage, brillig_time) = match fuzz_res {
+            for index in analysis_queue.into_iter() {
+                let fuzzing_outcome = all_fuzzing_results[index].outcome().clone();
+                let (case_id, case, witness, brillig_coverage) = match fuzzing_outcome {
                     FuzzOutcome::Case(SuccessfulCaseOutcome {
                         case_id,
                         case,
                         witness,
                         brillig_coverage,
                         acir_time: _,
-                        brillig_time,
-                    }) => (case_id, case, witness, brillig_coverage, brillig_time),
-                    // In case the result is not successful, break out of the loop and return it
+                        brillig_time: _,
+                    }) => (case_id, case, witness, brillig_coverage.unwrap()), // There should always be brillig coverage
                     _ => {
-                        potential_res = Some(fuzz_res);
-                        break;
+                        panic!(
+                            "All non-successful fuzzing outcomes should have been detected earlier"
+                        )
                     }
                 };
-                // In case we fuzzed both ACIR and brillig
-                if let Some(brillig_coverage) = brillig_coverage.clone() {
-                    // If we managed to produce an ACIR witness
-                    if witness.is_some() {
-                        // Update the potential list
-                        if accumulated_coverage.potential_bool_witness_list.is_none() {
-                            // If it's the first time, we need to assign
-                            accumulated_coverage.potential_bool_witness_list =
-                                Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
-                        } else {
-                            accumulated_coverage
-                                .potential_bool_witness_list
-                                .as_mut()
-                                .unwrap()
-                                .update(witness.as_ref().unwrap());
-                        }
-                    }
-                    // Form the coverage object to accumulate
-                    let new_coverage = SingleTestCaseCoverage::new(
-                        case_id,
-                        &witness,
-                        brillig_coverage,
+                // If we ran ACIR and  managed to produce an ACIR witness
+                if acir_round && witness.is_some() {
+                    // Update the potential list
+                    if accumulated_coverage.potential_bool_witness_list.is_none() {
+                        // If it's the first time, we need to assign
+                        accumulated_coverage.potential_bool_witness_list =
+                            Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
+                    } else {
                         accumulated_coverage
                             .potential_bool_witness_list
-                            .as_ref()
-                            .unwrap_or(&PotentialBoolWitnessList::default()),
-                    );
+                            .as_mut()
+                            .unwrap()
+                            .update(witness.as_ref().unwrap());
+                    }
+                }
 
-                    // Merge the coverage
-                    let (new_coverage_discovered, testcases_to_remove) =
-                        accumulated_coverage.merge(&new_coverage);
+                // Form the coverage object to accumulate
+                let new_coverage = SingleTestCaseCoverage::new(
+                    case_id,
+                    &witness,
+                    brillig_coverage.clone(),
+                    accumulated_coverage
+                        .potential_bool_witness_list
+                        .as_ref()
+                        .unwrap_or(&PotentialBoolWitnessList::default()),
+                );
 
-                    // If there is new coverage, which should always be the case here:
-                    if new_coverage_discovered {
-                        // Remove testcases from the corpus if they have no unique features
-                        for &testcase_for_removal in testcases_to_remove.iter() {
-                            self.metrics.increment_removed_testcase_count();
-                            corpus.remove(testcase_for_removal);
-                        }
+                // In case this is just a brillig round, we need to detect first, since a merge might skip some witnesses that we haven't added from acir
+                if !acir_round {
+                    if accumulated_coverage.detect_new_coverage(&new_coverage) {
+                        acir_cases_to_execute.push((case_id, case.clone(), brillig_coverage));
+                        continue;
+                    }
+                }
 
-                        // TODO: create flag to show inputs with new coverage
-                        println!("Input: {:?}", case);
+                // If both acir and brillig have been run, we can try to merge the coverage (there is an automatic detect)
+                // There might not be new coverage if there are several testcases with the same new coverage in comparison to the previous round
+                let (new_coverage_discovered, testcases_to_remove) =
+                    accumulated_coverage.merge(&new_coverage);
 
-                        // Add values from the interesting testcase to the dictionary
-                        self.mutator.update_dictionary(&case);
-                        //Insert the new testcase into the corpus
-                        match corpus.insert(case_id, case, true) {
-                            Ok(_) => (),
-                            Err(error_string) => {
-                                return FuzzTestResult {
-                                    success: false,
-                                    reason: Some(error_string),
-                                    counterexample: None,
-                                    foreign_call_failure: false,
-                                }
+                // If there is new coverage
+                if new_coverage_discovered {
+                    // Remove testcases from the corpus if they have no unique features
+                    for &testcase_for_removal in testcases_to_remove.iter() {
+                        self.metrics.increment_removed_testcase_count();
+                        corpus.remove(testcase_for_removal);
+                    }
+
+                    // TODO: create flag to show inputs with new coverage
+                    println!("Input: {:?}", case);
+
+                    // Add values from the interesting testcase to the dictionary
+                    self.mutator.update_dictionary(&case);
+
+                    //Insert the new testcase into the corpus
+                    match corpus.insert(case_id, case, true) {
+                        Ok(_) => (),
+                        Err(error_string) => {
+                            return FuzzTestResult {
+                                success: false,
+                                reason: Some(error_string),
+                                counterexample: None,
+                                foreign_call_failure: false,
                             }
                         }
-                        // TODO: FLAG
-                        print!("Found new feature");
-                        if processed_starting_corpus {
-                            println!("!");
-                        } else {
-                            println!(" in starting corpus!")
-                        }
                     }
-                } else if let Some(brillig_coverage) = brillig_coverage {
-                    let new_coverage = SingleTestCaseCoverage::new(
-                        case_id,
-                        &None,
-                        brillig_coverage.clone(),
-                        &PotentialBoolWitnessList::default(),
-                    );
-                    if accumulated_coverage.detect_new_coverage(&new_coverage) {
-                        acir_cases_to_execute.push((
-                            case_id,
-                            case.clone(),
-                            new_coverage.brillig_coverage,
-                            brillig_time,
-                        ));
+                    // TODO: FLAG
+                    print!("Found new feature with ACIR and Brillig");
+                    if processed_starting_corpus {
+                        println!("!");
+                    } else {
+                        println!(" in starting corpus!")
                     }
                 }
             }
+
             let updating_time = updating_time_tracker.elapsed().as_micros();
 
-            if let Some(result) = potential_res {
-                break result;
-            }
-
-            // Execute interesting testcases in ACIR if they haven't been to collect witness
+            // Execute interesting testcases in ACIR to collect witness if they have been executed just in brillig
             let all_fuzzing_results: Vec<FuzzOutcome> = pool.install(|| {
                 acir_cases_to_execute
                     .into_par_iter()
-                    .map(|(case_id, input, brillig_coverage, brillig_time)| {
+                    .map(|(case_id, input, brillig_coverage )| {
                         let testcase = TestCase::with_id(case_id, &input);
                         let fuzz_res = self.single_fuzz_acir(&testcase);
                         match fuzz_res {
@@ -631,7 +720,7 @@ impl<
                                 witness,
                                 brillig_coverage: Some(brillig_coverage),
                                 acir_time,
-                                brillig_time,
+                                brillig_time:0,// we've already used this brillig time in calculations, so it doesn't matter
                             }),
                             FuzzOutcome::Discrepancy(..) => {
                                 panic!("Can't get a discrepancy just from acir")
@@ -655,72 +744,77 @@ impl<
             });
 
             // Parse results and if there is an unsuccessful case break out of the loop
-            for fuzz_res in all_fuzzing_results.into_iter() {
-                let (case_id, case, witness, brillig_coverage, acir_time, brillig_time) =
-                    match fuzz_res {
+            for acir_fuzzing_result in all_fuzzing_results.into_iter() {
+                let (case_id, case, witness, brillig_coverage, acir_time) =
+                    match acir_fuzzing_result {
                         FuzzOutcome::Case(SuccessfulCaseOutcome {
                             case_id,
                             case,
                             witness,
                             brillig_coverage,
                             acir_time,
-                            brillig_time,
-                        }) => (case_id, case, witness, brillig_coverage, acir_time, brillig_time),
+                            brillig_time: _,
+                        }) => (
+                            case_id,
+                            case,
+                            witness,
+                            brillig_coverage.unwrap(), /*there should always be brillig coverage */
+                            acir_time,
+                        ),
                         _ => {
-                            potential_res = Some(fuzz_res);
+                            failing_result = Some(acir_fuzzing_result);
                             break;
                         }
                     };
-                // Parse brillig coverage
-                if let Some(brillig_coverage) = brillig_coverage {
-                    self.metrics.increase_total_brillig_time(&brillig_time);
-                    // In case ACIR execution
-                    if witness.is_some() {
-                        // Update the potential list
-                        if accumulated_coverage.potential_bool_witness_list.is_none() {
-                            // If it's the first time, we need to assign
-                            accumulated_coverage.potential_bool_witness_list =
-                                Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
-                        } else {
-                            accumulated_coverage
-                                .potential_bool_witness_list
-                                .as_mut()
-                                .unwrap()
-                                .update(witness.as_ref().unwrap());
-                        }
+                self.metrics.increase_total_acir_time(&acir_time);
+
+                // In case ACIR execution was successful
+                if witness.is_some() {
+                    // Update the potential list
+                    if accumulated_coverage.potential_bool_witness_list.is_none() {
+                        // If it's the first time, we need to assign
+                        accumulated_coverage.potential_bool_witness_list =
+                            Some(PotentialBoolWitnessList::from(witness.as_ref().unwrap()));
+                    } else {
+                        accumulated_coverage
+                            .potential_bool_witness_list
+                            .as_mut()
+                            .unwrap()
+                            .update(witness.as_ref().unwrap());
                     }
-                    let new_coverage = SingleTestCaseCoverage::new(
-                        case_id,
-                        &witness,
-                        brillig_coverage,
-                        accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
-                    );
-                    let (new_coverage_discovered, testcases_to_remove) =
-                        accumulated_coverage.merge(&new_coverage);
-                    if new_coverage_discovered {
-                        for &testcase_for_removal in testcases_to_remove.iter() {
-                            self.metrics.increment_removed_testcase_count();
-                            corpus.remove(testcase_for_removal);
-                        }
-                        println!("Input: {:?}", case);
-                        self.mutator.update_dictionary(&case);
-                        match corpus.insert(case_id, case, true) {
-                            Ok(_) => (),
-                            Err(error_string) => {
-                                return FuzzTestResult {
-                                    success: false,
-                                    reason: Some(error_string),
-                                    counterexample: None,
-                                    foreign_call_failure: false,
-                                }
+                }
+
+                let new_coverage = SingleTestCaseCoverage::new(
+                    case_id,
+                    &witness,
+                    brillig_coverage,
+                    accumulated_coverage.potential_bool_witness_list.as_mut().unwrap(),
+                );
+                let (new_coverage_discovered, testcases_to_remove) =
+                    accumulated_coverage.merge(&new_coverage);
+                if new_coverage_discovered {
+                    for &testcase_for_removal in testcases_to_remove.iter() {
+                        self.metrics.increment_removed_testcase_count();
+                        corpus.remove(testcase_for_removal);
+                    }
+                    println!("Input: {:?}", case);
+                    self.mutator.update_dictionary(&case);
+                    match corpus.insert(case_id, case, true) {
+                        Ok(_) => (),
+                        Err(error_string) => {
+                            return FuzzTestResult {
+                                success: false,
+                                reason: Some(error_string),
+                                counterexample: None,
+                                foreign_call_failure: false,
                             }
                         }
-                        println!("Found new feature just with brillig!");
                     }
+                    println!("Found new feature just with brillig!");
                 }
             }
             // If we've found something, return
-            if let Some(result) = potential_res {
+            if let Some(result) = failing_result {
                 break result;
             }
             if time_tracker.elapsed().as_secs() >= 1 {

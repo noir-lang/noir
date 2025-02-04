@@ -464,6 +464,7 @@ impl AccumulatedFuzzerCoverage {
         (true, self.check_if_unused(&potential_leavers))
     }
 
+    /// Returns true if there is new coverage in the presented testcase
     pub fn detect_new_coverage(&self, new_coverage: &SingleTestCaseCoverage) -> bool {
         // Go through all single branch coverage ranges and check that either:
         // 1. A new branch is taken
