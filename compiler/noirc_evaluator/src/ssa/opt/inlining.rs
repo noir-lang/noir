@@ -791,11 +791,9 @@ mod test {
             map::Id,
             types::{NumericType, Type},
         },
-        opt::assert_normalized_ssa_equals,
+        opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
         Ssa,
     };
-
-    use super::compute_bottom_up_order;
 
     #[test]
     fn basic_inlining() {
