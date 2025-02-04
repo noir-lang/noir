@@ -1,25 +1,28 @@
 use acvm::AcirField;
 use fxhash::FxHashMap as HashMap;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
-    ast::{EnumVariant, Expression, FunctionKind, NoirEnumeration, UnresolvedType, Visibility},
-    hir::resolution::errors::ResolverError,
+    ast::{
+        EnumVariant, Expression, ExpressionKind, FunctionKind, Literal, NoirEnumeration,
+        StatementKind, UnresolvedType, Visibility,
+    },
+    hir::{resolution::errors::ResolverError, type_check::TypeCheckError},
     hir_def::{
         expr::{
-            HirArrayLiteral, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirLiteral, HirMatchExpression,
+            Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
+            HirIdent, HirMatch,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     token::Attributes,
-    DataType, Shared, Type,
+    DataType, Kind, Shared, Type,
 };
 
-use super::Elaborator;
+use super::{path_resolution::PathResolution, Elaborator};
 
 impl Elaborator<'_> {
     /// Defines the value of an enum variant that we resolve an enum
@@ -250,11 +253,202 @@ impl Elaborator<'_> {
         }))
     }
 
+    /// To elaborate the rules of a match we need to go through the pattern first to define all
+    /// the variables within, then compile the corresponding branch. For each branch we do this
+    /// way we'll need to keep a distinct scope so that branches cannot access the pattern
+    /// variables from other branches.
+    ///
+    /// Returns (rows, result type) where rows is a pattern matrix used to compile the
+    /// match into a decision tree.
+    pub(super) fn elaborate_match_rules(
+        &mut self,
+        variable_to_match: DefinitionId,
+        rules: Vec<(Expression, Expression)>,
+    ) -> (Vec<Row>, Type) {
+        let result_type = self.interner.next_type_variable();
+        let expected_pattern_type = self.interner.definition_type(variable_to_match);
+
+        let rows = vecmap(rules, |(pattern, branch)| {
+            let pattern = self.expression_to_pattern(pattern, &expected_pattern_type);
+            let columns = vec![Column::new(variable_to_match, pattern)];
+
+            let guard = None;
+            let body_span = branch.span;
+            let (body, body_type) = self.elaborate_expression(branch);
+
+            self.unify(&body_type, &result_type, || TypeCheckError::TypeMismatch {
+                expected_typ: result_type.to_string(),
+                expr_typ: body_type.to_string(),
+                expr_span: body_span,
+            });
+
+            Row::new(columns, guard, body)
+        });
+        (rows, result_type)
+    }
+
+    /// Convert an expression into a Pattern, defining any variables within.
+    fn expression_to_pattern(&mut self, expression: Expression, expected_type: &Type) -> Pattern {
+        let expr_span = expression.span;
+        let unify_with_expected_type = |this: &mut Self, actual| {
+            this.unify(actual, expected_type, || TypeCheckError::TypeMismatch {
+                expected_typ: expected_type.to_string(),
+                expr_typ: actual.to_string(),
+                expr_span,
+            });
+        };
+
+        match expression.kind {
+            ExpressionKind::Literal(Literal::Integer(x, negative)) => {
+                let Some(mut x): Option<i64> = x.try_to_u64().and_then(|x| x.try_into().ok())
+                else {
+                    panic!("integer too big! or small")
+                };
+                if negative {
+                    x = -x;
+                }
+
+                let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+                unify_with_expected_type(self, &actual);
+                Pattern::Int(x)
+            }
+            ExpressionKind::Variable(path) => {
+                // A variable can be free or bound if it refers to an enum constant:
+                // - in `(a, b)`, both variables may be free and should be defined, or
+                //   may refer to an enum variant named `a` or `b` in scope.
+                // - Possible diagnostics improvement: warn if `a` is defined as a variable
+                //   when there is a matching enum variant with name `Foo::a` which can
+                //   be imported. The user likely intended to reference the enum variant.
+                let path_len = path.segments.len();
+                match self.resolve_path(path) {
+                    Ok(resolution) => {
+                        self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
+                    }
+                    Err(_) if path_len == 1 => {
+                        // Define the variable
+                        let id = self.new_variables(&[expected_type.clone()])[0];
+                        Pattern::Binding(id)
+                    }
+                    Err(error) => {
+                        self.push_err(error);
+                        let id = self.new_variables(&[expected_type.clone()])[0];
+                        Pattern::Binding(id)
+                    }
+                }
+            }
+            ExpressionKind::Call(call) => {
+                self.expression_to_constructor(*call.func, call.arguments, expected_type)
+            }
+            ExpressionKind::Constructor(_) => todo!("handle constructors"),
+            ExpressionKind::Tuple(fields) => {
+                let field_types = vecmap(0..fields.len(), |_| self.interner.next_type_variable());
+                let actual = Type::Tuple(field_types.clone());
+                unify_with_expected_type(self, &actual);
+
+                let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
+                    let expected = field_types.get(i).unwrap_or(&Type::Error);
+                    self.expression_to_pattern(field, expected)
+                });
+
+                Pattern::Constructor(Constructor::Tuple(field_types.clone()), fields)
+            }
+
+            ExpressionKind::Parenthesized(expr) => self.expression_to_pattern(*expr, expected_type),
+            ExpressionKind::Interned(id) => {
+                let kind = self.interner.get_expression_kind(id);
+                let expr = Expression::new(kind.clone(), expression.span);
+                self.expression_to_pattern(expr, expected_type)
+            }
+            ExpressionKind::InternedStatement(id) => {
+                if let StatementKind::Expression(expr) = self.interner.get_statement_kind(id) {
+                    self.expression_to_pattern(expr.clone(), expected_type)
+                } else {
+                    panic!("Invalid expr kind {expression}")
+                }
+            }
+
+            ExpressionKind::Literal(_)
+            | ExpressionKind::Block(_)
+            | ExpressionKind::Prefix(_)
+            | ExpressionKind::Index(_)
+            | ExpressionKind::MethodCall(_)
+            | ExpressionKind::MemberAccess(_)
+            | ExpressionKind::Cast(_)
+            | ExpressionKind::Infix(_)
+            | ExpressionKind::If(_)
+            | ExpressionKind::Match(_)
+            | ExpressionKind::Lambda(_)
+            | ExpressionKind::Quote(_)
+            | ExpressionKind::Unquote(_)
+            | ExpressionKind::Comptime(_, _)
+            | ExpressionKind::Unsafe(_, _)
+            | ExpressionKind::AsTraitPath(_)
+            | ExpressionKind::TypePath(_)
+            | ExpressionKind::Resolved(_)
+            | ExpressionKind::Error => {
+                panic!("Invalid expr kind {expression}")
+            }
+        }
+    }
+
+    fn expression_to_constructor(
+        &mut self,
+        name: Expression,
+        args: Vec<Expression>,
+        expected_type: &Type,
+    ) -> Pattern {
+        match name.kind {
+            ExpressionKind::Variable(path) => match self.resolve_path(path) {
+                Ok(resolution) => {
+                    self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
+                }
+                Err(error) => {
+                    self.push_err(error);
+                    let id = self.new_variables(&[expected_type.clone()])[0];
+                    Pattern::Binding(id)
+                }
+            },
+            ExpressionKind::Parenthesized(expr) => {
+                self.expression_to_constructor(*expr, args, expected_type)
+            }
+            ExpressionKind::Interned(id) => {
+                let kind = self.interner.get_expression_kind(id);
+                let expr = Expression::new(kind.clone(), name.span);
+                self.expression_to_constructor(expr, args, expected_type)
+            }
+            ExpressionKind::InternedStatement(id) => {
+                if let StatementKind::Expression(expr) = self.interner.get_statement_kind(id) {
+                    self.expression_to_constructor(expr.clone(), args, expected_type)
+                } else {
+                    panic!("Invalid expr kind {name}")
+                }
+            }
+            other => todo!("invalid constructor `{other}`"),
+        }
+    }
+
+    fn path_resolution_to_constructor(
+        &mut self,
+        name: PathResolution,
+        args: Vec<Expression>,
+        expected_type: &Type,
+    ) -> Pattern {
+        dbg!(&name);
+        todo!()
+    }
+
     /// Compiles the rows of a match expression, outputting a decision tree for the match.
     ///
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
-    fn elaborate_match_rows(&mut self, mut rows: Vec<Row>) -> Result<Decision, ResolverError> {
+    pub(super) fn elaborate_match_rows(&mut self, mut rows: Vec<Row>) -> HirMatch {
+        self.compile_rows(rows).unwrap_or_else(|error| {
+            self.push_err(error);
+            HirMatch::Failure
+        })
+    }
+
+    fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
             return Err(todo!("missing case"));
         }
@@ -266,44 +460,88 @@ impl Elaborator<'_> {
             let row = rows.remove(0);
 
             return Ok(match row.guard {
-                None => Decision::Success(row.body),
-                Some(expr) => {
-                    let remaining = self.elaborate_match_rows(rows)?;
-                    Decision::Guard(expr, row.body, Box::new(remaining))
+                None => HirMatch::Success(row.body),
+                Some(cond) => {
+                    let remaining = self.compile_rows(rows)?;
+                    HirMatch::Guard { cond, body: row.body, otherwise: Box::new(remaining) }
                 }
             });
         }
 
         let branch_var = self.branch_variable(&rows);
 
-        match self.interner.definition_type(branch_var) {
+        match self.interner.definition_type(branch_var).follow_bindings_shallow().into_owned() {
             Type::FieldElement | Type::Integer(_, _) => {
-                let (cases, fallback) = self.compile_int_cases(rows, branch_var);
-
-                Ok(Decision::Switch(branch_var, cases, Some(fallback)))
+                let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
+                Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
 
             Type::Array(_, _) => todo!(),
             Type::Slice(_) => todo!(),
-            Type::Bool => todo!(),
-            Type::String(_) => todo!(),
-            Type::FmtString(_, _) => todo!(),
-            Type::Unit => todo!(),
-            Type::Tuple(_) => todo!(),
-            Type::DataType(_, _) => todo!(),
-            Type::Alias(_, _) => todo!(),
-            Type::TypeVariable(_) => todo!(),
-            Type::TraitAsType(_, _, _) => todo!(),
-            Type::NamedGeneric(_, _) => todo!(),
-            Type::CheckedCast { from, to } => todo!(),
-            Type::Function(_, _, _, _) => todo!(),
-            Type::MutableReference(_) => todo!(),
-            Type::Forall(_, _) => todo!(),
-            Type::Constant(_, _) => todo!(),
-            Type::Quoted(_) => todo!(),
-            Type::InfixExpr(_, _, _, _) => todo!(),
-            Type::Error => todo!(),
+            Type::Bool => {
+                let cases = vec![
+                    (Constructor::False, Vec::new(), Vec::new()),
+                    (Constructor::True, Vec::new(), Vec::new()),
+                ];
+
+                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, None))
+            }
+            Type::Unit => {
+                let cases = vec![(Constructor::Unit, Vec::new(), Vec::new())];
+                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, None))
+            }
+            Type::Tuple(fields) => {
+                let field_variables = self.new_variables(&fields);
+                let cases = vec![(Constructor::Tuple(fields), field_variables, Vec::new())];
+                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, None))
+            }
+            typ @ Type::DataType(def, generics) => {
+                let def = def.borrow();
+                if let Some(variants) = def.get_variants(&generics) {
+                    let cases = vecmap(variants.iter().enumerate(), |(idx, (_name, args))| {
+                        let constructor = Constructor::Variant(typ, idx);
+                        let args = self.new_variables(args);
+                        (constructor, args, Vec::new())
+                    });
+
+                    let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
+                    Ok(HirMatch::Switch(branch_var, cases, None))
+                } else if let Some(fields) = def.get_fields(&generics) {
+                    // Just treat structs as a single-variant type
+                    let fields = vecmap(fields, |(name, typ)| typ);
+                    let cases = vec![(
+                        Constructor::Variant(typ, 0),
+                        self.new_variables(&fields),
+                        Vec::new(),
+                    )];
+                    let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
+                    Ok(HirMatch::Switch(branch_var, cases, None))
+                } else {
+                    Err(todo!("Cannot match on type {typ}"))
+                }
+            }
+            typ @ (Type::Alias(_, _)
+            | Type::TypeVariable(_)
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::TraitAsType(_, _, _)
+            | Type::NamedGeneric(_, _)
+            | Type::CheckedCast { .. }
+            | Type::Function(_, _, _, _)
+            | Type::MutableReference(_)
+            | Type::Forall(_, _)
+            | Type::Constant(_, _)
+            | Type::Quoted(_)
+            | Type::InfixExpr(_, _, _, _)
+            | Type::Error) => Err(todo!("Cannot match on type {typ}")),
         }
+    }
+
+    fn new_variables(&mut self, variable_types: &[Type]) -> Vec<DefinitionId> {
+        todo!()
     }
 
     /// Compiles the cases and fallback cases for integer and range patterns.
@@ -313,14 +551,14 @@ impl Elaborator<'_> {
     fn compile_int_cases(
         &mut self,
         rows: Vec<Row>,
-        branch_var: Variable,
-    ) -> (Vec<Case>, Box<Decision>) {
-        let mut raw_cases: Vec<(Constructor, Vec<Variable>, Vec<Row>)> = Vec::new();
+        branch_var: DefinitionId,
+    ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
+        let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows = Vec::new();
-        let mut tested: HashMap<(i64, i64), usize> = HashMap::new();
+        let mut tested: HashMap<(i64, i64), usize> = HashMap::default();
 
         for mut row in rows {
-            if let Some(col) = row.remove_column(&branch_var) {
+            if let Some(col) = row.remove_column(branch_var) {
                 let (key, cons) = match col.pattern {
                     Pattern::Int(val) => ((val, val), Constructor::Int(val)),
                     Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
@@ -347,12 +585,12 @@ impl Elaborator<'_> {
             }
         }
 
-        let cases = raw_cases
-            .into_iter()
-            .map(|(cons, vars, rows)| Case::new(cons, vars, self.compile_rows(rows)))
-            .collect();
+        let cases = try_vecmap(raw_cases, |(cons, vars, rows)| {
+            let rows = self.compile_rows(rows)?;
+            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
+        })?;
 
-        (cases, Box::new(self.compile_rows(fallback_rows)))
+        Ok((cases, Box::new(self.compile_rows(fallback_rows)?)))
     }
 
     /// Compiles the cases and sub cases for the constructor located at the
@@ -383,8 +621,8 @@ impl Elaborator<'_> {
         &mut self,
         rows: Vec<Row>,
         branch_var: DefinitionId,
-        mut cases: Vec<(Pattern, Vec<DefinitionId>, Vec<Row>)>,
-    ) -> Vec<Case> {
+        mut cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)>,
+    ) -> Result<Vec<Case>, ResolverError> {
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
@@ -404,10 +642,10 @@ impl Elaborator<'_> {
             }
         }
 
-        cases
-            .into_iter()
-            .map(|(cons, vars, rows)| Case::new(cons, vars, self.compile_rows(rows)))
-            .collect()
+        try_vecmap(cases, |(cons, vars, rows)| {
+            let rows = self.compile_rows(rows)?;
+            Ok(Case::new(cons, vars, rows))
+        })
     }
 
     /// Return the variable that was referred to the most in `rows`
@@ -474,6 +712,7 @@ type MatchRules = Vec<(ExprId, Expression)>;
 
 /// Patterns are represented as resolved expressions currently.
 /// This type alias just makes code involving them more clear.
+#[derive(Clone)]
 enum Pattern {
     /// A pattern such as `Some(42)`.
     Constructor(Constructor, Vec<Pattern>),
@@ -483,40 +722,29 @@ enum Pattern {
     Range(i64, i64),
 }
 
-enum Constructor {
-    True,
-    False,
-    Int(i64),
-    Tuple(Vec<Type>),
-    Variant(TypeId, usize),
-    Range(i64, i64),
-}
-
-impl Constructor {
-    fn variant_index(&self) -> usize {
-        match self {
-            Constructor::False
-            | Constructor::Int(_)
-            | Constructor::Tuple(_)
-            | Constructor::Range(_, _) => 0,
-            Constructor::True => 1,
-            Constructor::Variant(_, index) => *index,
-        }
-    }
-}
-
-/// The RHS/branch of a `pattern -> branch` rule.
-type Body = ExprId;
-
+#[derive(Clone)]
 struct Column {
     variable_to_match: DefinitionId,
     pattern: Pattern,
 }
 
+impl Column {
+    fn new(variable_to_match: DefinitionId, pattern: Pattern) -> Self {
+        Column { variable_to_match, pattern }
+    }
+}
+
+#[derive(Clone)]
 struct Row {
     columns: Vec<Column>,
     guard: Option<ExprId>,
     body: ExprId,
+}
+
+impl Row {
+    fn new(columns: Vec<Column>, guard: Option<ExprId>, body: ExprId) -> Row {
+        Row { columns, guard, body }
+    }
 }
 
 impl Row {
@@ -526,27 +754,4 @@ impl Row {
             .position(|c| c.variable_to_match == variable)
             .map(|idx| self.columns.remove(idx))
     }
-}
-
-struct Case {
-    constructor: Constructor,
-
-    arguments: Vec<DefinitionId>,
-
-    body: Decision,
-}
-
-enum Decision {
-    Success(Body),
-
-    Failure,
-
-    /// Run `Body` if the given expression is true.
-    /// Otherwise continue with the given decision tree.
-    Guard(ExprId, Body, Box<Decision>),
-
-    /// Switch on the given variable with the given cases to test.
-    /// The final argument is an optional match-all case to take if
-    /// none of the cases matched.
-    Switch(DefinitionId, Vec<Case>, Option<Box<Decision>>),
 }

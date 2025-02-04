@@ -36,7 +36,7 @@ pub enum HirExpression {
     MethodCall(HirMethodCallExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
-    Match(HirMatchExpression),
+    Match(HirMatch),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(Tokens),
@@ -170,25 +170,6 @@ pub struct HirIfExpression {
     pub condition: ExprId,
     pub consequence: ExprId,
     pub alternative: Option<ExprId>,
-}
-
-/// Unlike `MatchExpression` in the AST, this version has been greatly simplified by the match
-/// compiler and resembles a C `switch` statement more than the original match expression.
-/// All nested expressions are compiled out of this and into separate `HirMatchExpressions` so
-/// that each one need only switch on a single tag value.
-///
-/// Each HirMatchExpression is always of the form:
-/// match `value_to_match` {
-///     `rule_tag` => `rule_branch`,
-///     _ => `default_branch`
-/// }
-#[derive(Debug, Clone)]
-pub struct HirMatchExpression {
-    pub value_to_match: ExprId,
-
-    pub rule_tag: usize,
-    pub rule_branch: ExprId,
-    pub default_branch: ExprId,
 }
 
 // `lhs as type` in the source code
@@ -365,4 +346,65 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+}
+
+#[derive(Debug, Clone)]
+pub enum HirMatch {
+    /// Jump directly to ExprId
+    Success(ExprId),
+
+    Failure,
+
+    /// Run `body` if the given expression is true.
+    /// Otherwise continue with the given decision tree.
+    Guard {
+        cond: ExprId,
+        body: ExprId,
+        otherwise: Box<HirMatch>,
+    },
+
+    /// Switch on the given variable with the given cases to test.
+    /// The final argument is an optional match-all case to take if
+    /// none of the cases matched.
+    Switch(DefinitionId, Vec<Case>, Option<Box<HirMatch>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Case {
+    constructor: Constructor,
+
+    arguments: Vec<DefinitionId>,
+
+    body: HirMatch,
+}
+
+impl Case {
+    pub fn new(constructor: Constructor, arguments: Vec<DefinitionId>, body: HirMatch) -> Self {
+        Self { constructor, arguments, body }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Constructor {
+    True,
+    False,
+    Unit,
+    Int(i64),
+    Tuple(Vec<Type>),
+    Variant(Type, usize),
+    Range(i64, i64),
+}
+
+impl Constructor {
+    pub fn variant_index(&self) -> usize {
+        match self {
+            Constructor::False
+            | Constructor::Int(_)
+            | Constructor::Unit
+            | Constructor::Tuple(_)
+            | Constructor::Range(_, _) => 0,
+            Constructor::True => 1,
+            Constructor::Variant(_, index) => *index,
+        }
+    }
 }

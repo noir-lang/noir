@@ -930,17 +930,9 @@ impl<'context> Elaborator<'context> {
     fn elaborate_match(&mut self, match_expr: MatchExpression) -> (HirExpression, Type) {
         let (expression, _) = self.elaborate_expression(match_expr.expression);
 
-        let rules = vecmap(match_expr.rules, |(pattern, branch)| {
-            let pattern = self.elaborate_expression(pattern).0;
-            (pattern, branch)
-        });
-
-        let expr = self.elaborate_match_rules(expression, rules).unwrap_or_else(|error| {
-            self.push_err(error);
-            HirExpression::Error
-        });
-
-        (expr, Type::Error)
+        let (rows, result_type) = self.elaborate_match_rules(match_expr.rules);
+        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        (tree, result_type)
     }
 
     fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {
