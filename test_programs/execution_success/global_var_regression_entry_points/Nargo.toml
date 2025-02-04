@@ -1,0 +1,6 @@
+[package]
+name = "global_var_regression_entry_points"
+type = "bin"
+authors = [""]
+
+[dependencies]

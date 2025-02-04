@@ -175,6 +175,7 @@ tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 rust-embed = "6.6.0"
+petgraph = "0.6"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

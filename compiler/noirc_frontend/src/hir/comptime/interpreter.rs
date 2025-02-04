@@ -1294,7 +1294,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> IResult<Value> {
         let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.elaborator.interner.id_type(id).unwrap_forall().1.follow_bindings();
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
