@@ -967,37 +967,15 @@ impl<'context> Elaborator<'context> {
         let mut element_types = Vec::with_capacity(tuple.len());
 
         for (index, element) in tuple.into_iter().enumerate() {
-            self.elaborate_tuple_element(
-                index,
-                element,
-                &mut element_ids,
-                &mut element_types,
-                target_type,
-            );
+            let target_type = target_type.map(|typ| typ.follow_bindings());
+            let expr_target_type =
+                if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
+            let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
+            element_ids.push(id);
+            element_types.push(typ);
         }
 
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
-    }
-
-    fn elaborate_tuple_element(
-        &mut self,
-        index: usize,
-        element: Expression,
-        element_ids: &mut Vec<ExprId>,
-        element_types: &mut Vec<Type>,
-        target_type: Option<&Type>,
-    ) {
-        if let Some(Type::Alias(type_alias, generics)) = target_type {
-            let typ = type_alias.borrow().get_type(generics);
-            let typ = Some(&typ);
-            return self.elaborate_tuple_element(index, element, element_ids, element_types, typ);
-        }
-
-        let expr_target_type =
-            if let Some(Type::Tuple(types)) = target_type { types.get(index) } else { None };
-        let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
-        element_ids.push(id);
-        element_types.push(typ);
     }
 
     fn elaborate_lambda_with_target_type(
@@ -1005,13 +983,10 @@ impl<'context> Elaborator<'context> {
         lambda: Lambda,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        if let Some(Type::Alias(type_alias, generics)) = target_type {
-            let typ = type_alias.borrow().get_type(generics);
-            return self.elaborate_lambda_with_target_type(lambda, Some(&typ));
-        }
+        let target_type = target_type.map(|typ| typ.follow_bindings());
 
         if let Some(Type::Function(args, _, _, _)) = target_type {
-            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(args));
+            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
         }
 
         self.elaborate_lambda_with_parameter_type_hints(lambda, None)
