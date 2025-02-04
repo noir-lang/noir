@@ -4121,6 +4121,23 @@ fn infers_lambda_argument_from_variable_alias_type() {
 }
 
 #[test]
+fn infers_lambda_argument_from_variable_double_alias_type() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    type FooFn = fn(Foo) -> Field;
+    type FooFn2 = FooFn;
+
+    fn main() {
+      let _: FooFn2 = |foo| foo.value;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn infers_lambda_argument_from_variable_tuple_type() {
     let src = r#"
     pub struct Foo {

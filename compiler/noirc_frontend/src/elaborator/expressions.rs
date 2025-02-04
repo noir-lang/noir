@@ -983,9 +983,8 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         if let Some(Type::Alias(type_alias, generics)) = target_type {
-            if let Type::Function(args, _, _, _) = type_alias.borrow().get_type(generics) {
-                return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
-            }
+            let typ = type_alias.borrow().get_type(generics);
+            return self.elaborate_lambda_with_target_type(lambda, Some(&typ));
         }
 
         if let Some(Type::Function(args, _, _, _)) = target_type {
