@@ -320,18 +320,22 @@ impl Elaborator<'_> {
                 //   when there is a matching enum variant with name `Foo::a` which can
                 //   be imported. The user likely intended to reference the enum variant.
                 let path_len = path.segments.len();
+                let location = Location::new(path.span(), self.file);
+
                 match self.resolve_path(path) {
                     Ok(resolution) => {
                         self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
                     }
                     Err(_) if path_len == 1 => {
                         // Define the variable
-                        let id = self.new_variables(&[expected_type.clone()])[0];
+                        let id = self.fresh_match_variable(expected_type.clone(), location);
                         Pattern::Binding(id)
                     }
                     Err(error) => {
                         self.push_err(error);
-                        let id = self.new_variables(&[expected_type.clone()])[0];
+                        // Foo::Bar pattern of length at least 2 not found...
+                        // default to defining a variable of the same name?
+                        let id = self.fresh_match_variable(expected_type.clone(), location);
                         Pattern::Binding(id)
                     }
                 }
@@ -398,16 +402,20 @@ impl Elaborator<'_> {
         expected_type: &Type,
     ) -> Pattern {
         match name.kind {
-            ExpressionKind::Variable(path) => match self.resolve_path(path) {
-                Ok(resolution) => {
-                    self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
+            ExpressionKind::Variable(path) => {
+                let location = Location::new(path.span(), self.file);
+
+                match self.resolve_path(path) {
+                    Ok(resolution) => {
+                        self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
+                    }
+                    Err(error) => {
+                        self.push_err(error);
+                        let id = self.fresh_match_variable(expected_type.clone(), location);
+                        Pattern::Binding(id)
+                    }
                 }
-                Err(error) => {
-                    self.push_err(error);
-                    let id = self.new_variables(&[expected_type.clone()])[0];
-                    Pattern::Binding(id)
-                }
-            },
+            }
             ExpressionKind::Parenthesized(expr) => {
                 self.expression_to_constructor(*expr, args, expected_type)
             }
@@ -434,14 +442,14 @@ impl Elaborator<'_> {
         expected_type: &Type,
     ) -> Pattern {
         dbg!(&name);
-        todo!()
+        todo!("path_resolution_to_constructor")
     }
 
     /// Compiles the rows of a match expression, outputting a decision tree for the match.
     ///
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
-    pub(super) fn elaborate_match_rows(&mut self, mut rows: Vec<Row>) -> HirMatch {
+    pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>) -> HirMatch {
         self.compile_rows(rows).unwrap_or_else(|error| {
             self.push_err(error);
             HirMatch::Failure
@@ -469,6 +477,7 @@ impl Elaborator<'_> {
         }
 
         let branch_var = self.branch_variable(&rows);
+        let location = self.interner.definition(branch_var).location;
 
         match self.interner.definition_type(branch_var).follow_bindings_shallow().into_owned() {
             Type::FieldElement | Type::Integer(_, _) => {
@@ -493,33 +502,39 @@ impl Elaborator<'_> {
                 Ok(HirMatch::Switch(branch_var, cases, None))
             }
             Type::Tuple(fields) => {
-                let field_variables = self.new_variables(&fields);
+                let field_variables = self.fresh_match_variables(fields.clone(), location);
                 let cases = vec![(Constructor::Tuple(fields), field_variables, Vec::new())];
                 let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
                 Ok(HirMatch::Switch(branch_var, cases, None))
             }
-            typ @ Type::DataType(def, generics) => {
-                let def = def.borrow();
+            Type::DataType(type_def, generics) => {
+                let def = type_def.borrow();
                 if let Some(variants) = def.get_variants(&generics) {
+                    drop(def);
+                    let typ = Type::DataType(type_def, generics);
+
                     let cases = vecmap(variants.iter().enumerate(), |(idx, (_name, args))| {
-                        let constructor = Constructor::Variant(typ, idx);
-                        let args = self.new_variables(args);
+                        let constructor = Constructor::Variant(typ.clone(), idx);
+                        let args = self.fresh_match_variables(args.clone(), location);
                         (constructor, args, Vec::new())
                     });
 
                     let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
                     Ok(HirMatch::Switch(branch_var, cases, None))
                 } else if let Some(fields) = def.get_fields(&generics) {
+                    drop(def);
+                    let typ = Type::DataType(type_def, generics);
+
                     // Just treat structs as a single-variant type
-                    let fields = vecmap(fields, |(name, typ)| typ);
-                    let cases = vec![(
-                        Constructor::Variant(typ, 0),
-                        self.new_variables(&fields),
-                        Vec::new(),
-                    )];
+                    let fields = vecmap(fields, |(_name, typ)| typ);
+                    let constructor = Constructor::Variant(typ, 0);
+                    let field_variables = self.fresh_match_variables(fields, location);
+                    let cases = vec![(constructor, field_variables, Vec::new())];
                     let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
                     Ok(HirMatch::Switch(branch_var, cases, None))
                 } else {
+                    drop(def);
+                    let typ = Type::DataType(type_def, generics);
                     Err(todo!("Cannot match on type {typ}"))
                 }
             }
@@ -540,8 +555,20 @@ impl Elaborator<'_> {
         }
     }
 
-    fn new_variables(&mut self, variable_types: &[Type]) -> Vec<DefinitionId> {
-        todo!()
+    fn fresh_match_variables(
+        &mut self,
+        variable_types: Vec<Type>,
+        location: Location,
+    ) -> Vec<DefinitionId> {
+        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
+    }
+
+    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
+        let name = "internal match variable".to_string();
+        let kind = DefinitionKind::Local(None);
+        let id = self.interner.push_definition(name, false, false, kind, location);
+        self.interner.push_definition_type(id, variable_type);
+        id
     }
 
     /// Compiles the cases and fallback cases for integer and range patterns.

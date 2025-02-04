@@ -2575,6 +2575,10 @@ impl Type {
                 }
                 Cow::Borrowed(self)
             }
+            Type::Alias(alias_def, generics) => {
+                let typ = alias_def.borrow().get_type(generics);
+                Cow::Owned(typ.follow_bindings_shallow().into_owned())
+            }
             other => Cow::Borrowed(other),
         }
     }

@@ -47,6 +47,11 @@ impl HirLetStatement {
         Self { pattern, r#type, expression, attributes, comptime, is_global_let }
     }
 
+    /// Creates a new 'basic' let statement with no attributes and is not comptime nor global.
+    pub fn basic(pattern: HirPattern, r#type: Type, expression: ExprId) -> HirLetStatement {
+        Self::new(pattern, r#type, expression, Vec::new(), false, false)
+    }
+
     pub fn ident(&self) -> HirIdent {
         match &self.pattern {
             HirPattern::Identifier(ident) => ident.clone(),
