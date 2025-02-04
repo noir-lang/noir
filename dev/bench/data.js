@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738692988805,
+  "lastUpdate": 1738692998541,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9905,90 +9905,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d3ca3b711d358e0ac98410121d3c798b9327523b",
-          "message": "feat(ssa): Reuse constants from the globals graph when making constants in a function DFG (#7153)",
-          "timestamp": "2025-01-22T19:19:13Z",
-          "tree_id": "fe55f22789200a5f50109451939bdfe6aa1fe15d",
-          "url": "https://github.com/noir-lang/noir/commit/d3ca3b711d358e0ac98410121d3c798b9327523b"
-        },
-        "date": 1737574814182,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.052,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.599,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 42.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.105,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.204,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.46,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.311,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14223,6 +14139,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 0.067,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1b0bb25c72fdf977694a1092b6d3e07b35e292e",
+          "message": "chore: replace benchmarks on fast test suites with a cut-off (#7276)",
+          "timestamp": "2025-02-04T17:56:22Z",
+          "tree_id": "2a1daedcd68444cc245779d5a7b3e9ca06c4ac79",
+          "url": "https://github.com/noir-lang/noir/commit/a1b0bb25c72fdf977694a1092b6d3e07b35e292e"
+        },
+        "date": 1738692997048,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.051,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 0.611,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.008,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 34.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1.214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.459,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.309,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
             "unit": "s"
           }
         ]
