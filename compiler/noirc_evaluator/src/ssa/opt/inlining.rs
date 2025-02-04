@@ -210,8 +210,6 @@ fn called_functions(func: &Function) -> BTreeSet<FunctionId> {
     called_functions_vec(func).into_iter().collect()
 }
 
-
-
 impl InlineContext {
     /// Create a new context object for the function inlining pass.
     /// This starts off with an empty mapping of instructions for main's parameters.
