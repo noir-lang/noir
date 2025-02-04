@@ -8,8 +8,8 @@ use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
-use noirc_errors::Location;
 use im::HashMap;
+use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use tracing::trace;
@@ -337,7 +337,6 @@ impl DependencyContext {
                 if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
                     if let Value::Function(callee) = &function.dfg[*func] {
                         if all_functions[&callee].runtime().is_brillig() {
-                   
                             // Skip already visited locations (happens often in unrolled functions)
                             let call_stack = function.dfg.get_instruction_call_stack(*instruction);
                             if let Some(location) = call_stack.last() {
@@ -376,7 +375,7 @@ impl DependencyContext {
                                             *instruction,
                                         );
                                     }
-                                    
+
                                     self.visited_locations.insert(*location);
                                 }
                             }
