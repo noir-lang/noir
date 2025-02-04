@@ -136,6 +136,9 @@ pub(crate) fn optimize_into_acir(
         print_codegen_timings: options.print_codegen_timings,
     }
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    // It could happen that we inlined all calls to a given brillig function.
+    // In that case it's unused so we can remove it. This is what we check next.
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
