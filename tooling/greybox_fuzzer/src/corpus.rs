@@ -251,6 +251,9 @@ pub struct Corpus {
     /// Vector of all testcases currently being used in the fuzzing
     discovered_testcases: HashMap<TestCaseId, InputMap>,
 
+    /// Testcase cache for when we don't want to schedule them for fuzzing, but want to make the available
+    cached_testcases: HashMap<TestCaseId, InputMap>,
+
     /// Information needed for selecting the next testcase for brillig execution
     brillig_orchestrator: TestCaseOrchestrator,
 
@@ -266,6 +269,7 @@ impl Corpus {
     pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
         Self {
             discovered_testcases: HashMap::new(),
+            cached_testcases: HashMap::new(),
             brillig_orchestrator: TestCaseOrchestrator::new(),
             acir_orchestrator: TestCaseOrchestrator::new(),
             corpus_file_manager: CorpusFileManager::new(
@@ -282,13 +286,28 @@ impl Corpus {
         self.corpus_file_manager.load_corpus_from_disk()
     }
 
-    /// Get ALL the files that have been added to the corpus all the time (even deprecated ones)
-    pub fn get_full_stored_corpus(&self) -> Vec<TestCase> {
-        self.corpus_file_manager
+    /// Get ALL the files that have been added to the corpus all the time (even deprecated ones) and put them into cache
+    pub fn get_full_stored_corpus(&mut self) -> Vec<TestCase> {
+        let stored_corpus: Vec<_> = self
+            .corpus_file_manager
             .get_full_corpus()
             .into_iter()
             .map(|value| TestCase::from(value))
+            .collect();
+        let id_testcase_pair: Vec<_> =
+            stored_corpus.iter().map(|x| (x.id(), x.value().clone())).collect();
+        for (id, input_map) in id_testcase_pair.iter() {
+            self.insert_into_cache(*id, input_map.clone());
+        }
+        id_testcase_pair
+            .iter()
+            .map(|(id, _)| TestCase::with_id(*id, &self.cached_testcases[&id]))
             .collect()
+    }
+
+    /// Add a new testcase into cache
+    pub fn insert_into_cache(&mut self, testcase_id: TestCaseId, new_testcase_value: InputMap) {
+        self.cached_testcases.insert(testcase_id, new_testcase_value);
     }
 
     /// Add a new file to the active corpus
@@ -319,7 +338,11 @@ impl Corpus {
 
     /// Get the testcase body
     pub fn get_testcase_by_id(&self, id: TestCaseId) -> &InputMap {
-        &self.discovered_testcases[&id]
+        if self.discovered_testcases.contains_key(&id) {
+            &self.discovered_testcases[&id]
+        } else {
+            &self.cached_testcases[&id]
+        }
     }
 
     /// Get an id of the testcase we should use next for acir testing
