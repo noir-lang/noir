@@ -153,6 +153,7 @@ impl<'a> FunctionContext<'a> {
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::Loop(block) => self.codegen_loop(block),
+            Expression::While(condition, block) => self.codegen_while(condition, block),
             Expression::If(if_expr) => self.codegen_if(if_expr),
             Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
@@ -588,7 +589,7 @@ impl<'a> FunctionContext<'a> {
         Ok(Self::unit_value())
     }
 
-    /// Codegens a loop, creating three new blocks in the process.
+    /// Codegens a loop, creating two new blocks in the process.
     /// The return value of a loop is always a unit literal.
     ///
     /// For example, the loop `loop { body }` is codegen'd as:
@@ -616,6 +617,51 @@ impl<'a> FunctionContext<'a> {
 
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
+        self.exit_loop();
+        Ok(Self::unit_value())
+    }
+
+    /// Codegens a while loop, creating three new blocks in the process.
+    /// The return value of a while is always a unit literal.
+    ///
+    /// For example, the loop `while cond { body }` is codegen'd as:
+    ///
+    /// ```text
+    ///   jmp while_entry()
+    /// while_entry:
+    ///   v0 = ... codegen cond ...
+    ///   jmpif v0, then: while_body, else: while_end  
+    /// while_body():
+    ///   v3 = ... codegen body ...
+    ///   br while_entry()
+    /// while_end():
+    ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
+    fn codegen_while(
+        &mut self,
+        condition: &Expression,
+        block: &Expression,
+    ) -> Result<Values, RuntimeError> {
+        let while_entry = self.builder.insert_block();
+        let while_body = self.builder.insert_block();
+        let while_end = self.builder.insert_block();
+
+        self.builder.terminate_with_jmp(while_entry, vec![]);
+
+        // Codegen the entry (where the condition is)
+        self.builder.switch_to_block(while_entry);
+        let condition = self.codegen_non_tuple_expression(condition)?;
+        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+
+        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
+
+        // Codegen the body
+        self.builder.switch_to_block(while_body);
+        self.codegen_expression(block)?;
+        self.builder.terminate_with_jmp(while_entry, vec![]);
+
+        // Finish by switching to the end of the while
+        self.builder.switch_to_block(while_end);
         self.exit_loop();
         Ok(Self::unit_value())
     }

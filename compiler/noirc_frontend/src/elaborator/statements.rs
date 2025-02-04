@@ -4,7 +4,7 @@ use crate::{
     ast::{
         AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
         ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
-        LetStatement, Path, Statement, StatementKind,
+        LetStatement, Path, Statement, StatementKind, WhileStatement,
     },
     hir::{
         resolution::{
@@ -42,6 +42,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
+            StatementKind::While(while_) => self.elaborate_while(while_),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
@@ -314,6 +315,35 @@ impl<'context> Elaborator<'context> {
         }
 
         let statement = HirStatement::Loop(block);
+
+        (statement, Type::Unit)
+    }
+
+    pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
+        let in_constrained_function = self.in_constrained_function();
+        if in_constrained_function {
+            self.push_err(ResolverError::WhileInConstrainedFn { span: while_.while_keyword_span });
+        }
+
+        let old_loop = std::mem::take(&mut self.current_loop);
+        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        self.push_scope();
+
+        let condition_span = while_.condition.span;
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+        let (block, _block_type) = self.elaborate_expression(while_.body);
+
+        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Bool.to_string(),
+            expr_typ: cond_type.to_string(),
+            expr_span: condition_span,
+        });
+
+        self.pop_scope();
+
+        std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+
+        let statement = HirStatement::While(condition, block);
 
         (statement, Type::Unit)
     }
