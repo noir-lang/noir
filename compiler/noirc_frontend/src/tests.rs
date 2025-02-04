@@ -4091,6 +4091,24 @@ fn infers_lambda_argument_from_function_return_type() {
 }
 
 #[test]
+fn infers_lambda_argument_from_function_return_type_multiple_statements() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        let _ = 1;
+        |foo| foo.value
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn infers_lambda_argument_from_variable_type() {
     let src = r#"
     pub struct Foo {

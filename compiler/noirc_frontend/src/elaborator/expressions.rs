@@ -144,11 +144,11 @@ impl<'context> Elaborator<'context> {
     ) -> (HirBlockExpression, Type) {
         self.push_scope();
         let mut block_type = Type::Unit;
-        let mut statements = Vec::with_capacity(block.statements.len());
-        let one_statement = block.statements.len() == 1;
+        let statements_len = block.statements.len();
+        let mut statements = Vec::with_capacity(statements_len);
 
         for (i, statement) in block.statements.into_iter().enumerate() {
-            let statement_target_type = if one_statement { target_type } else { None };
+            let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
             statements.push(id);
