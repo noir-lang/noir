@@ -4109,6 +4109,27 @@ fn infers_lambda_argument_from_function_return_type_multiple_statements() {
 }
 
 #[test]
+fn infers_lambda_argument_from_function_return_type_when_inside_if() {
+    let src = r#"
+    pub struct Foo {
+        value: Field,
+    }
+
+    pub fn func() -> fn(Foo) -> Field {
+        if true {
+            |foo| foo.value
+        } else {
+            |foo| foo.value
+        }
+    }
+
+    fn main() {
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn infers_lambda_argument_from_variable_type() {
     let src = r#"
     pub struct Foo {
