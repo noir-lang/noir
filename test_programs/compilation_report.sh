@@ -6,7 +6,7 @@ current_dir=$(pwd)
 base_path="$current_dir/execution_success"
 
 # Tests to be profiled for compilation report
-tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression")
+tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
 
 echo "{\"compilation_reports\": [ " > $current_dir/compilation_report.json
 

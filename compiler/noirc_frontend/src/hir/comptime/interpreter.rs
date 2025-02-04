@@ -1290,10 +1290,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_enum_constructor(
         &mut self,
-        _constructor: HirEnumConstructorExpression,
-        _id: ExprId,
+        constructor: HirEnumConstructorExpression,
+        id: ExprId,
     ) -> IResult<Value> {
-        todo!("Support enums in the comptime interpreter")
+        let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
+        let typ = self.elaborator.interner.id_type(id).unwrap_forall().1.follow_bindings();
+        Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {

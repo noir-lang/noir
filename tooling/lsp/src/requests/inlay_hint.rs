@@ -590,6 +590,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         | ExpressionKind::InternedStatement(..)
         | ExpressionKind::Literal(..)
         | ExpressionKind::Unsafe(..)
+        | ExpressionKind::Match(_)
         | ExpressionKind::Error => None,
     }
 }

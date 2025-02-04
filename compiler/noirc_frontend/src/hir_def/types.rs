@@ -368,11 +368,16 @@ pub struct StructField {
 pub struct EnumVariant {
     pub name: Ident,
     pub params: Vec<Type>,
+
+    /// True if this variant was declared as a function.
+    /// Required to distinguish `Foo::Bar` from `Foo::Bar()`
+    /// for zero-parameter variants. Only required for printing.
+    pub is_function: bool,
 }
 
 impl EnumVariant {
-    pub fn new(name: Ident, params: Vec<Type>) -> EnumVariant {
-        Self { name, params }
+    pub fn new(name: Ident, params: Vec<Type>, is_function: bool) -> EnumVariant {
+        Self { name, params, is_function }
     }
 }
 
@@ -1736,6 +1741,13 @@ impl Type {
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
         use Type::*;
+
+        // If the two types are exactly the same then they trivially unify.
+        // This check avoids potentially unifying very complex types (usually infix
+        // expressions) when they are the same.
+        if self == other {
+            return Ok(());
+        }
 
         let lhs = self.follow_bindings_shallow();
         let rhs = other.follow_bindings_shallow();

@@ -135,10 +135,14 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
-    /// Flag to turn off the compiler check for missing Brillig call constrains.
-    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// Flag to turn on the compiler check for missing Brillig call constraints.
+    /// Warning: This can degrade compilation speed but will also find some correctness errors.
     /// This check should always be run on production code.
     #[arg(long)]
+    pub enable_brillig_constraints_check: bool,
+
+    /// Hidden Brillig call check flag to maintain CI compatibility (currently ignored)
+    #[arg(long, hide = true)]
     pub skip_brillig_constraints_check: bool,
 
     /// Flag to turn on the lookback feature of the Brillig call constraints
@@ -685,9 +689,9 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
         enable_brillig_constraints_check_lookback: options
             .enable_brillig_constraints_check_lookback,
+        enable_brillig_constraints_check: options.enable_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };

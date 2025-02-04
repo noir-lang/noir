@@ -38,7 +38,7 @@ use crate::acir::{Artifacts, GeneratedAcir};
 mod checks;
 pub(super) mod function_builder;
 pub mod ir;
-mod opt;
+pub(crate) mod opt;
 #[cfg(test)]
 pub(crate) mod parser;
 pub mod ssa_gen;
@@ -68,8 +68,8 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// Skip the missing Brillig call constraints check
-    pub skip_brillig_constraints_check: bool,
+    /// Enable the missing Brillig call constraints check
+    pub enable_brillig_constraints_check: bool,
 
     /// Enable the lookback feature of the Brillig call constraints
     /// check (prevents some rare false positives, leads to a slowdown
@@ -117,7 +117,7 @@ pub(crate) fn optimize_into_acir(
         ));
     }
 
-    if !options.skip_brillig_constraints_check {
+    if options.enable_brillig_constraints_check {
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
@@ -131,8 +131,9 @@ pub(crate) fn optimize_into_acir(
 
     drop(ssa_gen_span_guard);
 
+    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig(options.enable_brillig_logging)
+        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -162,7 +163,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
         .run_pass(Ssa::inline_simple_functions, "Inlining simple functions")
-        .run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
+        // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
+        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
+        //.run_pass(Ssa::mem2reg, "Mem2Reg (1st)")
         .run_pass(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs")
         .run_pass(
             |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
@@ -178,6 +181,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
         )?
+        .run_pass(Ssa::purity_analysis, "Purity Analysis")
         .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
@@ -198,6 +202,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "Inlining (2nd)",
         )
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
+        .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
