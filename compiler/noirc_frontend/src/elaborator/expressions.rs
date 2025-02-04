@@ -70,10 +70,10 @@ impl<'context> Elaborator<'context> {
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.span),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.span)
+                return self.elaborate_comptime_block(comptime, expr.span, target_type)
             }
             ExpressionKind::Unsafe(block_expression, span) => {
-                self.elaborate_unsafe_block(block_expression, span)
+                self.elaborate_unsafe_block(block_expression, span, target_type)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -129,15 +129,11 @@ impl<'context> Elaborator<'context> {
         block: BlockExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let (block, typ) = self.elaborate_block_expression_with_target_type(block, target_type);
+        let (block, typ) = self.elaborate_block_expression(block, target_type);
         (HirExpression::Block(block), typ)
     }
 
-    fn elaborate_block_expression(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
-        self.elaborate_block_expression_with_target_type(block, None)
-    }
-
-    fn elaborate_block_expression_with_target_type(
+    fn elaborate_block_expression(
         &mut self,
         block: BlockExpression,
         target_type: Option<&Type>,
@@ -176,6 +172,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         block: BlockExpression,
         span: Span,
+        target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
@@ -188,7 +185,7 @@ impl<'context> Elaborator<'context> {
 
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
-        let (hir_block_expression, typ) = self.elaborate_block_expression(block);
+        let (hir_block_expression, typ) = self.elaborate_block_expression(block, target_type);
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
@@ -1067,9 +1064,15 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
-        let (block, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_block_expression(block));
+    fn elaborate_comptime_block(
+        &mut self,
+        block: BlockExpression,
+        span: Span,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
+        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
+            this.elaborate_block_expression(block, target_type)
+        });
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
