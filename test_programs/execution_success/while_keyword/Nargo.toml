@@ -1,5 +1,5 @@
 [package]
-name = "loop_keyword"
+name = "while_keyword"
 type = "bin"
 authors = [""]
 [dependencies]
