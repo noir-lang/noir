@@ -37,6 +37,70 @@ pub(crate) struct BrilligGlobals {
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
 
+pub(crate) fn get_brillig_entry_points(
+    functions: &BTreeMap<FunctionId, Function>,
+) -> HashMap<FunctionId, HashSet<FunctionId>> {
+    let mut brillig_entry_points = HashMap::default();
+    let acir_functions = functions.iter().filter(|(_, func)| func.runtime().is_acir());
+    for (_, function) in acir_functions {
+        for block_id in function.reachable_blocks() {
+            for instruction_id in function.dfg[block_id].instructions() {
+                let instruction = &function.dfg[*instruction_id];
+                let Instruction::Call { func: func_id, arguments: _ } = instruction else {
+                    continue;
+                };
+
+                let func_value = &function.dfg[*func_id];
+                let Value::Function(func_id) = func_value else { continue };
+
+                let called_function = &functions[func_id];
+                if called_function.runtime().is_acir() {
+                    continue;
+                }
+
+                // We have now found a Brillig entry point.
+                brillig_entry_points.insert(*func_id, HashSet::default());
+                build_entry_points_map_recursive(
+                    functions,
+                    *func_id,
+                    called_function,
+                    &mut brillig_entry_points,
+                    im::HashSet::new(),
+                );
+            }
+        }
+    }
+    brillig_entry_points
+}
+
+pub(crate) fn build_entry_points_map_recursive(
+    functions: &BTreeMap<FunctionId, Function>,
+    entry_point: FunctionId,
+    called_function: &Function,
+    brillig_entry_points: &mut HashMap<FunctionId, HashSet<FunctionId>>,
+    mut explored_functions: im::HashSet<FunctionId>,
+) {
+    if explored_functions.insert(called_function.id()).is_some() {
+        return;
+    }
+
+    let inner_calls = called_functions_vec(called_function).into_iter().collect::<HashSet<_>>();
+
+    for inner_call in inner_calls {
+        if let Some(inner_calls) = brillig_entry_points.get_mut(&entry_point) {
+            inner_calls.insert(inner_call);
+        }
+
+        build_entry_points_map_recursive(
+            functions,
+            entry_point,
+            &functions[&inner_call],
+            brillig_entry_points,
+            explored_functions.clone(),
+        );
+    }
+}
+
 impl BrilligGlobals {
     pub(crate) fn new(
         functions: &BTreeMap<FunctionId, Function>,
@@ -91,6 +155,9 @@ impl BrilligGlobals {
                 im::HashSet::new(),
             );
         }
+        // dbg!(brillig_entry_points.clone());
+        // let brillig_entry_points_set = get_brillig_entry_points(functions);
+        // dbg!(brillig_entry_points_set.clone());
 
         Self { used_globals, brillig_entry_points, ..Default::default() }
     }
@@ -198,7 +265,6 @@ impl BrilligGlobals {
         } else if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
             // If there is no mapping from an inner call to an entry point, that means `brillig_function_id`
             // is itself an entry point and we can fetch the global allocations directly from `self.entry_point_globals_map`.
-            // vec![globals]
             globals_allocations.extend(globals);
         } else {
             unreachable!(

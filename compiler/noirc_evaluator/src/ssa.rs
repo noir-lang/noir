@@ -201,6 +201,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
+        // The Brillig globals pass expected that we have the used globals map set for each function.
+        // The used globals map is determined during DIE, so we should duplicate entry points before DIE.
+        .run_pass(Ssa::duplicate_reused_entry_points, "Brillig Entry Point Duplication")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
