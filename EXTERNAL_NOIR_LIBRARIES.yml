@@ -1,0 +1,76 @@
+
+libraries:
+  noir_check_shuffle:
+    repo: noir-lang/noir_check_shuffle
+    timeout: 2
+  ec:
+    repo: noir-lang/ec
+    timeout: 2
+  eddsa:
+    repo: noir-lang/eddsa
+    timeout: 2
+  mimc:
+    repo: noir-lang/mimc
+    timeout: 2
+  schnorr:
+    repo: noir-lang/schnorr
+    timeout: 2
+  noir_sort:
+    repo: noir-lang/noir_sort
+    timeout: 2
+  noir-edwards:
+    repo: noir-lang/noir-edwards
+    timeout: 2
+  noir-bignum:
+    repo: noir-lang/noir-bignum
+  noir_bigcurve:
+    repo: noir-lang/noir_bigcurve
+  noir_base64:
+    repo: noir-lang/noir_base64
+    timeout: 2
+  noir_string_search:
+    repo: noir-lang/noir_string_search
+    timeout: 2
+  sparse_array:
+    repo: noir-lang/sparse_array
+    timeout: 2
+  noir_rsa:
+    repo: noir-lang/noir_rsa
+    timeout: 2
+  noir_json_parser:
+    repo: noir-lang/noir_json_parser
+    timeout: 10
+  aztec_nr:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/aztec-nr
+    timeout: 60
+  noir_contracts:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-contracts
+    timeout: 60
+  blob:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/blob
+    timeout: 70
+  protocol_circuits_parity_lib:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/parity-lib
+    timeout: 4
+  protocol_circuits_private_kernel_lib:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
+    timeout: 250
+  protocol_circuits_reset_kernel_lib:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
+    timeout: 15
+  protocol_circuits_types:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/types
+    timeout: 60
+  protocol_circuits_rollup_lib:
+    repo: AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/rollup-lib
+    timeout: 300
+    # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+    nargo_args: "--test-threads 1"
