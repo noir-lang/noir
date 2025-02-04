@@ -534,7 +534,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout: nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout, nargo_args })')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
