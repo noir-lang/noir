@@ -1,0 +1,66 @@
+
+libraries:
+  noir_check_shuffle:
+    repo: https://github.com/noir-lang/noir_check_shuffle
+    testing_is_fast: true
+  ec:
+    repo: https://github.com/noir-lang/ec
+    testing_is_fast: true
+  eddsa:
+    repo: https://github.com/noir-lang/eddsa
+    testing_is_fast: true
+  mimc:
+    repo: https://github.com/noir-lang/mimc
+    testing_is_fast: true
+  schnorr:
+    repo: https://github.com/noir-lang/schnorr
+    testing_is_fast: true
+  noir_sort:
+    repo: https://github.com/noir-lang/noir_sort
+    testing_is_fast: true
+  noir-edwards:
+    repo: https://github.com/noir-lang/noir-edwards
+    testing_is_fast: true
+  noir-bignum:
+    repo: https://github.com/noir-lang/noir-bignum
+  noir_bigcurve:
+    repo: https://github.com/noir-lang/noir_bigcurve
+  noir_base64:
+    repo: https://github.com/noir-lang/noir_base64
+    testing_is_fast: true
+  noir_string_search:
+    repo: https://github.com/noir-lang/noir_string_search
+    testing_is_fast: true
+  sparse_array:
+    repo: https://github.com/noir-lang/sparse_array
+    testing_is_fast: true
+  noir_rsa:
+    repo: https://github.com/noir-lang/noir_rsa
+  noir_json_parser:
+    repo: https://github.com/noir-lang/noir_json_parser
+  aztec_nr:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/aztec-nr
+  noir_contracts:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-contracts
+  blob:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/blob
+  protocol_circuits_parity_lib:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/parity-lib
+  protocol_circuits_private_kernel_lib:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
+  protocol_circuits_reset_kernel_lib:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
+  protocol_circuits_types:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/types
+  protocol_circuits_rollup_lib:
+    repo: https://github.com/AztecProtocol/aztec-packages
+    path: noir-projects/noir-protocol-circuits/crates/rollup-lib
+    # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+    nargo_args: "--test-threads 1"

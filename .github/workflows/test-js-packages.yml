@@ -534,7 +534,7 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: ""})')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq '.libraries | map({ repo, path: (.path // ""), nargo_args })')
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
@@ -548,17 +548,7 @@ jobs:
       fail-fast: false
       matrix:
         project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
-        include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/aztec-nr }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/blob }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/types }
-          # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-lib, nargo_args: "--test-threads 1" }
-
+         
     name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Checkout
@@ -618,12 +608,27 @@ jobs:
           fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
-      
+
       - name: Compare test results
         working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
 
+      - name: Check testing is fast
+        if: ${{ matrix.project.testing_is_fast }}
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          THRESHOLD_VALUE=3
+          if >/dev/null jq --argjson th ${THRESHOLD_VALUE} '.time > $th)' ${{ steps.test_report.outputs.test_report_name }}.json 
+          then
+              echo 'failing pipeline'
+              exit 1
+          else
+              echo 'passing pipeline'
+              exit 0
+          fi
+
       - name: Upload test report
+        if: ${{ !matrix.project.testing_is_fast }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.test_report.outputs.test_report_name }}
