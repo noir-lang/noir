@@ -329,19 +329,21 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
     }
 }
 
-fn can_return_without_recursing_match(interner: &NodeInterner, func_id: FuncId, match_expr: &HirMatch) -> bool {
+fn can_return_without_recursing_match(
+    interner: &NodeInterner,
+    func_id: FuncId,
+    match_expr: &HirMatch,
+) -> bool {
     let check_match = |e| can_return_without_recursing_match(interner, func_id, e);
     let check = |e| can_return_without_recursing(interner, func_id, e);
 
     match match_expr {
         HirMatch::Success(expr) => check(*expr),
         HirMatch::Failure => true,
-        HirMatch::Guard { cond: _, body, otherwise } => {
-            check(*body) && check_match(otherwise)
-        },
+        HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))
                 && otherwise.as_ref().map_or(true, |case| check_match(case))
-        },
+        }
     }
 }

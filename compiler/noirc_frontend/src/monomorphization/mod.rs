@@ -1983,7 +1983,10 @@ impl<'interner> Monomorphizer<'interner> {
         Ok((block_let_stmt, closure_ident))
     }
 
-    fn match_expr(&mut self, _match_expr: HirMatch) -> Result<ast::Expression, MonomorphizationError> {
+    fn match_expr(
+        &mut self,
+        _match_expr: HirMatch,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         todo!("monomorphize match")
     }
 

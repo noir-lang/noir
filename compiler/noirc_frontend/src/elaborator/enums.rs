@@ -1,14 +1,15 @@
 use acvm::AcirField;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
         EnumVariant, Expression, ExpressionKind, FunctionKind, Literal, NoirEnumeration,
         StatementKind, UnresolvedType, Visibility,
     },
-    hir::{resolution::errors::ResolverError, type_check::TypeCheckError},
+    elaborator::path_resolution::PathResolutionItem,
+    hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
@@ -269,6 +270,7 @@ impl Elaborator<'_> {
         let expected_pattern_type = self.interner.definition_type(variable_to_match);
 
         let rows = vecmap(rules, |(pattern, branch)| {
+            self.push_scope();
             let pattern = self.expression_to_pattern(pattern, &expected_pattern_type);
             let columns = vec![Column::new(variable_to_match, pattern)];
 
@@ -282,6 +284,7 @@ impl Elaborator<'_> {
                 expr_span: body_span,
             });
 
+            self.pop_scope();
             Row::new(columns, guard, body)
         });
         (rows, result_type)
@@ -321,14 +324,22 @@ impl Elaborator<'_> {
                 //   be imported. The user likely intended to reference the enum variant.
                 let path_len = path.segments.len();
                 let location = Location::new(path.span(), self.file);
+                let last_ident = path.last_ident();
 
                 match self.resolve_path(path) {
-                    Ok(resolution) => {
-                        self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
-                    }
+                    Ok(resolution) => self.path_resolution_to_constructor(
+                        resolution,
+                        Vec::new(),
+                        expected_type,
+                        location.span,
+                    ),
                     Err(_) if path_len == 1 => {
                         // Define the variable
-                        let id = self.fresh_match_variable(expected_type.clone(), location);
+                        let kind = DefinitionKind::Local(None);
+                        // TODO: `allow_shadowing` is false while I'm too lazy to add a check that we
+                        // don't define the same name multiple times in one pattern.
+                        let id = self.add_variable_decl(last_ident, false, false, true, kind).id;
+                        self.interner.push_definition_type(id, expected_type.clone());
                         Pattern::Binding(id)
                     }
                     Err(error) => {
@@ -403,11 +414,12 @@ impl Elaborator<'_> {
     ) -> Pattern {
         match name.kind {
             ExpressionKind::Variable(path) => {
-                let location = Location::new(path.span(), self.file);
+                let span = path.span();
+                let location = Location::new(span, self.file);
 
                 match self.resolve_path(path) {
                     Ok(resolution) => {
-                        self.path_resolution_to_constructor(resolution, Vec::new(), expected_type)
+                        self.path_resolution_to_constructor(resolution, args, expected_type, span)
                     }
                     Err(error) => {
                         self.push_err(error);
@@ -438,11 +450,69 @@ impl Elaborator<'_> {
     fn path_resolution_to_constructor(
         &mut self,
         name: PathResolution,
-        _args: Vec<Expression>,
-        _expected_type: &Type,
+        args: Vec<Expression>,
+        expected_type: &Type,
+        span: Span,
     ) -> Pattern {
-        dbg!(&name);
-        todo!("path_resolution_to_constructor")
+        let (actual_type, expected_arg_types, variant_index) = match &name.item {
+            PathResolutionItem::Global(id) => {
+                // variant constant
+                let global = self.interner.get_global(*id);
+                let variant_index = match global.value {
+                    GlobalValue::Resolved(Value::Enum(tag, ..)) => tag,
+                    _ => todo!("Value is not an enum constant"),
+                };
+
+                let global_type = self.interner.definition_type(global.definition_id);
+                let actual_type = global_type.instantiate(self.interner).0;
+                (actual_type, Vec::new(), variant_index)
+            }
+            PathResolutionItem::Method(_type_id, _turbofish, func_id) => {
+                // TODO: Is this turbofish on the type or on the method?
+                let meta = self.interner.function_meta(func_id);
+                let Some(variant_index) = meta.enum_variant_index else { todo!("not a variant") };
+
+                let (actual_type, expected_arg_types) = match meta.typ.instantiate(self.interner).0
+                {
+                    Type::Function(args, ret, _env, _) => (*ret, args),
+                    other => todo!("Not a function! Found {other}"),
+                };
+
+                (actual_type, expected_arg_types, variant_index)
+            }
+            PathResolutionItem::Module(_) => todo!("path_resolution_to_constructor {name:?}"),
+            PathResolutionItem::Type(_) => todo!("path_resolution_to_constructor {name:?}"),
+            PathResolutionItem::TypeAlias(_) => todo!("path_resolution_to_constructor {name:?}"),
+            PathResolutionItem::Trait(_) => todo!("path_resolution_to_constructor {name:?}"),
+            PathResolutionItem::ModuleFunction(_) => {
+                todo!("path_resolution_to_constructor {name:?}")
+            }
+            PathResolutionItem::TypeAliasFunction(_, _, _) => {
+                todo!("path_resolution_to_constructor {name:?}")
+            }
+            PathResolutionItem::TraitFunction(_, _, _) => {
+                todo!("path_resolution_to_constructor {name:?}")
+            }
+        };
+
+        // We must unify the actual type before `expected_arg_types` are used since those
+        // are instantiated and rely on this already being unified.
+        self.unify(&actual_type, expected_type, || TypeCheckError::TypeMismatch {
+            expected_typ: expected_type.to_string(),
+            expr_typ: actual_type.to_string(),
+            expr_span: span,
+        });
+
+        if args.len() != expected_arg_types.len() {
+            // error expected N args, found M?
+        }
+
+        let args = args.into_iter().zip(expected_arg_types);
+        let args = vecmap(args, |(arg, expected_arg_type)| {
+            self.expression_to_pattern(arg, &expected_arg_type)
+        });
+        let constructor = Constructor::Variant(actual_type, variant_index);
+        Pattern::Constructor(constructor, args)
     }
 
     /// Compiles the rows of a match expression, outputting a decision tree for the match.
@@ -458,7 +528,7 @@ impl Elaborator<'_> {
 
     fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
-            return Err(todo!("missing case"));
+            todo!("missing case");
         }
 
         self.push_tests_against_bare_variables(&mut rows);
@@ -535,7 +605,7 @@ impl Elaborator<'_> {
                 } else {
                     drop(def);
                     let typ = Type::DataType(type_def, generics);
-                    Err(todo!("Cannot match on type {typ}"))
+                    todo!("Cannot match on type {typ}")
                 }
             }
             typ @ (Type::Alias(_, _)
@@ -551,7 +621,7 @@ impl Elaborator<'_> {
             | Type::Constant(_, _)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
-            | Type::Error) => Err(todo!("Cannot match on type {typ}")),
+            | Type::Error) => todo!("Cannot match on type {typ}"),
         }
     }
 
@@ -743,7 +813,9 @@ enum Pattern {
     Constructor(Constructor, Vec<Pattern>),
     Int(i64),
     Binding(DefinitionId),
+    #[allow(unused)]
     Or(Vec<Pattern>),
+    #[allow(unused)]
     Range(i64, i64),
 }
 
