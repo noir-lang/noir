@@ -80,7 +80,9 @@ fn print_content(
     raw_source_printing: bool,
 ) {
     if raw_source_printing {
-        println!("{}", content);
+        if cursor == "->" && highlight.is_some() {
+            println!("{}", content);
+        }
         return;
     }
 

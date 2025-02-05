@@ -73,7 +73,8 @@ mod tests {
             )
             .expect("Could not start debugger");
 
-        for step_number in 0..8 {
+        let num_steps = 16;
+        for step_number in 1..=num_steps {
             // While running the debugger, issue a "next" cmd,
             // which should run to the program to the next source line given
             // we haven't set any breakpoints.
@@ -87,17 +88,19 @@ mod tests {
                 .exp_string(">")
                 .expect("Failed while waiting for debugger to step through program.");
 
-            if step_number == 7 {
+            if step_number == num_steps {
                 let mut lines = vec![];
                 let mut read_line = dbg_session.read_line();
                 while read_line.is_ok() {
-                    if let Ok(line) = read_line {
-                        // only keep the results after the most recent "next" command
-                        if line.contains("> next") {
-                            lines = vec![];
-                        } else {
-                            lines.push(line);
-                        }
+                    let line = read_line.unwrap();
+                    // TODO
+                    println!("{line}");
+
+                    // only keep the results after the most recent "next" command
+                    if line.contains("> next") {
+                        lines = vec![];
+                    } else {
+                        lines.push(line);
                     }
                     read_line = dbg_session.read_line();
                 }
