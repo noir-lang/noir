@@ -1,6 +1,18 @@
 name: Publish Noir ES Packages
 
 on:
+  workflow_call:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: false
+        default: 'master'
+        type: string
+      npm-tag:
+        description: Repository Tag to publish under
+        required: false
+        default: 'nightly'
+        type: string
   workflow_dispatch:
     inputs:
       noir-ref:
