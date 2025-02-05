@@ -1995,12 +1995,12 @@ global y = 1;
     }
 
     #[test]
-    fn format_unsafe_with_doc_comment() {
+    fn format_unsafe_with_comment() {
         let src = "fn foo() {
-        /// Comment 
+        // Comment 
         unsafe { 1  } }";
         let expected = "fn foo() {
-    /// Comment
+    // Comment
     unsafe {
         1
     }

@@ -416,27 +416,12 @@ mod tests {
     }
 
     #[test]
-    fn format_let_statement_with_unsafe() {
+    fn format_let_statement_with_unsafe_comment() {
         let src = " fn foo() { 
-        /// Safety: some doc
+        // Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
-    /// Safety: some doc
-    let x = unsafe { 1 };
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_let_statement_with_unsafe_and_comment_before_it() {
-        let src = " fn foo() { 
-        // Some comment
-        /// Safety: some doc
-        let  x  =  unsafe { 1 } ; } ";
-        let expected = "fn foo() {
-    // Some comment
-    /// Safety: some doc
+    // Safety: some comment
     let x = unsafe { 1 };
 }
 ";
