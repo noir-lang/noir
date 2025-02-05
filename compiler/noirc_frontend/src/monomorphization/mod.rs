@@ -575,6 +575,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
+            HirExpression::Match(match_expr) => self.match_expr(match_expr)?,
+
             HirExpression::Tuple(fields) => {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
                 ast::Expression::Tuple(fields)
@@ -1979,6 +1981,10 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         Ok((block_let_stmt, closure_ident))
+    }
+
+    fn match_expr(&mut self, _match_expr: HirMatch) -> Result<ast::Expression, MonomorphizationError> {
+        todo!("monomorphize match")
     }
 
     /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed

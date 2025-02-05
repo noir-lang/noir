@@ -438,8 +438,8 @@ impl Elaborator<'_> {
     fn path_resolution_to_constructor(
         &mut self,
         name: PathResolution,
-        args: Vec<Expression>,
-        expected_type: &Type,
+        _args: Vec<Expression>,
+        _expected_type: &Type,
     ) -> Pattern {
         dbg!(&name);
         todo!("path_resolution_to_constructor")
@@ -693,7 +693,7 @@ impl Elaborator<'_> {
             .unwrap()
     }
 
-    fn push_tests_against_bare_variables(&self, rows: &mut Vec<Row>) {
+    fn push_tests_against_bare_variables(&mut self, rows: &mut Vec<Row>) {
         for row in rows {
             row.columns.retain(|col| {
                 if let Pattern::Binding(variable) = col.pattern {
@@ -735,8 +735,6 @@ impl Elaborator<'_> {
     }
 }
 
-type MatchRules = Vec<(ExprId, Expression)>;
-
 /// Patterns are represented as resolved expressions currently.
 /// This type alias just makes code involving them more clear.
 #[derive(Clone)]
@@ -762,7 +760,7 @@ impl Column {
 }
 
 #[derive(Clone)]
-struct Row {
+pub(super) struct Row {
     columns: Vec<Column>,
     guard: Option<ExprId>,
     body: ExprId,
