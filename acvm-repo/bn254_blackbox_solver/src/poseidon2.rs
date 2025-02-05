@@ -644,7 +644,7 @@ mod test {
             FieldElement::from(3u128),
             FieldElement::from(4u128),
         ];
-        let result = super::poseidon_hash(&fields, false).expect("should hash successfully");
+        let result = super::poseidon_hash(&fields).expect("should hash successfully");
         assert_eq!(
             result,
             field_from_hex("130bf204a32cac1f0ace56c78b731aa3809f06df2731ebcf6b3464a15788b1b9"),
