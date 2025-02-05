@@ -762,7 +762,12 @@ impl<'a> Context<'a> {
                     None
                 };
 
-                self.acir_context.assert_neq_var(lhs, rhs, assert_payload)?;
+                self.acir_context.assert_neq_var(
+                    lhs,
+                    rhs,
+                    self.current_side_effects_enabled_var,
+                    assert_payload,
+                )?;
             }
             Instruction::Cast(value_id, _) => {
                 let acir_var = self.convert_numeric_value(*value_id, dfg)?;
