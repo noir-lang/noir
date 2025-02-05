@@ -371,11 +371,9 @@ pub enum HirMatch {
 
 #[derive(Debug, Clone)]
 pub struct Case {
-    constructor: Constructor,
-
-    arguments: Vec<DefinitionId>,
-
-    body: HirMatch,
+    pub constructor: Constructor,
+    pub arguments: Vec<DefinitionId>,
+    pub body: HirMatch,
 }
 
 impl Case {
