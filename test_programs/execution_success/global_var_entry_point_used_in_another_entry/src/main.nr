@@ -25,7 +25,7 @@ unconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {
     wrapper(x, y);
 }
 
-// Test that we duplicate Brillig entry points called within 
+// Test that we duplicate Brillig entry points called within
 // another entry point's inner calls
 unconstrained fn wrapper(x: Field, y: Field) {
     let z = ONE + x + y;
