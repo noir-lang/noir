@@ -294,6 +294,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                         error.span,
                     )
                 }
+                ParserErrorReason::DocCommentDoesNotDocumentAnything => {
+                    let primary = "This doc comment doesn't document anything".to_string();
+                    let secondary = "Consider changing it to a regular `//` comment".to_string();
+                    Diagnostic::simple_warning(primary, secondary, error.span)
+                }
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
             None => {
