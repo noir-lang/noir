@@ -25,6 +25,15 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
+            let span_before_doc_comments = self.current_token_span;
+            let doc_comments = self.parse_outer_doc_comments();
+            if !doc_comments.is_empty() {
+                self.push_error(
+                    ParserErrorReason::DocCommentDoesNotDocumentAnything,
+                    span_before_doc_comments,
+                );
+            }
+
             if !self.current_token_comments.is_empty() {
                 self.statement_comments = Some(std::mem::take(&mut self.current_token_comments));
             } else {
@@ -522,9 +531,21 @@ mod tests {
 
     #[test]
     fn parses_let_statement_with_unsafe() {
-        let src = "// Safety: doc comment
+        let src = "// Safety: comment
         let x = unsafe { 1 };";
         let statement = parse_statement_no_errors(src);
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_unsafe_doc_comment() {
+        let src = "/// Safety: doc comment
+        let x = unsafe { 1 };";
+        let mut parser = Parser::for_str(src);
+        let (statement, _) = parser.parse_statement().unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };

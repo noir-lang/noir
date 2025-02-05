@@ -303,7 +303,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ) {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_error(primary, secondary, error.span)
+                    Diagnostic::simple_warning(primary, secondary, error.span)
                 } else {
                     let primary = error.to_string();
                     Diagnostic::simple_error(primary, String::new(), error.span)
