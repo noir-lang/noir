@@ -4347,3 +4347,21 @@ fn call_function_alias_type() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_on_if_without_else_type_mismatch() {
+    let src = r#"
+    fn main() {
+        if true { 
+            1 
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
+        panic!("Expected a Context error");
+    };
+    assert!(matches!(**err, TypeCheckError::TypeMismatch { .. }));
+}
