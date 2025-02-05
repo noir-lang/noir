@@ -500,7 +500,8 @@ impl<'context> Elaborator<'context> {
             | FunctionKind::Oracle
             | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
             FunctionKind::Normal => {
-                let (block, body_type) = self.elaborate_block(body);
+                let return_type = func_meta.return_type();
+                let (block, body_type) = self.elaborate_block(body, Some(return_type));
                 let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
