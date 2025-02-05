@@ -2,7 +2,7 @@ unconstrained fn partition<T, Env, let N: u32>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: unconstrained fn[Env](T, T) -> bool,
+    sortfn: fn[Env](T, T) -> bool,
 ) -> u32 {
     let pivot = high;
     let mut i = low;
@@ -24,7 +24,7 @@ unconstrained fn quicksort_recursive<T, Env, let N: u32>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: unconstrained fn[Env](T, T) -> bool,
+    sortfn: fn[Env](T, T) -> bool,
 ) {
     if low < high {
         let pivot_index = partition(arr, low, high, sortfn);
@@ -37,7 +37,7 @@ unconstrained fn quicksort_recursive<T, Env, let N: u32>(
 
 pub(crate) unconstrained fn quicksort<T, Env, let N: u32>(
     _arr: [T; N],
-    sortfn: unconstrained fn[Env](T, T) -> bool,
+    sortfn: fn[Env](T, T) -> bool,
 ) -> [T; N] {
     let mut arr: [T; N] = _arr;
     if arr.len() <= 1 {} else {
