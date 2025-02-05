@@ -90,53 +90,60 @@ mod tests {
 
             if step_number == num_steps {
                 let mut lines = vec![];
-                let mut read_line = dbg_session.read_line();
-                while read_line.is_ok() {
-                    let line = read_line.unwrap();
-                    // TODO
-                    println!("{line}");
-
-                    // only keep the results after the most recent "next" command
-                    if line.contains("> next") {
-                        lines = vec![];
-                    } else {
+                while let Ok(line) = dbg_session.read_line() {
+                    if !(line.starts_with(">next")
+                        || line.starts_with("At ")
+                        || line.starts_with("..."))
+                    {
                         lines.push(line);
                     }
-                    read_line = dbg_session.read_line();
                 }
 
                 let lines_expected_to_contain: Vec<&str> = vec![
-                    "At opcode ",
-                    "At ",
-                    "...",
-                    "    bar(x)",
+                    "> next",
+                    "    let x = unsafe { baz(x) };",
+                    "unconstrained fn baz(x: Field) -> Field {",
+                    "> next",
+                    "    let x = unsafe { baz(x) };",
+                    "unconstrained fn baz(x: Field) -> Field {",
+                    "> next",
+                    "    let x = unsafe { baz(x) };",
                     "}",
-                    "",
-                    "fn main(x: Field, y: pub Field) {",
+                    "> next",
+                    "    let x = unsafe { baz(x) };",
+                    "> next",
                     "    foo(x);",
-                    "    foo(y);",
-                    "    assert(x != y);",
-                    "}",
-                    "At ",
-                    "fn bar(y: Field) {",
-                    "    assert(y != 0);",
-                    "}",
-                    "",
                     "fn foo(x: Field) {",
-                    "    bar(x)",
-                    "}",
-                    "",
-                    "fn main(x: Field, y: pub Field) {",
+                    "> next",
                     "    foo(x);",
-                    "...",
-                    "At ",
-                    "fn bar(y: Field) {",
-                    "    assert(y != 0);",
-                    "}",
-                    "",
                     "fn foo(x: Field) {",
-                    "    bar(x)",
-                    "...",
+                    "> next",
+                    "    foo(x);",
+                    "    let y = unsafe { baz(x) };",
+                    "unconstrained fn baz(x: Field) -> Field {",
+                    "> next",
+                    "    foo(x);",
+                    "    let y = unsafe { baz(x) };",
+                    "unconstrained fn baz(x: Field) -> Field {",
+                    "> next",
+                    "    foo(x);",
+                    "    let y = unsafe { baz(x) };",
+                    "}",
+                    "> next",
+                    "    foo(x);",
+                    "    let y = unsafe { baz(x) };",
+                    "> next",
+                    "    foo(x);",
+                    "    bar(y);",
+                    "fn bar(y: Field) {",
+                    "> next",
+                    "    foo(x);",
+                    "    bar(y);",
+                    "fn bar(y: Field) {",
+                    "> next",
+                    "    foo(x);",
+                    "    bar(y);",
+                    "    assert(y != 0);",
                 ];
 
                 for (line, line_expected_to_contain) in
