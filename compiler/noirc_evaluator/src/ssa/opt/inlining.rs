@@ -827,14 +827,14 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
     ) -> Vec<ValueId> {
-        // Clippy complains if this were written as an if statement
         match returns.len() {
+            0 => Vec::new(),
             1 => {
                 let (return_block, return_values) = returns.remove(0);
                 self.context.builder.switch_to_block(return_block);
                 return_values
             }
-            n if n > 1 => {
+            _ => {
                 // If there is more than 1 return instruction we'll need to create a single block we
                 // can return to and continue inserting in afterwards.
                 let return_block = self.context.builder.insert_block();
@@ -847,7 +847,6 @@ impl<'function> PerFunctionContext<'function> {
                 self.context.builder.switch_to_block(return_block);
                 self.context.builder.block_parameters(return_block).to_vec()
             }
-            _ => unreachable!("Inlined function had no return values"),
         }
     }
 
@@ -1039,7 +1038,7 @@ impl<'function> PerFunctionContext<'function> {
         block_id: BasicBlockId,
         block_queue: &mut VecDeque<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
-        match self.source_function.dfg[block_id].unwrap_terminator() {
+        match &self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));

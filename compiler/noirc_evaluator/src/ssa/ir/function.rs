@@ -164,7 +164,7 @@ impl Function {
     }
 
     /// Returns the return types of this function.
-    pub(crate) fn returns(&self) -> &[ValueId] {
+    pub(crate) fn returns(&self) -> Vec<ValueId> {
         let blocks = self.reachable_blocks();
         let mut function_return_values = None;
         for block in blocks {
@@ -174,8 +174,7 @@ impl Function {
                 break;
             }
         }
-        function_return_values
-            .expect("Expected a return instruction, as function construction is finished")
+        function_return_values.unwrap_or(&Vec::new()).clone()
     }
 
     /// Collects all the reachable blocks of this function.
@@ -197,7 +196,7 @@ impl Function {
 
     pub(crate) fn signature(&self) -> Signature {
         let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(ret));
         Signature { params, returns }
     }
 
