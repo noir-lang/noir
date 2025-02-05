@@ -57,7 +57,7 @@ for test_name in ${tests_to_profile[@]}; do
         peak=${consumption:30:len}
         rm $current_dir/$test_name"_heap_analysis.txt"
         peak_memory=$($PARSE_MEMORY $peak)
-        jq -rc "{name: \"$PACKAGE_NAME\", value: tonumber(\"$peak_memory\"), unit: \"MB\"}" --null-input >> $current_dir/memory_report.json
+        jq -rc "{name: \"$PACKAGE_NAME\", value: \"$peak_memory\" | tonumber, unit: \"MB\"}" --null-input >> $current_dir/memory_report.json
 
 done
 
