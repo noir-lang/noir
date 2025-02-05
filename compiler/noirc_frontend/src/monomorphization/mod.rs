@@ -1835,14 +1835,15 @@ impl<'interner> Monomorphizer<'interner> {
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
-        self.push_function(id, function);
 
         let typ = ast::Type::Function(
             parameter_types,
             Box::new(ret_type),
             Box::new(ast::Type::Unit),
-            false,
+            function.unconstrained,
         );
+
+        self.push_function(id, function);
 
         let name = lambda_name.to_owned();
         Ok(ast::Expression::Ident(ast::Ident {
@@ -1941,11 +1942,15 @@ impl<'interner> Monomorphizer<'interner> {
         let body = self.expr(lambda.body)?;
         self.lambda_envs_stack.pop();
 
+        // TODO: Ideally a lambda would inherit the runtime of its caller, but it could be passed as a
+        // variable (by function ID) to a function that uses it both as constrained and unconstrained.
+        let is_unconstrained = self.in_unconstrained_function;
+
         let lambda_fn_typ: ast::Type = ast::Type::Function(
             parameter_types,
             Box::new(ret_type),
             Box::new(env_typ.clone()),
-            false,
+            is_unconstrained,
         );
         let lambda_fn = ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
@@ -1964,10 +1969,11 @@ impl<'interner> Monomorphizer<'interner> {
             parameters,
             body,
             return_type,
-            unconstrained: self.in_unconstrained_function,
+            unconstrained: is_unconstrained,
             inline_type: InlineType::default(),
             func_sig: FunctionSignature::default(),
         };
+
         self.push_function(id, function);
 
         let lambda_value =
