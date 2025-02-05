@@ -91,6 +91,8 @@ pub enum BorrowedToken<'input> {
     RightBracket,
     /// ->
     Arrow,
+    /// =>
+    FatArrow,
     /// |
     Pipe,
     /// #
@@ -212,6 +214,8 @@ pub enum Token {
     RightBracket,
     /// ->
     Arrow,
+    /// =>
+    FatArrow,
     /// |
     Pipe,
     /// #
@@ -296,6 +300,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::LeftBracket => BorrowedToken::LeftBracket,
         Token::RightBracket => BorrowedToken::RightBracket,
         Token::Arrow => BorrowedToken::Arrow,
+        Token::FatArrow => BorrowedToken::FatArrow,
         Token::Pipe => BorrowedToken::Pipe,
         Token::Pound => BorrowedToken::Pound,
         Token::Comma => BorrowedToken::Comma,
@@ -473,6 +478,7 @@ impl fmt::Display for Token {
             Token::LeftBracket => write!(f, "["),
             Token::RightBracket => write!(f, "]"),
             Token::Arrow => write!(f, "->"),
+            Token::FatArrow => write!(f, "=>"),
             Token::Pipe => write!(f, "|"),
             Token::Pound => write!(f, "#"),
             Token::Comma => write!(f, ","),
