@@ -8,7 +8,7 @@ base_path="$current_dir/execution_success"
 # Tests to be profiled for execution report
 tests_to_profile=("sha256_regression" "regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
 
-echo "{[" > $current_dir/execution_report.json
+echo "[" > $current_dir/execution_report.json
 
 # If there is an argument that means we want to generate a report for only the current directory
 if [ "$1" == "1" ]; then
