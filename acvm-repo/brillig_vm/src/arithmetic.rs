@@ -154,46 +154,166 @@ fn evaluate_binary_int_op_generic(
     bit_size: IntegerBitSize,
 ) -> Result<u128, BrilligArithmeticError> {
     let bit_size: u32 = bit_size.into();
-    let bit_modulo = 1 << bit_size;
-    let result = match op {
-        // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
-        BinaryIntOp::Add => (lhs + rhs) % bit_modulo,
-        BinaryIntOp::Sub => (bit_modulo + lhs - rhs) % bit_modulo,
-        BinaryIntOp::Mul => (lhs * rhs) % bit_modulo,
-        // Perform unsigned division using the modulo operation on a and b.
-        BinaryIntOp::Div => {
-            if rhs == 0 {
-                return Err(BrilligArithmeticError::DivisionByZero);
-            } else {
-                lhs / rhs
-            }
+    Ok(match bit_size {
+        1 => {
+            let lhs = lhs as u8;
+            let rhs = rhs as u8;
+            let result = match op {
+                // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::Add => lhs.overflowing_add(rhs).0 & 1,
+                BinaryIntOp::Sub => lhs.overflowing_sub(rhs).0 & 1,
+                BinaryIntOp::Mul => lhs.overflowing_mul(rhs).0 & 1,
+                // Perform unsigned division using the modulo operation on a and b.
+                BinaryIntOp::Div => {
+                    if rhs == 0 {
+                        return Err(BrilligArithmeticError::DivisionByZero);
+                    } else {
+                        lhs / rhs
+                    }
+                }
+                // Perform a == operation, returning 0 or 1
+                BinaryIntOp::Equals => (lhs == rhs) as u8,
+                // Perform a < operation, returning 0 or 1
+                BinaryIntOp::LessThan => (lhs < rhs) as u8,
+                // Perform a <= operation, returning 0 or 1
+                BinaryIntOp::LessThanEquals => (lhs <= rhs) as u8,
+                // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::And => lhs & rhs,
+                BinaryIntOp::Or => lhs | rhs,
+                BinaryIntOp::Xor => lhs ^ rhs,
+                BinaryIntOp::Shl => lhs.checked_shl(rhs as u32).unwrap_or(0) & 1,
+                BinaryIntOp::Shr => lhs.checked_shr(rhs as u32).unwrap_or(0),
+            };
+            result as u128
         }
-        // Perform a == operation, returning 0 or 1
-        BinaryIntOp::Equals => (lhs == rhs) as u128,
-        // Perform a < operation, returning 0 or 1
-        BinaryIntOp::LessThan => (lhs < rhs) as u128,
-        // Perform a <= operation, returning 0 or 1
-        BinaryIntOp::LessThanEquals => (lhs <= rhs) as u128,
-        // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
-        BinaryIntOp::And => lhs & rhs,
-        BinaryIntOp::Or => lhs | rhs,
-        BinaryIntOp::Xor => lhs ^ rhs,
-        BinaryIntOp::Shl => {
-            if rhs >= (bit_size as u128) {
-                0
-            } else {
-                (lhs << rhs) % bit_modulo
-            }
+        u8::BITS => {
+            let lhs = lhs as u8;
+            let rhs = rhs as u8;
+            let result = match op {
+                // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::Add => lhs.overflowing_add(rhs).0,
+                BinaryIntOp::Sub => lhs.overflowing_sub(rhs).0,
+                BinaryIntOp::Mul => lhs.overflowing_mul(rhs).0,
+                // Perform unsigned division using the modulo operation on a and b.
+                BinaryIntOp::Div => {
+                    if rhs == 0 {
+                        return Err(BrilligArithmeticError::DivisionByZero);
+                    } else {
+                        lhs / rhs
+                    }
+                }
+                // Perform a == operation, returning 0 or 1
+                BinaryIntOp::Equals => (lhs == rhs) as u8,
+                // Perform a < operation, returning 0 or 1
+                BinaryIntOp::LessThan => (lhs < rhs) as u8,
+                // Perform a <= operation, returning 0 or 1
+                BinaryIntOp::LessThanEquals => (lhs <= rhs) as u8,
+                // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::And => lhs & rhs,
+                BinaryIntOp::Or => lhs | rhs,
+                BinaryIntOp::Xor => lhs ^ rhs,
+                BinaryIntOp::Shl => lhs.checked_shl(rhs as u32).unwrap_or(0),
+                BinaryIntOp::Shr => lhs.checked_shr(rhs as u32).unwrap_or(0),
+            };
+            result as u128
         }
-        BinaryIntOp::Shr => {
-            if rhs >= (bit_size as u128) {
-                0
-            } else {
-                lhs >> rhs
-            }
+        u16::BITS => {
+            let lhs = lhs as u16;
+            let rhs = rhs as u16;
+            let result = match op {
+                // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::Add => lhs.overflowing_add(rhs).0,
+                BinaryIntOp::Sub => lhs.overflowing_sub(rhs).0,
+                BinaryIntOp::Mul => lhs.overflowing_mul(rhs).0,
+                // Perform unsigned division using the modulo operation on a and b.
+                BinaryIntOp::Div => {
+                    if rhs == 0 {
+                        return Err(BrilligArithmeticError::DivisionByZero);
+                    } else {
+                        lhs / rhs
+                    }
+                }
+                // Perform a == operation, returning 0 or 1
+                BinaryIntOp::Equals => (lhs == rhs) as u16,
+                // Perform a < operation, returning 0 or 1
+                BinaryIntOp::LessThan => (lhs < rhs) as u16,
+                // Perform a <= operation, returning 0 or 1
+                BinaryIntOp::LessThanEquals => (lhs <= rhs) as u16,
+                // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::And => lhs & rhs,
+                BinaryIntOp::Or => lhs | rhs,
+                BinaryIntOp::Xor => lhs ^ rhs,
+                BinaryIntOp::Shl => lhs.checked_shl(rhs as u32).unwrap_or(0),
+                BinaryIntOp::Shr => lhs.checked_shr(rhs as u32).unwrap_or(0),
+            };
+            result as u128
         }
-    };
-    Ok(result)
+        u32::BITS => {
+            let lhs = lhs as u32;
+            let rhs = rhs as u32;
+            let result = match op {
+                // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::Add => lhs.overflowing_add(rhs).0,
+                BinaryIntOp::Sub => lhs.overflowing_sub(rhs).0,
+                BinaryIntOp::Mul => lhs.overflowing_mul(rhs).0,
+                // Perform unsigned division using the modulo operation on a and b.
+                BinaryIntOp::Div => {
+                    if rhs == 0 {
+                        return Err(BrilligArithmeticError::DivisionByZero);
+                    } else {
+                        lhs / rhs
+                    }
+                }
+                // Perform a == operation, returning 0 or 1
+                BinaryIntOp::Equals => (lhs == rhs) as u32,
+                // Perform a < operation, returning 0 or 1
+                BinaryIntOp::LessThan => (lhs < rhs) as u32,
+                // Perform a <= operation, returning 0 or 1
+                BinaryIntOp::LessThanEquals => (lhs <= rhs) as u32,
+                // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::And => lhs & rhs,
+                BinaryIntOp::Or => lhs | rhs,
+                BinaryIntOp::Xor => lhs ^ rhs,
+                BinaryIntOp::Shl => lhs.checked_shl(rhs).unwrap_or(0),
+                BinaryIntOp::Shr => lhs.checked_shr(rhs).unwrap_or(0),
+            };
+            result as u128
+        }
+        u64::BITS => {
+            let lhs = lhs as u64;
+            let rhs = rhs as u64;
+            let result = match op {
+                // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::Add => lhs.overflowing_add(rhs).0,
+                BinaryIntOp::Sub => lhs.overflowing_sub(rhs).0,
+                BinaryIntOp::Mul => lhs.overflowing_mul(rhs).0,
+                // Perform unsigned division using the modulo operation on a and b.
+                BinaryIntOp::Div => {
+                    if rhs == 0 {
+                        return Err(BrilligArithmeticError::DivisionByZero);
+                    } else {
+                        lhs / rhs
+                    }
+                }
+                // Perform a == operation, returning 0 or 1
+                BinaryIntOp::Equals => (lhs == rhs) as u64,
+                // Perform a < operation, returning 0 or 1
+                BinaryIntOp::LessThan => (lhs < rhs) as u64,
+                // Perform a <= operation, returning 0 or 1
+                BinaryIntOp::LessThanEquals => (lhs <= rhs) as u64,
+                // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
+                BinaryIntOp::And => lhs & rhs,
+                BinaryIntOp::Or => lhs | rhs,
+                BinaryIntOp::Xor => lhs ^ rhs,
+                BinaryIntOp::Shl => lhs.checked_shl(rhs as u32).unwrap_or(0),
+                BinaryIntOp::Shr => lhs.checked_shr(rhs as u32).unwrap_or(0),
+            };
+            result as u128
+        }
+        _ => {
+            panic!("Unexpected range")
+        }
+    })
 }
 
 #[cfg(test)]
