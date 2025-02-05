@@ -281,17 +281,18 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
-      - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
-
       - uses: actions/checkout@v4
         with:
           path: scripts
           sparse-checkout: |
+            .github/actions/download-nargo/action.yml
             test_programs/compilation_report.sh
             test_programs/execution_report.sh
             test_programs/parse_time.sh
           sparse-checkout-cone-mode: false
+
+      - name: Download nargo binary
+        uses: scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -389,7 +390,7 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
-            ./.github/actions/download-nargo
+            ./.github/actions/download-nargo/action.yml
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
