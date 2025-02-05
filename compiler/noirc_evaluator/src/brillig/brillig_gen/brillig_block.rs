@@ -846,6 +846,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     BrilligBinaryOp::Sub,
                     1,
                 );
+
+                // Check that the refcount doesn't go below 1. If we allow it to underflow
+                // and become 0 or usize::MAX, and then return to 1, then it will indicate
+                // an array as mutable when it probably shouldn't be.
+                // We could use `add_overflow_check` here but going to 0 is the first indication of a problem.
+                self.add_usize_minimum_check(rc_register, 1, "array ref-count went to zero");
+
                 self.brillig_context
                     .store_instruction(array_or_vector.extract_register(), rc_register);
                 self.brillig_context.deallocate_register(rc_register);
@@ -1526,6 +1533,32 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         });
 
         self.brillig_context.deallocate_single_addr(left_is_negative);
+    }
+
+    /// Check that some value did not go below a minimum.
+    fn add_usize_minimum_check(&mut self, addr: MemoryAddress, minimum: usize, msg: &str) {
+        let min_addr = if minimum == 1 {
+            ReservedRegisters::usize_one()
+        } else {
+            let min_var =
+                self.brillig_context.make_usize_constant_instruction(FieldElement::from(minimum));
+            min_var.address
+        };
+        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+
+        self.brillig_context.memory_op_instruction(
+            min_addr,
+            addr,
+            condition.address,
+            BrilligBinaryOp::LessThanEquals,
+        );
+
+        self.brillig_context.codegen_constrain(condition, Some(msg.to_owned()));
+
+        self.brillig_context.deallocate_single_addr(condition);
+        if minimum != 1 {
+            self.brillig_context.deallocate_register(min_addr);
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
