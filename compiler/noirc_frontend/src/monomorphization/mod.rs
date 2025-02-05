@@ -945,11 +945,7 @@ impl<'interner> Monomorphizer<'interner> {
             return Ok(None);
         };
 
-        let hir_typ = typ.clone();
         let typ = Self::convert_type(typ, ident.location)?;
-        if name == "ordering" {
-            println!("local_ident: hir={hir_typ:?} typ={typ:?} def={definition:?}");
-        }
         Ok(Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ }))
     }
 
