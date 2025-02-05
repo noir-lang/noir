@@ -40,6 +40,9 @@ libraries:
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 10
+  sha256:
+    repo: noir-lang/sha256
+    timeout: 3
   aztec_nr:
     repo: AztecProtocol/aztec-packages
     path: noir-projects/aztec-nr
