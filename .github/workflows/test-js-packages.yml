@@ -13,6 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  critical-library-list:
+    name: Load critical library list
+    runs-on: ubuntu-22.04
+    outputs:
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build list of libraries
+        id: get_critical_libraries
+        run: |
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          echo "libraries=$LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -465,25 +484,6 @@ jobs:
       - name: Run `codegen_verifier`
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
-
-  critical-library-list:
-    name: Load critical library list
-    runs-on: ubuntu-22.04
-    outputs:
-      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build list of libraries
-        id: get_critical_libraries
-        run: |
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
-          echo "libraries=$LIBRARIES"
-          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]

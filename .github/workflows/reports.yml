@@ -384,18 +384,18 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root }
 
     name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-  
-        s:
-            - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
-
+    steps:
       - uses: actions/checkout@v4
         with:
           path: scripts
           sparse-checkout: |
+            ./.github/actions/download-nargo
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
+      
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
