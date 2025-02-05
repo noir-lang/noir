@@ -416,8 +416,7 @@ impl Binary {
         };
 
         let new_const = match self.operator {
-            BinaryOp::Add { .. } => rhs_const + rhs2_const,
-            BinaryOp::Sub { .. } => rhs_const + rhs2_const,
+            BinaryOp::Add { .. } | BinaryOp::Sub { .. } => rhs_const + rhs2_const,
             BinaryOp::Mul { .. } => rhs_const * rhs2_const,
             BinaryOp::Div
             | BinaryOp::Mod
