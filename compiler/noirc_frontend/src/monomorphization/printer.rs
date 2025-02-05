@@ -51,6 +51,7 @@ impl AstPrinter {
             Expression::For(for_expr) => self.print_for(for_expr, f),
             Expression::Loop(block) => self.print_loop(block, f),
             Expression::If(if_expr) => self.print_if(if_expr, f),
+            Expression::Match(match_expr) => self.print_match(match_expr, f),
             Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
                 self.print_expr(expr, f)?;
@@ -105,7 +106,7 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, _, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
-            super::ast::Literal::Str(s) => s.fmt(f),
+            super::ast::Literal::Str(s) => write!(f, "\"{s}\""),
             super::ast::Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
                 for fragment in fragments {
@@ -240,6 +241,44 @@ impl AstPrinter {
             self.indent_level -= 1;
             self.next_line(f)?;
         }
+        write!(f, "}}")
+    }
+
+    fn print_match(
+        &mut self,
+        match_expr: &super::ast::Match,
+        f: &mut Formatter,
+    ) -> Result<(), std::fmt::Error> {
+        write!(f, "match ${} {{", match_expr.variable_to_match.0)?;
+        self.indent_level += 1;
+        self.next_line(f)?;
+
+        for (i, (constructor, args, branch)) in match_expr.cases.iter().enumerate() {
+            write!(f, "{constructor}")?;
+            let args = vecmap(args, |arg| format!("${}", arg.0)).join(", ");
+            if !args.is_empty() {
+                write!(f, "({args})")?;
+            }
+            write!(f, " => ")?;
+            self.print_expr(branch, f)?;
+            write!(f, ",")?;
+
+            if i != match_expr.cases.len() - 1 {
+                self.next_line(f)?;
+            }
+        }
+        self.indent_level -= 1;
+
+        if let Some(default) = &match_expr.default_case {
+            self.indent_level += 1;
+            self.next_line(f)?;
+            write!(f, "_ => ")?;
+            self.print_expr(default, f)?;
+            write!(f, ",")?;
+            self.indent_level -= 1;
+        }
+
+        self.next_line(f)?;
         write!(f, "}}")
     }
 

@@ -606,6 +606,15 @@ impl DataType {
         Some(self.variants_raw()?.to_vec())
     }
 
+    /// Returns the name and raw parameters of the variant at the given variant index.
+    /// This will not substitute any generic arguments so a generic variant like `X`
+    /// in `enum Foo<T> { X(T) }` will return a `("X", Vec<T>)` pair.
+    ///
+    /// Returns None if this is not an enum type or the given variant index is out of bounds.
+    pub fn get_variant_as_written(&self, variant_index: usize) -> Option<&EnumVariant> {
+        self.variants_raw()?.get(variant_index)
+    }
+
     /// Returns the field at the given index. Panics if no field exists at the given index or this
     /// is not a struct type.
     pub fn field_at(&self, index: usize) -> &StructField {

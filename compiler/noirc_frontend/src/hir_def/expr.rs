@@ -382,7 +382,7 @@ impl Case {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum Constructor {
     True,
     False,
@@ -403,6 +403,30 @@ impl Constructor {
             | Constructor::Range(_, _) => 0,
             Constructor::True => 1,
             Constructor::Variant(_, index) => *index,
+        }
+    }
+}
+
+impl std::fmt::Display for Constructor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constructor::True => write!(f, "true"),
+            Constructor::False => write!(f, "false"),
+            Constructor::Unit => write!(f, "()"),
+            Constructor::Int(x) => write!(f, "{x}"),
+            Constructor::Tuple(_) => Ok(()), // args are printed after already
+            Constructor::Variant(typ, variant_index) => {
+                if let Type::DataType(def, _) = typ {
+                    let def = def.borrow();
+                    if let Some(variant) = def.get_variant_as_written(*variant_index) {
+                        write!(f, "{}", variant.name)?;
+                    } else if def.is_struct() {
+                        write!(f, "{}", def.name)?;
+                    }
+                }
+                Ok(())
+            }
+            Constructor::Range(start, end) => write!(f, "{start} .. {end}"),
         }
     }
 }

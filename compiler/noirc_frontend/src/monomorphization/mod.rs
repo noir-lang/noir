@@ -575,7 +575,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
-            HirExpression::Match(match_expr) => self.match_expr(match_expr)?,
+            HirExpression::Match(match_expr) => {
+                let location = self.interner.expr_location(&expr);
+                self.match_expr(match_expr, location)?
+            }
 
             HirExpression::Tuple(fields) => {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
@@ -1276,6 +1279,7 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("Unexpected type {typ} found")
             }
             HirType::Error => {
+                panic!("type error found");
                 let message = "Unexpected Type::Error found during monomorphization";
                 return Err(MonomorphizationError::InternalError { message, location });
             }
@@ -1985,9 +1989,60 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn match_expr(
         &mut self,
-        _match_expr: HirMatch,
+        match_expr: HirMatch,
+        location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        todo!("monomorphize match")
+        match match_expr {
+            HirMatch::Success(id) => self.expr(id),
+            HirMatch::Failure => {
+                let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
+                let msg = "match failure";
+                let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
+
+                let u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let length = (msg.len() as u128).into();
+                let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
+                let msg_type = HirType::String(Box::new(length));
+
+                let msg = Some(Box::new((msg_expr, msg_type)));
+                Ok(ast::Expression::Constrain(false_, location, msg))
+            }
+            HirMatch::Guard { cond, body, otherwise } => {
+                let condition = Box::new(self.expr(cond)?);
+                let consequence = Box::new(self.expr(body)?);
+                let alternative = Some(Box::new(self.match_expr(*otherwise, location)?));
+
+                Ok(ast::Expression::If(ast::If {
+                    condition,
+                    consequence,
+                    alternative,
+                    typ: ast::Type::Unit, // TODO
+                }))
+            }
+            HirMatch::Switch(variable_to_match, cases, default) => {
+                let variable_to_match = match self.lookup_local(variable_to_match) {
+                    Some(Definition::Local(id)) => id,
+                    other => unreachable!("Expected match variable to be defined. Found {other:?}"),
+                };
+
+                let cases = try_vecmap(cases, |case| {
+                    let args = vecmap(case.arguments, |arg| {
+                        let new_id = self.next_local_id();
+                        self.define_local(arg, new_id);
+                        new_id
+                    });
+                    let branch = self.match_expr(case.body, location)?;
+                    Ok((case.constructor, args, branch))
+                })?;
+
+                let default_case = match default {
+                    Some(case) => Some(Box::new(self.match_expr(*case, location)?)),
+                    None => None,
+                };
+
+                Ok(ast::Expression::Match(ast::Match { variable_to_match, cases, default_case }))
+            }
+        }
     }
 
     /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed

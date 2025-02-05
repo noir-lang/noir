@@ -154,6 +154,7 @@ impl<'a> FunctionContext<'a> {
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::Loop(block) => self.codegen_loop(block),
             Expression::If(if_expr) => self.codegen_if(if_expr),
+            Expression::Match(match_expr) => self.codegen_match(match_expr),
             Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
                 self.codegen_extract_tuple_field(tuple, *index)
@@ -708,6 +709,10 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.codegen_expression(&if_expr.consequence)
         })
+    }
+
+    fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
+        todo!("codegen match")
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
