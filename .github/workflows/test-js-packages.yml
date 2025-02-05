@@ -509,7 +509,7 @@ jobs:
           ref: ${{ matrix.project.ref }}
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./noir-repo/.github/actions/download-nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo
@@ -570,11 +570,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          path: noir-repo
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
           repository: AztecProtocol/aztec-packages
           path: test-repo
 
       - name: Download nargo binary
-        uses: ./.github/actions/download-nargo
+        uses: ./noir-repo/.github/actions/download-nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo

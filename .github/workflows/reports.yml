@@ -280,9 +280,8 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, num_runs: 5 }
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-  
-        s:
-            - name: Download nargo binary
+    steps:
+      - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
       - uses: actions/checkout@v4

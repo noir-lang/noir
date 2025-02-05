@@ -13,6 +13,6 @@ runs:
       - name: Set nargo on PATH
         shell: bash
         run: |
-          nargo_binary="./nargo/nargo"
+          nargo_binary="${{ github.workspace }}/nargo/nargo"
           chmod +x $nargo_binary
           echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
