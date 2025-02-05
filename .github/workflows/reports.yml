@@ -292,7 +292,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download nargo binary
-        uses: scripts/.github/actions/download-nargo
+        uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
