@@ -156,7 +156,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
                 if let Some(instruction) =
-                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                    self.simplify_consecutive(lhs, lhs_const, rhs_const, lhs_type, dfg)
                 {
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
@@ -170,7 +170,7 @@ impl Binary {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
                 if let Some(instruction) =
-                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                    self.simplify_consecutive(lhs, lhs_const, rhs_const, lhs_type, dfg)
                 {
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
@@ -219,7 +219,7 @@ impl Binary {
                     }
                 }
                 if let Some(instruction) =
-                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                    self.simplify_consecutive(lhs, lhs_const, rhs_const, lhs_type, dfg)
                 {
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
@@ -383,7 +383,6 @@ impl Binary {
     fn simplify_consecutive(
         &self,
         lhs: ValueId,
-        _rhs: ValueId,
         lhs_const: Option<FieldElement>,
         rhs_const: Option<FieldElement>,
         typ: NumericType,
