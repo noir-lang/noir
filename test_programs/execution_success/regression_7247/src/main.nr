@@ -11,10 +11,10 @@ fn main(
 
     /// Safety: Test
     let bat = unsafe { brillig_apply_twice(a, times_ten) };
-    assert_eq(bat, b);
+    assert_eq(bat, b, "should be a*100");
 
     let mat = mixed_apply_thrice(a, times_ten);
-    assert_eq(mat, c);
+    assert_eq(mat, c, "should be a*1000");
 }
 
 unconstrained fn via_brillig(a: u32) -> u32 {
@@ -34,9 +34,9 @@ fn times100(a: u32) -> u32 {
 }
 
 fn times_ten(x: u32) -> u32 {
-    // Random `if` to trigger `EnableSideEffect` during flattening.
-    if x > 1000 {
-        x * 10 - 5
+    // Arbitrary `if` statement to trigger `EnableSideEffect` during flattening.
+    if x > 100000 {
+        x * 10 - 1
     } else {
         x * 10
     }

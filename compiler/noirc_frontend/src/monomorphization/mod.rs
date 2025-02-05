@@ -501,6 +501,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.statements)?,
             HirExpression::Unsafe(block) => {
+                // TODO: Undo this change; not everything in an `unsafe` block is unconstrained, it just
+                // means we can call unconstrained functions. But it was a convenient way to change the
+                // the way lambdas made in an `unsafe` block are compiled and make corresponding tests pass.
                 let was_in_unconstrained_function = self.in_unconstrained_function;
                 self.in_unconstrained_function = true;
                 let res = self.block(block.statements);
