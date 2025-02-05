@@ -92,8 +92,8 @@ impl Binary {
         let lhs = dfg.resolve(self.lhs);
         let rhs = dfg.resolve(self.rhs);
 
-        let lhs_value = dfg.get_numeric_constant(lhs);
-        let rhs_value = dfg.get_numeric_constant(rhs);
+        let lhs_const = dfg.get_numeric_constant(lhs);
+        let rhs_const = dfg.get_numeric_constant(rhs);
 
         let lhs_type = dfg.type_of_value(lhs).unwrap_numeric();
         let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
@@ -129,7 +129,7 @@ impl Binary {
         // We never return `SimplifyResult::None` here because `operator` might have changed.
         let simplified = Instruction::Binary(Binary { lhs, rhs, operator });
 
-        if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
+        if let (Some(lhs), Some(rhs)) = (lhs_const, rhs_const) {
             return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
                 Some((result, result_type)) => {
                     let value = dfg.make_constant(result, result_type);
@@ -139,11 +139,11 @@ impl Binary {
             };
         }
 
-        let lhs_is_zero = lhs_value.map_or(false, |lhs| lhs.is_zero());
-        let rhs_is_zero = rhs_value.map_or(false, |rhs| rhs.is_zero());
+        let lhs_is_zero = lhs_const.map_or(false, |lhs| lhs.is_zero());
+        let rhs_is_zero = rhs_const.map_or(false, |rhs| rhs.is_zero());
 
-        let lhs_is_one = lhs_value.map_or(false, |lhs| lhs.is_one());
-        let rhs_is_one = rhs_value.map_or(false, |rhs| rhs.is_one());
+        let lhs_is_one = lhs_const.map_or(false, |lhs| lhs.is_one());
+        let rhs_is_one = rhs_const.map_or(false, |rhs| rhs.is_one());
 
         match self.operator {
             BinaryOp::Add { .. } => {
@@ -221,7 +221,7 @@ impl Binary {
                 if lhs_type.is_unsigned() {
                     // lhs % 2**bit_size is equivalent to truncating `lhs` to `bit_size` bits.
                     // We then convert to a truncation for consistency, allowing more optimizations.
-                    if let Some(modulus) = rhs_value {
+                    if let Some(modulus) = rhs_const {
                         let modulus = modulus.to_u128();
                         if modulus.is_power_of_two() {
                             let bit_size = modulus.ilog2();
@@ -299,13 +299,13 @@ impl Binary {
                     // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
                     //
                     // We then replace this bitwise operation with an equivalent truncation instruction.
-                    match (lhs_value, rhs_value) {
+                    match (lhs_const, rhs_const) {
                         (Some(bitmask), None) | (None, Some(bitmask)) => {
                             // This substitution requires the bitmask to retain all of the lower bits.
                             // The bitmask must then be one less than a power of 2.
                             let bitmask_plus_one = bitmask.to_u128() + 1;
                             if bitmask_plus_one.is_power_of_two() {
-                                let value = if lhs_value.is_some() { rhs } else { lhs };
+                                let value = if lhs_const.is_some() { rhs } else { lhs };
                                 let num_bits = bitmask_plus_one.ilog2();
                                 return SimplifyResult::SimplifiedToInstruction(
                                     Instruction::Truncate {
@@ -351,7 +351,7 @@ impl Binary {
             BinaryOp::Shl => return SimplifyResult::SimplifiedToInstruction(simplified),
             BinaryOp::Shr => {
                 // Bit shifts by constants can be treated as divisions.
-                if let Some(rhs_const) = rhs_value {
+                if let Some(rhs_const) = rhs_const {
                     if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
                         // Shifting by the full width of the operand type, any `lhs` goes to zero.
                         let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
