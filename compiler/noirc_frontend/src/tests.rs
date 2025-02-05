@@ -3905,7 +3905,7 @@ fn errors_on_cyclic_globals() {
 fn warns_on_unneeded_unsafe() {
     let src = r#"
     fn main() {
-        /// Safety: test
+        // Safety: test
         unsafe {
             foo()
         }
@@ -3925,9 +3925,9 @@ fn warns_on_unneeded_unsafe() {
 fn warns_on_nested_unsafe() {
     let src = r#"
     fn main() {
-        /// Safety: test
+        // Safety: test
         unsafe {
-            /// Safety: test
+            // Safety: test
             unsafe {
                 foo()
             }
@@ -4254,7 +4254,7 @@ fn error_with_duplicate_enum_variant() {
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {
-        /// Safety: test
+        // Safety: test
         unsafe {
             foo()
         }
@@ -4276,7 +4276,7 @@ fn errors_on_empty_loop_no_break() {
 fn errors_on_loop_without_break() {
     let src = r#"
     fn main() {
-        /// Safety: test
+        // Safety: test
         unsafe {
             foo()
         }
@@ -4304,7 +4304,7 @@ fn errors_on_loop_without_break() {
 fn errors_on_loop_without_break_with_nested_loop() {
     let src = r#"
     fn main() {
-        /// Safety: test
+        // Safety: test
         unsafe {
             foo()
         }
