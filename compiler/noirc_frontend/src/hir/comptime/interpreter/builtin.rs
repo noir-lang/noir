@@ -1431,11 +1431,13 @@ fn zeroed(return_type: Type, span: Span) -> Value {
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
             (Signedness::Signed, IntegerBitSize::One) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
             (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => todo!(),
         },
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {

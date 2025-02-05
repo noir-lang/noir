@@ -50,6 +50,7 @@ pub enum IntegerBitSize {
     Sixteen,
     ThirtyTwo,
     SixtyFour,
+    HundredTwentyEight
 }
 
 impl IntegerBitSize {
@@ -60,6 +61,7 @@ impl IntegerBitSize {
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
             IntegerBitSize::SixtyFour => 64,
+            IntegerBitSize::HundredTwentyEight => 128
         }
     }
 }
@@ -79,6 +81,7 @@ impl From<IntegerBitSize> for u32 {
             Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
+            HundredTwentyEight => 128
         }
     }
 }
@@ -96,6 +99,7 @@ impl TryFrom<u32> for IntegerBitSize {
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
             64 => Ok(SixtyFour),
+            128 => Ok(HundredTwentyEight),
             _ => Err(InvalidIntegerBitSizeError(value)),
         }
     }

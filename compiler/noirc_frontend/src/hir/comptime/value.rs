@@ -44,6 +44,7 @@ pub enum Value {
     U16(u16),
     U32(u32),
     U64(u64),
+    U128(u128),
     String(Rc<String>),
     FormatString(Rc<String>, Type),
     CtString(Rc<String>),
@@ -121,6 +122,7 @@ impl Value {
             Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            Value::U128(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
             Value::String(value) => {
                 let length = Type::Constant(value.len().into(), Kind::u32());
                 Type::String(Box::new(length))
@@ -206,6 +208,9 @@ impl Value {
             }
             Value::U64(value) => {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+            }
+            Value::U128(value) => {
+                ExpressionKind::Literal(Literal::Integer(value.into(), false))
             }
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
@@ -364,6 +369,9 @@ impl Value {
             }
             Value::U64(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+            }
+            Value::U128(value) => {
+                HirExpression::Literal(HirLiteral::Integer(value.into(), false))
             }
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))

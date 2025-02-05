@@ -347,6 +347,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::U16(value) => write!(f, "{value}"),
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
+            Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(value, _) => write!(f, "{value}"),

@@ -755,6 +755,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                     Ok(Value::U64(value))
                 }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    let value: u128 =
+                        value.try_into_u128().ok_or(InterpreterError::IntegerOutOfRangeForType {
+                            value,
+                            typ,
+                            location,
+                        })?;
+                    let value = if is_negative { 0u128.wrapping_sub(value) } else { value };
+                    Ok(Value::U128(value))
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
@@ -789,6 +799,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I64(value))
+                }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    todo!()
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
@@ -1487,6 +1500,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    cast_to_int!(lhs, to_u128, u128, U128)
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
@@ -1499,6 +1515,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_i128, i64, I64)
+                }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    todo!()
                 }
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
