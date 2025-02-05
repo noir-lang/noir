@@ -18,7 +18,7 @@ curve you want to use, which would be specified using any one of the methods
 `std::ec::{tecurve,montcurve,swcurve}::{affine,curvegroup}::new` which take the coefficients in the
 defining equation together with a generator point as parameters. You can find more detail in the
 comments in
-[`noir_stdlib/src/ec/mod.nr`](https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ec/mod.nr), but
+[`noir_stdlib/src/ec/mod.nr`](https://github.com/noir-lang/ec/blob/master/src/lib.nr), but
 the gist of it is that the elliptic curves of interest are usually expressed in one of the standard
 forms implemented here (Twisted Edwards, Montgomery and Short Weierstraß), and in addition to that,
 you could choose to use `affine` coordinates (Cartesian coordinates - the usual (x,y) - possibly
@@ -67,12 +67,12 @@ does indeed lie on `c` by calling `c.contains(p1)`.
   the curve configurations, the SWU map-to-curve method may be called as `c.swu_map(z,n)`, where
   `z: Field` depends on `Field` and `c` and must be chosen by the user (the conditions it needs to
   satisfy are specified in the comments
-  [here](https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/ec/mod.nr)).
+  [here](https://github.com/noir-lang/ec/blob/master/src/lib.nr)).
 
 ## Examples
 
 The
-[ec_baby_jubjub test](https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/ec_baby_jubjub/src/main.nr)
+[ec_baby_jubjub test](https://github.com/noir-lang/ec/blob/460dff3cc6a1c0c5d9449f99a0a158bde21c19a8/src/lib.nr#L210)
 illustrates all of the above primitives on various forms of the Baby Jubjub curve. A couple of more
 interesting examples in Noir would be:
 

@@ -20,8 +20,8 @@ mod completion_tests {
 
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionParams,
-        CompletionResponse, DidOpenTextDocumentParams, PartialResultParams, Position,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
+        CompletionResponse, DidOpenTextDocumentParams, Documentation, PartialResultParams,
+        Position, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,
     };
     use tokio::test;
@@ -3021,5 +3021,140 @@ fn main() {
 }
         "#;
         assert_eq!(new_code, expected);
+    }
+
+    #[test]
+    async fn test_suggests_and_imports_trait_method_with_self_using_public_export() {
+        let src = r#"
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba>|<
+}
+        "#;
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(item.label_details.unwrap().detail, Some("(use moo::Bar)".to_string()));
+
+        let new_code =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+
+        let expected = r#"use moo::Bar;
+
+mod moo {
+    mod nested {
+        pub trait Foo {
+            fn foobar(self);
+        }
+
+        impl Foo for Field {
+            fn foobar(self) {}
+        }
+    }
+
+    pub use nested::Foo as Bar;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.fooba
+}
+        "#;
+        assert_eq!(new_code, expected);
+    }
+
+    #[test]
+    async fn test_suggests_enum_variant_differently_than_a_function_call() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant(Field, i32)
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
+        assert_eq!(item.label, "Variant(…)".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant(Field, i32)".to_string()));
+
+        assert_eq!(item.detail, Some("Variant(Field, i32)".to_string()));
+
+        assert_eq!(item.insert_text, Some("Variant(${1:()}, ${2:()})".to_string()));
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
+    }
+
+    #[test]
+    async fn test_suggests_enum_variant_without_parameters() {
+        let src = r#"
+        enum Enum {
+            /// Some docs
+            Variant
+        }
+
+        fn foo() {
+            Enum::Var>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM_MEMBER));
+        assert_eq!(item.label, "Variant".to_string());
+
+        let details = item.label_details.as_ref().unwrap();
+        assert_eq!(details.description, Some("Variant".to_string()));
+
+        assert_eq!(item.detail, Some("Variant".to_string()));
+        assert_eq!(item.insert_text, None);
+
+        let Documentation::MarkupContent(markdown) = item.documentation.as_ref().unwrap() else {
+            panic!("Expected markdown docs");
+        };
+        assert!(markdown.value.contains("Some docs"));
+    }
+
+    #[test]
+    async fn test_suggests_enum_type() {
+        let src = r#"
+        enum ThisIsAnEnum {
+        }
+
+        fn foo() {
+            ThisIsA>|<
+        }
+        "#;
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = &items[0];
+        assert_eq!(item.kind, Some(CompletionItemKind::ENUM));
     }
 }

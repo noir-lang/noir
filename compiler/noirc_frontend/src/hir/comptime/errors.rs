@@ -133,6 +133,10 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    NonEnumInConstructor {
+        typ: Type,
+        location: Location,
+    },
     CannotInlineMacro {
         value: String,
         typ: Type,
@@ -246,6 +250,9 @@ pub enum InterpreterError {
     GlobalsDependencyCycle {
         location: Location,
     },
+    LoopHaltedForUiResponsiveness {
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -297,6 +304,7 @@ impl InterpreterError {
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
+            | InterpreterError::NonEnumInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
             | InterpreterError::UnquoteFoundDuringEvaluation { location, .. }
             | InterpreterError::UnsupportedTopLevelItemUnquote { location, .. }
@@ -323,7 +331,8 @@ impl InterpreterError {
             | InterpreterError::CannotSetFunctionBody { location, .. }
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
-            | InterpreterError::GlobalsDependencyCycle { location } => *location,
+            | InterpreterError::GlobalsDependencyCycle { location }
+            | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, file, .. } => {
                 Location::new(error.span(), *file)
@@ -499,6 +508,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NonStructInConstructor { typ, location } => {
                 let msg = format!("`{typ}` is not a struct type");
+                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+            }
+            InterpreterError::NonEnumInConstructor { typ, location } => {
+                let msg = format!("`{typ}` is not an enum type");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::CannotInlineMacro { value, typ, location } => {
@@ -682,6 +695,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "This global recursively depends on itself".to_string();
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::LoopHaltedForUiResponsiveness { location } => {
+                let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
+                    .to_string();
+                let secondary =
+                    "This error doesn't happen in normal executions of `nargo`".to_string();
+                CustomDiagnostic::simple_warning(msg, secondary, location.span)
             }
         }
     }

@@ -71,13 +71,13 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
-
     let pattern = match &args.fuzzing_harness_name {
         Some(name) => {
+            let names = vec![name.to_string()];
             if args.exact {
-                FunctionNameMatch::Exact(name)
+                FunctionNameMatch::Exact(names)
             } else {
-                FunctionNameMatch::Contains(name)
+                FunctionNameMatch::Contains(names)
             }
         }
         None => FunctionNameMatch::Anything,
@@ -92,7 +92,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
                         &workspace_file_manager,
                         &parsed_files,
                         package,
-                        pattern,
+                        &pattern,
                         &args.compile_options,
                     );
                     match harnesses {
@@ -127,7 +127,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
                 &workspace_file_manager,
                 &parsed_files,
                 package,
-                pattern,
+                &pattern,
                 args.show_output,
                 args.oracle_resolver.as_deref(),
                 Some(workspace.root_dir.clone()),
@@ -145,12 +145,16 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
     if fuzzing_report.is_empty() {
         match &pattern {
             FunctionNameMatch::Exact(pattern) => {
+                let single_pattern = pattern[0].clone();
                 return Err(CliError::Generic(format!(
-                    "Found 0 fuzzing_harnesses matching input '{pattern}'.",
-                )))
+                    "Found 0 fuzzing_harnesses matching input '{single_pattern}'.",
+                )));
             }
             FunctionNameMatch::Contains(pattern) => {
-                return Err(CliError::Generic(format!("Found 0 tests containing '{pattern}'.",)))
+                let single_pattern = pattern[0].clone();
+                return Err(CliError::Generic(format!(
+                    "Found 0 fuzzing_harnesses containing '{single_pattern}'.",
+                )));
             }
             // If we are running all tests in a crate, having none is not an error
             FunctionNameMatch::Anything => {}
@@ -168,7 +172,7 @@ fn list_harnesses(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
-    fn_name: FunctionNameMatch,
+    fn_name: &FunctionNameMatch,
     compile_options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
@@ -186,7 +190,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
-    fn_name: FunctionNameMatch,
+    fn_name: &FunctionNameMatch,
     show_output: bool,
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
@@ -261,8 +265,9 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     check_crate(&mut context, crate_id, compile_options)
         .expect("Any errors should have occurred when collecting fuzzing harnesses");
 
-    let fuzzing_harnesses = context
-        .get_all_fuzzing_harnesses_in_crate_matching(&crate_id, FunctionNameMatch::Exact(fn_name));
+    let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
+    let fuzzing_harnesses =
+        context.get_all_fuzzing_harnesses_in_crate_matching(&crate_id, &pattern);
     let (_, fuzzing_harness) = fuzzing_harnesses.first().expect("Fuzzing harness should exist");
 
     nargo::ops::run_fuzzing_harness::<S>(
@@ -281,7 +286,7 @@ fn get_fuzzing_harnesses_in_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
-    fn_name: FunctionNameMatch,
+    fn_name: &FunctionNameMatch,
     options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);

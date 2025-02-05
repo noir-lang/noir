@@ -17,7 +17,7 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    Kind, Shared, StructType, Type, TypeAlias, TypeBindings,
+    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
 };
 
 use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
@@ -192,7 +192,11 @@ impl<'context> Elaborator<'context> {
         };
 
         let (struct_type, generics) = match self.lookup_type_or_error(name) {
-            Some(Type::Struct(struct_type, struct_generics)) => (struct_type, struct_generics),
+            Some(Type::DataType(struct_type, struct_generics))
+                if struct_type.borrow().is_struct() =>
+            {
+                (struct_type, struct_generics)
+            }
             None => return error_identifier(self),
             Some(typ) => {
                 let typ = typ.to_string();
@@ -210,7 +214,7 @@ impl<'context> Elaborator<'context> {
             turbofish_span,
         );
 
-        let actual_type = Type::Struct(struct_type.clone(), generics);
+        let actual_type = Type::DataType(struct_type.clone(), generics);
         let location = Location::new(span, self.file);
 
         self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
@@ -234,7 +238,7 @@ impl<'context> Elaborator<'context> {
         let struct_id = struct_type.borrow().id;
 
         let reference_location = Location::new(name_span, self.file);
-        self.interner.add_struct_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
             let reference_location = Location::new(field.0.span(), self.file);
@@ -250,7 +254,7 @@ impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     fn resolve_constructor_pattern_fields(
         &mut self,
-        struct_type: Shared<StructType>,
+        struct_type: Shared<DataType>,
         fields: Vec<(Ident, Pattern)>,
         span: Span,
         expected_type: Type,
@@ -260,7 +264,10 @@ impl<'context> Elaborator<'context> {
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::default();
-        let mut unseen_fields = struct_type.borrow().field_names();
+        let mut unseen_fields = struct_type
+            .borrow()
+            .field_names()
+            .expect("This type should already be validated to be a struct");
 
         for (field, pattern) in fields {
             let (field_type, visibility) = expected_type
@@ -434,7 +441,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         generics: Vec<Type>,
         unresolved_turbofish: Option<Vec<UnresolvedType>>,
         span: Span,
@@ -574,8 +581,8 @@ impl<'context> Elaborator<'context> {
     ///         solve these
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
-            PathResolutionItem::StructFunction(struct_id, Some(generics), _func_id) => {
-                let struct_type = self.interner.get_struct(struct_id);
+            PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
+                let struct_type = self.interner.get_type(struct_id);
                 let struct_type = struct_type.borrow();
                 let struct_generics = struct_type.instantiate(self.interner);
                 self.resolve_struct_turbofish_generics(
@@ -886,7 +893,7 @@ impl<'context> Elaborator<'context> {
 fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Type> {
     let typ = type_alias.get_type(generics);
     match typ {
-        Type::Struct(_, generics) => generics,
+        Type::DataType(_, generics) => generics,
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }

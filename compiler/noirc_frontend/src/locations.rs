@@ -7,7 +7,7 @@ use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
-        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
     },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -60,18 +60,22 @@ impl NodeInterner {
         match reference {
             ReferenceId::Module(id) => self.module_attributes(&id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
-            ReferenceId::Struct(id) => {
-                let struct_type = self.get_struct(id);
-                let struct_type = struct_type.borrow();
-                Location::new(struct_type.name.span(), struct_type.location.file)
+            ReferenceId::Type(id) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                Location::new(typ.name.span(), typ.location.file)
             }
             ReferenceId::StructMember(id, field_index) => {
-                let struct_type = self.get_struct(id);
+                let struct_type = self.get_type(id);
                 let struct_type = struct_type.borrow();
-                Location::new(
-                    struct_type.field_at(field_index).name.span(),
-                    struct_type.location.file,
-                )
+                let file = struct_type.location.file;
+                Location::new(struct_type.field_at(field_index).name.span(), file)
+            }
+            ReferenceId::EnumVariant(id, variant_index) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                let file = typ.location.file;
+                Location::new(typ.variant_at(variant_index).name.span(), file)
             }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);
@@ -105,8 +109,8 @@ impl NodeInterner {
             ModuleDefId::FunctionId(func_id) => {
                 self.add_function_reference(func_id, location);
             }
-            ModuleDefId::TypeId(struct_id) => {
-                self.add_struct_reference(struct_id, location, is_self_type);
+            ModuleDefId::TypeId(type_id) => {
+                self.add_type_reference(type_id, location, is_self_type);
             }
             ModuleDefId::TraitId(trait_id) => {
                 self.add_trait_reference(trait_id, location, is_self_type);
@@ -124,18 +128,18 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
-    pub(crate) fn add_struct_reference(
+    pub(crate) fn add_type_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         location: Location,
         is_self_type: bool,
     ) {
-        self.add_reference(ReferenceId::Struct(id), location, is_self_type);
+        self.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
     pub(crate) fn add_struct_member_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         member_index: usize,
         location: Location,
     ) {
@@ -190,6 +194,7 @@ impl NodeInterner {
     pub(crate) fn add_definition_location(
         &mut self,
         referenced: ReferenceId,
+        referenced_location: Location,
         module_id: Option<ModuleId>,
     ) {
         if !self.lsp_mode {
@@ -197,7 +202,6 @@ impl NodeInterner {
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
-        let referenced_location = self.reference_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
         if let Some(module_id) = module_id {
             self.reference_modules.insert(referenced, module_id);
@@ -315,21 +319,23 @@ impl NodeInterner {
         &mut self,
         id: GlobalId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Global(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Global(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
-    pub(crate) fn register_struct(
+    pub(crate) fn register_type(
         &mut self,
-        id: StructId,
+        id: TypeId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Type(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
@@ -337,10 +343,11 @@ impl NodeInterner {
         &mut self,
         id: TraitId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Trait(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
@@ -348,10 +355,11 @@ impl NodeInterner {
         &mut self,
         id: TypeAliasId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Alias(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Alias(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 

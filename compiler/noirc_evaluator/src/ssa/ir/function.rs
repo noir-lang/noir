@@ -1,17 +1,18 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
-use super::dfg::DataFlowGraph;
+use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir(InlineType),
@@ -112,6 +113,8 @@ impl Function {
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
         new_function.set_runtime(another.runtime());
+        new_function.set_globals(another.dfg.globals.clone());
+        new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function
     }
 
@@ -136,11 +139,12 @@ impl Function {
         self.dfg.set_runtime(runtime);
     }
 
+    pub(crate) fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
+        self.dfg.globals = globals;
+    }
+
     pub(crate) fn is_no_predicates(&self) -> bool {
-        match self.runtime() {
-            RuntimeType::Acir(inline_type) => matches!(inline_type, InlineType::NoPredicates),
-            RuntimeType::Brillig(_) => false,
-        }
+        self.runtime().is_no_predicates()
     }
 
     /// Retrieves the entry block of a function.
@@ -206,6 +210,16 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
+
+    pub(crate) fn num_instructions(&self) -> usize {
+        self.reachable_blocks()
+            .iter()
+            .map(|block| {
+                let block = &self.dfg[*block];
+                block.instructions().len() + block.terminator().is_some() as usize
+            })
+            .sum()
     }
 }
 

@@ -91,6 +91,8 @@ pub enum BorrowedToken<'input> {
     RightBracket,
     /// ->
     Arrow,
+    /// =>
+    FatArrow,
     /// |
     Pipe,
     /// #
@@ -212,6 +214,8 @@ pub enum Token {
     RightBracket,
     /// ->
     Arrow,
+    /// =>
+    FatArrow,
     /// |
     Pipe,
     /// #
@@ -296,6 +300,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::LeftBracket => BorrowedToken::LeftBracket,
         Token::RightBracket => BorrowedToken::RightBracket,
         Token::Arrow => BorrowedToken::Arrow,
+        Token::FatArrow => BorrowedToken::FatArrow,
         Token::Pipe => BorrowedToken::Pipe,
         Token::Pound => BorrowedToken::Pound,
         Token::Comma => BorrowedToken::Comma,
@@ -473,6 +478,7 @@ impl fmt::Display for Token {
             Token::LeftBracket => write!(f, "["),
             Token::RightBracket => write!(f, "]"),
             Token::Arrow => write!(f, "->"),
+            Token::FatArrow => write!(f, "=>"),
             Token::Pipe => write!(f, "|"),
             Token::Pound => write!(f, "#"),
             Token::Comma => write!(f, ","),
@@ -1049,6 +1055,7 @@ pub enum Keyword {
     Dep,
     Else,
     Enum,
+    EnumDefinition,
     Expr,
     Field,
     Fn,
@@ -1060,6 +1067,7 @@ pub enum Keyword {
     Impl,
     In,
     Let,
+    Loop,
     Match,
     Mod,
     Module,
@@ -1108,6 +1116,7 @@ impl fmt::Display for Keyword {
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
+            Keyword::EnumDefinition => write!(f, "EnumDefinition"),
             Keyword::Expr => write!(f, "Expr"),
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
@@ -1119,6 +1128,7 @@ impl fmt::Display for Keyword {
             Keyword::Impl => write!(f, "impl"),
             Keyword::In => write!(f, "in"),
             Keyword::Let => write!(f, "let"),
+            Keyword::Loop => write!(f, "loop"),
             Keyword::Match => write!(f, "match"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Module => write!(f, "Module"),
@@ -1170,6 +1180,7 @@ impl Keyword {
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
+            "EnumDefinition" => Keyword::EnumDefinition,
             "Expr" => Keyword::Expr,
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
@@ -1181,6 +1192,7 @@ impl Keyword {
             "impl" => Keyword::Impl,
             "in" => Keyword::In,
             "let" => Keyword::Let,
+            "loop" => Keyword::Loop,
             "match" => Keyword::Match,
             "mod" => Keyword::Mod,
             "Module" => Keyword::Module,

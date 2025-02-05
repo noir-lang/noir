@@ -18,7 +18,7 @@ use crate::ast::{
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::CompilationError;
-use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::DefMaps;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
@@ -32,7 +32,7 @@ use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::traits::TraitImpl;
 use crate::hir_def::traits::{Trait, TraitConstraint};
-use crate::hir_def::types::{Kind, StructType, Type};
+use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -56,7 +56,7 @@ pub struct ModuleAttributes {
     pub visibility: ItemVisibility,
 }
 
-type StructAttributes = Vec<SecondaryAttribute>;
+type TypeAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -106,14 +106,14 @@ pub struct NodeInterner {
     // Similar to `id_to_type` but maps definitions to their type
     definition_to_type: HashMap<DefinitionId, Type>,
 
-    // Struct map.
+    // Struct and Enum map.
     //
-    // Each struct definition is possibly shared across multiple type nodes.
+    // Each type definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    structs: HashMap<StructId, Shared<StructType>>,
+    data_types: HashMap<TypeId, Shared<DataType>>,
 
-    struct_attributes: HashMap<StructId, StructAttributes>,
+    type_attributes: HashMap<TypeId, TypeAttributes>,
 
     // Maps TypeAliasId -> Shared<TypeAlias>
     //
@@ -267,6 +267,11 @@ pub struct NodeInterner {
 
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
+
+    /// Only for LSP: a map of trait ID to each module that pub or pub(crate) exports it.
+    /// In LSP this is used to offer importing the trait via one of these exports if
+    /// the trait is not visible where it's defined.
+    trait_reexports: HashMap<TraitId, Vec<(ModuleId, Ident, ItemVisibility)>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -281,7 +286,7 @@ pub struct NodeInterner {
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
-    Struct(StructId),
+    Struct(TypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -294,8 +299,9 @@ pub enum DependencyId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ReferenceId {
     Module(ModuleId),
-    Struct(StructId),
-    StructMember(StructId, usize),
+    Type(TypeId),
+    StructMember(TypeId, usize),
+    EnumVariant(TypeId, usize),
     Trait(TraitId),
     Global(GlobalId),
     Function(FuncId),
@@ -460,14 +466,14 @@ impl fmt::Display for FuncId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct StructId(ModuleId);
+pub struct TypeId(ModuleId);
 
-impl StructId {
+impl TypeId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail
     // after resolution
-    pub fn dummy_id() -> StructId {
-        StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    pub fn dummy_id() -> TypeId {
+        TypeId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 
     pub fn module_id(self) -> ModuleId {
@@ -647,8 +653,8 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::default(),
             definition_to_type: HashMap::default(),
-            structs: HashMap::default(),
-            struct_attributes: HashMap::default(),
+            data_types: HashMap::default(),
+            type_attributes: HashMap::default(),
             type_aliases: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
@@ -680,6 +686,7 @@ impl Default for NodeInterner {
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
             doc_comments: HashMap::default(),
+            trait_reexports: HashMap::default(),
         }
     }
 }
@@ -741,25 +748,25 @@ impl NodeInterner {
         self.traits.insert(type_id, new_trait);
     }
 
-    pub fn new_struct(
+    /// Creates a new struct or enum type with no fields or variants.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_type(
         &mut self,
-        typ: &UnresolvedStruct,
+        name: Ident,
+        span: Span,
+        attributes: Vec<SecondaryAttribute>,
         generics: Generics,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
-    ) -> StructId {
-        let struct_id = StructId(ModuleId { krate, local_id });
-        let name = typ.struct_def.name.clone();
+    ) -> TypeId {
+        let type_id = TypeId(ModuleId { krate, local_id });
 
-        // Fields will be filled in later
-        let no_fields = Vec::new();
-
-        let location = Location::new(typ.struct_def.span, file_id);
-        let new_struct = StructType::new(struct_id, name, location, no_fields, generics);
-        self.structs.insert(struct_id, Shared::new(new_struct));
-        self.struct_attributes.insert(struct_id, typ.struct_def.attributes.clone());
-        struct_id
+        let location = Location::new(span, file_id);
+        let new_type = DataType::new(type_id, name, location, generics);
+        self.data_types.insert(type_id, Shared::new(new_type));
+        self.type_attributes.insert(type_id, attributes);
+        type_id
     }
 
     pub fn push_type_alias(
@@ -785,8 +792,9 @@ impl NodeInterner {
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
     }
-    pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
-        let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
+
+    pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
+        let mut value = self.data_types.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
     }
 
@@ -795,12 +803,8 @@ impl NodeInterner {
         f(value);
     }
 
-    pub fn update_struct_attributes(
-        &mut self,
-        type_id: StructId,
-        f: impl FnOnce(&mut StructAttributes),
-    ) {
-        let value = self.struct_attributes.get_mut(&type_id).unwrap();
+    pub fn update_type_attributes(&mut self, type_id: TypeId, f: impl FnOnce(&mut TypeAttributes)) {
+        let value = self.type_attributes.get_mut(&type_id).unwrap();
         f(value);
     }
 
@@ -950,7 +954,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id), None);
+            self.add_definition_location(ReferenceId::Local(id), location, None);
         }
 
         id
@@ -975,6 +979,7 @@ impl NodeInterner {
         module: ModuleId,
         location: Location,
     ) -> DefinitionId {
+        let name_location = Location::new(function.name.span(), location.file);
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
             visibility: function.visibility,
@@ -982,14 +987,10 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
-            name_location: Location::new(function.name.span(), location.file),
+            name_location,
         };
         let definition_id = self.push_function_definition(id, modifiers, module, location);
-
-        // This needs to be done after pushing the definition since it will reference the
-        // location that was stored
-        self.add_definition_location(ReferenceId::Function(id), Some(module));
-
+        self.add_definition_location(ReferenceId::Function(id), name_location, Some(module));
         definition_id
     }
 
@@ -1090,8 +1091,8 @@ impl NodeInterner {
         &self.function_modifiers[func_id].attributes
     }
 
-    pub fn struct_attributes(&self, struct_id: &StructId) -> &StructAttributes {
-        &self.struct_attributes[struct_id]
+    pub fn type_attributes(&self, struct_id: &TypeId) -> &TypeAttributes {
+        &self.type_attributes[struct_id]
     }
 
     pub fn add_module_attributes(&mut self, module_id: ModuleId, attributes: ModuleAttributes) {
@@ -1207,8 +1208,8 @@ impl NodeInterner {
         self.id_to_location.insert(id.into(), Location::new(span, file));
     }
 
-    pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
-        self.structs[&id].clone()
+    pub fn get_type(&self, id: TypeId) -> Shared<DataType> {
+        self.data_types[&id].clone()
     }
 
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
@@ -1381,7 +1382,7 @@ impl NodeInterner {
                     unreachable!("Cannot add a method to the unsupported type '{}'", self_type)
                 });
 
-                if trait_id.is_none() && matches!(self_type, Type::Struct(..)) {
+                if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
                     if let Some(existing) = self.lookup_direct_method(self_type, &method_name, true)
                     {
                         return Some(existing);
@@ -1716,7 +1717,17 @@ impl NodeInterner {
         let instantiated_object_type = object_type.substitute(&substitutions);
 
         let trait_generics = &trait_impl.borrow().trait_generics;
+
+        // Replace any associated types with fresh type variables so that we match
+        // any existing impl regardless of associated types if one already exists.
+        // E.g. if we already have an `impl Foo<Bar = i32> for Baz`, we should
+        // reject `impl Foo<Bar = u32> for Baz` if it were to be added.
         let associated_types = self.get_associated_types_for_impl(impl_id);
+
+        let associated_types = vecmap(associated_types, |named| {
+            let typ = self.next_type_variable();
+            NamedType { name: named.name.clone(), typ }
+        });
 
         // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
         // It should never happen since impls are defined at global scope, but even
@@ -1726,7 +1737,7 @@ impl NodeInterner {
             &instantiated_object_type,
             trait_id,
             trait_generics,
-            associated_types,
+            &associated_types,
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
@@ -1964,7 +1975,7 @@ impl NodeInterner {
 
     /// Register that `dependent` depends on `dependency`.
     /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
-    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: StructId) {
+    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: TypeId) {
         self.add_dependency(dependent, DependencyId::Struct(dependency));
     }
 
@@ -2017,7 +2028,7 @@ impl NodeInterner {
                 for (i, index) in scc.iter().enumerate() {
                     match self.dependency_graph[*index] {
                         DependencyId::Struct(struct_id) => {
-                            let struct_type = self.get_struct(struct_id);
+                            let struct_type = self.get_type(struct_id);
                             let struct_type = struct_type.borrow();
                             push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
                             break;
@@ -2064,7 +2075,7 @@ impl NodeInterner {
     /// element at the given start index.
     fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
-            DependencyId::Struct(id) => Cow::Owned(self.get_struct(id).borrow().name.to_string()),
+            DependencyId::Struct(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
@@ -2256,6 +2267,20 @@ impl NodeInterner {
             _ => None,
         }
     }
+
+    pub fn add_trait_reexport(
+        &mut self,
+        trait_id: TraitId,
+        module_id: ModuleId,
+        name: Ident,
+        visibility: ItemVisibility,
+    ) {
+        self.trait_reexports.entry(trait_id).or_default().push((module_id, name, visibility));
+    }
+
+    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[(ModuleId, Ident, ItemVisibility)] {
+        self.trait_reexports.get(&trait_id).map_or(&[], |exports| exports)
+    }
 }
 
 impl Methods {
@@ -2392,7 +2417,7 @@ enum TypeMethodKey {
     Function,
     Generic,
     Quoted(QuotedType),
-    Struct(StructId),
+    Struct(TypeId),
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -2420,7 +2445,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
         Type::MutableReference(element) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
-        Type::Struct(struct_type, _) => Some(Struct(struct_type.borrow().id)),
+        Type::DataType(struct_type, _) => Some(Struct(struct_type.borrow().id)),
 
         // We do not support adding methods to these types
         Type::Forall(_, _)

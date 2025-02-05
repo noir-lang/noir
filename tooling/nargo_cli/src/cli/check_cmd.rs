@@ -12,7 +12,10 @@ use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
     check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::{
+    hir::{Context, ParsedFiles},
+    monomorphization::monomorphize,
+};
 
 use super::NargoConfig;
 use super::{fs::write_to_file, PackageOptions};
@@ -26,10 +29,14 @@ pub(crate) struct CheckCommand {
 
     /// Force overwrite of existing files
     #[clap(long = "overwrite")]
-    allow_overwrite: bool,
+    pub(super) allow_overwrite: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Just show the hash of each paackages, without actually performing the check.
+    #[clap(long, hide = true)]
+    show_program_hash: bool,
 }
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -46,6 +53,19 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
+        if args.show_program_hash {
+            let (mut context, crate_id) =
+                prepare_package(&workspace_file_manager, &parsed_files, package);
+            check_crate(&mut context, crate_id, &args.compile_options).unwrap();
+            let Some(main) = context.get_main_function(&crate_id) else {
+                continue;
+            };
+            let program = monomorphize(main, &mut context.def_interner, false).unwrap();
+            let hash = fxhash::hash64(&program);
+            println!("{}: {:x}", package.name, hash);
+            continue;
+        }
+
         let any_file_written = check_package(
             &workspace_file_manager,
             &parsed_files,

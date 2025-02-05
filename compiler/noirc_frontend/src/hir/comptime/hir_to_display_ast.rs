@@ -5,8 +5,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
 use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -59,6 +59,7 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 span,
             }),
+            HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner), span),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {
@@ -211,6 +212,19 @@ impl HirExpression {
 
             // A macro was evaluated here: return the quoted result
             HirExpression::Unquote(block) => ExpressionKind::Quote(block.clone()),
+
+            // Convert this back into a function call `Enum::Foo(args)`
+            HirExpression::EnumConstructor(constructor) => {
+                let typ = constructor.r#type.borrow();
+                let variant = &typ.variant_at(constructor.variant_index);
+                let segment1 = PathSegment { ident: typ.name.clone(), span, generics: None };
+                let segment2 = PathSegment { ident: variant.name.clone(), span, generics: None };
+                let path = Path { segments: vec![segment1, segment2], kind: PathKind::Plain, span };
+                let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
+                let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
+                let call = CallExpression { func, arguments, is_macro_call: false };
+                ExpressionKind::Call(Box::new(call))
+            }
         };
 
         Expression::new(kind, span)
@@ -245,7 +259,7 @@ impl HirPattern {
                     (name.clone(), pattern.to_display_ast(interner))
                 });
                 let name = match typ.follow_bindings() {
-                    Type::Struct(struct_def, _) => {
+                    Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
                         struct_def.name.0.contents.clone()
                     }
@@ -300,7 +314,7 @@ impl Type {
                 let fields = vecmap(fields, |field| field.to_display_ast());
                 UnresolvedTypeData::Tuple(fields)
             }
-            Type::Struct(def, generics) => {
+            Type::DataType(def, generics) => {
                 let struct_def = def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
                 let generics =
@@ -359,7 +373,7 @@ impl Type {
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
                 let rhs = Box::new(rhs.to_type_expression());
                 let span = Span::default();

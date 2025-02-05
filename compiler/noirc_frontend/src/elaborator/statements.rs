@@ -21,23 +21,32 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    StructType, Type,
+    DataType, Type,
 };
 
-use super::{lints, Elaborator};
+use super::{lints, Elaborator, Loop};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
+        self.elaborate_statement_value_with_target_type(statement, None)
+    }
+
+    fn elaborate_statement_value_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
+            StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
             StatementKind::Break => self.elaborate_jump(true, statement.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
-                let (expr, typ) = self.elaborate_expression(expr);
+                let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
             }
             StatementKind::Semi(expr) => {
@@ -47,15 +56,24 @@ impl<'context> Elaborator<'context> {
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
                 let statement = Statement { kind: kind.clone(), span: statement.span };
-                self.elaborate_statement_value(statement)
+                self.elaborate_statement_value_with_target_type(statement, target_type)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+        self.elaborate_statement_with_target_type(statement, None)
+    }
+
+    pub(crate) fn elaborate_statement_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let span = statement.span;
-        let (hir_statement, typ) = self.elaborate_statement_value(statement);
+        let (hir_statement, typ) =
+            self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
         self.interner.push_stmt_location(id, span, self.file);
         (id, typ)
@@ -74,11 +92,12 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        let expr_span = let_stmt.expression.span;
-        let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        let expr_span = let_stmt.expression.span;
+        let (expression, expr_type) =
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
@@ -226,7 +245,9 @@ impl<'context> Elaborator<'context> {
         let (end_range, end_range_type) = self.elaborate_expression(end);
         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-        self.nested_loops += 1;
+        let old_loop = std::mem::take(&mut self.current_loop);
+
+        self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
         // TODO: For loop variables are currently mutable by default since we haven't
@@ -260,10 +281,39 @@ impl<'context> Elaborator<'context> {
         let (block, _block_type) = self.elaborate_expression(block);
 
         self.pop_scope();
-        self.nested_loops -= 1;
+        self.current_loop = old_loop;
 
         let statement =
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
+
+        (statement, Type::Unit)
+    }
+
+    pub(super) fn elaborate_loop(
+        &mut self,
+        block: Expression,
+        span: noirc_errors::Span,
+    ) -> (HirStatement, Type) {
+        let in_constrained_function = self.in_constrained_function();
+        if in_constrained_function {
+            self.push_err(ResolverError::LoopInConstrainedFn { span });
+        }
+
+        let old_loop = std::mem::take(&mut self.current_loop);
+        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        self.push_scope();
+
+        let (block, _block_type) = self.elaborate_expression(block);
+
+        self.pop_scope();
+
+        let last_loop =
+            std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+        if !last_loop.has_break {
+            self.push_err(ResolverError::LoopWithoutBreak { span });
+        }
+
+        let statement = HirStatement::Loop(block);
 
         (statement, Type::Unit)
     }
@@ -274,7 +324,12 @@ impl<'context> Elaborator<'context> {
         if in_constrained_function {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
         }
-        if self.nested_loops == 0 {
+
+        if let Some(current_loop) = &mut self.current_loop {
+            if is_break {
+                current_loop.has_break = true;
+            }
+        } else {
             self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
         }
 
@@ -454,7 +509,7 @@ impl<'context> Elaborator<'context> {
         let lhs_type = lhs_type.follow_bindings();
 
         match &lhs_type {
-            Type::Struct(s, args) => {
+            Type::DataType(s, args) => {
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
                     let reference_location = Location::new(span, self.file);
@@ -518,7 +573,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_struct_field_visibility(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         field_name: &str,
         visibility: ItemVisibility,
         span: Span,

@@ -157,7 +157,7 @@ where
     /// }
     /// ```
     pub fn sort(self) -> Self {
-        self.sort_via(|a: T, b: T| a <= b)
+        self.sort_via(|a, b| a <= b)
     }
 }
 

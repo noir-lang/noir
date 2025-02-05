@@ -21,15 +21,17 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility, Pattern,
-    Signedness, TraitBound, TraitImplItemKind, TypePath, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
+    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AttributeTarget {
     Module,
     Struct,
+    Enum,
     Trait,
     Function,
     Let,
@@ -142,6 +144,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_noir_enum(&mut self, _: &NoirEnumeration, _: Span) -> bool {
+        true
+    }
+
     fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias, _: Span) -> bool {
         true
     }
@@ -213,6 +219,10 @@ pub trait Visitor {
     }
 
     fn visit_if_expression(&mut self, _: &IfExpression, _: Span) -> bool {
+        true
+    }
+
+    fn visit_match_expression(&mut self, _: &MatchExpression, _: Span) -> bool {
         true
     }
 
@@ -293,6 +303,10 @@ pub trait Visitor {
     }
 
     fn visit_for_loop_statement(&mut self, _: &ForLoopStatement) -> bool {
+        true
+    }
+
+    fn visit_loop_statement(&mut self, _: &Expression) -> bool {
         true
     }
 
@@ -523,6 +537,7 @@ impl Item {
             }
             ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(self.span, visitor),
             ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
+            ItemKind::Enum(noir_enum) => noir_enum.accept(self.span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
                 module_declaration.accept(self.span, visitor);
             }
@@ -771,6 +786,28 @@ impl NoirStruct {
     }
 }
 
+impl NoirEnumeration {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_noir_enum(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        for attribute in &self.attributes {
+            attribute.accept(AttributeTarget::Enum, visitor);
+        }
+
+        for variant in &self.variants {
+            if let Some(parameters) = &variant.item.parameters {
+                for parameter in parameters {
+                    parameter.accept(visitor);
+                }
+            }
+        }
+    }
+}
+
 impl NoirTypeAlias {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_noir_type_alias(self, span) {
@@ -832,6 +869,9 @@ impl Expression {
             }
             ExpressionKind::If(if_expression) => {
                 if_expression.accept(self.span, visitor);
+            }
+            ExpressionKind::Match(match_expression) => {
+                match_expression.accept(self.span, visitor);
             }
             ExpressionKind::Tuple(expressions) => {
                 if visitor.visit_tuple(expressions, self.span) {
@@ -1040,6 +1080,22 @@ impl IfExpression {
     }
 }
 
+impl MatchExpression {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_match_expression(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.expression.accept(visitor);
+        for (pattern, branch) in &self.rules {
+            pattern.accept(visitor);
+            branch.accept(visitor);
+        }
+    }
+}
+
 impl Lambda {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_lambda(self, span) {
@@ -1103,6 +1159,11 @@ impl Statement {
             }
             StatementKind::For(for_loop_statement) => {
                 for_loop_statement.accept(visitor);
+            }
+            StatementKind::Loop(block, _) => {
+                if visitor.visit_loop_statement(block) {
+                    block.accept(visitor);
+                }
             }
             StatementKind::Comptime(statement) => {
                 if visitor.visit_comptime_statement(statement) {

@@ -10,7 +10,7 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::{ir::function::RuntimeType, opt::flatten_cfg::value_merger::ValueMerger};
+use crate::ssa::opt::{flatten_cfg::value_merger::ValueMerger, pure::Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -156,6 +156,14 @@ impl Intrinsic {
     /// Intrinsics which only have a side effect due to the chance that
     /// they can fail a constraint can be deduplicated.
     pub(crate) fn can_be_deduplicated(&self, deduplicate_with_predicate: bool) -> bool {
+        match self.purity() {
+            Purity::Pure => true,
+            Purity::PureWithPredicate => deduplicate_with_predicate,
+            Purity::Impure => false,
+        }
+    }
+
+    pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
             // if the inputs are the same. If they depend on a side effect variable (e.g. because
@@ -170,19 +178,20 @@ impl Intrinsic {
                 BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::EmbeddedCurveAdd
                 | BlackBoxFunc::RecursiveAggregation,
-            ) => deduplicate_with_predicate,
+            ) => Purity::PureWithPredicate,
 
             // Operations that remove items from a slice don't modify the slice, they just assert it's non-empty.
             Intrinsic::SlicePopBack | Intrinsic::SlicePopFront | Intrinsic::SliceRemove => {
-                deduplicate_with_predicate
+                Purity::PureWithPredicate
             }
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
-            | Intrinsic::AsWitness => deduplicate_with_predicate,
+            | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ => !self.has_side_effects(),
+            _ if self.has_side_effects() => Purity::Impure,
+            _ => Purity::Pure,
         }
     }
 
@@ -255,6 +264,9 @@ pub(crate) enum Instruction {
 
     /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId, Option<ConstrainError>),
+
+    /// Constrains two values to not be equal to one another.
+    ConstrainNotEqual(ValueId, ValueId, Option<ConstrainError>),
 
     /// Range constrain `value` to `max_bit_size`
     RangeCheck { value: ValueId, max_bit_size: u32, assert_message: Option<String> },
@@ -364,6 +376,7 @@ impl Instruction {
                 InstructionResultType::Operand(*value)
             }
             Instruction::Constrain(..)
+            | Instruction::ConstrainNotEqual(..)
             | Instruction::Store { .. }
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
@@ -401,11 +414,14 @@ impl Instruction {
 
             Call { func, .. } => match dfg[*func] {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
 
             // These can fail.
-            Constrain(..) | RangeCheck { .. } => true,
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
 
             // This should never be side-effectful
             MakeArray { .. } | Noop => false,
@@ -468,11 +484,17 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => {
                     intrinsic.can_be_deduplicated(deduplicate_with_predicate)
                 }
+                Value::Function(id) => match function.dfg.purity_of(id) {
+                    Some(Purity::Pure) => true,
+                    Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
+                    Some(Purity::Impure) => false,
+                    None => false,
+                },
                 _ => false,
             },
 
             // We can deduplicate these instructions if we know the predicate is also the same.
-            Constrain(..) | RangeCheck { .. } => deduplicate_with_predicate,
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
 
             // Noop instructions can always be deduplicated, although they're more likely to be
             // removed entirely.
@@ -502,7 +524,7 @@ impl Instruction {
         }
     }
 
-    pub(crate) fn can_eliminate_if_unused(&self, function: &Function) -> bool {
+    pub(crate) fn can_eliminate_if_unused(&self, function: &Function, flattened: bool) -> bool {
         use Instruction::*;
         match self {
             Binary(binary) => {
@@ -535,11 +557,11 @@ impl Instruction {
             // pass where this check is done, but does mean that we cannot perform mem2reg
             // after the DIE pass.
             Store { .. } => {
-                matches!(function.runtime(), RuntimeType::Acir(_))
-                    && function.reachable_blocks().len() == 1
+                flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
             }
 
             Constrain(..)
+            | ConstrainNotEqual(..)
             | EnableSideEffectsIf { .. }
             | IncrementRc { .. }
             | DecrementRc { .. }
@@ -573,12 +595,16 @@ impl Instruction {
                 match binary.operator {
                     BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }
-                    | BinaryOp::Div
-                    | BinaryOp::Mod => {
+                    | BinaryOp::Mul { unchecked: false } => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        // Div and Mod require a predicate if the RHS may be zero.
+                        dfg.get_numeric_constant(binary.rhs)
+                            .map(|rhs| !rhs.is_zero())
+                            .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
@@ -601,7 +627,7 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(_) => true,
+                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
                     matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
                 }
@@ -610,6 +636,7 @@ impl Instruction {
             Instruction::Cast(_, _)
             | Instruction::Not(_)
             | Instruction::Truncate { .. }
+            | Instruction::ConstrainNotEqual(..)
             | Instruction::Constrain(_, _, _)
             | Instruction::RangeCheck { .. }
             | Instruction::Allocate
@@ -655,6 +682,22 @@ impl Instruction {
                     _ => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
+            }
+            Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
+                // Must map the `lhs` and `rhs` first as the value `f` is moved with the closure
+                let lhs = f(*lhs);
+                let rhs = f(*rhs);
+                let assert_message = assert_message.as_ref().map(|error| match error {
+                    ConstrainError::Dynamic(selector, is_string, payload_values) => {
+                        ConstrainError::Dynamic(
+                            *selector,
+                            *is_string,
+                            payload_values.iter().map(|&value| f(value)).collect(),
+                        )
+                    }
+                    _ => error.clone(),
+                });
+                Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
             Instruction::Call { func, arguments } => Instruction::Call {
                 func: f(*func),
@@ -714,7 +757,8 @@ impl Instruction {
             Instruction::Truncate { value, bit_size: _, max_bit_size: _ } => {
                 *value = f(*value);
             }
-            Instruction::Constrain(lhs, rhs, assert_message) => {
+            Instruction::Constrain(lhs, rhs, assert_message)
+            | Instruction::ConstrainNotEqual(lhs, rhs, assert_message) => {
                 *lhs = f(*lhs);
                 *rhs = f(*rhs);
                 if let Some(ConstrainError::Dynamic(_, _, payload_values)) = assert_message {
@@ -786,7 +830,8 @@ impl Instruction {
             | Instruction::Load { address: value } => {
                 f(*value);
             }
-            Instruction::Constrain(lhs, rhs, assert_error) => {
+            Instruction::Constrain(lhs, rhs, assert_error)
+            | Instruction::ConstrainNotEqual(lhs, rhs, assert_error) => {
                 f(*lhs);
                 f(*rhs);
                 if let Some(ConstrainError::Dynamic(_, _, values)) = assert_error.as_ref() {
@@ -878,6 +923,7 @@ impl Instruction {
                     SimplifiedToInstructionMultiple(constraints)
                 }
             }
+            Instruction::ConstrainNotEqual(..) => None,
             Instruction::ArrayGet { array, index } => {
                 if let Some(index) = dfg.get_numeric_constant(*index) {
                     try_optimize_array_get_from_previous_set(dfg, *array, index)
@@ -1099,28 +1145,27 @@ fn try_optimize_array_get_from_previous_set(
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
     for _ in 0..max_tries {
-        match &dfg[array_id] {
-            Value::Instruction { instruction, .. } => {
-                match &dfg[*instruction] {
-                    Instruction::ArraySet { array, index, value, .. } => {
-                        if let Some(constant) = dfg.get_numeric_constant(*index) {
-                            if constant == target_index {
-                                return SimplifyResult::SimplifiedTo(*value);
-                            }
-
-                            array_id = *array; // recur
-                        } else {
-                            return SimplifyResult::None;
+        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
+            match instruction {
+                Instruction::ArraySet { array, index, value, .. } => {
+                    if let Some(constant) = dfg.get_numeric_constant(*index) {
+                        if constant == target_index {
+                            return SimplifyResult::SimplifiedTo(*value);
                         }
+
+                        array_id = *array; // recur
+                    } else {
+                        return SimplifyResult::None;
                     }
-                    Instruction::MakeArray { elements: array, typ: _ } => {
-                        elements = Some(array.clone());
-                        break;
-                    }
-                    _ => return SimplifyResult::None,
                 }
+                Instruction::MakeArray { elements: array, typ: _ } => {
+                    elements = Some(array.clone());
+                    break;
+                }
+                _ => return SimplifyResult::None,
             }
-            _ => return SimplifyResult::None,
+        } else {
+            return SimplifyResult::None;
         }
     }
 

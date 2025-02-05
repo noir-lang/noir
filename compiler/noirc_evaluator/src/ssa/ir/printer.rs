@@ -20,13 +20,16 @@ use super::{
 
 impl Display for Ssa {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        for (id, global_value) in self.globals.dfg.values_iter() {
+        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+        let globals_dfg = DataFlowGraph::from(globals);
+
+        for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&self.globals.dfg, *instruction, true, f)?;
+                    display_instruction(&globals_dfg, *instruction, true, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -35,7 +38,7 @@ impl Display for Ssa {
             };
         }
 
-        if self.globals.dfg.values_iter().len() > 0 {
+        if globals_dfg.values_iter().next().is_some() {
             writeln!(f)?;
         }
 
@@ -54,7 +57,12 @@ impl Display for Function {
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    if let Some(purity) = function.dfg.purity_of(function.id()) {
+        writeln!(f, "{} {purity} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    } else {
+        writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
+    }
+
     for block_id in function.reachable_blocks() {
         display_block(&function.dfg, block_id, f)?;
     }
@@ -85,7 +93,13 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
         Value::ForeignFunction(function) => function.clone(),
-        Value::Param { .. } | Value::Instruction { .. } => id.to_string(),
+        Value::Param { .. } | Value::Instruction { .. } => {
+            if dfg.is_global(id) {
+                format!("g{}", id.to_u32())
+            } else {
+                id.to_string()
+            }
+        }
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
@@ -163,13 +177,14 @@ fn display_instruction(
         write!(f, "{} = ", value_list)?;
     }
 
-    display_instruction_inner(dfg, &dfg[instruction], results, f)
+    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)
 }
 
 fn display_instruction_inner(
     dfg: &DataFlowGraph,
     instruction: &Instruction,
     results: &[ValueId],
+    in_global_space: bool,
     f: &mut Formatter,
 ) -> Result {
     let show = |id| value(dfg, id);
@@ -186,6 +201,14 @@ fn display_instruction_inner(
         }
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
+            if let Some(error) = error {
+                display_constrain_error(dfg, error, f)
+            } else {
+                writeln!(f)
+            }
+        }
+        Instruction::ConstrainNotEqual(lhs, rhs, error) => {
+            write!(f, "constrain {} != {}", show(*lhs), show(*rhs))?;
             if let Some(error) = error {
                 display_constrain_error(dfg, error, f)
             } else {
@@ -272,7 +295,11 @@ fn display_instruction_inner(
                 if i != 0 {
                     write!(f, ", ")?;
                 }
-                write!(f, "{}", show(*element))?;
+                let mut value = show(*element);
+                if in_global_space {
+                    value = value.replace('v', "g");
+                }
+                write!(f, "{}", value)?;
             }
 
             writeln!(f, "] : {typ}")

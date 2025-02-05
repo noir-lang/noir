@@ -49,6 +49,7 @@ impl AstPrinter {
                 write!(f, " as {})", cast.r#type)
             }
             Expression::For(for_expr) => self.print_for(for_expr, f),
+            Expression::Loop(block) => self.print_loop(block, f),
             Expression::If(if_expr) => self.print_if(if_expr, f),
             Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
@@ -204,6 +205,15 @@ impl AstPrinter {
 
         self.indent_level += 1;
         self.print_expr_expect_block(&for_expr.block, f)?;
+        self.indent_level -= 1;
+        self.next_line(f)?;
+        write!(f, "}}")
+    }
+
+    fn print_loop(&mut self, block: &Expression, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "loop {{")?;
+        self.indent_level += 1;
+        self.print_expr_expect_block(block, f)?;
         self.indent_level -= 1;
         self.next_line(f)?;
         write!(f, "}}")

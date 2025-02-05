@@ -217,7 +217,7 @@ impl<'context> Elaborator<'context> {
         self.file = trait_impl.file_id;
 
         let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::Struct(struct_type, _)) => struct_type.borrow().id.krate(),
+            Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),
             _ => CrateId::Dummy,
         };
 

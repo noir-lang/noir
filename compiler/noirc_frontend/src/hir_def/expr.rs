@@ -12,7 +12,7 @@ use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
-use super::types::{StructType, Type};
+use super::types::{DataType, Type};
 
 /// A HirExpression is the result of an Expression in the AST undergoing
 /// name resolution. It is almost identical to the Expression AST node, but
@@ -30,6 +30,7 @@ pub enum HirExpression {
     Infix(HirInfixExpression),
     Index(HirIndexExpression),
     Constructor(HirConstructorExpression),
+    EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
@@ -225,24 +226,15 @@ impl HirMethodReference {
             }
         }
     }
-}
 
-impl HirMethodCallExpression {
-    /// Converts a method call into a function call
-    ///
-    /// Returns ((func_var_id, func_var), call_expr)
-    pub fn into_function_call(
-        mut self,
-        method: HirMethodReference,
+    pub fn into_function_id_and_name(
+        self,
         object_type: Type,
-        is_macro_call: bool,
+        generics: Option<Vec<Type>>,
         location: Location,
         interner: &mut NodeInterner,
-    ) -> ((ExprId, HirIdent), HirCallExpression) {
-        let mut arguments = vec![self.object];
-        arguments.append(&mut self.arguments);
-
-        let (id, impl_kind) = match method {
+    ) -> (ExprId, HirIdent) {
+        let (id, impl_kind) = match self {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
@@ -261,16 +253,28 @@ impl HirMethodCallExpression {
             }
         };
         let func_var = HirIdent { location, id, impl_kind };
-        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), self.generics));
+        let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
         interner.push_expr_location(func, location.span, location.file);
-        let expr = HirCallExpression { func, arguments, location, is_macro_call };
-        ((func, func_var), expr)
+        (func, func_var)
+    }
+}
+
+impl HirMethodCallExpression {
+    pub fn into_function_call(
+        mut self,
+        func: ExprId,
+        is_macro_call: bool,
+        location: Location,
+    ) -> HirCallExpression {
+        let mut arguments = vec![self.object];
+        arguments.append(&mut self.arguments);
+        HirCallExpression { func, arguments, location, is_macro_call }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct HirConstructorExpression {
-    pub r#type: Shared<StructType>,
+    pub r#type: Shared<DataType>,
     pub struct_generics: Vec<Type>,
 
     // NOTE: It is tempting to make this a BTreeSet to force ordering of field
@@ -279,6 +283,27 @@ pub struct HirConstructorExpression {
     //       arguments to be alphabetical rather than the ordering the user
     //       included in the source code.
     pub fields: Vec<(Ident, ExprId)>,
+}
+
+/// An enum constructor is an expression such as `Option::Some(foo)`
+/// to construct an enum. These are usually inserted by the compiler itself
+/// since `Some` is actually a function with the body implicitly being an
+/// enum constructor expression, but in the future these may be directly
+/// represented when using enums with named fields.
+///
+/// During monomorphization, these expressions are translated to tuples of
+/// (tag, variant0_fields, variant1_fields, ..) since we cannot actually
+/// make a true union in a circuit.
+#[derive(Debug, Clone)]
+pub struct HirEnumConstructorExpression {
+    pub r#type: Shared<DataType>,
+    pub variant_index: usize,
+
+    /// This refers to just the arguments that are passed. E.g. just
+    /// `foo` in `Foo::Bar(foo)`, even if other variants have their
+    /// "fields" defaulted to `std::mem::zeroed`, these aren't specified
+    /// at this step.
+    pub arguments: Vec<ExprId>,
 }
 
 /// Indexing, as in `array[index]`
