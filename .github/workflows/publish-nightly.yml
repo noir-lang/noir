@@ -10,17 +10,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Dispatch to publish-nargo
-        uses: benc-uk/workflow-dispatch@v1
+        uses: ./.github/workflows/publish-nargo.yml
         with:
-          workflow: publish-nargo.yml
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
           # Omitting a tag results in a nightly 
-          inputs: "{ \"publish\": true }"
-
+          publish: true
 
       - name: Dispatch to publish-es-packages
-        uses: benc-uk/workflow-dispatch@v1
+        uses: ./.github/workflows/publish-es-packages.yml
         with:
-          workflow: publish-es-packages.yml
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: "{ \"noir-ref\": \"${{ env.GITHUB_REF }}\", \"npm-tag\": \"nightly\" }"
+          noir-ref: ${{ env.GITHUB_REF }}
+          npm-tag: nightly
