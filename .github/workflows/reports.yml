@@ -390,7 +390,7 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
-            ./.github/actions/download-nargo/action.yml
+            .github/actions/download-nargo/action.yml
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
