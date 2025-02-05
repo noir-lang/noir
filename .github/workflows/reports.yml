@@ -54,18 +54,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate gates report
         working-directory: ./test_programs
@@ -100,18 +89,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
@@ -160,18 +138,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Brillig execution report
         working-directory: ./test_programs
@@ -220,18 +187,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Memory report
         working-directory: ./test_programs
@@ -272,18 +228,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Compilation report
         working-directory: ./test_programs
@@ -335,20 +280,10 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, num_runs: 5 }
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-    steps:
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+  
+        s:
+            - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
 
       - uses: actions/checkout@v4
         with:
@@ -450,20 +385,10 @@ jobs:
           - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root }
 
     name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
-    steps:
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+  
+        s:
+            - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
 
       - uses: actions/checkout@v4
         with:
