@@ -1,6 +1,8 @@
 use acvm::{acir::AcirField, FieldElement};
 use serde::{Deserialize, Serialize};
 
+use crate::ssa::ir::value::Value;
+
 use super::{
     DataFlowGraph, Instruction, InstructionResultType, NumericType, SimplifyResult, Type, ValueId,
 };
@@ -153,15 +155,24 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
+                if let Some(instruction) =
+                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                {
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
+                }
             }
             BinaryOp::Sub { .. } => {
                 if lhs == rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(lhs);
+                }
+                if let Some(instruction) =
+                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                {
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
             }
             BinaryOp::Mul { .. } => {
@@ -181,7 +192,7 @@ impl Binary {
                         return SimplifyResult::SimplifiedTo(lhs);
                     }
                     // b*(b*x) = b*x if b is boolean
-                    if let super::Value::Instruction { instruction, .. } = &dfg[rhs] {
+                    if let Value::Instruction { instruction, .. } = &dfg[rhs] {
                         if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                             dfg[*instruction]
                         {
@@ -195,7 +206,7 @@ impl Binary {
                 }
                 // (b*x)*b = b*x if b is boolean
                 if dfg.get_value_max_num_bits(rhs) == 1 {
-                    if let super::Value::Instruction { instruction, .. } = &dfg[lhs] {
+                    if let Value::Instruction { instruction, .. } = &dfg[lhs] {
                         if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                             dfg[*instruction]
                         {
@@ -206,6 +217,11 @@ impl Binary {
                             }
                         }
                     }
+                }
+                if let Some(instruction) =
+                    self.simplify_consecutive(lhs, rhs, lhs_const, rhs_const, lhs_type, dfg)
+                {
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
             }
             BinaryOp::Div => {
@@ -362,6 +378,62 @@ impl Binary {
             }
         };
         SimplifyResult::SimplifiedToInstruction(simplified)
+    }
+
+    fn simplify_consecutive(
+        &self,
+        lhs: ValueId,
+        _rhs: ValueId,
+        lhs_const: Option<FieldElement>,
+        rhs_const: Option<FieldElement>,
+        typ: NumericType,
+        dfg: &mut DataFlowGraph,
+    ) -> Option<Instruction> {
+        let (None, Some(rhs_const)) = (lhs_const, rhs_const) else {
+            return None;
+        };
+
+        let Value::Instruction { instruction, .. } = &dfg[lhs] else {
+            return None;
+        };
+
+        let instruction = &dfg[*instruction];
+        let Instruction::Binary(Binary { lhs: lhs2, rhs: rhs2, operator }) = instruction else {
+            return None;
+        };
+
+        if operator != &self.operator {
+            return None;
+        }
+
+        let lhs2 = dfg.resolve(*lhs2);
+        let rhs2 = dfg.resolve(*rhs2);
+
+        let lhs2_const = dfg.get_numeric_constant(lhs2);
+        let rhs2_const = dfg.get_numeric_constant(rhs2);
+
+        let (None, Some(rhs2_const)) = (lhs2_const, rhs2_const) else {
+            return None;
+        };
+
+        let new_const = match self.operator {
+            BinaryOp::Add { .. } => rhs_const + rhs2_const,
+            BinaryOp::Sub { .. } => rhs_const + rhs2_const,
+            BinaryOp::Mul { .. } => rhs_const * rhs2_const,
+            BinaryOp::Div
+            | BinaryOp::Mod
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => {
+                unreachable!("simplify_consecutive shouldn't be called for {}", self.operator)
+            }
+        };
+        let new_const = dfg.make_constant(new_const, typ);
+        Some(Instruction::Binary(Binary { lhs: lhs2, rhs: new_const, operator: self.operator }))
     }
 
     /// Check if unsigned overflow is possible, and if so return some message to be used if it fails.
@@ -569,6 +641,8 @@ impl BinaryOp {
 mod test {
     use proptest::prelude::*;
 
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
     use super::{
         convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
     };
@@ -583,5 +657,71 @@ mod test {
 
             prop_assert_eq!(int, recovered_int);
         }
+    }
+
+    #[test]
+    fn simplifies_consecutive_additions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v4 = add v2, Field 2
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v4 = add v0, Field 3
+            return v4
+        }";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_consecutive_subtractions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = sub v0, Field 1
+            v4 = sub v2, Field 2
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = sub v0, Field 1
+            v4 = sub v0, Field 3
+            return v4
+        }";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_consecutive_multiplications() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = mul v0, Field 2
+            v4 = mul v2, Field 3
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = mul v0, Field 2
+            v4 = mul v0, Field 6
+            return v4
+        }";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
