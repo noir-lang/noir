@@ -471,12 +471,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download initial compilation report
         uses: actions/download-artifact@v4
         with:
           name: in_progress_compilation_report
+          path: ./reports
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
@@ -486,9 +485,7 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+          jq --slurp '.' ./reports/*.json > time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -520,8 +517,6 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download initial memory report
         uses: actions/download-artifact@v4
         with:
@@ -535,9 +530,7 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
+          jq --slurp '.' ./reports/*.json > memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -569,8 +562,6 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download initial memory report
         uses: actions/download-artifact@v4
         with:
@@ -584,11 +575,7 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          # Rename the memory report as to not clash with the compilation memory report file name
-          cp memory_report.json execution_memory_report.json
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json          
+          jq --slurp '.' ./reports/*.json > memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -621,8 +608,6 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download initial execution report
         uses: actions/download-artifact@v4
         with:
@@ -636,9 +621,7 @@ jobs:
 
       - name: Merge execution reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh execution_report
-          jq ".execution_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
+         jq --slurp '.' ./reports/*.json > time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
