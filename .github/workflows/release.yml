@@ -148,13 +148,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Dispatch to publish workflow
-        uses: benc-uk/workflow-dispatch@v1
+        uses: noir-lang/noir/.github/workflows/publish-nargo.yml@master
         with:
-          workflow: publish-nargo.yml
-          repo: noir-lang/noir
-          ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
+          tag: ${{ needs.release-please.outputs.tag-name }}
+          publish: true
 
   publish-es-packages:
     name: Publish ES packages
@@ -163,12 +160,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Dispatch to publish-es-packages
-        uses: benc-uk/workflow-dispatch@v1
+        uses: noir-lang/noir/.github/workflows/publish-es-packages.yml@master
         with:
-          workflow: publish-es-packages.yml
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "npm-tag": "latest" }'
+          noir-ref: ${{ needs.release-please.outputs.tag-name }}
+          npm-tag: "latest"
 
   publish-acvm:
     name: Publish acvm
@@ -178,9 +173,6 @@ jobs:
     
     steps:
       - name: Dispatch to publish-acvm
-        uses: benc-uk/workflow-dispatch@v1
+        uses: noir-lang/noir/.github/workflows/publish-acvm.yml@master
         with:
-          workflow: publish-acvm.yml
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+          noir-ref: ${{ needs.release-please.outputs.tag-name }}
