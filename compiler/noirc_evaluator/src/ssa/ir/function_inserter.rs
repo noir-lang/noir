@@ -85,6 +85,7 @@ impl<'f> FunctionInserter<'f> {
         instruction.map_values_mut(|id| self.resolve(id));
         self.function.dfg.set_instruction(id, instruction);
     }
+
     /// Maps a terminator in place, replacing any ValueId in the terminator with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
