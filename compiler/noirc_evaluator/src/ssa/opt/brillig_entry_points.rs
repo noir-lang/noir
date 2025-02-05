@@ -33,7 +33,9 @@ impl Ssa {
                     let func_value = &function.dfg[*func_id];
                     let Value::Function(called_func_id) = func_value else { continue };
 
-                    if function.dfg.runtime().is_brillig() && entry_points.contains(called_func_id)
+                    if function.dfg.runtime().is_brillig()
+                        && entry_points.contains(called_func_id)
+                        && *called_func_id != function.id()
                     {
                         let cloned_function =
                             Function::clone_no_id(&self.functions[called_func_id]);
