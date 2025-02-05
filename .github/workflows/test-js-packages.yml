@@ -539,7 +539,7 @@ jobs:
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
-          jq --null-input "{ test_reports: [{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]}" > $TEST_REPORT_NAME.json
+          jq --null-input "{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }" > $TEST_REPORT_NAME.json
 
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
@@ -606,8 +606,6 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download matrix test reports
         uses: actions/download-artifact@v4
         with:
@@ -616,11 +614,7 @@ jobs:
 
       - name: Merge test reports using jq
         run: |
-          jq --null-input "{ test_reports: [] }" > test_report.json
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh test_report
-          jq ".test_reports" < ./test_report.json > test_bench.json
-
+          jq --slurp '.' ./reports/*.json > test_bench.json
       - name: Store benchmark result
         continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
