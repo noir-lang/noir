@@ -62,7 +62,7 @@ for dir in ${tests_to_profile[@]}; do
                 printf "%.3f\n", 0
         }' <<<"${TIMES[@]}")
 
-    jq -rc "{name: \"$PACKAGE_NAME\", value: tonumber(\""$AVG_TIME"\"), unit: \"s\"}" --null-input >> $current_dir/compilation_report.json
+    jq -rc "{name: \"$PACKAGE_NAME\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input >> $current_dir/compilation_report.json
 
     if (($ITER != $NUM_ARTIFACTS)); then
         echo "," >> $current_dir/compilation_report.json
