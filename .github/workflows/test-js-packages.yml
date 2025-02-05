@@ -614,6 +614,8 @@ jobs:
 
       - name: Merge test reports using jq
         run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
           jq --slurp '.' ./reports/*.json | tee test_bench.json
 
       - name: Store benchmark result

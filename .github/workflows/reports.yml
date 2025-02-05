@@ -485,6 +485,8 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
           jq --slurp '.' ./reports/*.json | tee time_bench.json
 
       - name: Store benchmark result
@@ -530,6 +532,8 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
           jq --slurp '.' ./reports/*.json | tee memory_bench.json
 
       - name: Store benchmark result
@@ -575,6 +579,8 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
           jq --slurp '.' ./reports/*.json | tee memory_bench.json
 
       - name: Store benchmark result
@@ -621,7 +627,9 @@ jobs:
 
       - name: Merge execution reports using jq
         run: |
-         jq --slurp '.' ./reports/*.json | tee time_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '.' ./reports/*.json | tee time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
