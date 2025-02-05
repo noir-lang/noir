@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
             match self.tokens.next() {
                 Some(Ok(token)) => match token.token() {
                     Token::LineComment(comment, None) | Token::BlockComment(comment, None) => {
-                        last_comments.push_str(&comment);
+                        last_comments.push_str(comment);
                         continue;
                     }
                     _ => {
