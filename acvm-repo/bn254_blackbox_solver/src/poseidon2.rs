@@ -548,18 +548,12 @@ impl<'a> Poseidon2<'a> {
 /// The `is_variable_length` parameter is there to so we can produce an equivalent hash with
 /// the Barretenberg implementation which distinguishes between variable and fixed length inputs.
 /// Set it to true if the input length matches the static size expected by the Noir function.
-pub fn poseidon_hash(
-    inputs: &[FieldElement],
-    is_variable_length: bool,
-) -> Result<FieldElement, BlackBoxResolutionError> {
+pub fn poseidon_hash(inputs: &[FieldElement]) -> Result<FieldElement, BlackBoxResolutionError> {
     let two_pow_64 = 18446744073709551616_u128.into();
     let iv = FieldElement::from(inputs.len()) * two_pow_64;
     let mut sponge = Poseidon2Sponge::new(iv, 3);
     for input in inputs.iter() {
         sponge.absorb(*input)?;
-    }
-    if is_variable_length {
-        sponge.absorb(FieldElement::from(1u32))?;
     }
     sponge.squeeze()
 }
