@@ -415,6 +415,8 @@ impl Binary {
             return None;
         };
 
+        // TODO: perform the math in the target type, and don't simplify if there's an overflow
+        // (in the checked case)
         let new_const = match self.operator {
             BinaryOp::Add { .. } | BinaryOp::Sub { .. } => rhs_const + rhs2_const,
             BinaryOp::Mul { .. } => rhs_const * rhs2_const,
