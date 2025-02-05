@@ -614,7 +614,7 @@ jobs:
 
       - name: Merge test reports using jq
         run: |
-          jq --slurp '.' ./reports/*.json > test_bench.json
+          jq --slurp '.' ./reports/*.json | tee test_bench.json
 
       - name: Store benchmark result
         continue-on-error: true

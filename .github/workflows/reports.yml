@@ -485,7 +485,7 @@ jobs:
 
       - name: Merge compilation reports using jq
         run: |
-          jq --slurp '.' ./reports/*.json > time_bench.json
+          jq --slurp '.' ./reports/*.json | tee time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -530,7 +530,7 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          jq --slurp '.' ./reports/*.json > memory_bench.json
+          jq --slurp '.' ./reports/*.json | tee memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -575,7 +575,7 @@ jobs:
 
       - name: Merge memory reports using jq
         run: |
-          jq --slurp '.' ./reports/*.json > memory_bench.json
+          jq --slurp '.' ./reports/*.json | tee memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -621,7 +621,7 @@ jobs:
 
       - name: Merge execution reports using jq
         run: |
-         jq --slurp '.' ./reports/*.json > time_bench.json
+         jq --slurp '.' ./reports/*.json | tee time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
