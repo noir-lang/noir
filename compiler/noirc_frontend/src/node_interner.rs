@@ -56,7 +56,7 @@ pub struct ModuleAttributes {
     pub visibility: ItemVisibility,
 }
 
-type StructAttributes = Vec<SecondaryAttribute>;
+type TypeAttributes = Vec<SecondaryAttribute>;
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -113,7 +113,7 @@ pub struct NodeInterner {
     // methods from impls to the type.
     data_types: HashMap<TypeId, Shared<DataType>>,
 
-    type_attributes: HashMap<TypeId, StructAttributes>,
+    type_attributes: HashMap<TypeId, TypeAttributes>,
 
     // Maps TypeAliasId -> Shared<TypeAlias>
     //
@@ -299,9 +299,8 @@ pub enum DependencyId {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ReferenceId {
     Module(ModuleId),
-    Struct(TypeId),
+    Type(TypeId),
     StructMember(TypeId, usize),
-    Enum(TypeId),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
     Global(GlobalId),
@@ -793,7 +792,8 @@ impl NodeInterner {
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
     }
-    pub fn update_struct(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
+
+    pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
         let mut value = self.data_types.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
     }
@@ -803,11 +803,7 @@ impl NodeInterner {
         f(value);
     }
 
-    pub fn update_struct_attributes(
-        &mut self,
-        type_id: TypeId,
-        f: impl FnOnce(&mut StructAttributes),
-    ) {
+    pub fn update_type_attributes(&mut self, type_id: TypeId, f: impl FnOnce(&mut TypeAttributes)) {
         let value = self.type_attributes.get_mut(&type_id).unwrap();
         f(value);
     }
@@ -958,7 +954,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id), None);
+            self.add_definition_location(ReferenceId::Local(id), location, None);
         }
 
         id
@@ -983,6 +979,7 @@ impl NodeInterner {
         module: ModuleId,
         location: Location,
     ) -> DefinitionId {
+        let name_location = Location::new(function.name.span(), location.file);
         let modifiers = FunctionModifiers {
             name: function.name.0.contents.clone(),
             visibility: function.visibility,
@@ -990,14 +987,10 @@ impl NodeInterner {
             is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
-            name_location: Location::new(function.name.span(), location.file),
+            name_location,
         };
         let definition_id = self.push_function_definition(id, modifiers, module, location);
-
-        // This needs to be done after pushing the definition since it will reference the
-        // location that was stored
-        self.add_definition_location(ReferenceId::Function(id), Some(module));
-
+        self.add_definition_location(ReferenceId::Function(id), name_location, Some(module));
         definition_id
     }
 
@@ -1098,7 +1091,7 @@ impl NodeInterner {
         &self.function_modifiers[func_id].attributes
     }
 
-    pub fn struct_attributes(&self, struct_id: &TypeId) -> &StructAttributes {
+    pub fn type_attributes(&self, struct_id: &TypeId) -> &TypeAttributes {
         &self.type_attributes[struct_id]
     }
 

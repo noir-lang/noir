@@ -1,7 +1,7 @@
 use iter_extended::vecmap;
 
 use crate::{
-    parser::{labels::ParsingRuleLabel, Item, ItemKind},
+    parser::{labels::ParsingRuleLabel, Item, ItemKind, ParserErrorReason},
     token::{Keyword, Token},
 };
 
@@ -93,6 +93,10 @@ impl<'a> Parser<'a> {
         let doc_comments = self.parse_outer_doc_comments();
         let kinds = self.parse_item_kind();
         let span = self.span_since(start_span);
+
+        if kinds.is_empty() && !doc_comments.is_empty() {
+            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_span);
+        }
 
         vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
     }
@@ -294,5 +298,19 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a '}' but found end of input");
+    }
+
+    #[test]
+    fn errors_on_trailing_doc_comment() {
+        let src = "
+        fn foo() {}
+        /// doc comment
+        ^^^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert!(error.to_string().contains("Documentation comment does not document anything"));
     }
 }

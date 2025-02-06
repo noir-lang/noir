@@ -8,7 +8,7 @@ PARSE_MEMORY=$(realpath "$(dirname "$0")/parse_memory.sh")
 
 
 # Tests to be profiled for memory report
-tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
+tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
 
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"

@@ -8,9 +8,9 @@ use crate::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
-        MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
+        StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -241,6 +241,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::GreaterEqual
             | Token::Equal
             | Token::NotEqual
+            | Token::FatArrow
             | Token::Arrow => write!(f, " {token} "),
             Token::Assign => {
                 if last_was_op {
@@ -364,6 +365,22 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
                     format!("{}: {}", name, value.display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Enum(tag, args, typ) => {
+                let args = vecmap(args, |arg| arg.display(self.interner).to_string()).join(", ");
+
+                match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(def, _) => {
+                        let def = def.borrow();
+                        let variant = def.variant_at(*tag);
+                        if variant.is_function {
+                            write!(f, "{}::{}({args})", def.name, variant.name)
+                        } else {
+                            write!(f, "{}::{}", def.name, variant.name)
+                        }
+                    }
+                    other => write!(f, "{other}(args)"),
+                }
             }
             Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
@@ -585,6 +602,14 @@ fn remove_interned_in_expression_kind(
             alternative: if_expr
                 .alternative
                 .map(|alternative| remove_interned_in_expression(interner, alternative)),
+        })),
+        ExpressionKind::Match(match_expr) => ExpressionKind::Match(Box::new(MatchExpression {
+            expression: remove_interned_in_expression(interner, match_expr.expression),
+            rules: vecmap(match_expr.rules, |(pattern, branch)| {
+                let pattern = remove_interned_in_expression(interner, pattern);
+                let branch = remove_interned_in_expression(interner, branch);
+                (pattern, branch)
+            }),
         })),
         ExpressionKind::Variable(_) => expr,
         ExpressionKind::Tuple(expressions) => ExpressionKind::Tuple(vecmap(expressions, |expr| {

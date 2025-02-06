@@ -12,10 +12,11 @@ use crate::{
     graph::CrateId,
     hir::{
         def_collector::dc_crate::{
-            filter_literal_globals, CompilationError, ImplMap, UnresolvedFunctions,
-            UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
+            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+            UnresolvedTypeAlias,
         },
-        def_collector::{dc_crate::CollectedItems, errors::DefCollectorErrorKind},
+        def_collector::errors::DefCollectorErrorKind,
         def_map::{DefMaps, ModuleData},
         def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
@@ -23,11 +24,10 @@ use crate::{
         type_check::{generics::TraitGenerics, TypeCheckError},
         Context,
     },
-    hir_def::traits::TraitImpl,
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         function::{FuncMeta, FunctionBody, HirFunction},
-        traits::TraitConstraint,
+        traits::{TraitConstraint, TraitImpl},
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
@@ -35,7 +35,7 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::{CfgAttribute, SecondaryAttribute},
-    Shared, Type, TypeVariable,
+    EnumVariant, Shared, Type, TypeVariable,
 };
 use crate::{
     ast::{ItemVisibility, UnresolvedType},
@@ -47,6 +47,7 @@ use crate::{
 };
 
 mod comptime;
+mod enums;
 mod expressions;
 mod lints;
 mod path_resolution;
@@ -324,8 +325,9 @@ impl<'context> Elaborator<'context> {
             self.define_type_alias(alias_id, alias);
         }
 
-        // Must resolve structs before we resolve globals.
+        // Must resolve types before we resolve globals.
         self.collect_struct_definitions(&items.structs);
+        self.collect_enum_definitions(&items.enums);
 
         self.define_function_metas(&mut items.functions, &mut items.impls, &mut items.trait_impls);
 
@@ -498,7 +500,8 @@ impl<'context> Elaborator<'context> {
             | FunctionKind::Oracle
             | FunctionKind::TraitFunctionWithoutBody => (HirFunction::empty(), Type::Error),
             FunctionKind::Normal => {
-                let (block, body_type) = self.elaborate_block(body);
+                let return_type = func_meta.return_type();
+                let (block, body_type) = self.elaborate_block(body, Some(return_type));
                 let expr_id = self.intern_expr(block, body_span);
                 self.interner.push_expr_type(expr_id, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
@@ -998,9 +1001,10 @@ impl<'context> Elaborator<'context> {
             typ,
             direct_generics,
             all_generics: self.generics.clone(),
-            struct_id,
+            type_id: struct_id,
             trait_id,
             trait_impl: self.current_trait_impl,
+            enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
             return_type: func.def.return_type.clone(),
@@ -1030,13 +1034,21 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used(typ);
                 }
             }
-            Type::DataType(struct_type, generics) => {
-                self.mark_struct_as_constructed(struct_type.clone());
+            Type::DataType(datatype, generics) => {
+                self.mark_struct_as_constructed(datatype.clone());
                 for generic in generics {
                     self.mark_type_as_used(generic);
                 }
-                for (_, typ) in struct_type.borrow().get_fields(generics) {
-                    self.mark_type_as_used(&typ);
+                if let Some(fields) = datatype.borrow().get_fields(generics) {
+                    for (_, typ) in fields {
+                        self.mark_type_as_used(&typ);
+                    }
+                } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                    for (_, variant_types) in variants {
+                        for typ in variant_types {
+                            self.mark_type_as_used(&typ);
+                        }
+                    }
                 }
             }
             Type::Alias(alias_type, generics) => {
@@ -1624,7 +1636,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
         // Public struct functions should not expose private types.
-        if let Some(struct_visibility) = func_meta.struct_id.and_then(|id| {
+        if let Some(struct_visibility) = func_meta.type_id.and_then(|id| {
             let struct_def = self.get_type(id);
             let struct_def = struct_def.borrow();
             self.find_struct_visibility(&struct_def)
@@ -1749,17 +1761,17 @@ impl<'context> Elaborator<'context> {
                 }
             }
 
-            let fields_len = fields.len();
-            self.interner.update_struct(*type_id, |struct_def| {
+            if self.interner.is_in_lsp_mode() {
+                for (field_index, field) in fields.iter().enumerate() {
+                    let location = Location::new(field.name.span(), self.file);
+                    let reference_id = ReferenceId::StructMember(*type_id, field_index);
+                    self.interner.add_definition_location(reference_id, location, None);
+                }
+            }
+
+            self.interner.update_type(*type_id, |struct_def| {
                 struct_def.set_fields(fields);
             });
-
-            for field_index in 0..fields_len {
-                self.interner.add_definition_location(
-                    ReferenceId::StructMember(*type_id, field_index),
-                    None,
-                );
-            }
         }
 
         // Check whether the struct fields have nested slices
@@ -1771,7 +1783,7 @@ impl<'context> Elaborator<'context> {
             // Only handle structs without generics as any generics args will be checked
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
-                let fields = struct_type.borrow().get_fields(&[]);
+                let fields = struct_type.borrow().get_fields(&[]).unwrap();
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
@@ -1809,6 +1821,54 @@ impl<'context> Elaborator<'context> {
         })
     }
 
+    fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
+        for (type_id, typ) in enums {
+            self.file = typ.file_id;
+            self.local_module = typ.module_id;
+            self.generics.clear();
+
+            let datatype = self.interner.get_type(*type_id);
+            let generics = datatype.borrow().generic_types();
+            self.add_existing_generics(&typ.enum_def.generics, &datatype.borrow().generics);
+
+            let self_type = Type::DataType(datatype.clone(), generics);
+            let self_type_id = self.interner.push_quoted_type(self_type.clone());
+            let unresolved = UnresolvedType {
+                typ: UnresolvedTypeData::Resolved(self_type_id),
+                span: typ.enum_def.span,
+            };
+
+            datatype.borrow_mut().init_variants();
+            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
+
+            for (i, variant) in typ.enum_def.variants.iter().enumerate() {
+                let parameters = variant.item.parameters.as_ref();
+                let types =
+                    parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
+                let name = variant.item.name.clone();
+
+                let is_function = types.is_some();
+                let params = types.clone().unwrap_or_default();
+                datatype.borrow_mut().push_variant(EnumVariant::new(name, params, is_function));
+
+                self.define_enum_variant_constructor(
+                    &typ.enum_def,
+                    *type_id,
+                    &variant.item,
+                    types,
+                    i,
+                    &datatype,
+                    &self_type,
+                    unresolved.clone(),
+                );
+
+                let reference_id = ReferenceId::EnumVariant(*type_id, i);
+                let location = Location::new(variant.item.name.span(), self.file);
+                self.interner.add_definition_location(reference_id, location, Some(module_id));
+            }
+        }
+    }
+
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
         let old_file = std::mem::replace(&mut self.file, global.file_id);
@@ -1824,15 +1884,15 @@ impl<'context> Elaborator<'context> {
             None
         };
 
+        let span = let_stmt.pattern.span();
+
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            let span = let_stmt.pattern.span();
             self.push_err(ResolverError::AbiAttributeOutsideContract { span });
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-            let span = let_stmt.pattern.span();
             self.push_err(ResolverError::MutableGlobal { span });
         }
 
@@ -1845,7 +1905,14 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            self.interner.register_global(global_id, name, global.visibility, self.module_id());
+            let location = Location::new(span, self.file);
+            self.interner.register_global(
+                global_id,
+                name,
+                location,
+                global.visibility,
+                self.module_id(),
+            );
         }
 
         self.local_module = old_module;

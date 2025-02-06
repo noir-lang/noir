@@ -71,7 +71,10 @@ impl FunctionContext {
             Type::Slice(_) => {
                 panic!("ICE: Slice parameters cannot be derived from type information")
             }
-            _ => unimplemented!("Unsupported function parameter/return type {typ:?}"),
+            // Treat functions as field values
+            Type::Function => {
+                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
+            }
         }
     }
 

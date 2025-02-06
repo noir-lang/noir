@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{self, Future},
+    ops::Deref,
 };
 
 use async_lsp::ResponseError;
@@ -199,16 +200,19 @@ impl<'a> NodeFinder<'a> {
         };
 
         let location = Location::new(span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
-        let struct_type = self.interner.get_type(struct_id);
-        let struct_type = struct_type.borrow();
+        let data_type = self.interner.get_type(type_id);
+        let data_type = data_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields: Vec<_> =
-            struct_type.get_fields_as_written().into_iter().enumerate().collect();
+        let Some(fields) = data_type.get_fields_as_written() else {
+            return;
+        };
+
+        let mut fields = fields.into_iter().enumerate().collect::<Vec<_>>();
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
@@ -220,7 +224,7 @@ impl<'a> NodeFinder<'a> {
             self.completion_items.push(self.struct_field_completion_item(
                 &field.name.0.contents,
                 &field.typ,
-                struct_type.id,
+                data_type.id,
                 *field_index,
                 self_prefix,
             ));
@@ -317,10 +321,11 @@ impl<'a> NodeFinder<'a> {
 
             match module_def_id {
                 ModuleDefId::ModuleId(id) => module_id = id,
-                ModuleDefId::TypeId(struct_id) => {
-                    let struct_type = self.interner.get_type(struct_id);
+                ModuleDefId::TypeId(type_id) => {
+                    let data_type = self.interner.get_type(type_id);
+                    self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(struct_type, vec![]),
+                        &Type::DataType(data_type, vec![]),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -654,7 +659,7 @@ impl<'a> NodeFinder<'a> {
             return;
         };
 
-        let struct_id = get_type_struct_id(typ);
+        let type_id = get_type_type_id(typ);
         let is_primitive = typ.is_primitive();
         let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
@@ -666,15 +671,11 @@ impl<'a> NodeFinder<'a> {
             for (func_id, trait_id) in
                 methods.find_matching_methods(typ, has_self_param, self.interner)
             {
-                if let Some(struct_id) = struct_id {
+                if let Some(type_id) = type_id {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
-                    if !struct_member_is_visible(
-                        struct_id,
-                        visibility,
-                        self.module_id,
-                        self.def_maps,
-                    ) {
+                    if !struct_member_is_visible(type_id, visibility, self.module_id, self.def_maps)
+                    {
                         continue;
                     }
                 }
@@ -798,6 +799,23 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    fn complete_enum_variants_without_parameters(&mut self, data_type: &DataType, prefix: &str) {
+        let Some(variants) = data_type.get_variants_as_written() else {
+            return;
+        };
+
+        for (index, variant) in variants.iter().enumerate() {
+            // Variants with parameters are represented as functions and are suggested in `complete_type_methods`
+            if variant.is_function || !name_matches(&variant.name.0.contents, prefix) {
+                continue;
+            }
+
+            let item =
+                self.enum_variant_completion_item(variant.name.to_string(), data_type.id, index);
+            self.completion_items.push(item);
+        }
+    }
+
     fn complete_struct_fields(
         &mut self,
         struct_type: &DataType,
@@ -805,9 +823,11 @@ impl<'a> NodeFinder<'a> {
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, visibility, typ)) in
-            struct_type.get_fields_with_visibility(generics).iter().enumerate()
-        {
+        let Some(fields) = struct_type.get_fields_with_visibility(generics) else {
+            return;
+        };
+
+        for (field_index, (name, visibility, typ)) in fields.iter().enumerate() {
             if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
             {
                 continue;
@@ -1895,13 +1915,13 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
     }
 }
 
-fn get_type_struct_id(typ: &Type) -> Option<TypeId> {
-    match typ {
+fn get_type_type_id(typ: &Type) -> Option<TypeId> {
+    match typ.follow_bindings_shallow().deref() {
         Type::DataType(struct_type, _) => Some(struct_type.borrow().id),
         Type::Alias(type_alias, generics) => {
             let type_alias = type_alias.borrow();
             let typ = type_alias.get_type(generics);
-            get_type_struct_id(&typ)
+            get_type_type_id(&typ)
         }
         _ => None,
     }
@@ -1953,8 +1973,7 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
     match reference_id {
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
-        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
-        ReferenceId::Enum(enum_id) => Some(ModuleDefId::TypeId(enum_id)),
+        ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),

@@ -161,6 +161,7 @@ impl CollectedItems {
     pub fn is_empty(&self) -> bool {
         self.functions.is_empty()
             && self.structs.is_empty()
+            && self.enums.is_empty()
             && self.type_aliases.is_empty()
             && self.traits.is_empty()
             && self.globals.is_empty()
