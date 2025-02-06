@@ -1441,7 +1441,7 @@ mod test {
                 v2 = array_get v0, index u32 0 -> Field
                 v4 = array_get v0, index u32 1 -> Field
                 v5 = add v2, v4
-                dec_rc v0
+                dec_rc v0 v0
                 return v5
             }
             ";
