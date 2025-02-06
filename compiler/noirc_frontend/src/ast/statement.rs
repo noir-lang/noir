@@ -140,12 +140,6 @@ impl StatementKind {
     }
 }
 
-impl Recoverable for StatementKind {
-    fn error(_: Span) -> Self {
-        StatementKind::Error
-    }
-}
-
 impl StatementKind {
     pub fn new_let(
         pattern: Pattern,
@@ -284,25 +278,6 @@ impl Ident {
     }
 }
 
-impl Recoverable for Ident {
-    fn error(span: Span) -> Self {
-        Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
-    }
-}
-
-impl<T> Recoverable for Vec<T> {
-    fn error(_: Span) -> Self {
-        vec![]
-    }
-}
-
-/// Trait for recoverable nodes during parsing.
-/// This is similar to Default but is expected
-/// to return an Error node of the appropriate type.
-pub trait Recoverable {
-    fn error(span: Span) -> Self;
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub visibility: ItemVisibility,
@@ -420,9 +395,6 @@ pub struct TypePath {
     pub turbofish: Option<GenericTypeArgs>,
 }
 
-// Note: Path deliberately doesn't implement Recoverable.
-// No matter which default value we could give in Recoverable::error,
-// it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
     pub segments: Vec<PathSegment>,
@@ -704,12 +676,6 @@ impl Pattern {
             }
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
-    }
-}
-
-impl Recoverable for Pattern {
-    fn error(span: Span) -> Self {
-        Pattern::Identifier(Ident::error(span))
     }
 }
 
