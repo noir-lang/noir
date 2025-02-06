@@ -318,15 +318,7 @@ jobs:
           ./compilation_report.sh 1 ${{ matrix.project.num_runs }}
         env:
           FLAGS: ${{ matrix.project.flags }}
-
-      - name: Generate execution report
-        working-directory: ./test-repo/${{ matrix.project.path }}
-        if: ${{ !matrix.project.cannot_execute }}
-        run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
-          ./execution_report.sh 1 ${{ matrix.project.num_runs }}
-
+        
       - name: Check compilation time limit
         run: |
           TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_report.json)
@@ -335,7 +327,16 @@ jobs:
             exit 1
           fi
 
+      - name: Generate execution report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
+          ./execution_report.sh 1 ${{ matrix.project.num_runs }}
+    
       - name: Check execution time limit
+        if: ${{ !matrix.project.cannot_execute }}
         run: |
           TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/execution_report.json)
           if [ "$TIME" -gt "60" ]; then
