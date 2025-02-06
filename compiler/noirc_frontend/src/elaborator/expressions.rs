@@ -914,6 +914,7 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         let expr_span = if_expr.condition.span;
+        let consequence_span = if_expr.consequence.span;
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
@@ -924,29 +925,30 @@ impl<'context> Elaborator<'context> {
             expr_span,
         });
 
-        let alternative = if_expr.alternative.map(|alternative| {
-            let expr_span = alternative.span;
+        let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
             let (else_, else_type) =
                 self.elaborate_expression_with_target_type(alternative, target_type);
+            (Some(else_), else_type, expr_span)
+        } else {
+            (None, Type::Unit, consequence_span)
+        };
 
-            self.unify(&ret_type, &else_type, || {
-                let err = TypeCheckError::TypeMismatch {
-                    expected_typ: ret_type.to_string(),
-                    expr_typ: else_type.to_string(),
-                    expr_span,
-                };
+        self.unify(&ret_type, &else_type, || {
+            let err = TypeCheckError::TypeMismatch {
+                expected_typ: ret_type.to_string(),
+                expr_typ: else_type.to_string(),
+                expr_span: error_span,
+            };
 
-                let context = if ret_type == Type::Unit {
-                    "Are you missing a semicolon at the end of your 'else' branch?"
-                } else if else_type == Type::Unit {
-                    "Are you missing a semicolon at the end of the first block of this 'if'?"
-                } else {
-                    "Expected the types of both if branches to be equal"
-                };
+            let context = if ret_type == Type::Unit {
+                "Are you missing a semicolon at the end of your 'else' branch?"
+            } else if else_type == Type::Unit {
+                "Are you missing a semicolon at the end of the first block of this 'if'?"
+            } else {
+                "Expected the types of both if branches to be equal"
+            };
 
-                err.add_context(context)
-            });
-            else_
+            err.add_context(context)
         });
 
         if alternative.is_none() {
