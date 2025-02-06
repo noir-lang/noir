@@ -606,6 +606,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download matrix test reports
         uses: actions/download-artifact@v4
         with:

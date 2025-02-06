@@ -471,6 +471,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download initial compilation report
         uses: actions/download-artifact@v4
         with:
@@ -519,6 +521,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download initial memory report
         uses: actions/download-artifact@v4
         with:
@@ -566,6 +570,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download initial memory report
         uses: actions/download-artifact@v4
         with:
@@ -614,6 +620,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download initial execution report
         uses: actions/download-artifact@v4
         with:
