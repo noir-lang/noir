@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738858357637,
+  "lastUpdate": 1738859884522,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5078,100 +5078,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dce2c7d07dac91c293d0074a60f46a8ae676ce37",
-          "message": "chore: add compile-time assertions on generic arguments of stdlib functions (#6981)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-23T15:31:52Z",
-          "tree_id": "e12ac2c3148e718b726a3980a7f455bbd8a09e78",
-          "url": "https://github.com/noir-lang/noir/commit/dce2c7d07dac91c293d0074a60f46a8ae676ce37"
-        },
-        "date": 1737648635768,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.07,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.857,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.784,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.082,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 91.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 91.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.822,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 26.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.12,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.978,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.41,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.12,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9911,6 +9817,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.592,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "32f05f4e42ce25ad48d53274be682af104ef0104",
+          "message": "chore: remove Recoverable (#7307)",
+          "timestamp": "2025-02-06T16:19:11Z",
+          "tree_id": "68a9c4aee8e89f4ddccb8fee2969ab3888e8e7d5",
+          "url": "https://github.com/noir-lang/noir/commit/32f05f4e42ce25ad48d53274be682af104ef0104"
+        },
+        "date": 1738859883683,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.991,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.822,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.7,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.11,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.702,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.986,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.172,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 25.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.668,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 79.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.996,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.62,
             "unit": "s"
           }
         ]
