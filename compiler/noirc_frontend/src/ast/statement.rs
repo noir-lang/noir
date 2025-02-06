@@ -6,9 +6,9 @@ use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
 use super::{
-    BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
-    GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility, MemberAccessExpression,
-    MethodCallExpression, UnresolvedType,
+    BinaryOpKind, BlockExpression, ConstrainExpression, ConstructorExpression, Expression,
+    ExpressionKind, GenericTypeArgs, IndexExpression, InfixExpression, ItemVisibility,
+    MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
@@ -591,55 +591,6 @@ pub enum LValue {
     Index { array: Box<LValue>, index: Expression, span: Span },
     Dereference(Box<LValue>, Span),
     Interned(InternedExpressionKind, Span),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainExpression {
-    pub kind: ConstrainKind,
-    pub arguments: Vec<Expression>,
-    pub span: Span,
-}
-
-impl Display for ConstrainExpression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
-                f,
-                "{}({})",
-                self.kind,
-                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
-            ),
-            ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ConstrainKind {
-    Assert,
-    AssertEq,
-    Constrain,
-}
-
-impl ConstrainKind {
-    pub fn required_arguments_count(&self) -> usize {
-        match self {
-            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
-            ConstrainKind::AssertEq => 2,
-        }
-    }
-}
-
-impl Display for ConstrainKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConstrainKind::Assert => write!(f, "assert"),
-            ConstrainKind::AssertEq => write!(f, "assert_eq"),
-            ConstrainKind::Constrain => write!(f, "constrain"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
