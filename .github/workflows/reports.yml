@@ -489,7 +489,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten[]' ./reports/*.json | tee time_bench.json
+          jq --slurp '. | flatten[]' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -538,7 +538,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten[]' ./reports/*.json | tee memory_bench.json
+          jq --slurp '. | flatten[]' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -587,7 +587,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten[]' ./reports/*.json | tee memory_bench.json
+          jq --slurp '. | flatten[]' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
@@ -637,7 +637,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten[]' ./reports/*.json | tee time_bench.json
+          jq --slurp '. | flatten[]' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
