@@ -1,9 +1,8 @@
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
         LetStatement, Path, Statement, StatementKind,
     },
     hir::{
@@ -15,10 +14,7 @@ use crate::{
     },
     hir_def::{
         expr::HirIdent,
-        stmt::{
-            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirStatement,
-        },
+        stmt::{HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
     DataType, Type,
@@ -28,9 +24,16 @@ use super::{lints, Elaborator, Loop};
 
 impl<'context> Elaborator<'context> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
+        self.elaborate_statement_value_with_target_type(statement, None)
+    }
+
+    fn elaborate_statement_value_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
-            StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
@@ -38,7 +41,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Continue => self.elaborate_jump(false, statement.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
-                let (expr, typ) = self.elaborate_expression(expr);
+                let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
             }
             StatementKind::Semi(expr) => {
@@ -48,15 +51,24 @@ impl<'context> Elaborator<'context> {
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
                 let statement = Statement { kind: kind.clone(), span: statement.span };
-                self.elaborate_statement_value(statement)
+                self.elaborate_statement_value_with_target_type(statement, target_type)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
+        self.elaborate_statement_with_target_type(statement, None)
+    }
+
+    pub(crate) fn elaborate_statement_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
         let span = statement.span;
-        let (hir_statement, typ) = self.elaborate_statement_value(statement);
+        let (hir_statement, typ) =
+            self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
         self.interner.push_stmt_location(id, span, self.file);
         (id, typ)
@@ -75,11 +87,12 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        let expr_span = let_stmt.expression.span;
-        let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
-
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        let expr_span = let_stmt.expression.span;
+        let (expression, expr_type) =
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
@@ -129,61 +142,6 @@ impl<'context> Elaborator<'context> {
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
         (HirStatement::Let(let_), Type::Unit)
-    }
-
-    pub(super) fn elaborate_constrain(
-        &mut self,
-        mut stmt: ConstrainStatement,
-    ) -> (HirStatement, Type) {
-        let span = stmt.span;
-        let min_args_count = stmt.kind.required_arguments_count();
-        let max_args_count = min_args_count + 1;
-        let actual_args_count = stmt.arguments.len();
-
-        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
-            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
-                kind: stmt.kind,
-                found: actual_args_count,
-                span,
-            });
-
-            // Given that we already produced an error, let's make this an `assert(true)` so
-            // we don't get further errors.
-            let message = None;
-            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
-            let expr = Expression { kind, span };
-            (message, expr)
-        } else {
-            let message =
-                (actual_args_count != min_args_count).then(|| stmt.arguments.pop().unwrap());
-            let expr = match stmt.kind {
-                ConstrainKind::Assert | ConstrainKind::Constrain => stmt.arguments.pop().unwrap(),
-                ConstrainKind::AssertEq => {
-                    let rhs = stmt.arguments.pop().unwrap();
-                    let lhs = stmt.arguments.pop().unwrap();
-                    let span = Span::from(lhs.span.start()..rhs.span.end());
-                    let operator = Spanned::from(span, BinaryOpKind::Equal);
-                    let kind =
-                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
-                    Expression { kind, span }
-                }
-            };
-            (message, expr)
-        };
-
-        let expr_span = expr.span;
-        let (expr_id, expr_type) = self.elaborate_expression(expr);
-
-        // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
-
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
-            expr_span,
-        });
-
-        (HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, msg)), Type::Unit)
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
