@@ -855,6 +855,9 @@ impl Expression {
             ExpressionKind::MethodCall(method_call_expression) => {
                 method_call_expression.accept(self.span, visitor);
             }
+            ExpressionKind::Constrain(constrain) => {
+                constrain.accept(visitor);
+            }
             ExpressionKind::Constructor(constructor_expression) => {
                 constructor_expression.accept(self.span, visitor);
             }
@@ -1147,9 +1150,6 @@ impl Statement {
         match &self.kind {
             StatementKind::Let(let_statement) => {
                 let_statement.accept(visitor);
-            }
-            StatementKind::Constrain(constrain_statement) => {
-                constrain_statement.accept(visitor);
             }
             StatementKind::Expression(expression) => {
                 expression.accept(visitor);

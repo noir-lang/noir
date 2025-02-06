@@ -89,7 +89,6 @@ impl<'a> Parser<'a> {
     ///     | ContinueStatement
     ///     | ReturnStatement
     ///     | LetStatement
-    ///     | ConstrainExpression
     ///     | ComptimeStatement
     ///     | ForStatement
     ///     | LoopStatement
@@ -143,10 +142,6 @@ impl<'a> Parser<'a> {
         if self.at_keyword(Keyword::Let) {
             let let_statement = self.parse_let_statement(attributes)?;
             return Some(StatementKind::Let(let_statement));
-        }
-
-        if let Some(constrain) = self.parse_constrain_expression() {
-            return Some(StatementKind::Constrain(constrain));
         }
 
         if self.at_keyword(Keyword::Comptime) {
@@ -437,10 +432,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{
-            ConstrainKind, ExpressionKind, ForRange, LValue, Statement, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
@@ -506,47 +498,6 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-    }
-
-    #[test]
-    fn parses_assert() {
-        let src = "assert(true, \"good\")";
-        let statement = parse_statement_no_errors(src);
-        let StatementKind::Constrain(constrain) = statement.kind else {
-            panic!("Expected constrain statement");
-        };
-        assert_eq!(constrain.kind, ConstrainKind::Assert);
-        assert_eq!(constrain.arguments.len(), 2);
-    }
-
-    #[test]
-    fn parses_assert_eq() {
-        let src = "assert_eq(1, 2, \"bad\")";
-        let statement = parse_statement_no_errors(src);
-        let StatementKind::Constrain(constrain) = statement.kind else {
-            panic!("Expected constrain statement");
-        };
-        assert_eq!(constrain.kind, ConstrainKind::AssertEq);
-        assert_eq!(constrain.arguments.len(), 3);
-    }
-
-    #[test]
-    fn parses_constrain() {
-        let src = "
-        constrain 1
-        ^^^^^^^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement_or_error();
-        let StatementKind::Constrain(constrain) = statement.kind else {
-            panic!("Expected constrain statement");
-        };
-        assert_eq!(constrain.kind, ConstrainKind::Constrain);
-        assert_eq!(constrain.arguments.len(), 1);
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 
     #[test]

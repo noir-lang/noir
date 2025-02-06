@@ -1,15 +1,15 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, Path, PathSegment, PrefixExpression, StatementKind, UnaryOp,
-        UnresolvedTypeData, UnresolvedTypeExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -21,9 +21,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
+            HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
+            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
         stmt::HirStatement,
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -52,6 +52,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
+            ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
                 return self.elaborate_member_access(*access, expr.span)
@@ -581,6 +582,61 @@ impl<'context> Elaborator<'context> {
             }
             None => (HirExpression::Error, Type::Error),
         }
+    }
+
+    pub(super) fn elaborate_constrain(
+        &mut self,
+        mut expr: ConstrainExpression,
+    ) -> (HirExpression, Type) {
+        let span = expr.span;
+        let min_args_count = expr.kind.required_arguments_count();
+        let max_args_count = min_args_count + 1;
+        let actual_args_count = expr.arguments.len();
+
+        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
+            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
+                kind: expr.kind,
+                found: actual_args_count,
+                span,
+            });
+
+            // Given that we already produced an error, let's make this an `assert(true)` so
+            // we don't get further errors.
+            let message = None;
+            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let expr = Expression { kind, span };
+            (message, expr)
+        } else {
+            let message =
+                (actual_args_count != min_args_count).then(|| expr.arguments.pop().unwrap());
+            let expr = match expr.kind {
+                ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
+                ConstrainKind::AssertEq => {
+                    let rhs = expr.arguments.pop().unwrap();
+                    let lhs = expr.arguments.pop().unwrap();
+                    let span = Span::from(lhs.span.start()..rhs.span.end());
+                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let kind =
+                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+                    Expression { kind, span }
+                }
+            };
+            (message, expr)
+        };
+
+        let expr_span = expr.span;
+        let (expr_id, expr_type) = self.elaborate_expression(expr);
+
+        // Must type check the assertion message expression so that we instantiate bindings
+        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+
+        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool.to_string(),
+            expr_span,
+        });
+
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, self.file, msg)), Type::Unit)
     }
 
     /// Elaborates an expression knowing that it has to match a given type.

@@ -900,7 +900,6 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Expression(expr_id) => expr_id,
             HirStatement::Let(let_stmt) => let_stmt.expression,
             HirStatement::Assign(assign_stmt) => assign_stmt.expression,
-            HirStatement::Constrain(constr_stmt) => constr_stmt.0,
             HirStatement::Semi(semi_expr) => semi_expr,
             HirStatement::For(for_loop) => for_loop.block,
             HirStatement::Loop(block) => block,

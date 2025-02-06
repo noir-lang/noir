@@ -654,6 +654,7 @@ impl<'a> Parser<'a> {
     ///     | ArrayExpression
     ///     | SliceExpression
     ///     | BlockExpression
+    ///     | ConstrainExpression
     ///
     /// QuoteExpression = 'quote' '{' token* '}'
     ///
@@ -695,6 +696,10 @@ impl<'a> Parser<'a> {
 
         if let Some(kind) = self.parse_block() {
             return Some(ExpressionKind::Block(kind));
+        }
+
+        if let Some(constrain) = self.parse_constrain_expression() {
+            return Some(ExpressionKind::Constrain(constrain));
         }
 
         None
@@ -893,8 +898,8 @@ mod tests {
 
     use crate::{
         ast::{
-            ArrayLiteral, BinaryOpKind, Expression, ExpressionKind, Literal, StatementKind,
-            UnaryOp, UnresolvedTypeData,
+            ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
+            StatementKind, UnaryOp, UnresolvedTypeData,
         },
         parser::{
             parser::tests::{
@@ -1792,5 +1797,46 @@ mod tests {
             panic!("Expected unquote");
         };
         assert_eq!(expr.kind.to_string(), "((1 + 2))");
+    }
+
+    #[test]
+    fn parses_assert() {
+        let src = "assert(true, \"good\")";
+        let expression = parse_expression_no_errors(src);
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Assert);
+        assert_eq!(constrain.arguments.len(), 2);
+    }
+
+    #[test]
+    fn parses_assert_eq() {
+        let src = "assert_eq(1, 2, \"bad\")";
+        let expression = parse_expression_no_errors(src);
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::AssertEq);
+        assert_eq!(constrain.arguments.len(), 3);
+    }
+
+    #[test]
+    fn parses_constrain() {
+        let src = "
+        constrain 1
+        ^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expression = parser.parse_expression_or_error();
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Constrain);
+        assert_eq!(constrain.arguments.len(), 1);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 }

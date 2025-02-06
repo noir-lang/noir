@@ -32,20 +32,6 @@ impl HirStatement {
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
-            HirStatement::Constrain(constrain) => {
-                let expr = constrain.0.to_display_ast(interner);
-                let mut arguments = vec![expr];
-                if let Some(message) = constrain.2 {
-                    arguments.push(message.to_display_ast(interner));
-                }
-
-                // TODO: Find difference in usage between Assert & AssertEq
-                StatementKind::Constrain(ConstrainExpression {
-                    kind: ConstrainKind::Assert,
-                    arguments,
-                    span,
-                })
-            }
             HirStatement::Assign(assign) => StatementKind::Assign(AssignStatement {
                 lvalue: assign.lvalue.to_display_ast(interner),
                 expression: assign.expression.to_display_ast(interner),
@@ -179,6 +165,20 @@ impl HirExpression {
                     }),
                     is_macro_call: false,
                 }))
+            }
+            HirExpression::Constrain(constrain) => {
+                let expr = constrain.0.to_display_ast(interner);
+                let mut arguments = vec![expr];
+                if let Some(message) = constrain.2 {
+                    arguments.push(message.to_display_ast(interner));
+                }
+
+                // TODO: Find difference in usage between Assert & AssertEq
+                ExpressionKind::Constrain(ConstrainExpression {
+                    kind: ConstrainKind::Assert,
+                    arguments,
+                    span,
+                })
             }
             HirExpression::Cast(cast) => {
                 let lhs = cast.lhs.to_display_ast(interner);
