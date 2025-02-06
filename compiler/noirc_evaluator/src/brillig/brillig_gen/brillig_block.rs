@@ -874,7 +874,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 };
 
                 if array_register == orig_array_register {
-                    codegen_dec_rc(&mut self.brillig_context);
+                    codegen_dec_rc(self.brillig_context);
                 } else {
                     // Check if the current and original register point at the same memory.
                     // If they don't, it means that an array-copy procedure has created a
