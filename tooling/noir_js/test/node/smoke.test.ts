@@ -70,7 +70,7 @@ describe('input validation', () => {
     } catch (error) {
       const knownError = error as Error;
       expect(knownError.message).to.equal(
-        'Expected witness values to be integers, provided value causes `invalid digit found in string` error',
+        'The value passed for parameter `x` is invalid:\nExpected witness values to be integers, provided value causes `invalid digit found in string` error',
       );
     }
   });
