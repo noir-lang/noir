@@ -208,12 +208,14 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
                 }
                 1
             },
+            // if less than 10 elements, it is translated into a store for each element
+            // if more than 10, it is a loop, so 10 should be a good estimate
+            Instruction::MakeArray { .. } => 10,
 
             Instruction::Allocate
             | Instruction::EnableSideEffectsIf { .. }
             | Instruction::IncrementRc { .. }
             | Instruction::DecrementRc { .. }
-            | Instruction::MakeArray { .. }
             | Instruction::Noop => 0,
             Instruction::IfElse { .. } => 1,
         };
