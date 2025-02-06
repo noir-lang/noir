@@ -855,6 +855,15 @@ mod tests {
         1;
         2
     }
+    
+    #[test]
+    fn format_while_with_semicolon() {
+        let src = " fn foo() {  while  condition  {  1 ; 2  };  } ";
+        let expected = "fn foo() {
+    while condition {
+        1;
+        2
+    }
 }
 ";
         assert_format(src, expected);
