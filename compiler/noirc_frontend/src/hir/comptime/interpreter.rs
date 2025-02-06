@@ -756,12 +756,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     Ok(Value::U64(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                    let value: u128 =
-                        value.try_into_u128().ok_or(InterpreterError::IntegerOutOfRangeForType {
-                            value,
-                            typ,
-                            location,
-                        })?;
+                    let value: u128 = value.try_into_u128().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     let value = if is_negative { 0u128.wrapping_sub(value) } else { value };
                     Ok(Value::U128(value))
                 }
