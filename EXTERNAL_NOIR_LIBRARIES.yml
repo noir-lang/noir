@@ -50,7 +50,7 @@ libraries:
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     path: noir-projects/noir-contracts
-    timeout: 60
+    timeout: 80
   blob:
     repo: AztecProtocol/aztec-packages
     path: noir-projects/noir-protocol-circuits/crates/blob
