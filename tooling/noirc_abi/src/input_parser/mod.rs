@@ -332,6 +332,16 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
     };
 
     big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
+        let max = BigInt::from(2_u128.pow(width - 1) - 1);
+        let min = BigInt::from(-(2_i128.pow(width - 1)));
+
+        if bigint < min || bigint > max {
+            return Err(InputParserError::ParseStr(format!(
+                "Value {} outside of valid range. Values must fall within [{}, {}]",
+                bigint, min, max
+            )));
+        }
+
         let modulus: BigInt = FieldElement::modulus().into();
         let bigint = if bigint.sign() == num_bigint::Sign::Minus {
             BigInt::from(2).pow(width) + bigint
@@ -430,6 +440,16 @@ mod test {
 
         let value = parse_str_to_signed("-1", 16).unwrap();
         assert_eq!(value, FieldElement::from(65535_u128));
+
+        assert!(parse_str_to_signed("127", 8).is_ok());
+        assert!(parse_str_to_signed("128", 8).is_err());
+        assert!(parse_str_to_signed("-128", 8).is_ok());
+        assert!(parse_str_to_signed("-129", 8).is_err());
+
+        assert!(parse_str_to_signed("32767", 16).is_ok());
+        assert!(parse_str_to_signed("32768", 16).is_err());
+        assert!(parse_str_to_signed("-32768", 16).is_ok());
+        assert!(parse_str_to_signed("-32769", 16).is_err());
     }
 }
 
