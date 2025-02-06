@@ -2,7 +2,6 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
-use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
@@ -370,18 +369,13 @@ pub struct Contract {
     pub outputs: ContractOutputs,
 }
 
-/// Given a FileId, fetch the File, from the FileManager and parse it's content
-pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
-    let file_source = fm.fetch_file(file_id).expect("File does not exist");
-    parse_program(file_source)
-}
-
 impl std::ops::Index<LocalModuleId> for CrateDefMap {
     type Output = ModuleData;
     fn index(&self, local_module_id: LocalModuleId) -> &ModuleData {
         &self.modules[local_module_id.0]
     }
 }
+
 impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
         &mut self.modules[local_module_id.0]

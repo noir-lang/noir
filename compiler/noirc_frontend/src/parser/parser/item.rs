@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
             self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_span);
         }
 
-        vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
+        vecmap(kinds, |(kind, cfg_feature_disabled)| Item { kind, span, doc_comments: doc_comments.clone(), cfg_feature_disabled })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -118,9 +118,9 @@ impl<'a> Parser<'a> {
     ///         | TypeAlias
     ///         | Function
     ///         )
-    fn parse_item_kind(&mut self) -> Vec<ItemKind> {
+    fn parse_item_kind(&mut self) -> Vec<(ItemKind, bool)> {
         if let Some(kind) = self.parse_inner_attribute() {
-            return vec![ItemKind::InnerAttribute(kind)];
+            return vec![(ItemKind::InnerAttribute(kind), false)];
         }
 
         let start_span = self.current_token_span;
@@ -135,20 +135,14 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let use_tree = self.parse_use_tree();
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::Import(use_tree, modifiers.visibility)];
+            return vec![(ItemKind::Import(use_tree, modifiers.visibility), cfg_feature_disabled)];
         }
 
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let parsed_mod_or_contract = self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility);
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![parsed_mod_or_contract];
+            return vec![(parsed_mod_or_contract, cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Struct) {
@@ -159,10 +153,7 @@ impl<'a> Parser<'a> {
                 modifiers.visibility,
                 start_span,
             );
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::Struct(parsed_struct)];
+            return vec![(ItemKind::Struct(parsed_struct), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Enum) {
@@ -173,23 +164,17 @@ impl<'a> Parser<'a> {
                 modifiers.visibility,
                 start_span,
             );
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::Enum(parsed_enum)];
+            return vec![(ItemKind::Enum(parsed_enum), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Impl) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let parsed_impl = self.parse_impl();
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![match parsed_impl {
+            return vec![(match parsed_impl {
                 Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
                 Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
-            }];
+            }, cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Trait) {
@@ -197,12 +182,9 @@ impl<'a> Parser<'a> {
 
             let (noir_trait, noir_impl) =
                 self.parse_trait(attributes, modifiers.visibility, start_span);
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            let mut output = vec![ItemKind::Trait(noir_trait)];
+            let mut output = vec![(ItemKind::Trait(noir_trait), cfg_feature_disabled)];
             if let Some(noir_impl) = noir_impl {
-                output.push(ItemKind::TraitImpl(noir_impl));
+                output.push((ItemKind::TraitImpl(noir_impl), cfg_feature_disabled));
             }
 
             return output;
@@ -216,25 +198,19 @@ impl<'a> Parser<'a> {
                 modifiers.comptime.is_some(),
                 modifiers.mutable.is_some(),
             );
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::Global(
+            return vec![(ItemKind::Global(
                 parsed_global,
                 modifiers.visibility,
-            )];
+            ), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Type) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let parsed_type_alias = self.parse_type_alias(modifiers.visibility, start_span);
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::TypeAlias(
+            return vec![(ItemKind::TypeAlias(
                 parsed_type_alias
-            )];
+            ), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Fn) {
@@ -247,10 +223,7 @@ impl<'a> Parser<'a> {
                 modifiers.unconstrained.is_some(),
                 false, // allow_self
             );
-            if cfg_feature_disabled {
-                return vec![];
-            }
-            return vec![ItemKind::Function(parsed_function)];
+            return vec![(ItemKind::Function(parsed_function), cfg_feature_disabled)];
         }
 
         vec![]

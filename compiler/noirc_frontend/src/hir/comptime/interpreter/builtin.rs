@@ -2740,7 +2740,10 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
 
     let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
+    let top_level_statements: Vec<_> = parse(interpreter.elaborator, item, parser, "a top-level item")?
+        .into_iter()
+        .filter(|item| item.cfg_feature_disabled)
+        .collect();
 
     let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {

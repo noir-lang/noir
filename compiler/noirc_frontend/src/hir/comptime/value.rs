@@ -573,6 +573,12 @@ impl Value {
         match self {
             Value::Quoted(tokens) => {
                 parse_tokens(tokens, elaborator, parser, location, "top-level item")
+                    .map(|parsed_tokens| {
+                        parsed_tokens
+                            .into_iter()
+                            .filter(|item| item.cfg_feature_disabled)
+                            .collect::<Vec<_>>()
+                    })
             }
             _ => {
                 let typ = self.get_type().into_owned();
