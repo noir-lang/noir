@@ -515,7 +515,7 @@ impl<'a> Context<'a> {
         let witness_inputs = self.acir_context.extract_witness(&inputs);
 
         let outputs: Vec<AcirType> =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(result_id).into());
+            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
         let code = gen_brillig_for(main_func, arguments.clone(), brillig)?;
 
