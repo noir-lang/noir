@@ -195,15 +195,18 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
 
             Instruction::ArrayGet { array, index  } => {
                 // A get can fail because of out-of-bound index
-                let mut get_cost = u32::MAX;
+                let mut in_bound = false;
                 // check if index is in bound
                 if let (Some(index), Some(len)) = (dfg.get_numeric_constant(*index), dfg.try_get_array_length(*array)) {
                     // The index is in-bounds
                     if index.to_u128() < len as u128 {
-                        get_cost = 1;
+                        in_bound = true;
                     }
                 }
-                get_cost
+                if !in_bound {
+                    return u32::MAX;
+                }
+                1
             },
 
             Instruction::Allocate
