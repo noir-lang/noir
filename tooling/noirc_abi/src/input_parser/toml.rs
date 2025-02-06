@@ -255,7 +255,7 @@ mod test {
         assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
 
         let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
-        let input = TomlTypes::Integer(32767);
+        let input = TomlTypes::Integer(32768);
         assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
     }
 }

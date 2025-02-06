@@ -270,7 +270,7 @@ mod test {
         assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
 
         let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
-        let input = JsonTypes::Integer(32767);
+        let input = JsonTypes::Integer(32768);
         assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
     }
 }
