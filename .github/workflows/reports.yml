@@ -432,16 +432,25 @@ jobs:
         env:
           FLAGS: ${{ matrix.project.flags }}
 
+      - name: Check compilation memory limit
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
+          if [ "$MEMORY" -gt "6000" ]; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            exit 1
+          fi
+
       - name: Generate execution memory report
         working-directory: ./test-repo/${{ matrix.project.path }}
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           ./memory_report.sh 1 1
 
-      - name: Check compilation memory limit
+      - name: Check execution memory limit
+        if: ${{ !matrix.project.cannot_execute }}
         run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
-          if [ "$MEMORY" -gt "6000" ]; then
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
+          if [ "$MEMORY" -gt "1000" ]; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
           fi
@@ -462,15 +471,6 @@ jobs:
           path: memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
           retention-days: 3
           overwrite: true
-
-      - name: Check execution memory limit
-        if: ${{ !matrix.project.cannot_execute }}
-        run: |
-          MEMORY=$(jq '.[0].value' ./memory_report.sh)
-          if [ "$MEMORY" -gt "1000" ]; then
-            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
-            exit 1
-          fi
 
       - name: Move execution report
         id: execution_mem_report
