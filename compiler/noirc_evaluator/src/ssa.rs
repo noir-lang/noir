@@ -138,8 +138,8 @@ pub(crate) fn optimize_into_acir(
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
     // It could happen that we inlined all calls to a given brillig function.
     // In that case it's unused so we can remove it. This is what we check next.
-    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
-    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (2nd)")
+    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (3rd)")
     .finish();
 
     drop(ssa_gen_span_guard);
@@ -201,15 +201,14 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
-        // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before DIE.
-        // TODO: probably want to move this to after DIE, and then if we do not
-        // have a used globals set when generating Brillig globals, just use an empty set.
-        .run_pass(Ssa::duplicate_reused_entry_points, "Brillig Entry Point Duplication")
-        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
+        // The Brillig globals pass expected that we have the used globals map set for each function.
+        // The used globals map is determined during DIE, so we should duplicate entry points before DIE.
+        .run_pass(Ssa::duplicate_reused_entry_points, "Brillig Entry Point Duplication")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())
 }
 
