@@ -613,6 +613,7 @@ jobs:
         with:
           pattern: test_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge test reports using jq
         run: |

@@ -484,6 +484,7 @@ jobs:
         with:
           pattern: compilation_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge compilation reports using jq
         run: |
@@ -533,6 +534,7 @@ jobs:
         with:
           pattern: compilation_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
@@ -582,6 +584,7 @@ jobs:
         with:
           pattern: execution_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
@@ -632,6 +635,7 @@ jobs:
         with:
           pattern: execution_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge execution reports using jq
         run: |
