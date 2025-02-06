@@ -322,7 +322,7 @@ jobs:
       - name: Check compilation time limit
         run: |
           TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_report.json)
-          if [[ "$TIME" -gt "80" ]]; then
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "80"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
           fi
@@ -339,7 +339,7 @@ jobs:
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/execution_report.json)
-          if [[ "$TIME" -gt "60" ]]; then
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "60"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
           fi
@@ -436,7 +436,7 @@ jobs:
       - name: Check compilation memory limit
         run: |
           MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
-          if [[ "$MEMORY" -gt "6000" ]]; then
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "6000"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
           fi
@@ -451,7 +451,7 @@ jobs:
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
-          if [[ "$MEMORY" -gt "1000" ]]; then
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "1000"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
           fi
