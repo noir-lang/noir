@@ -10,7 +10,10 @@ use num_bigint::BigUint;
 
 use crate::errors::{InternalError, RuntimeError};
 
-use super::{acir_variable::{AcirContext, AcirVar}, AcirValue};
+use super::{
+    acir_variable::{AcirContext, AcirVar},
+    AcirValue,
+};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -109,12 +112,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 match inputs.pop().expect(invalid_input) {
                     AcirValue::Array(values) => {
                         for value in values {
-                            modulus.push(*self.var_to_expression(value.into_var()?)?.to_const().ok_or(
-                                RuntimeError::InternalError(InternalError::NotAConstant {
-                                    name: "big integer".to_string(),
-                                    call_stack: self.get_call_stack(),
-                                }),
-                            )?);
+                            modulus.push(
+                                *self.var_to_expression(value.into_var()?)?.to_const().ok_or(
+                                    RuntimeError::InternalError(InternalError::NotAConstant {
+                                        name: "big integer".to_string(),
+                                        call_stack: self.get_call_stack(),
+                                    }),
+                                )?,
+                            );
                         }
                     }
                     _ => {
@@ -176,14 +181,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let inputs = self.prepare_inputs_for_black_box_func(inputs, name)?;
         // Call Black box with `FunctionInput`
         let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
-        
-        let output_vars = vecmap(0..output_count, |_| {
-            self.add_variable()
-        });
+
+        let output_vars = vecmap(0..output_count, |_| self.add_variable());
         let output_witnesses = vecmap(&output_vars, |var| {
             self.var_to_witness(*var).expect("variable was just created as witness")
         });
-        
+
         self.acir_ir.call_black_box(
             name,
             &inputs,

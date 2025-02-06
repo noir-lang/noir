@@ -216,7 +216,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         witnesses.push(
                             self.var_to_witness(var)
                                 .expect("variable has just been created as witness"),
-                        )
+                        );
                     }
                 }
             }

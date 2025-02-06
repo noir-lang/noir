@@ -192,7 +192,6 @@ impl<F: AcirField> GeneratedAcir<F> {
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, outputs.len());
 
-
         let black_box_func_call = match func_name {
             BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
                 inputs: inputs[0].clone(),

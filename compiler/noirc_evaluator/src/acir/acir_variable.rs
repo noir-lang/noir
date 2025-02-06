@@ -1,9 +1,7 @@
 use acvm::{
     acir::{
         circuit::{
-            opcodes::{
-                AcirFunctionId, BlockId, BlockType, MemOp,
-            },
+            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
             AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
         },
         native_types::{Expression, Witness},
