@@ -8,7 +8,7 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstrainKind, ConstrainExpression, Expression, FunctionReturnType,
+        CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
