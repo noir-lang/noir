@@ -160,10 +160,7 @@ impl InputValue {
             ) => {
                 let max = 1 << (width - 1) - 1;
                 if integer > max {
-                    return Err(InputParserError::ParseStr(format!(
-                        "Value {} exceeds maximum value of {}",
-                        integer, max
-                    )));
+                    return Err(InputParserError::InputExceedsMaximum { value: integer, max });
                 }
 
                 let new_value = FieldElement::from(i128::from(integer));

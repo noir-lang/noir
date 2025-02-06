@@ -314,10 +314,7 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
         if bigint < FieldElement::modulus() {
             Ok(field_from_big_uint(bigint))
         } else {
-            Err(InputParserError::ParseStr(format!(
-                "Input exceeds field modulus. Values must fall within [0, {})",
-                FieldElement::modulus(),
-            )))
+            Err(InputParserError::InputExceedsFieldModulus(value.to_string()))
         }
     })
 }
@@ -336,10 +333,7 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
         let min = BigInt::from(-(2_i128.pow(width - 1)));
 
         if bigint < min || bigint > max {
-            return Err(InputParserError::ParseStr(format!(
-                "Value {} outside of valid range. Values must fall within [{}, {}]",
-                bigint, min, max
-            )));
+            return Err(InputParserError::InputOutsideOfRange { value: bigint, min, max });
         }
 
         let modulus: BigInt = FieldElement::modulus().into();
@@ -351,10 +345,7 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
         if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
             Ok(field_from_big_int(bigint))
         } else {
-            Err(InputParserError::ParseStr(format!(
-                "Input exceeds field modulus. Values must fall within [0, {})",
-                FieldElement::modulus(),
-            )))
+            Err(InputParserError::InputExceedsFieldModulus(value.to_string()))
         }
     })
 }

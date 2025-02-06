@@ -2,7 +2,8 @@ use crate::{
     input_parser::{InputTypecheckingError, InputValue},
     AbiType,
 };
-use acvm::acir::native_types::Witness;
+use acvm::{acir::native_types::Witness, AcirField, FieldElement};
+use num_bigint::BigInt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -11,8 +12,15 @@ pub enum InputParserError {
     ParseInputMap(String),
     #[error("Expected witness values to be integers, provided value causes `{0}` error")]
     ParseStr(String),
-    #[error("Could not parse hex value {0}")]
-    ParseHexStr(String),
+    #[error("Input {value} exceeds maximum value of {max}")]
+    InputExceedsMaximum { value: u64, max: u64 },
+    #[error("Input {value} outside of valid range. Value must fall within [{min}, {max}]")]
+    InputOutsideOfRange { value: BigInt, min: BigInt, max: BigInt },
+    #[error(
+        "Input {0} exceeds field modulus. Values must fall within [0, {})",
+        FieldElement::modulus()
+    )]
+    InputExceedsFieldModulus(String),
     #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]
