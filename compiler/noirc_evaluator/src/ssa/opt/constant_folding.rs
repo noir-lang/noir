@@ -98,49 +98,6 @@ impl Ssa {
             function.constant_fold(false, brillig_info);
         }
 
-        // It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        self.remove_unused_brillig_functions(brillig_functions)
-    }
-
-    fn remove_unused_brillig_functions(
-        mut self,
-        mut brillig_functions: BTreeMap<FunctionId, Function>,
-    ) -> Ssa {
-        // Remove from the above map functions that are called
-        for function in self.functions.values() {
-            for block_id in function.reachable_blocks() {
-                for instruction_id in function.dfg[block_id].instructions() {
-                    let instruction = &function.dfg[*instruction_id];
-                    let Instruction::Call { func: func_id, arguments: _ } = instruction else {
-                        continue;
-                    };
-
-                    let func_value = &function.dfg[*func_id];
-                    let Value::Function(func_id) = func_value else { continue };
-
-                    if function.runtime().is_acir() {
-                        brillig_functions.remove(func_id);
-                    }
-                }
-            }
-        }
-
-        // The ones that remain are never called: let's remove them.
-        for (func_id, func) in &brillig_functions {
-            // We never want to remove the main function (it could be `unconstrained` or it
-            // could have been turned into brillig if `--force-brillig` was given).
-            // We also don't want to remove entry points.
-            let runtime = func.runtime();
-            if self.main_id == *func_id
-                || (runtime.is_entry_point() && matches!(runtime, RuntimeType::Acir(_)))
-            {
-                continue;
-            }
-
-            self.functions.remove(func_id);
-        }
-
         self
     }
 }
@@ -1766,5 +1723,66 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis().fold_constants_using_constraints();
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn does_not_deduplicate_field_divisions_under_different_predicates() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: u1):
+            enable_side_effects v2
+            v3 = div v1, v0
+            v4 = mul v3, v0
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_deduplicate_unsigned_divisions_under_different_predicates() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v3 = div v1, v0
+            v4 = not v2
+            enable_side_effects v4
+            v5 = div v1, v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_deduplicate_signed_divisions_under_different_predicates() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32, v2: u1):
+            enable_side_effects v2
+            v3 = div v1, v0
+            v4 = not v2
+            enable_side_effects v4
+            v5 = div v1, v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
