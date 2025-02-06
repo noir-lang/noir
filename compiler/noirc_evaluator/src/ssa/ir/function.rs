@@ -165,20 +165,13 @@ impl Function {
 
     /// Returns the return types of this function.
     pub(crate) fn returns(&self) -> &[ValueId] {
-        let blocks = self.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
+        for block in self.reachable_blocks() {
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                function_return_values = Some(return_values);
-                break;
+                return return_values;
             }
         }
-        if let Some(function_return_values) = function_return_values {
-            function_return_values
-        } else {
-            &[]
-        }
+        &[]
     }
 
     /// Collects all the reachable blocks of this function.
