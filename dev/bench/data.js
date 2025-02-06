@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738858190147,
+  "lastUpdate": 1738858308292,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14267,95 +14267,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c8d5ce5e72f3171f24e4fe2b94ac098ba6d99ef6",
-          "message": "fix: LSP hover over function with `&mut self` (#7155)",
-          "timestamp": "2025-01-22T21:09:41Z",
-          "tree_id": "2dbd1fba52a842baf14099354a064ac116562020",
-          "url": "https://github.com/noir-lang/noir/commit/c8d5ce5e72f3171f24e4fe2b94ac098ba6d99ef6"
-        },
-        "date": 1737581556528,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.69,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.48,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 315.98,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 498.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 473.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 498.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 730.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 591.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 245.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 209.07,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -18850,6 +18761,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 213.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "058d1b0c2192accb9e8fe1f6470a49a1dd4b1d5d",
+          "message": "feat: Sync from aztec-packages (#7293)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-02-06T15:41:19Z",
+          "tree_id": "c3f44bc211263e3c7ca44251928087868cbfcb71",
+          "url": "https://github.com/noir-lang/noir/commit/058d1b0c2192accb9e8fe1f6470a49a1dd4b1d5d"
+        },
+        "date": 1738858307434,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "",
+            "value": 213.15,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 250.17,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 185.02,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 652.28,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 793.63,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 555.92,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 529.89,
+            "unit": "MB"
+          },
+          {
+            "name": "",
+            "value": 555.9,
             "unit": "MB"
           }
         ]
