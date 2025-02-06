@@ -80,7 +80,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
-    // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
+    crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
 }
 
@@ -152,10 +152,8 @@ comptime fn derive_hash(s: StructDefinition) -> Quoted {
 // docs:end:derive_hash
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
-// TODO: consider making the types generic here ([u8], [Field], etc.)
 pub trait Hasher {
     fn finish(self) -> Field;
-
     fn write(&mut self, input: Field);
 }
 
@@ -192,16 +190,7 @@ impl Hash for Field {
     where
         H: Hasher,
     {
-        H::write(state, self);
-    }
-}
-
-impl Hash for u1 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self as Field);
+        state.write(self);
     }
 }
 
@@ -210,7 +199,7 @@ impl Hash for u8 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -219,7 +208,7 @@ impl Hash for u16 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -228,7 +217,7 @@ impl Hash for u32 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -237,7 +226,7 @@ impl Hash for u64 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -246,7 +235,7 @@ impl Hash for i8 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -255,7 +244,7 @@ impl Hash for i16 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -264,7 +253,7 @@ impl Hash for i32 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -273,7 +262,7 @@ impl Hash for i64 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -282,7 +271,7 @@ impl Hash for bool {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        state.write(self as Field);
     }
 }
 
@@ -298,8 +287,8 @@ impl Hash for U128 {
     where
         H: Hasher,
     {
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
+        state.write(self.lo as Field);
+        state.write(self.hi as Field);
     }
 }
 
