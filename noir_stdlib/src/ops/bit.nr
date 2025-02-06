@@ -11,6 +11,11 @@ impl Not for bool {
     }
 }
 
+impl Not for u128 {
+    fn not(self) -> u128 {
+        !self
+    }
+}
 impl Not for u64 {
     fn not(self) -> u64 {
         !self
@@ -71,6 +76,11 @@ impl BitOr for bool {
     }
 }
 
+impl BitOr for u128 {
+    fn bitor(self, other: u128) -> u128 {
+        self | other
+    }
+}
 impl BitOr for u64 {
     fn bitor(self, other: u64) -> u64 {
         self | other
@@ -130,6 +140,11 @@ impl BitAnd for bool {
     }
 }
 
+impl BitAnd for u128 {
+    fn bitand(self, other: u128) -> u128 {
+        self & other
+    }
+}
 impl BitAnd for u64 {
     fn bitand(self, other: u64) -> u64 {
         self & other
@@ -189,6 +204,11 @@ impl BitXor for bool {
     }
 }
 
+impl BitXor for u128 {
+    fn bitxor(self, other: u128) -> u128 {
+        self ^ other
+    }
+}
 impl BitXor for u64 {
     fn bitxor(self, other: u64) -> u64 {
         self ^ other
@@ -242,13 +262,19 @@ pub trait Shl {
 }
 // docs:end:shl-trait
 
-impl Shl for u32 {
-    fn shl(self, other: u8) -> u32 {
+
+impl Shl for u128 {
+    fn shl(self, other: u8) -> u128 {
         self << other
     }
 }
 impl Shl for u64 {
     fn shl(self, other: u8) -> u64 {
+        self << other
+    }
+}
+impl Shl for u32 {
+    fn shl(self, other: u8) -> u32 {
         self << other
     }
 }
@@ -295,6 +321,11 @@ pub trait Shr {
 }
 // docs:end:shr-trait
 
+impl Shr for u128 {
+    fn shr(self, other: u8) -> u128 {
+        self >> other
+    }
+}
 impl Shr for u64 {
     fn shr(self, other: u8) -> u64 {
         self >> other
