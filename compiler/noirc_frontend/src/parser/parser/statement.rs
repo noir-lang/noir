@@ -759,4 +759,15 @@ mod tests {
         };
         assert_eq!(block.statements.len(), 2);
     }
+
+    #[test]
+    fn parses_let_with_assert() {
+        let src = "let _ = assert(true);";
+        let mut parser = Parser::for_str(src);
+        let statement = parser.parse_statement_or_error();
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let");
+        };
+        assert!(matches!(let_statement.expression.kind, ExpressionKind::Constrain(..)));
+    }
 }
