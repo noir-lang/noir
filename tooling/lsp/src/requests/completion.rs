@@ -72,7 +72,7 @@ pub(crate) fn on_completion_request(
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
                 let byte = source.as_bytes().get(byte_index - 1).copied();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = NodeFinder::new(
                     args.files,

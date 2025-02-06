@@ -384,7 +384,7 @@ fn struct_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
     let attribute = format!("#[{}]", attribute);
-    let mut parser = Parser::for_str(&attribute);
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2408,7 +2408,7 @@ fn function_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
     let attribute = format!("#[{}]", attribute);
-    let mut parser = Parser::for_str(&attribute);
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),

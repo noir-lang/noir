@@ -178,7 +178,7 @@ mod tests {
 
     fn assert_format_type(src: &str, expected: &str) {
         let module_src = format!("type X = {};", src);
-        let (parsed_module, errors) = parser::parse_program(&module_src);
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&module_src);
         if !errors.is_empty() {
             panic!("Expected no errors, got: {:?}", errors);
         }
@@ -187,7 +187,7 @@ mod tests {
         let type_result = &type_result[..type_result.len() - 2];
         similar_asserts::assert_eq!(type_result, expected);
 
-        let (parsed_module, errors) = parser::parse_program(&result);
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&result);
         if !errors.is_empty() {
             panic!("Expected no errors in idempotent check, got: {:?}", errors);
         }

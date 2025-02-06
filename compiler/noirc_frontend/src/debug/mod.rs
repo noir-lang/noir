@@ -6,6 +6,7 @@ use crate::{
     ast::{Path, PathKind},
     parser::{Item, ItemKind},
 };
+use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Span, Spanned};
 use std::collections::HashMap;
@@ -496,8 +497,9 @@ impl DebugInstrumenter {
             .map(|i| format!["__debug_member_assign_{i}"])
             .collect::<Vec<String>>()
             .join(",\n");
-        let (program, errors) = parse_program(&format!(
-            r#"
+        let (program, errors) = parse_program(
+            &format!(
+                r#"
             use __debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
@@ -506,7 +508,9 @@ impl DebugInstrumenter {
                 __debug_dereference_assign,
                 {member_assigns},
             }};"#
-        ));
+            ),
+            FileId::dummy(), // TODO: check this
+        );
         if !errors.is_empty() {
             panic!("errors parsing internal oracle definitions: {errors:?}")
         }

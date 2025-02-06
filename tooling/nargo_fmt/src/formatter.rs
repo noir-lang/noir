@@ -80,7 +80,7 @@ pub(crate) struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,

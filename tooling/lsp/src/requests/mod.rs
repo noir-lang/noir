@@ -304,7 +304,7 @@ fn on_formatting_inner(
     let path = params.text_document.uri.to_string();
 
     if let Some(source) = state.input_files.get(&path) {
-        let (module, errors) = noirc_frontend::parse_program(source);
+        let (module, errors) = noirc_frontend::parse_program_with_dummy_file(source);
         let is_all_warnings = errors.iter().all(ParserError::is_warning);
         if !is_all_warnings {
             return Ok(None);

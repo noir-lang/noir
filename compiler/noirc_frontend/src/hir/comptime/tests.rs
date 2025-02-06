@@ -16,7 +16,7 @@ use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
-use crate::parse_program;
+use crate::{parse_program, parse_program_with_dummy_file};
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
@@ -48,7 +48,7 @@ pub(crate) fn with_interpreter<T>(
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    let (module, errors) = parse_program(src);
+    let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 

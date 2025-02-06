@@ -21,7 +21,9 @@ use crate::token::SecondaryAttribute;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Span;
-pub use parser::{parse_program, Parser, StatementOrExpressionOrLValue};
+pub use parser::{
+    parse_program, parse_program_with_dummy_file, Parser, StatementOrExpressionOrLValue,
+};
 
 #[derive(Clone, Default)]
 pub struct SortedModule {

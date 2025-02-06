@@ -40,7 +40,7 @@ pub(crate) fn on_signature_help_request(
             .and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
                 finder.find(&parsed_module)

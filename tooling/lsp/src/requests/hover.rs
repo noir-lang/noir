@@ -42,7 +42,8 @@ pub(crate) fn on_hover_request(
                     |byte_index| {
                         let file = args.files.get_file(file_id).unwrap();
                         let source = file.source();
-                        let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                        let (parsed_module, _errors) =
+                            noirc_frontend::parse_program(source, file_id);
 
                         let mut finder = AttributeReferenceFinder::new(
                             file_id,

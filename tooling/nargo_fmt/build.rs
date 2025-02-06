@@ -60,7 +60,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         let expected_output = r#"{output_source}"#;
 
 
-        let (parsed_module, _errors) = noirc_frontend::parse_program(input);
+        let (parsed_module, _errors) = noirc_frontend::parse_program_with_dummy_file(input);
 
         let config = nargo_fmt::Config::of("{config}").unwrap();
         let fmt_text = nargo_fmt::format(input, parsed_module, &config);
@@ -82,7 +82,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
         fn format_idempotent_{test_name}() {{
             let expected_output = r#"{output_source}"#;
 
-            let (parsed_module, _errors) = noirc_frontend::parse_program(expected_output);
+            let (parsed_module, _errors) = noirc_frontend::parse_program_with_dummy_file(expected_output);
 
             let config = nargo_fmt::Config::of("{config}").unwrap();
             let fmt_text = nargo_fmt::format(expected_output, parsed_module, &config);

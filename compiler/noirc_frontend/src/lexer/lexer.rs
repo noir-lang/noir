@@ -5,6 +5,7 @@ use super::{
     token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
+use fm::FileId;
 use noirc_errors::{Position, Span};
 use num_bigint::BigInt;
 use num_traits::{Num, One};
@@ -14,6 +15,7 @@ use std::str::{CharIndices, FromStr};
 /// into an iterator of `SpannedToken`. Each `Token` corresponds roughly to 1 word or operator.
 /// Tokens are tagged with their location in the source file (a `Span`) for use in error reporting.
 pub struct Lexer<'a> {
+    file_id: FileId,
     chars: CharIndices<'a>,
     position: Position,
     done: bool,
@@ -27,8 +29,8 @@ pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
     /// in order, along with any lexing errors that occurred.
-    pub fn lex(source: &'a str) -> (Tokens, Vec<LexerErrorKind>) {
-        let lexer = Lexer::new(source);
+    pub fn lex(source: &'a str, file_id: FileId) -> (Tokens, Vec<LexerErrorKind>) {
+        let lexer = Lexer::new(source, file_id);
         let mut tokens = vec![];
         let mut errors = vec![];
         for result in lexer {
@@ -40,8 +42,9 @@ impl<'a> Lexer<'a> {
         (Tokens(tokens), errors)
     }
 
-    pub fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str, file_id: FileId) -> Self {
         Lexer {
+            file_id,
             chars: source.char_indices(),
             position: 0,
             done: false,
@@ -50,6 +53,10 @@ impl<'a> Lexer<'a> {
             max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
                 - BigInt::one(),
         }
+    }
+
+    pub fn new_with_dummy_file(source: &'a str) -> Self {
+        Self::new(source, FileId::dummy())
     }
 
     pub fn skip_comments(mut self, flag: bool) -> Self {
@@ -884,7 +891,7 @@ mod tests {
             Token::EOF,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -895,7 +902,7 @@ mod tests {
     #[test]
     fn invalid_attribute() {
         let input = "#";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next().unwrap();
         assert!(token.is_err());
@@ -904,7 +911,7 @@ mod tests {
     #[test]
     fn test_attribute_start() {
         let input = r#"#[something]"#;
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: false });
@@ -913,7 +920,7 @@ mod tests {
     #[test]
     fn test_attribute_start_with_tag() {
         let input = r#"#['something]"#;
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: false, is_tag: true });
@@ -922,7 +929,7 @@ mod tests {
     #[test]
     fn test_inner_attribute_start() {
         let input = r#"#![something]"#;
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: false });
@@ -931,7 +938,7 @@ mod tests {
     #[test]
     fn test_inner_attribute_start_with_tag() {
         let input = r#"#!['something]"#;
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.token(), &Token::AttributeStart { is_inner: true, is_tag: true });
@@ -950,7 +957,7 @@ mod tests {
             Token::Int(5_i128.into()),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -962,7 +969,7 @@ mod tests {
         let modulus = FieldElement::modulus();
         let input = modulus.to_string();
 
-        let mut lexer = Lexer::new(&input);
+        let mut lexer = Lexer::new_with_dummy_file(&input);
         let token = lexer.next_token();
         assert!(
             matches!(token, Err(LexerErrorKind::IntegerLiteralTooLarge { .. })),
@@ -987,7 +994,7 @@ mod tests {
             Token::Assign,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
@@ -998,7 +1005,7 @@ mod tests {
     fn unterminated_block_comment() {
         let input = "/*/";
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         let token = lexer.next().unwrap();
 
         assert!(token.is_err());
@@ -1017,7 +1024,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1039,7 +1046,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1065,7 +1072,7 @@ mod tests {
             Token::BlockComment(" inner doc block ".into(), DocStyle::Inner.into()),
         ];
 
-        let mut lexer = Lexer::new(input).skip_comments(false);
+        let mut lexer = Lexer::new_with_dummy_file(input).skip_comments(false);
         for token in expected {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(token, first_lexer_output);
@@ -1087,7 +1094,7 @@ mod tests {
             Token::Int(FieldElement::from(5_i128)),
         ];
 
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         for token in expected.into_iter() {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
@@ -1103,7 +1110,7 @@ mod tests {
             Token::Assign,
             Token::Str("hello".to_string()),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1121,7 +1128,7 @@ mod tests {
             Token::Assign,
             Token::Str("hello\n\t".to_string()),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1132,7 +1139,7 @@ mod tests {
     #[test]
     fn test_eat_string_literal_missing_double_quote() {
         let input = "\"hello";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(
             lexer.next_token(),
             Err(LexerErrorKind::UnterminatedStringLiteral { .. })
@@ -1149,7 +1156,7 @@ mod tests {
             Token::Assign,
             Token::FmtStr(vec![FmtStrFragment::String("hello".to_string())], 5),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1167,7 +1174,7 @@ mod tests {
             Token::Assign,
             Token::FmtStr(vec![FmtStrFragment::String("hello\n\t{x}".to_string())], 12),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1195,7 +1202,7 @@ mod tests {
                 38,
             ),
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap().into_token();
@@ -1206,7 +1213,7 @@ mod tests {
     #[test]
     fn test_eat_fmt_string_literal_missing_double_quote() {
         let input = "f\"hello";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(
             lexer.next_token(),
             Err(LexerErrorKind::UnterminatedStringLiteral { .. })
@@ -1216,7 +1223,7 @@ mod tests {
     #[test]
     fn test_eat_fmt_string_literal_invalid_char_in_interpolation() {
         let input = "f\"hello {foo.bar}\" true";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
 
         // Make sure the lexer went past the ending double quote for better recovery
@@ -1227,7 +1234,7 @@ mod tests {
     #[test]
     fn test_eat_fmt_string_literal_double_quote_inside_interpolation() {
         let input = "f\"hello {world\" true";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
 
         // Make sure the lexer stopped parsing the string literal when it found \" inside the interpolation
@@ -1238,7 +1245,7 @@ mod tests {
     #[test]
     fn test_eat_fmt_string_literal_unmatched_closing_curly() {
         let input = "f\"hello }\" true";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(lexer.next_token(), Err(LexerErrorKind::InvalidFormatString { .. })));
 
         // Make sure the lexer went past the ending double quote for better recovery
@@ -1249,7 +1256,7 @@ mod tests {
     #[test]
     fn test_eat_fmt_string_literal_empty_interpolation() {
         let input = "f\"{}\" true";
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
         assert!(matches!(
             lexer.next_token(),
             Err(LexerErrorKind::EmptyFormatStringInterpolation { .. })
@@ -1271,7 +1278,7 @@ mod tests {
         ];
 
         for (input, expected_token) in test_cases {
-            let mut lexer = Lexer::new(input);
+            let mut lexer = Lexer::new_with_dummy_file(input);
             let got = lexer.next_token().unwrap();
             assert_eq!(got.token(), &expected_token);
         }
@@ -1282,7 +1289,7 @@ mod tests {
         let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
 
         for input in test_cases {
-            let mut lexer = Lexer::new(input);
+            let mut lexer = Lexer::new_with_dummy_file(input);
             let token = lexer.next_token();
             assert!(
                 matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
@@ -1322,7 +1329,7 @@ mod tests {
         let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for spanned_token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1393,7 +1400,7 @@ mod tests {
             Token::Semicolon,
             Token::EOF,
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new_with_dummy_file(input);
 
         for token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
@@ -1471,7 +1478,7 @@ mod tests {
             for (token_discriminator_opt, blns_program_strs) in statements {
                 for blns_program_str in blns_program_strs {
                     let mut expected_token_found = false;
-                    let mut lexer = Lexer::new(&blns_program_str);
+                    let mut lexer = Lexer::new_with_dummy_file(&blns_program_str);
                     let mut result_tokens = Vec::new();
                     loop {
                         match lexer.next_token() {
@@ -1532,7 +1539,8 @@ mod tests {
         ];
 
         for (source, expected_stream_length) in cases {
-            let mut tokens = vecmap(Lexer::new(source), |result| result.unwrap().into_token());
+            let mut tokens =
+                vecmap(Lexer::new_with_dummy_file(source), |result| result.unwrap().into_token());
 
             // All examples should be a single TokenStream token followed by an EOF token.
             assert_eq!(tokens.len(), 2, "Unexpected token count: {tokens:?}");
@@ -1552,7 +1560,7 @@ mod tests {
         for source in cases {
             // `quote` is not itself a keyword so if the token stream fails to
             // parse we don't expect any valid tokens from the quote construct
-            for token in Lexer::new(source) {
+            for token in Lexer::new_with_dummy_file(source) {
                 assert!(token.is_err(), "Expected Err, found {token:?}");
             }
         }
@@ -1563,7 +1571,7 @@ mod tests {
         let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
 
         for source in cases {
-            let mut lexer = Lexer::new(source);
+            let mut lexer = Lexer::new_with_dummy_file(source);
             assert!(
                 lexer.any(|token| matches!(token, Err(LexerErrorKind::NonAsciiComment { .. }))),
                 "Expected NonAsciiComment error"

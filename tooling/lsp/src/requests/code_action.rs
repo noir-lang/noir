@@ -53,7 +53,7 @@ pub(crate) fn on_code_action_request(
             utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = CodeActionFinder::new(
                     uri,

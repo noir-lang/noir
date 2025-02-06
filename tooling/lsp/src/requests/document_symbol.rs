@@ -37,7 +37,7 @@ pub(crate) fn on_document_symbol_request(
         args.files.get_file_id(&PathString::from_path(file_path)).map(|file_id| {
             let file = args.files.get_file(file_id).unwrap();
             let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
             let mut collector = DocumentSymbolCollector::new(file_id, args.files);
             let symbols = collector.collect(&parsed_module);

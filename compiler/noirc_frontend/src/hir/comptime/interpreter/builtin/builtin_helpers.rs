@@ -485,7 +485,7 @@ pub(super) fn check_function_not_yet_resolved(
 }
 
 pub(super) fn lex(input: &str, location: Location) -> Vec<SpannedToken> {
-    let (tokens, _) = Lexer::lex(input);
+    let (tokens, _) = Lexer::lex(input, location.file);
     let mut tokens: Vec<_> = tokens
         .0
         .into_iter()

@@ -393,14 +393,14 @@ mod tests {
     };
 
     fn parse_inner_secondary_attribute_no_errors(src: &str, expected: SecondaryAttribute) {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let attribute = parser.parse_inner_attribute();
         expect_no_errors(&parser.errors);
         assert_eq!(attribute.unwrap(), expected);
     }
 
     fn parse_attribute_no_errors(src: &str, expected: Attribute) {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         assert_eq!(attribute, expected);
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn parses_inner_attribute_as_tag() {
         let src = "#!['hello]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let Some(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner tag attribute");
         };
@@ -422,7 +422,7 @@ mod tests {
     #[test]
     fn parses_inner_attribute_as_tag_with_nested_brackets() {
         let src = "#!['hello[1]]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let Some(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner tag attribute");
         };
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_no_arguments() {
         let src = "#[foo]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_as_keyword() {
         let src = "#[dep]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_with_arguments() {
         let src = "#[foo(1, 2, 3)]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -610,7 +610,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_path_with_arguments() {
         let src = "#[foo::bar(1, 2, 3)]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -624,7 +624,7 @@ mod tests {
     #[test]
     fn parses_attributes() {
         let src = "#[test] #[deprecated]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let mut attributes = parser.parse_attributes();
         expect_no_errors(&parser.errors);
         assert_eq!(attributes.len(), 2);
