@@ -310,13 +310,15 @@ fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
     } else {
         BigUint::from_str_radix(value, 10)
     };
-    big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
-        if bigint < FieldElement::modulus() {
-            Ok(field_from_big_uint(bigint))
-        } else {
-            Err(InputParserError::InputExceedsFieldModulus(value.to_string()))
-        }
-    })
+    big_num.map_err(|err_msg| InputParserError::ParseStr { value: err_msg.to_string() }).and_then(
+        |bigint| {
+            if bigint < FieldElement::modulus() {
+                Ok(field_from_big_uint(bigint))
+            } else {
+                Err(InputParserError::InputExceedsFieldModulus { value: value.to_string() })
+            }
+        },
+    )
 }
 
 fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputParserError> {
@@ -328,26 +330,28 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
         BigInt::from_str_radix(value, 10)
     };
 
-    big_num.map_err(|err_msg| InputParserError::ParseStr(err_msg.to_string())).and_then(|bigint| {
-        let max = BigInt::from(2_u128.pow(width - 1) - 1);
-        let min = BigInt::from(-(2_i128.pow(width - 1)));
+    big_num.map_err(|err_msg| InputParserError::ParseStr { value: err_msg.to_string() }).and_then(
+        |bigint| {
+            let max = BigInt::from(2_u128.pow(width - 1) - 1);
+            let min = BigInt::from(-(2_i128.pow(width - 1)));
 
-        if bigint < min || bigint > max {
-            return Err(InputParserError::InputOutsideOfRange { value: bigint, min, max });
-        }
+            if bigint < min || bigint > max {
+                return Err(InputParserError::InputOutsideOfRange { value: bigint, min, max });
+            }
 
-        let modulus: BigInt = FieldElement::modulus().into();
-        let bigint = if bigint.sign() == num_bigint::Sign::Minus {
-            BigInt::from(2).pow(width) + bigint
-        } else {
-            bigint
-        };
-        if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
-            Ok(field_from_big_int(bigint))
-        } else {
-            Err(InputParserError::InputExceedsFieldModulus(value.to_string()))
-        }
-    })
+            let modulus: BigInt = FieldElement::modulus().into();
+            let bigint = if bigint.sign() == num_bigint::Sign::Minus {
+                BigInt::from(2).pow(width) + bigint
+            } else {
+                bigint
+            };
+            if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
+                Ok(field_from_big_int(bigint))
+            } else {
+                Err(InputParserError::InputExceedsFieldModulus { value: value.to_string() })
+            }
+        },
+    )
 }
 
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {

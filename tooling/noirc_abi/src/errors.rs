@@ -10,17 +10,17 @@ use thiserror::Error;
 pub enum InputParserError {
     #[error("input file is badly formed, could not parse, {0}")]
     ParseInputMap(String),
-    #[error("Expected witness values to be integers, provided value causes `{0}` error")]
-    ParseStr(String),
+    #[error("Expected witness values to be integers, provided value causes `{value}` error")]
+    ParseStr { value: String },
     #[error("Input {value} exceeds maximum value of {max}")]
     InputExceedsMaximum { value: u64, max: u64 },
     #[error("Input {value} outside of valid range. Value must fall within [{min}, {max}]")]
     InputOutsideOfRange { value: BigInt, min: BigInt, max: BigInt },
     #[error(
-        "Input {0} exceeds field modulus. Values must fall within [0, {})",
+        "Input {value} exceeds field modulus. Values must fall within [0, {})",
         FieldElement::modulus()
     )]
-    InputExceedsFieldModulus(String),
+    InputExceedsFieldModulus { value: String },
     #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]
