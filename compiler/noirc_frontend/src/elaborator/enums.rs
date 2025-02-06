@@ -811,7 +811,7 @@ impl Elaborator<'_> {
 
         for row in rows {
             for col in &row.columns {
-                *counts.entry(&col.variable_to_match).or_insert(0_usize) += 1
+                *counts.entry(&col.variable_to_match).or_insert(0_usize) += 1;
             }
         }
 
