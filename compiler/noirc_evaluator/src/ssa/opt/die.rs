@@ -128,9 +128,8 @@ struct Context {
     /// them just yet.
     flattened: bool,
 
-    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
-    // This we consider to span all blocks of the functions.
-    mutated_array_types: HashSet<Type>,
+    /// Track IncrementRc instructions per block to determine whether they are useless.
+    rc_tracker: RcTracker,
 }
 
 impl Context {
@@ -160,10 +159,8 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        // Lend the shared array type to the tracker.
-        let mut mutated_array_types = std::mem::take(&mut self.mutated_array_types);
-        let mut rc_tracker = RcTracker::new(&mut mutated_array_types);
-        rc_tracker.mark_terminator_arrays_as_used(function, block);
+        self.rc_tracker.new_block();
+        self.rc_tracker.mark_terminator_arrays_as_used(function, block);
 
         let instructions_len = block.instructions().len();
 
@@ -196,12 +193,11 @@ impl Context {
                 }
             }
 
-            rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
+            self.rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
 
-        self.instructions_to_remove.extend(rc_tracker.get_non_mutated_arrays(&function.dfg));
-        self.instructions_to_remove.extend(rc_tracker.rc_pairs_to_remove);
-
+        self.instructions_to_remove.extend(self.rc_tracker.get_non_mutated_arrays(&function.dfg));
+        self.instructions_to_remove.extend(self.rc_tracker.rc_pairs_to_remove.drain());
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
         // but leave the constrains (any any value needed by those constrains)
@@ -220,9 +216,6 @@ impl Context {
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-
-        // Take the mutated array back.
-        self.mutated_array_types = mutated_array_types;
 
         false
     }
@@ -272,9 +265,13 @@ impl Context {
                 let typ = typ.get_contained_array();
                 // Want to store the array type which is being referenced,
                 // because it's the underlying array that the `inc_rc` is associated with.
-                self.mutated_array_types.insert(typ.clone());
+                self.add_mutated_array_type(typ.clone());
             }
         }
+    }
+
+    fn add_mutated_array_type(&mut self, typ: Type) {
+        self.rc_tracker.mutated_array_types.insert(typ.get_contained_array().clone());
     }
 
     /// Go through the RC instructions collected when we figured out which values were unused;
@@ -608,8 +605,9 @@ fn apply_side_effects(
     (lhs, rhs)
 }
 
+#[derive(Default)]
 /// Per block RC tracker.
-struct RcTracker<'a> {
+struct RcTracker {
     // We can track IncrementRc instructions per block to determine whether they are useless.
     // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
     // them if their value is not used anywhere in the function. However, even when their value is used, their existence
@@ -624,7 +622,8 @@ struct RcTracker<'a> {
     // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
     inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
     // Mutated arrays shared across the blocks of the function.
-    mutated_array_types: &'a mut HashSet<Type>,
+    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
+    mutated_array_types: HashSet<Type>,
     // The SSA often creates patterns where after simplifications we end up with repeat
     // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
     // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
@@ -632,15 +631,12 @@ struct RcTracker<'a> {
     previous_inc_rc: Option<ValueId>,
 }
 
-impl<'a> RcTracker<'a> {
-    fn new(mutated_array_types: &'a mut HashSet<Type>) -> Self {
-        Self {
-            rcs_with_possible_pairs: Default::default(),
-            rc_pairs_to_remove: Default::default(),
-            inc_rcs: Default::default(),
-            previous_inc_rc: Default::default(),
-            mutated_array_types,
-        }
+impl RcTracker {
+    fn new_block(&mut self) {
+        self.rcs_with_possible_pairs.clear();
+        self.rc_pairs_to_remove.clear();
+        self.inc_rcs.clear();
+        self.previous_inc_rc = Default::default();
     }
 
     fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
