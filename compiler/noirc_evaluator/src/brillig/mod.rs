@@ -17,10 +17,8 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::Instruction,
-        value::{Value, ValueId},
+        value::ValueId,
     },
-    opt::inlining::called_functions_vec,
     ssa_gen::Ssa,
 };
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};

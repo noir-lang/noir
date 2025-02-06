@@ -7,7 +7,7 @@
 mod array_set;
 mod as_slice_length;
 mod assert_constant;
-mod brillig_entry_points;
+pub(crate) mod brillig_entry_points;
 mod constant_folding;
 mod defunctionalize;
 mod die;
