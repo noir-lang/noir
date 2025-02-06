@@ -72,9 +72,9 @@ pub enum JsonTypes {
     // Just a regular integer, that can fit in 64 bits.
     //
     // The JSON spec does not specify any limit on the size of integer number types,
-    // however we restrict the allowable size. Values which do not fit in a i128 should be passed
+    // however we restrict the allowable size. Values which do not fit in a u64 should be passed
     // as a string.
-    Integer(i128),
+    Integer(u64),
     // Simple boolean flag
     Bool(bool),
     // Array of JsonTypes
@@ -161,7 +161,7 @@ impl InputValue {
                 JsonTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let new_value = parse_integer_to_signed(integer, *width, arg_name)?;
+                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 
@@ -169,7 +169,7 @@ impl InputValue {
                 JsonTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
-                let new_value = FieldElement::from(integer);
+                let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
             }
@@ -221,7 +221,6 @@ impl InputValue {
 
 #[cfg(test)]
 mod test {
-    use acvm::FieldElement;
     use proptest::prelude::*;
 
     use crate::{
@@ -266,16 +265,5 @@ mod test {
         let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
         let input = JsonTypes::Integer(32768);
         assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
-    }
-
-    #[test]
-    fn try_from_json_negative_integer() {
-        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
-        let input = JsonTypes::Integer(-1);
-        let InputValue::Field(field) = InputValue::try_from_json(input, &typ, "foo").unwrap()
-        else {
-            panic!("Expected field");
-        };
-        assert_eq!(field, FieldElement::from(255_u128));
     }
 }
