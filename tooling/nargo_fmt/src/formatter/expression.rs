@@ -923,7 +923,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         }));
 
         self.format_expression(match_expression.expression, &mut group);
-        self.skip_comments_and_whitespace_chunk();
+        group.trailing_comment(self.skip_comments_and_whitespace_chunk());
         group.space(self);
 
         group.text(self.chunk(|formatter| {

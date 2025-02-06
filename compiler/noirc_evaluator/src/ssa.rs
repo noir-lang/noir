@@ -136,6 +136,9 @@ pub(crate) fn optimize_into_acir(
         print_codegen_timings: options.print_codegen_timings,
     }
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    // It could happen that we inlined all calls to a given brillig function.
+    // In that case it's unused so we can remove it. This is what we check next.
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
@@ -491,6 +494,11 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
+        // Always normalize if we are going to print at least one of the passes
+        if !matches!(self.ssa_logging, SsaLogging::None) {
+            self.ssa.normalize_ids();
+        }
+
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
@@ -502,7 +510,6 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

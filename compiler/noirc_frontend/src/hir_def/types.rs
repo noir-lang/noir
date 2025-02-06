@@ -1770,6 +1770,13 @@ impl Type {
     ) -> Result<(), UnificationError> {
         use Type::*;
 
+        // If the two types are exactly the same then they trivially unify.
+        // This check avoids potentially unifying very complex types (usually infix
+        // expressions) when they are the same.
+        if self == other {
+            return Ok(());
+        }
+
         let lhs = self.follow_bindings_shallow();
         let rhs = other.follow_bindings_shallow();
 
