@@ -35,6 +35,11 @@ impl Eq for Field {
     }
 }
 
+impl Eq for u128 {
+    fn eq(self, other: u128) -> bool {
+        self == other
+    }
+}
 impl Eq for u64 {
     fn eq(self, other: u64) -> bool {
         self == other
@@ -232,6 +237,18 @@ comptime fn derive_ord(s: StructDefinition) -> Quoted {
 
 // Note: Field deliberately does not implement Ord
 
+
+impl Ord for u128 {
+    fn cmp(self, other: u128) -> Ordering {
+        if self < other {
+            Ordering::less()
+        } else if self > other {
+            Ordering::greater()
+        } else {
+            Ordering::equal()
+        }
+    }
+}
 impl Ord for u64 {
     fn cmp(self, other: u64) -> Ordering {
         if self < other {
