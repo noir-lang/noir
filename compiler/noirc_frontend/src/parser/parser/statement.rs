@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
     ///     | ContinueStatement
     ///     | ReturnStatement
     ///     | LetStatement
-    ///     | ConstrainStatement
+    ///     | ConstrainExpression
     ///     | ComptimeStatement
     ///     | ForStatement
     ///     | LoopStatement
@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
             return Some(StatementKind::Let(let_statement));
         }
 
-        if let Some(constrain) = self.parse_constrain_statement() {
+        if let Some(constrain) = self.parse_constrain_expression() {
             return Some(StatementKind::Constrain(constrain));
         }
 
@@ -433,11 +433,11 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// ConstrainStatement
+    /// ConstrainExpression
     ///     = 'constrain' Expression
     ///     | 'assert' Arguments
     ///     | 'assert_eq' Arguments
-    fn parse_constrain_statement(&mut self) -> Option<ConstrainExpression> {
+    fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
         let start_span = self.current_token_span;
         let kind = self.parse_constrain_kind()?;
 
