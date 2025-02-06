@@ -619,7 +619,7 @@ jobs:
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
-          jq --slurp '. | flatten[]' ./reports/* | tee test_bench.json
+          jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
         continue-on-error: true
