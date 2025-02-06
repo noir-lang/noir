@@ -553,12 +553,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
+        predicate: AcirVar,
         assert_message: Option<AssertionPayload<F>>,
     ) -> Result<(), RuntimeError> {
         let diff_var = self.sub_var(lhs, rhs)?;
 
-        let one = self.add_constant(F::one());
-        let _ = self.inv_var(diff_var, one)?;
+        let _ = self.inv_var(diff_var, predicate)?;
         if let Some(payload) = assert_message {
             self.acir_ir
                 .assertion_payloads
@@ -617,7 +617,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             }
             NumericType::Signed { bit_size } => {
                 let (quotient_var, _remainder_var) =
-                    self.signed_division_var(lhs, rhs, bit_size)?;
+                    self.signed_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
         }
@@ -1054,6 +1054,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
         // We derive the signed division from the unsigned euclidean division.
         // note that this is not euclidean division!
@@ -1083,7 +1084,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Performs the division using the unsigned values of lhs and rhs
         let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, one)?;
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, predicate)?;
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
@@ -1121,7 +1122,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         };
 
         let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { bit_size } => self.signed_division_var(lhs, rhs, bit_size)?,
+            NumericType::Signed { bit_size } => {
+                self.signed_division_var(lhs, rhs, bit_size, predicate)?
+            }
             _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
         };
         Ok(remainder_var)

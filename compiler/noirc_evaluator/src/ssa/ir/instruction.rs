@@ -595,12 +595,16 @@ impl Instruction {
                 match binary.operator {
                     BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }
-                    | BinaryOp::Div
-                    | BinaryOp::Mod => {
+                    | BinaryOp::Mul { unchecked: false } => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        // Div and Mod require a predicate if the RHS may be zero.
+                        dfg.get_numeric_constant(binary.rhs)
+                            .map(|rhs| !rhs.is_zero())
+                            .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
