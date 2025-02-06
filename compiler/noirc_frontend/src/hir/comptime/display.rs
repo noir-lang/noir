@@ -1,4 +1,4 @@
-use std::{fmt::Display, rc::Rc};
+use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::Span;
@@ -14,7 +14,7 @@ use crate::{
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
-    token::{Keyword, Token},
+    token::{Keyword, SpannedToken, Token},
     Type,
 };
 
@@ -24,7 +24,7 @@ use super::{
 };
 
 pub(super) fn display_quoted(
-    tokens: &[Token],
+    tokens: &[SpannedToken],
     indent: usize,
     interner: &NodeInterner,
     f: &mut std::fmt::Formatter<'_>,
@@ -44,7 +44,7 @@ pub(super) fn display_quoted(
 }
 
 struct TokensPrettyPrinter<'tokens, 'interner> {
-    tokens: &'tokens [Token],
+    tokens: &'tokens [SpannedToken],
     interner: &'interner NodeInterner,
     indent: usize,
 }
@@ -53,7 +53,7 @@ impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
         for token in self.tokens {
-            token_printer.print(token, f)?;
+            token_printer.print(token.token(), f)?;
         }
 
         // If the printer refrained from printing a token right away, this will make it do it
@@ -63,9 +63,8 @@ impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
     }
 }
 
-pub(super) fn tokens_to_string(tokens: Rc<Vec<Token>>, interner: &NodeInterner) -> String {
-    let tokens: Vec<Token> = tokens.iter().cloned().collect();
-    TokensPrettyPrinter { tokens: &tokens, interner, indent: 0 }.to_string()
+pub(super) fn tokens_to_string(tokens: &[SpannedToken], interner: &NodeInterner) -> String {
+    TokensPrettyPrinter { tokens, interner, indent: 0 }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a
@@ -229,8 +228,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
-                let tokens = vecmap(&tokens.0, |spanned_token| spanned_token.clone().into_token());
-                display_quoted(&tokens, self.indent, self.interner, f)
+                display_quoted(&tokens.0, self.indent, self.interner, f)
             }
             Token::Colon => {
                 write!(f, "{token} ")

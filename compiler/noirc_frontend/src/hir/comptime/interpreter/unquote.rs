@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     hir::comptime::errors::IResult,
-    token::{Token, Tokens},
+    token::{SpannedToken, Token, Tokens},
 };
 
 use super::Interpreter;
@@ -15,17 +15,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         tokens: Tokens,
         location: Location,
-    ) -> IResult<Vec<Token>> {
+    ) -> IResult<Vec<SpannedToken>> {
         let mut new_tokens = Vec::with_capacity(tokens.0.len());
 
         for token in tokens.0 {
-            match token.into_token() {
+            match token.token() {
                 Token::UnquoteMarker(id) => {
-                    let value = self.evaluate(id)?;
+                    let value = self.evaluate(*id)?;
                     let tokens = value.into_tokens(self.elaborator.interner, location)?;
                     new_tokens.extend(tokens);
                 }
-                token => new_tokens.push(token),
+                _ => new_tokens.push(token),
             }
         }
 

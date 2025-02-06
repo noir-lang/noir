@@ -40,7 +40,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    token::{Attribute, Token},
+    token::{Attribute, SpannedToken, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
@@ -410,7 +410,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = lex(&generic);
+    let mut tokens = lex(&generic, location);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
@@ -418,7 +418,7 @@ fn struct_def_add_generic(
         });
     }
 
-    let Token::Ident(generic_name) = tokens.remove(0) else {
+    let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
             location: generic_location,
@@ -571,7 +571,9 @@ fn struct_def_fields(
 
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type) in struct_fields {
-            let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+            // TODO: check this
+            let token = SpannedToken::new(Token::Ident(field_name), location.span);
+            let name = Value::Quoted(Rc::new(vec![token]));
             fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
         }
     }
@@ -601,7 +603,9 @@ fn struct_def_fields_as_written(
 
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
-            let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+            // TODO: check this
+            let token = SpannedToken::new(Token::Ident(field.name.to_string()), location.span);
+            let name = Value::Quoted(Rc::new(vec![token]));
             let typ = Value::Type(field.typ);
             fields.push_back(Value::Tuple(vec![name, typ]));
         }
@@ -637,7 +641,9 @@ fn struct_def_name(
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
-    Ok(Value::Quoted(Rc::new(vec![name])))
+    // TODO: check this
+    let token = SpannedToken::new(name, location.span);
+    Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
@@ -668,7 +674,7 @@ fn struct_def_set_fields(
                 let name_tokens = get_quoted((name_value.clone(), field_location))?;
                 let typ = get_type((typ, field_location))?;
 
-                match name_tokens.first() {
+                match name_tokens.first().map(|t| t.token()) {
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                         Ok(hir_def::types::StructField {
                             visibility: ItemVisibility::Public,
@@ -1769,7 +1775,7 @@ fn expr_as_constructor(
             let typ = Value::UnresolvedType(constructor.typ.typ);
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
-                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+                Value::Tuple(vec![quote_ident(&name, location), Value::expression(value.kind)])
             });
             let fields = fields.collect();
             let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
@@ -1795,8 +1801,10 @@ fn expr_as_for(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
-                let identifier =
-                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let token = Token::Ident(for_statement.identifier.0.contents);
+                // TODO: check this
+                let token = SpannedToken::new(token, location.span);
+                let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
                 let body = Value::expression(for_statement.block.kind);
                 Some(Value::Tuple(vec![identifier, array, body]))
@@ -1820,8 +1828,10 @@ fn expr_as_for_range(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
-                let identifier =
-                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let token = Token::Ident(for_statement.identifier.0.contents);
+                // TODO: check this
+                let token = SpannedToken::new(token, location.span);
+                let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
                 let to = Value::expression(to.kind);
                 let body = Value::expression(for_statement.block.kind);
@@ -2041,11 +2051,11 @@ fn expr_as_member_access(
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
-                quote_ident(&member_access.rhs),
+                quote_ident(&member_access.rhs, location),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
+            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name, location)]))
         }
         _ => None,
     })
@@ -2062,7 +2072,7 @@ fn expr_as_method_call(
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
-            let name = quote_ident(&method_call.method_name);
+            let name = quote_ident(&method_call.method_name, location);
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
@@ -2379,7 +2389,7 @@ fn fmtstr_quoted_contents(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (string, _) = get_format_string(interner, self_argument)?;
-    let tokens = lex(&string);
+    let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
@@ -2501,7 +2511,10 @@ fn function_def_name(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
     let name = interner.function_name(&func_id).to_string();
-    let tokens = Rc::new(vec![Token::Ident(name)]);
+    let token = Token::Ident(name);
+    // TODO: check this
+    let token = SpannedToken::new(token, location.span);
+    let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -2519,7 +2532,10 @@ fn function_def_parameters(
         .parameters
         .iter()
         .map(|(hir_pattern, typ, _visibility)| {
-            let name = Value::Quoted(Rc::new(hir_pattern_to_tokens(interner, hir_pattern)));
+            let tokens = hir_pattern_to_tokens(interner, hir_pattern);
+            // TODO: check this
+            let tokens = vecmap(tokens, |token| SpannedToken::new(token, location.span));
+            let name = Value::Quoted(Rc::new(tokens));
             let typ = Value::Type(typ.clone());
             Value::Tuple(vec![name, typ])
         })
@@ -2847,7 +2863,10 @@ fn module_name(
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument)?;
     let name = &interner.module_attributes(&module_id).name;
-    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    let token = Token::Ident(name.clone());
+    // TODO: check this
+    let token = SpannedToken::new(token, location.span);
+    let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 

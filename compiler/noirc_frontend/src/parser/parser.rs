@@ -468,7 +468,12 @@ impl<'a> Parser<'a> {
             start_span
         } else {
             let end_span = self.previous_token_span;
-            Span::from(start_span.start()..end_span.end())
+            if start_span.start() <= end_span.end() {
+                Span::from(start_span.start()..end_span.end())
+            } else {
+                // TODO: workaround for now
+                start_span
+            }
         }
     }
 

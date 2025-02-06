@@ -681,8 +681,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 if index > 0 {
                                     result.push(' ');
                                 }
-                                result
-                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                                result.push_str(
+                                    &token.token().display(self.elaborator.interner).to_string(),
+                                );
                             }
                         } else {
                             result.push_str(&value.display(self.elaborator.interner).to_string());

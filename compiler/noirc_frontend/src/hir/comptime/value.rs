@@ -3,7 +3,7 @@ use std::{borrow::Cow, rc::Rc, vec};
 use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
@@ -62,7 +62,7 @@ pub enum Value {
     /// Quoted tokens don't have spans because otherwise inserting them in the middle of other
     /// tokens can cause larger spans to be before lesser spans, causing an assert. They may also
     /// be inserted into separate files entirely.
-    Quoted(Rc<Vec<Token>>),
+    Quoted(Rc<Vec<SpannedToken>>),
     StructDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
@@ -264,9 +264,11 @@ impl Value {
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
-                let mut tokens_to_parse = add_token_spans(tokens.clone(), location.span);
-                tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
-                tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
+                let mut tokens_to_parse = unwrap_rc(tokens.clone());
+                tokens_to_parse.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
+                tokens_to_parse.push(SpannedToken::new(Token::RightBrace, location.span));
+
+                let tokens_to_parse = Tokens(tokens_to_parse);
 
                 let parser = Parser::for_tokens(tokens_to_parse);
                 return match parser.parse_result(Parser::parse_expression_or_error) {
@@ -281,7 +283,7 @@ impl Value {
                         let error = errors.swap_remove(0);
                         let file = location.file;
                         let rule = "an expression";
-                        let tokens = tokens_to_string(tokens, elaborator.interner);
+                        let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
                     }
                 };
@@ -432,7 +434,7 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
+            Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
@@ -470,68 +472,70 @@ impl Value {
         self,
         interner: &mut NodeInterner,
         location: Location,
-    ) -> IResult<Vec<Token>> {
-        let token = match self {
+    ) -> IResult<Vec<SpannedToken>> {
+        let tokens: Vec<Token> = match self {
             Value::Unit => {
-                return Ok(vec![Token::LeftParen, Token::RightParen]);
+                vec![Token::LeftParen, Token::RightParen]
             }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
-            Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            Value::Type(typ) => vec![Token::QuotedType(interner.push_quoted_type(typ))],
             Value::Expr(ExprValue::Expression(expr)) => {
-                Token::InternedExpr(interner.push_expression_kind(expr))
+                vec![Token::InternedExpr(interner.push_expression_kind(expr))]
             }
             Value::Expr(ExprValue::Statement(StatementKind::Expression(expr))) => {
-                Token::InternedExpr(interner.push_expression_kind(expr.kind))
+                vec![Token::InternedExpr(interner.push_expression_kind(expr.kind))]
             }
             Value::Expr(ExprValue::Statement(statement)) => {
-                Token::InternedStatement(interner.push_statement_kind(statement))
+                vec![Token::InternedStatement(interner.push_statement_kind(statement))]
             }
             Value::Expr(ExprValue::LValue(lvalue)) => {
-                Token::InternedLValue(interner.push_lvalue(lvalue))
+                vec![Token::InternedLValue(interner.push_lvalue(lvalue))]
             }
             Value::Expr(ExprValue::Pattern(pattern)) => {
-                Token::InternedPattern(interner.push_pattern(pattern))
+                vec![Token::InternedPattern(interner.push_pattern(pattern))]
             }
             Value::UnresolvedType(typ) => {
-                Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
+                vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
-            Value::U1(bool) => Token::Bool(bool),
-            Value::U8(value) => Token::Int((value as u128).into()),
-            Value::U16(value) => Token::Int((value as u128).into()),
-            Value::U32(value) => Token::Int((value as u128).into()),
-            Value::U64(value) => Token::Int((value as u128).into()),
+            Value::U1(bool) => vec![Token::Bool(bool)],
+            Value::U8(value) => vec![Token::Int((value as u128).into())],
+            Value::U16(value) => vec![Token::Int((value as u128).into())],
+            Value::U32(value) => vec![Token::Int((value as u128).into())],
+            Value::U64(value) => vec![Token::Int((value as u128).into())],
             Value::I8(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
-            Value::Field(value) => Token::Int(value),
-            other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
+            Value::Field(value) => vec![Token::Int(value)],
+            other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
-        Ok(vec![token])
+        // TODO: check this
+        let tokens = vecmap(tokens, |token| SpannedToken::new(token, location.span));
+        Ok(tokens)
     }
 
     /// Returns false for non-integral `Value`s.
@@ -589,7 +593,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 }
 
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<Token>>,
+    tokens: Rc<Vec<SpannedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
@@ -598,7 +602,7 @@ fn parse_tokens<'a, T, F>(
 where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
-    let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
+    let parser = Parser::for_tokens(Tokens(unwrap_rc(tokens.clone())));
     match parser.parse_result(parsing_function) {
         Ok((expr, warnings)) => {
             for warning in warnings {
@@ -609,13 +613,8 @@ where
         Err(mut errors) => {
             let error = errors.swap_remove(0);
             let file = location.file;
-            let tokens = tokens_to_string(tokens, elaborator.interner);
+            let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
         }
     }
-}
-
-pub(crate) fn add_token_spans(tokens: Rc<Vec<Token>>, span: Span) -> Tokens {
-    let tokens = unwrap_rc(tokens);
-    Tokens(vecmap(tokens, |token| SpannedToken::new(token, span)))
 }
