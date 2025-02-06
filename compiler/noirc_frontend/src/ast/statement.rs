@@ -42,7 +42,6 @@ pub struct Statement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
-    Constrain(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
@@ -88,7 +87,6 @@ impl StatementKind {
 
         match self {
             StatementKind::Let(_)
-            | StatementKind::Constrain(_)
             | StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
@@ -566,55 +564,6 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement {
-    pub kind: ConstrainKind,
-    pub arguments: Vec<Expression>,
-    pub span: Span,
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
-                f,
-                "{}({})",
-                self.kind,
-                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
-            ),
-            ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ConstrainKind {
-    Assert,
-    AssertEq,
-    Constrain,
-}
-
-impl ConstrainKind {
-    pub fn required_arguments_count(&self) -> usize {
-        match self {
-            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
-            ConstrainKind::AssertEq => 2,
-        }
-    }
-}
-
-impl Display for ConstrainKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConstrainKind::Assert => write!(f, "assert"),
-            ConstrainKind::AssertEq => write!(f, "assert_eq"),
-            ConstrainKind::Constrain => write!(f, "constrain"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
@@ -935,7 +884,6 @@ impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
-            StatementKind::Constrain(constrain) => constrain.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
