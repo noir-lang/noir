@@ -527,7 +527,7 @@ jobs:
           nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
           TIME=$(($SECONDS-$BEFORE))
 
-          if [ "$TIME" -gt "${{ matrix.project.timeout }}" ]; then
+          if [[ "$TIME" -gt "${{ matrix.project.timeout }}" ]]; then
             # Library testing time has regressed past the set timeout.
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             exit 1
