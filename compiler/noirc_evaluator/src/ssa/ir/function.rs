@@ -111,11 +111,11 @@ impl Function {
 
     /// Creates a new function as a clone of the one passed in without an id.
     /// It is expected that the function id is assigned after this method is called.
-    pub(crate) fn clone_no_id(another: &Function) -> Self {
-        let dfg = another.dfg.clone();
-        let entry_block = another.entry_block;
-        Self { name: another.name.clone(), id: None, entry_block, dfg }
-    }
+    // pub(crate) fn clone_no_id(another: &Function) -> Self {
+    //     let dfg = another.dfg.clone();
+    //     let entry_block = another.entry_block;
+    //     Self { name: another.name.clone(), id: None, entry_block, dfg }
+    // }
 
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {

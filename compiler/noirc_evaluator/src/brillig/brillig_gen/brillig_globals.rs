@@ -258,6 +258,7 @@ impl BrilligGlobals {
 
         if let Some(entry_points) = entry_points {
             assert!(self.entry_point_globals_map.get(&brillig_function_id).is_none());
+            assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
             // A Brillig function is used by multiple entry points. Fetch both globals allocations
             // in case one is used by the internal call.
             let entry_point_allocations = entry_points
