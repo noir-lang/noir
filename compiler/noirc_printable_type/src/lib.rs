@@ -97,7 +97,11 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             output.push_str(&format_field_string(*f));
         }
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
-            let uint_cast = f.to_u128() & ((1 << width) - 1); // Retain the lower 'width' bits
+            // Retain the lower 'width' bits
+            debug_assert!(*width <= 128, "We don't currently support uints larger than u128");
+            let mask = if *width == 128 { u128::MAX } else {(1u128 << width) - 1};
+            let uint_cast = f.to_u128() & mask;
+
             output.push_str(&uint_cast.to_string());
         }
         (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
@@ -267,6 +271,10 @@ fn format_field_string<F: AcirField>(field: F) -> String {
 mod tests {
     use acvm::FieldElement;
 
+    use proptest::prelude::*;
+
+    use crate::to_string;
+
     use super::{PrintableType, PrintableValue, PrintableValueDisplay};
 
     #[test]
@@ -298,5 +306,18 @@ mod tests {
         let display =
             PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), values);
         assert_eq!(display.to_string(), expected);
+    }
+
+
+    proptest! {
+        #[test]
+        fn handles_decoding_u128_values(uint_value: u128) {
+            let value = PrintableValue::Field(FieldElement::from(uint_value));
+            let typ = PrintableType::UnsignedInteger { width: 128 };
+    
+            let value_as_string = to_string(&value, &typ).unwrap();
+            // We want to match rust's stringification.
+            prop_assert_eq!(value_as_string, uint_value.to_string());
+        }
     }
 }
