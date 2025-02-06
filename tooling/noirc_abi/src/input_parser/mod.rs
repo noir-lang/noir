@@ -399,12 +399,8 @@ fn parse_integer_to_signed(
         });
     }
 
-    let field = if integer < 0 {
-        field_from_big_int(BigInt::from(2).pow(width) + BigInt::from(integer))
-    } else {
-        FieldElement::from(integer as u128)
-    };
-    Ok(field)
+    let integer = if integer < 0 { (1 << width) + integer } else { integer };
+    Ok(FieldElement::from(integer as u128))
 }
 
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
