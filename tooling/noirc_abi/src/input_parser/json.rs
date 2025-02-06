@@ -1,10 +1,10 @@
 use super::{
-    field_from_big_int, field_to_signed_hex, parse_str_to_field, parse_str_to_signed, InputValue,
+    field_to_signed_hex, parse_integer_to_signed, parse_str_to_field, parse_str_to_signed,
+    InputValue,
 };
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
-use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -161,31 +161,7 @@ impl InputValue {
                 JsonTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let min = -(1 << (width - 1));
-                let max = (1 << (width - 1)) - 1;
-
-                if integer < min {
-                    return Err(InputParserError::InputExceedsMinimum {
-                        arg_name: arg_name.into(),
-                        value: integer.to_string(),
-                        min: min.to_string(),
-                    });
-                }
-
-                if integer > max {
-                    return Err(InputParserError::InputExceedsMaximum {
-                        arg_name: arg_name.into(),
-                        value: integer.to_string(),
-                        max: max.to_string(),
-                    });
-                }
-
-                let new_value = if integer < 0 {
-                    field_from_big_int(BigInt::from(2).pow(*width) + BigInt::from(integer))
-                } else {
-                    FieldElement::from(integer as u128)
-                };
-
+                let new_value = parse_integer_to_signed(integer, *width, arg_name)?;
                 InputValue::Field(new_value)
             }
 

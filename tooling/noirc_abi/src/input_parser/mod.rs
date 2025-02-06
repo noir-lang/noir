@@ -375,11 +375,43 @@ fn parse_str_to_signed(
         })
 }
 
+fn parse_integer_to_signed(
+    integer: i128,
+    width: u32,
+    arg_name: &str,
+) -> Result<FieldElement, InputParserError> {
+    let min = -(1 << (width - 1));
+    let max = (1 << (width - 1)) - 1;
+
+    if integer < min {
+        return Err(InputParserError::InputExceedsMinimum {
+            arg_name: arg_name.into(),
+            value: integer.to_string(),
+            min: min.to_string(),
+        });
+    }
+
+    if integer > max {
+        return Err(InputParserError::InputExceedsMaximum {
+            arg_name: arg_name.into(),
+            value: integer.to_string(),
+            max: max.to_string(),
+        });
+    }
+
+    let field = if integer < 0 {
+        field_from_big_int(BigInt::from(2).pow(width) + BigInt::from(integer))
+    } else {
+        FieldElement::from(integer as u128)
+    };
+    Ok(field)
+}
+
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be())
 }
 
-pub(crate) fn field_from_big_int(bigint: BigInt) -> FieldElement {
+fn field_from_big_int(bigint: BigInt) -> FieldElement {
     match bigint.sign() {
         num_bigint::Sign::Minus => {
             unreachable!(
