@@ -473,6 +473,10 @@ impl DataType {
         matches!(&self.body, TypeBody::Struct(_))
     }
 
+    pub fn is_enum(&self) -> bool {
+        matches!(&self.body, TypeBody::Enum(_))
+    }
+
     /// Retrieve the fields of this type with no modifications.
     /// Returns None if this is not a struct type.
     pub fn fields_raw(&self) -> Option<&[StructField]> {

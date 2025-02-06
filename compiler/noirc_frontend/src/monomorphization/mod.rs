@@ -575,10 +575,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
-            HirExpression::Match(match_expr) => {
-                let location = self.interner.expr_location(&expr);
-                self.match_expr(match_expr, location)?
-            }
+            HirExpression::Match(match_expr) => self.match_expr(match_expr, expr)?,
 
             HirExpression::Tuple(fields) => {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
@@ -1279,7 +1276,6 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("Unexpected type {typ} found")
             }
             HirType::Error => {
-                panic!("type error found");
                 let message = "Unexpected Type::Error found during monomorphization";
                 return Err(MonomorphizationError::InternalError { message, location });
             }
@@ -1990,7 +1986,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn match_expr(
         &mut self,
         match_expr: HirMatch,
-        location: Location,
+        expr_id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         match match_expr {
             HirMatch::Success(id) => self.expr(id),
@@ -2005,12 +2001,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg_type = HirType::String(Box::new(length));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
+                let location = self.interner.expr_location(&expr_id);
                 Ok(ast::Expression::Constrain(false_, location, msg))
             }
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = Box::new(self.expr(cond)?);
                 let consequence = Box::new(self.expr(body)?);
-                let alternative = Some(Box::new(self.match_expr(*otherwise, location)?));
+                let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
 
                 Ok(ast::Expression::If(ast::If {
                     condition,
@@ -2026,21 +2023,28 @@ impl<'interner> Monomorphizer<'interner> {
                 };
 
                 let cases = try_vecmap(cases, |case| {
-                    let args = vecmap(case.arguments, |arg| {
+                    let arguments = vecmap(case.arguments, |arg| {
                         let new_id = self.next_local_id();
                         self.define_local(arg, new_id);
                         new_id
                     });
-                    let branch = self.match_expr(case.body, location)?;
-                    Ok((case.constructor, args, branch))
+                    let branch = self.match_expr(case.body, expr_id)?;
+                    Ok(ast::MatchCase { constructor: case.constructor, arguments, branch })
                 })?;
 
                 let default_case = match default {
-                    Some(case) => Some(Box::new(self.match_expr(*case, location)?)),
+                    Some(case) => Some(Box::new(self.match_expr(*case, expr_id)?)),
                     None => None,
                 };
 
-                Ok(ast::Expression::Match(ast::Match { variable_to_match, cases, default_case }))
+                let location = self.interner.expr_location(&expr_id);
+                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                Ok(ast::Expression::Match(ast::Match {
+                    variable_to_match,
+                    cases,
+                    default_case,
+                    typ,
+                }))
             }
         }
     }

@@ -158,8 +158,16 @@ pub struct If {
 #[derive(Debug, Clone, Hash)]
 pub struct Match {
     pub variable_to_match: LocalId,
-    pub cases: Vec<(Constructor, Vec<LocalId>, Expression)>,
+    pub cases: Vec<MatchCase>,
     pub default_case: Option<Box<Expression>>,
+    pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MatchCase {
+    pub constructor: Constructor,
+    pub arguments: Vec<LocalId>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, Clone, Hash)]

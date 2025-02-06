@@ -405,6 +405,33 @@ impl Constructor {
             Constructor::Variant(_, index) => *index,
         }
     }
+
+    /// True if this constructor constructs an enum value.
+    /// Enums contain a tag value and often have values to
+    /// unpack for each different variant index.
+    pub fn is_enum(&self) -> bool {
+        match self {
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_enum(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// True if this constructor constructs a tuple or struct value.
+    /// Tuples or structs will still have values to unpack but do not
+    /// store a tag value internally.
+    pub fn is_tuple_or_struct(&self) -> bool {
+        match self {
+            Constructor::Tuple(_) => true,
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_struct(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Constructor {

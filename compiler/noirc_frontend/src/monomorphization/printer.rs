@@ -253,14 +253,14 @@ impl AstPrinter {
         self.indent_level += 1;
         self.next_line(f)?;
 
-        for (i, (constructor, args, branch)) in match_expr.cases.iter().enumerate() {
-            write!(f, "{constructor}")?;
-            let args = vecmap(args, |arg| format!("${}", arg.0)).join(", ");
+        for (i, case) in match_expr.cases.iter().enumerate() {
+            write!(f, "{}", case.constructor)?;
+            let args = vecmap(&case.arguments, |arg| format!("${}", arg.0)).join(", ");
             if !args.is_empty() {
                 write!(f, "({args})")?;
             }
             write!(f, " => ")?;
-            self.print_expr(branch, f)?;
+            self.print_expr(&case.branch, f)?;
             write!(f, ",")?;
 
             if i != match_expr.cases.len() - 1 {

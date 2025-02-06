@@ -121,6 +121,7 @@ impl StatementKind {
                     | (ExpressionKind::Unsafe(..), semi, _)
                     | (ExpressionKind::Interned(..), semi, _)
                     | (ExpressionKind::InternedStatement(..), semi, _)
+                    | (ExpressionKind::Match(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
