@@ -113,7 +113,7 @@ impl Context {
         let mut to_remove = HashSet::default();
 
         for instruction in function.dfg[last_block].instructions() {
-            if let Instruction::DecrementRc { value } = &function.dfg[*instruction] {
+            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction] {
                 if let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs) {
                     if !inc_rc.possibly_mutated {
                         to_remove.insert(inc_rc.id);
@@ -213,7 +213,7 @@ mod test {
 
         builder.insert_inc_rc(v0);
         builder.insert_inc_rc(v0);
-        builder.insert_dec_rc(v0);
+        builder.insert_dec_rc(v0, v0);
 
         let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
         let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
@@ -261,7 +261,7 @@ mod test {
         let v7 = builder.insert_array_set(v2, zero, five);
 
         builder.insert_store(v1, v7);
-        builder.insert_dec_rc(v0);
+        builder.insert_dec_rc(v0, v0);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().remove_paired_rc();
@@ -314,7 +314,7 @@ mod test {
 
         builder.insert_store(v0, v7);
         let v8 = builder.insert_load(v0, array_type);
-        builder.insert_dec_rc(v8);
+        builder.insert_dec_rc(v8, v1);
         builder.insert_store(v0, v8);
         builder.terminate_with_return(vec![]);
 
