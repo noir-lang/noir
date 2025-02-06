@@ -313,6 +313,7 @@ mod tests {
                     2,
                     "Expected just a `Return`, but got more than a single opcode"
                 );
+                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
                 // assert!(matches!(&artifact.byte_code[0], Opcode::Return));
             } else if func_id.to_u32() == 2 {
                 assert_eq!(
@@ -430,6 +431,7 @@ mod tests {
                     30,
                     "Expected enough opcodes to initialize the globals"
                 );
+                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
                 // let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
                 //     panic!("First opcode is expected to be `Const`");
                 // };
