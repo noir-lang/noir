@@ -528,7 +528,8 @@ impl Elaborator<'_> {
 
     fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
-            todo!("missing case");
+            eprintln!("Warning: missing case");
+            return Ok(HirMatch::Failure);
         }
 
         self.push_tests_against_bare_variables(&mut rows);
@@ -554,6 +555,10 @@ impl Elaborator<'_> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
+            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+                let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
+                Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
+            }
 
             Type::Array(_, _) => todo!(),
             Type::Slice(_) => todo!(),
@@ -563,19 +568,19 @@ impl Elaborator<'_> {
                     (Constructor::True, Vec::new(), Vec::new()),
                 ];
 
-                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
-                Ok(HirMatch::Switch(branch_var, cases, None))
+                let (cases, fallback) = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, fallback))
             }
             Type::Unit => {
                 let cases = vec![(Constructor::Unit, Vec::new(), Vec::new())];
-                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
-                Ok(HirMatch::Switch(branch_var, cases, None))
+                let (cases, fallback) = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, fallback))
             }
             Type::Tuple(fields) => {
                 let field_variables = self.fresh_match_variables(fields.clone(), location);
                 let cases = vec![(Constructor::Tuple(fields), field_variables, Vec::new())];
-                let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
-                Ok(HirMatch::Switch(branch_var, cases, None))
+                let (cases, fallback) = self.compile_constructor_cases(rows, branch_var, cases)?;
+                Ok(HirMatch::Switch(branch_var, cases, fallback))
             }
             Type::DataType(type_def, generics) => {
                 let def = type_def.borrow();
@@ -589,8 +594,9 @@ impl Elaborator<'_> {
                         (constructor, args, Vec::new())
                     });
 
-                    let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
-                    Ok(HirMatch::Switch(branch_var, cases, None))
+                    let (cases, fallback) =
+                        self.compile_constructor_cases(rows, branch_var, cases)?;
+                    Ok(HirMatch::Switch(branch_var, cases, fallback))
                 } else if let Some(fields) = def.get_fields(&generics) {
                     drop(def);
                     let typ = Type::DataType(type_def, generics);
@@ -600,8 +606,9 @@ impl Elaborator<'_> {
                     let constructor = Constructor::Variant(typ, 0);
                     let field_variables = self.fresh_match_variables(fields, location);
                     let cases = vec![(constructor, field_variables, Vec::new())];
-                    let cases = self.compile_constructor_cases(rows, branch_var, cases)?;
-                    Ok(HirMatch::Switch(branch_var, cases, None))
+                    let (cases, fallback) =
+                        self.compile_constructor_cases(rows, branch_var, cases)?;
+                    Ok(HirMatch::Switch(branch_var, cases, fallback))
                 } else {
                     drop(def);
                     let typ = Type::DataType(type_def, generics);
@@ -621,7 +628,7 @@ impl Elaborator<'_> {
             | Type::Constant(_, _)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
-            | Type::Error) => todo!("Cannot match on type {typ}"),
+            | Type::Error) => todo!("Cannot match on type {typ:?}"),
         }
     }
 
@@ -659,7 +666,10 @@ impl Elaborator<'_> {
                 let (key, cons) = match col.pattern {
                     Pattern::Int(val) => ((val, val), Constructor::Int(val)),
                     Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
-                    _ => unreachable!(),
+                    pattern => {
+                        eprintln!("Unexpected pattern for integer type: {pattern:?}");
+                        continue;
+                    }
                 };
 
                 if let Some(index) = tested.get(&key) {
@@ -719,7 +729,7 @@ impl Elaborator<'_> {
         rows: Vec<Row>,
         branch_var: DefinitionId,
         mut cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)>,
-    ) -> Result<Vec<Case>, ResolverError> {
+    ) -> Result<(Vec<Case>, Option<Box<HirMatch>>), ResolverError> {
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
@@ -739,10 +749,60 @@ impl Elaborator<'_> {
             }
         }
 
-        try_vecmap(cases, |(cons, vars, rows)| {
+        let cases = try_vecmap(cases, |(cons, vars, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok(Case::new(cons, vars, rows))
-        })
+            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
+        })?;
+
+        Ok(Self::deduplicate_cases(cases))
+    }
+
+    /// Move any cases with duplicate branches into a shared 'else' branch
+    fn deduplicate_cases(mut cases: Vec<Case>) -> (Vec<Case>, Option<Box<HirMatch>>) {
+        let mut else_case = None;
+        let mut ending_cases = Vec::with_capacity(cases.len());
+        let mut previous_case: Option<Case> = None;
+
+        // Go through each of the cases, looking for duplicates.
+        // This is simplified such that the first (consecutive) duplicates
+        // we find we move to an else case. Each case afterward is then compared
+        // to the else case. This could be improved in a couple ways:
+        // - Instead of the the first consecutive duplicates we find, we could
+        //   expand the check to find non-consecutive duplicates as well.
+        // - We should also ideally move the most duplicated case to the else
+        //   case, not just the first duplicated case we find. I suspect in most
+        //   actual code snippets these are the same but it could still be nice to guarantee.
+        while let Some(case) = cases.pop() {
+            if let Some(else_case) = &else_case {
+                if case.body == *else_case {
+                    // Delete the current case by not pushing it to `ending_cases`
+                    continue;
+                } else {
+                    ending_cases.push(case);
+                }
+            } else if let Some(previous) = previous_case {
+                if case.body == previous.body {
+                    // else_case is known to be None here
+                    else_case = Some(previous.body);
+
+                    // Delete both previous_case and case
+                    previous_case = None;
+                    continue;
+                } else {
+                    previous_case = Some(case);
+                    ending_cases.push(previous);
+                }
+            } else {
+                previous_case = Some(case);
+            }
+        }
+
+        if let Some(case) = previous_case {
+            ending_cases.push(case);
+        }
+
+        ending_cases.reverse();
+        (ending_cases, else_case.map(Box::new))
     }
 
     /// Return the variable that was referred to the most in `rows`
@@ -817,7 +877,7 @@ impl Elaborator<'_> {
 
 /// Patterns are represented as resolved expressions currently.
 /// This type alias just makes code involving them more clear.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum Pattern {
     /// A pattern such as `Some(42)`.
     Constructor(Constructor, Vec<Pattern>),

@@ -348,7 +348,7 @@ pub struct HirLambda {
     pub captures: Vec<HirCapturedVar>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HirMatch {
     /// Jump directly to ExprId
     Success(ExprId),
@@ -369,7 +369,7 @@ pub enum HirMatch {
     Switch(DefinitionId, Vec<Case>, Option<Box<HirMatch>>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Case {
     pub constructor: Constructor,
     pub arguments: Vec<DefinitionId>,
@@ -382,7 +382,7 @@ impl Case {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Constructor {
     True,
     False,
