@@ -4,8 +4,8 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
+    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, TypeId,
@@ -223,24 +223,6 @@ impl ExpressionKind {
             fields,
             struct_type: None,
         }))
-    }
-}
-
-impl Recoverable for ExpressionKind {
-    fn error(_: Span) -> Self {
-        ExpressionKind::Error
-    }
-}
-
-impl Recoverable for Expression {
-    fn error(span: Span) -> Self {
-        Expression::new(ExpressionKind::Error, span)
-    }
-}
-
-impl Recoverable for Option<Expression> {
-    fn error(span: Span) -> Self {
-        Some(Expression::new(ExpressionKind::Error, span))
     }
 }
 
