@@ -2,9 +2,9 @@ use noirc_errors::{Span, Spanned};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, ConstrainExpression, ConstrainKind, Expression,
-        ExpressionKind, ForBounds, ForLoopStatement, ForRange, Ident, InfixExpression, LValue,
-        LetStatement, Statement, StatementKind,
+        AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
+        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
+        StatementKind,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Attribute, Keyword, Token, TokenKind},
@@ -431,49 +431,6 @@ impl<'a> Parser<'a> {
             comptime: false,
             is_global_let: false,
         })
-    }
-
-    /// ConstrainExpression
-    ///     = 'constrain' Expression
-    ///     | 'assert' Arguments
-    ///     | 'assert_eq' Arguments
-    fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
-        let start_span = self.current_token_span;
-        let kind = self.parse_constrain_kind()?;
-
-        Some(match kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => {
-                let arguments = self.parse_arguments();
-                if arguments.is_none() {
-                    self.expected_token(Token::LeftParen);
-                }
-                let arguments = arguments.unwrap_or_default();
-
-                ConstrainExpression { kind, arguments, span: self.span_since(start_span) }
-            }
-            ConstrainKind::Constrain => {
-                self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
-
-                let expression = self.parse_expression_or_error();
-                ConstrainExpression {
-                    kind,
-                    arguments: vec![expression],
-                    span: self.span_since(start_span),
-                }
-            }
-        })
-    }
-
-    fn parse_constrain_kind(&mut self) -> Option<ConstrainKind> {
-        if self.eat_keyword(Keyword::Assert) {
-            Some(ConstrainKind::Assert)
-        } else if self.eat_keyword(Keyword::AssertEq) {
-            Some(ConstrainKind::AssertEq)
-        } else if self.eat_keyword(Keyword::Constrain) {
-            Some(ConstrainKind::Constrain)
-        } else {
-            None
-        }
     }
 }
 

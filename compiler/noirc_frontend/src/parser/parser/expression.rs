@@ -3,9 +3,10 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
+        ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
+        IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
@@ -796,6 +797,49 @@ impl<'a> Parser<'a> {
             Some(expr)
         } else {
             self.expected_label(ParsingRuleLabel::Expression);
+            None
+        }
+    }
+
+    /// ConstrainExpression
+    ///     = 'constrain' Expression
+    ///     | 'assert' Arguments
+    ///     | 'assert_eq' Arguments
+    pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
+        let start_span = self.current_token_span;
+        let kind = self.parse_constrain_kind()?;
+
+        Some(match kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => {
+                let arguments = self.parse_arguments();
+                if arguments.is_none() {
+                    self.expected_token(Token::LeftParen);
+                }
+                let arguments = arguments.unwrap_or_default();
+
+                ConstrainExpression { kind, arguments, span: self.span_since(start_span) }
+            }
+            ConstrainKind::Constrain => {
+                self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
+
+                let expression = self.parse_expression_or_error();
+                ConstrainExpression {
+                    kind,
+                    arguments: vec![expression],
+                    span: self.span_since(start_span),
+                }
+            }
+        })
+    }
+
+    fn parse_constrain_kind(&mut self) -> Option<ConstrainKind> {
+        if self.eat_keyword(Keyword::Assert) {
+            Some(ConstrainKind::Assert)
+        } else if self.eat_keyword(Keyword::AssertEq) {
+            Some(ConstrainKind::AssertEq)
+        } else if self.eat_keyword(Keyword::Constrain) {
+            Some(ConstrainKind::Constrain)
+        } else {
             None
         }
     }
