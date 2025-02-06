@@ -141,6 +141,23 @@ impl InputValue {
             }
             (
                 TomlTypes::Integer(integer),
+                AbiType::Integer { sign: crate::Sign::Signed, width },
+            ) => {
+                let max = 1 << (width - 1) - 1;
+                if integer > max {
+                    return Err(InputParserError::ParseStr(format!(
+                        "Value {} exceeds maximum value of {}",
+                        integer, max
+                    )));
+                }
+
+                let new_value = FieldElement::from(u128::from(integer));
+
+                InputValue::Field(new_value)
+            }
+
+            (
+                TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
                 let new_value = FieldElement::from(u128::from(integer));
@@ -191,6 +208,7 @@ mod test {
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_toml, serialize_to_toml};
@@ -218,5 +236,16 @@ mod test {
             };
             prop_assert_eq!(output_number, value);
         }
+    }
+
+    #[test]
+    fn errors_on_integer_to_signed_integer_overflow() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = TomlTypes::Integer(128);
+        assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
+
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
+        let input = TomlTypes::Integer(32767);
+        assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
     }
 }

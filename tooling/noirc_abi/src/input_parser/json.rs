@@ -156,6 +156,23 @@ impl InputValue {
 
             (
                 JsonTypes::Integer(integer),
+                AbiType::Integer { sign: crate::Sign::Signed, width },
+            ) => {
+                let max = 1 << (width - 1) - 1;
+                if integer > max {
+                    return Err(InputParserError::ParseStr(format!(
+                        "Value {} exceeds maximum value of {}",
+                        integer, max
+                    )));
+                }
+
+                let new_value = FieldElement::from(i128::from(integer));
+
+                InputValue::Field(new_value)
+            }
+
+            (
+                JsonTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
                 let new_value = FieldElement::from(i128::from(integer));
@@ -206,6 +223,7 @@ mod test {
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_json, serialize_to_json};
@@ -233,5 +251,16 @@ mod test {
             };
             prop_assert_eq!(output_number, value);
         }
+    }
+
+    #[test]
+    fn errors_on_integer_to_signed_integer_overflow() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = JsonTypes::Integer(128);
+        assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
+
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
+        let input = JsonTypes::Integer(32767);
+        assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
     }
 }
