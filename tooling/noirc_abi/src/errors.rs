@@ -14,8 +14,10 @@ pub enum InputParserError {
         "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, provided value causes `{value}` error"
     )]
     ParseStr { arg_name: String, value: String },
-    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum value of {max}")]
-    InputExceedsMaximum { arg_name: String, value: u64, max: u64 },
+    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}")]
+    InputExceedsMinimum { arg_name: String, value: String, min: String },
+    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}")]
+    InputExceedsMaximum { arg_name: String, value: String, max: String },
     #[error(
         "The value passed for parameter `{arg_name}` is invalid:\nValue {value} outside of valid range. Value must fall within [{min}, {max}]"
     )]

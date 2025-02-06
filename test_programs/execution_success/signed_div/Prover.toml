@@ -1,51 +1,51 @@
 [[ops]]
 lhs = 4
-rhs = "-1"
-result = "-4"
+rhs = -1
+result = -4
 
 [[ops]]
 lhs = 4
-rhs = "-2"
-result = "-2"
+rhs = -2
+result = -2
 
 [[ops]]
 lhs = 4
-rhs = "-3"
-result = "-1"
+rhs = -3
+result = -1
 
 [[ops]]
 lhs = 4
-rhs = "-4"
-result = "-1"
+rhs = -4
+result = -1
 
 [[ops]]
 lhs = 4
-rhs = "-5"
+rhs = -5
 result = 0
 
 [[ops]]
-lhs = "-4"
-rhs = "-1"
+lhs = -4
+rhs = -1
 result = 4
 
 [[ops]]
-lhs = "-4"
-rhs = "-2"
+lhs = -4
+rhs = -2
 result = 2
 
 [[ops]]
-lhs = "-4"
-rhs = "-3"
+lhs = -4
+rhs = -3
 result = 1
 
 [[ops]]
-lhs = "-4"
-rhs = "-4"
+lhs = -4
+rhs = -4
 result = 1
 
 [[ops]]
-lhs = "-4"
-rhs = "-5"
+lhs = -4
+rhs = -5
 result = 0
 
 

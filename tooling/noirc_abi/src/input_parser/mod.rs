@@ -379,7 +379,7 @@ fn field_from_big_uint(bigint: BigUint) -> FieldElement {
     FieldElement::from_be_bytes_reduce(&bigint.to_bytes_be())
 }
 
-fn field_from_big_int(bigint: BigInt) -> FieldElement {
+pub(crate) fn field_from_big_int(bigint: BigInt) -> FieldElement {
     match bigint.sign() {
         num_bigint::Sign::Minus => {
             unreachable!(
