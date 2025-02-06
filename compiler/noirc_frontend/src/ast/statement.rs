@@ -42,7 +42,7 @@ pub struct Statement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
-    Constrain(ConstrainStatement),
+    Constrain(ConstrainExpression),
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
@@ -594,13 +594,13 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement {
+pub struct ConstrainExpression {
     pub kind: ConstrainKind,
     pub arguments: Vec<Expression>,
     pub span: Span,
 }
 
-impl Display for ConstrainStatement {
+impl Display for ConstrainExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             ConstrainKind::Assert | ConstrainKind::AssertEq => write!(

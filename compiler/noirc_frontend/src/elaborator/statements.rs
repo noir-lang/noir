@@ -2,7 +2,7 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
+        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainExpression, Expression,
         ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
         LetStatement, Path, Statement, StatementKind,
     },
@@ -151,7 +151,7 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn elaborate_constrain(
         &mut self,
-        mut stmt: ConstrainStatement,
+        mut stmt: ConstrainExpression,
     ) -> (HirStatement, Type) {
         let span = stmt.span;
         let min_args_count = stmt.kind.required_arguments_count();

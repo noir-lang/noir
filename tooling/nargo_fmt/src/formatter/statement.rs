@@ -1,6 +1,6 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
+        AssignStatement, ConstrainExpression, ConstrainKind, Expression, ExpressionKind,
         ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
@@ -155,7 +155,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
     fn format_constrain_statement(
         &mut self,
-        constrain_statement: ConstrainStatement,
+        constrain_statement: ConstrainExpression,
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
 

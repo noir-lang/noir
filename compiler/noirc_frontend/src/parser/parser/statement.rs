@@ -2,7 +2,7 @@ use noirc_errors::{Span, Spanned};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
+        AssignStatement, BinaryOp, BinaryOpKind, ConstrainExpression, ConstrainKind, Expression,
         ExpressionKind, ForBounds, ForLoopStatement, ForRange, Ident, InfixExpression, LValue,
         LetStatement, Statement, StatementKind,
     },
@@ -437,7 +437,7 @@ impl<'a> Parser<'a> {
     ///     = 'constrain' Expression
     ///     | 'assert' Arguments
     ///     | 'assert_eq' Arguments
-    fn parse_constrain_statement(&mut self) -> Option<ConstrainStatement> {
+    fn parse_constrain_statement(&mut self) -> Option<ConstrainExpression> {
         let start_span = self.current_token_span;
         let kind = self.parse_constrain_kind()?;
 
@@ -449,13 +449,13 @@ impl<'a> Parser<'a> {
                 }
                 let arguments = arguments.unwrap_or_default();
 
-                ConstrainStatement { kind, arguments, span: self.span_since(start_span) }
+                ConstrainExpression { kind, arguments, span: self.span_since(start_span) }
             }
             ConstrainKind::Constrain => {
                 self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
 
                 let expression = self.parse_expression_or_error();
-                ConstrainStatement {
+                ConstrainExpression {
                     kind,
                     arguments: vec![expression],
                     span: self.span_since(start_span),

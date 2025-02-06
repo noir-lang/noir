@@ -6,7 +6,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
@@ -728,7 +728,7 @@ fn remove_interned_in_statement_kind(
             r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
-        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement {
+        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainExpression {
             arguments: vecmap(constrain.arguments, |expr| {
                 remove_interned_in_expression(interner, expr)
             }),

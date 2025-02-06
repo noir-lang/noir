@@ -8,7 +8,7 @@ use crate::ast::{
     MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
     PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
-use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
+use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
 };
@@ -40,7 +40,7 @@ impl HirStatement {
                 }
 
                 // TODO: Find difference in usage between Assert & AssertEq
-                StatementKind::Constrain(ConstrainStatement {
+                StatementKind::Constrain(ConstrainExpression {
                     kind: ConstrainKind::Assert,
                     arguments,
                     span,
