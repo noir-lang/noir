@@ -1,7 +1,6 @@
 use noirc_errors::Span;
 
 use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
-use crate::lexer::token::Keyword;
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::ParserErrorReason;
@@ -139,29 +138,22 @@ impl<'a> Parser<'a> {
         if matches!(&self.token.token(), Token::Keyword(..))
             && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
         {
-            if self.token.token() == &Token::Keyword(Keyword::Cfg) {
-                // This is a Cfg attribute with the syntax `cfg(arg1)`
-                self.bump();
-                self.parse_cfg_attribute(start_span)
-            } else {
-                // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-                let path = Path::from_single(self.token.to_string(), self.current_token_span);
-                self.bump();
-                self.parse_meta_attribute(path, start_span)
-            }
+            // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
+            let path = Path::from_single(self.token.to_string(), self.current_token_span);
+            self.bump();
+            self.parse_meta_attribute(path, start_span)
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.0.contents == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_test_attribute(start_span)
+                } else if ident.0.contents == "cfg" {
+                    self.parse_cfg_attribute(start_span)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test(ident, start_span)
                 }
-            } else if path.to_string() == "cfg" {
-                // This is a Cfg attribute with the syntax `cfg(arg1)`
-                self.parse_cfg_attribute(start_span)
             } else {
                 // This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
                 self.parse_meta_attribute(path, start_span)
@@ -176,7 +168,19 @@ impl<'a> Parser<'a> {
         // `[cfg` <- already parsed
         // `(feature = "{str}"`
         self.eat_or_error(Token::LeftParen);
-        self.eat_or_error(Token::Keyword(Keyword::Feature));
+
+        // "feature"
+        if let Some(ident) = self.parse_path_no_turbofish().as_ref().and_then(Path::as_ident) {
+            if ident.0.contents != "feature" {
+                // TODO:  new error for this case
+                self.push_error(
+                    ParserErrorReason::UnexpectedSemicolon,
+                    self.span_since(start_span),
+                );
+            }
+        }
+
+        // '='
         self.eat_or_error(Token::Assign);
         let name = self.eat_str().unwrap_or_else(|| {
             self.push_error(
@@ -193,7 +197,11 @@ impl<'a> Parser<'a> {
 
         // `)]`
         self.eat_or_error(Token::RightParen);
-        self.eat_or_error(Token::RightBracket);
+
+        // TODO: skip or just parse the token?
+        // self.eat_or_error(Token::RightBracket);
+        self.skip_until_right_bracket();
+
         Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
             name,
             span: self.span_since(start_span),

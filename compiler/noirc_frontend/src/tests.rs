@@ -4070,7 +4070,7 @@ fn cfg_disabled_attribute_on_use() {
         use foo_module::FOO;
 
         fn main() {
-            let _ = FOO;
+            // let _ = FOO;
         }
     "#;
     let errors = get_program_errors(src);

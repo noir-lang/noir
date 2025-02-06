@@ -1,5 +1,5 @@
 use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+    Attribute, Attributes, CfgAttribute, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
 };
 
 use crate::chunks::ChunkGroup;
@@ -87,6 +87,9 @@ impl<'a> Formatter<'a> {
             SecondaryAttribute::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
+            SecondaryAttribute::Cfg(cfg_attribute) => {
+                self.format_cfg_attribute(cfg_attribute);
+            }
         }
 
         self.write_line();
@@ -164,6 +167,37 @@ impl<'a> Formatter<'a> {
         }
         self.write_right_bracket();
     }
+
+    // TODO implement format_cfg_attribute
+    fn format_cfg_attribute(&mut self, cfg_attribute: CfgAttribute) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.format_path(meta_attribute.name);
+        self.skip_comments_and_whitespace();
+        if self.is_at(Token::LeftParen) {
+            let comments_count_before_arguments = self.written_comments_count;
+            let has_arguments = !meta_attribute.arguments.is_empty();
+
+            let mut chunk_formatter = self.chunk_formatter();
+            let mut group = ChunkGroup::new();
+            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.write_left_paren();
+            }));
+            chunk_formatter.format_expressions_separated_by_comma(
+                meta_attribute.arguments,
+                false, // force trailing comma
+                &mut group,
+            );
+            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.write_right_paren();
+            }));
+            if has_arguments || self.written_comments_count > comments_count_before_arguments {
+                self.format_chunk_group(group);
+            }
+        }
+        self.write_right_bracket();
+    }
+
 
     fn format_no_args_attribute(&mut self) {
         self.write_current_token_and_bump(); // #[

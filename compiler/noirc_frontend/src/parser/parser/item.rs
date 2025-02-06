@@ -313,4 +313,21 @@ mod tests {
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("Documentation comment does not document anything"));
     }
+
+    // TODO: rename and consider relocating to more specific test location
+    #[test]
+    fn no_error_on_disabled_cfg_before_main() {
+        let src = r#"
+        #[cfg(feature = "foo")]
+        use foo_module::FOO;
+
+        fn main() { }
+        "#;
+        let (module, errors) = parse_program(&src);
+
+        // TODO cleanup
+        dbg!(&module, &errors);
+        assert_eq!(module.items.len(), 1);
+        assert_eq!(errors, vec![]);
+    }
 }
