@@ -11,17 +11,17 @@ pub enum InputParserError {
     #[error("input file is badly formed, could not parse, {0}")]
     ParseInputMap(String),
     #[error(
-        "The value passed for parameter `{arg_name}` has an error:\nExpected witness values to be integers, provided value causes `{value}` error"
+        "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, provided value causes `{value}` error"
     )]
     ParseStr { arg_name: String, value: String },
-    #[error("The value passed for parameter `{arg_name}` has an error:\nValue {value} exceeds maximum value of {max}")]
+    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum value of {max}")]
     InputExceedsMaximum { arg_name: String, value: u64, max: u64 },
     #[error(
-        "The value passed for parameter `{arg_name}` has an error:\nValue {value} outside of valid range. Value must fall within [{min}, {max}]"
+        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} outside of valid range. Value must fall within [{min}, {max}]"
     )]
     InputOutsideOfRange { arg_name: String, value: BigInt, min: BigInt, max: BigInt },
     #[error(
-        "The value passed for parameter `{arg_name}` has an error:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
+        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
         FieldElement::modulus()
     )]
     InputExceedsFieldModulus { arg_name: String, value: String },
