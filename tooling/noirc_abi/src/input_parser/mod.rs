@@ -304,24 +304,34 @@ mod serialization_tests {
     }
 }
 
-fn parse_str_to_field(value: &str) -> Result<FieldElement, InputParserError> {
+fn parse_str_to_field(value: &str, arg_name: &str) -> Result<FieldElement, InputParserError> {
     let big_num = if let Some(hex) = value.strip_prefix("0x") {
         BigUint::from_str_radix(hex, 16)
     } else {
         BigUint::from_str_radix(value, 10)
     };
-    big_num.map_err(|err_msg| InputParserError::ParseStr { value: err_msg.to_string() }).and_then(
-        |bigint| {
+    big_num
+        .map_err(|err_msg| InputParserError::ParseStr {
+            arg_name: arg_name.into(),
+            value: err_msg.to_string(),
+        })
+        .and_then(|bigint| {
             if bigint < FieldElement::modulus() {
                 Ok(field_from_big_uint(bigint))
             } else {
-                Err(InputParserError::InputExceedsFieldModulus { value: value.to_string() })
+                Err(InputParserError::InputExceedsFieldModulus {
+                    arg_name: arg_name.into(),
+                    value: value.to_string(),
+                })
             }
-        },
-    )
+        })
 }
 
-fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputParserError> {
+fn parse_str_to_signed(
+    value: &str,
+    width: u32,
+    arg_name: &str,
+) -> Result<FieldElement, InputParserError> {
     let big_num = if let Some(hex) = value.strip_prefix("-0x") {
         BigInt::from_str_radix(hex, 16).map(|value| -value)
     } else if let Some(hex) = value.strip_prefix("0x") {
@@ -330,13 +340,22 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
         BigInt::from_str_radix(value, 10)
     };
 
-    big_num.map_err(|err_msg| InputParserError::ParseStr { value: err_msg.to_string() }).and_then(
-        |bigint| {
+    big_num
+        .map_err(|err_msg| InputParserError::ParseStr {
+            arg_name: arg_name.into(),
+            value: err_msg.to_string(),
+        })
+        .and_then(|bigint| {
             let max = BigInt::from(2_u128.pow(width - 1) - 1);
             let min = BigInt::from(-(2_i128.pow(width - 1)));
 
             if bigint < min || bigint > max {
-                return Err(InputParserError::InputOutsideOfRange { value: bigint, min, max });
+                return Err(InputParserError::InputOutsideOfRange {
+                    arg_name: arg_name.into(),
+                    value: bigint,
+                    min,
+                    max,
+                });
             }
 
             let modulus: BigInt = FieldElement::modulus().into();
@@ -348,10 +367,12 @@ fn parse_str_to_signed(value: &str, width: u32) -> Result<FieldElement, InputPar
             if bigint.is_zero() || (bigint.sign() == num_bigint::Sign::Plus && bigint < modulus) {
                 Ok(field_from_big_int(bigint))
             } else {
-                Err(InputParserError::InputExceedsFieldModulus { value: value.to_string() })
+                Err(InputParserError::InputExceedsFieldModulus {
+                    arg_name: arg_name.into(),
+                    value: value.to_string(),
+                })
             }
-        },
-    )
+        })
 }
 
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
@@ -395,7 +416,7 @@ mod test {
     #[test]
     fn parse_empty_str_fails() {
         // Check that this fails appropriately rather than being treated as 0, etc.
-        assert!(parse_str_to_field("").is_err());
+        assert!(parse_str_to_field("", "arg_name").is_err());
     }
 
     #[test]
@@ -410,11 +431,11 @@ mod test {
 
         for field in fields {
             let hex_field = format!("0x{}", field.to_hex());
-            let field_from_hex = parse_str_to_field(&hex_field).unwrap();
+            let field_from_hex = parse_str_to_field(&hex_field, "arg_name").unwrap();
             assert_eq!(field_from_hex, field);
 
             let dec_field = big_uint_from_field(field).to_string();
-            let field_from_dec = parse_str_to_field(&dec_field).unwrap();
+            let field_from_dec = parse_str_to_field(&dec_field, "arg_name").unwrap();
             assert_eq!(field_from_dec, field);
         }
     }
@@ -422,29 +443,29 @@ mod test {
     #[test]
     fn rejects_noncanonical_fields() {
         let noncanonical_field = FieldElement::modulus().to_string();
-        assert!(parse_str_to_field(&noncanonical_field).is_err());
+        assert!(parse_str_to_field(&noncanonical_field, "arg_name").is_err());
     }
 
     #[test]
     fn test_parse_str_to_signed() {
-        let value = parse_str_to_signed("1", 8).unwrap();
+        let value = parse_str_to_signed("1", 8, "arg_name").unwrap();
         assert_eq!(value, FieldElement::from(1_u128));
 
-        let value = parse_str_to_signed("-1", 8).unwrap();
+        let value = parse_str_to_signed("-1", 8, "arg_name").unwrap();
         assert_eq!(value, FieldElement::from(255_u128));
 
-        let value = parse_str_to_signed("-1", 16).unwrap();
+        let value = parse_str_to_signed("-1", 16, "arg_name").unwrap();
         assert_eq!(value, FieldElement::from(65535_u128));
 
-        assert!(parse_str_to_signed("127", 8).is_ok());
-        assert!(parse_str_to_signed("128", 8).is_err());
-        assert!(parse_str_to_signed("-128", 8).is_ok());
-        assert!(parse_str_to_signed("-129", 8).is_err());
+        assert!(parse_str_to_signed("127", 8, "arg_name").is_ok());
+        assert!(parse_str_to_signed("128", 8, "arg_name").is_err());
+        assert!(parse_str_to_signed("-128", 8, "arg_name").is_ok());
+        assert!(parse_str_to_signed("-129", 8, "arg_name").is_err());
 
-        assert!(parse_str_to_signed("32767", 16).is_ok());
-        assert!(parse_str_to_signed("32768", 16).is_err());
-        assert!(parse_str_to_signed("-32768", 16).is_ok());
-        assert!(parse_str_to_signed("-32769", 16).is_err());
+        assert!(parse_str_to_signed("32767", 16, "arg_name").is_ok());
+        assert!(parse_str_to_signed("32768", 16, "arg_name").is_err());
+        assert!(parse_str_to_signed("-32768", 16, "arg_name").is_ok());
+        assert!(parse_str_to_signed("-32769", 16, "arg_name").is_err());
     }
 }
 

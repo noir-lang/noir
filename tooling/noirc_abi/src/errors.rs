@@ -10,17 +10,21 @@ use thiserror::Error;
 pub enum InputParserError {
     #[error("input file is badly formed, could not parse, {0}")]
     ParseInputMap(String),
-    #[error("Expected witness values to be integers, provided value causes `{value}` error")]
-    ParseStr { value: String },
-    #[error("Input {value} exceeds maximum value of {max}")]
-    InputExceedsMaximum { value: u64, max: u64 },
-    #[error("Input {value} outside of valid range. Value must fall within [{min}, {max}]")]
-    InputOutsideOfRange { value: BigInt, min: BigInt, max: BigInt },
     #[error(
-        "Input {value} exceeds field modulus. Values must fall within [0, {})",
+        "The value passed for parameter `{arg_name}` has an error:\nExpected witness values to be integers, provided value causes `{value}` error"
+    )]
+    ParseStr { arg_name: String, value: String },
+    #[error("The value passed for parameter `{arg_name}` has an error:\nValue {value} exceeds maximum value of {max}")]
+    InputExceedsMaximum { arg_name: String, value: u64, max: u64 },
+    #[error(
+        "The value passed for parameter `{arg_name}` has an error:\nValue {value} outside of valid range. Value must fall within [{min}, {max}]"
+    )]
+    InputOutsideOfRange { arg_name: String, value: BigInt, min: BigInt, max: BigInt },
+    #[error(
+        "The value passed for parameter `{arg_name}` has an error:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
         FieldElement::modulus()
     )]
-    InputExceedsFieldModulus { value: String },
+    InputExceedsFieldModulus { arg_name: String, value: String },
     #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]

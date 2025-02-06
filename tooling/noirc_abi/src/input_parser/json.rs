@@ -147,20 +147,24 @@ impl InputValue {
         let input_value = match (value, param_type) {
             (JsonTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
             (JsonTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
-                InputValue::Field(parse_str_to_signed(&string, *width)?)
+                InputValue::Field(parse_str_to_signed(&string, *width, arg_name)?)
             }
             (
                 JsonTypes::String(string),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
-            ) => InputValue::Field(parse_str_to_field(&string)?),
+            ) => InputValue::Field(parse_str_to_field(&string, arg_name)?),
 
             (
                 JsonTypes::Integer(integer),
                 AbiType::Integer { sign: crate::Sign::Signed, width },
             ) => {
-                let max = 1 << (width - 1) - 1;
+                let max = (1 << (width - 1)) - 1;
                 if integer > max {
-                    return Err(InputParserError::InputExceedsMaximum { value: integer, max });
+                    return Err(InputParserError::InputExceedsMaximum {
+                        arg_name: arg_name.into(),
+                        value: integer,
+                        max,
+                    });
                 }
 
                 let new_value = FieldElement::from(i128::from(integer));
@@ -180,8 +184,13 @@ impl InputValue {
             (JsonTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
             (JsonTypes::Array(array), AbiType::Array { typ, .. }) => {
-                let array_elements =
-                    try_vecmap(array, |value| InputValue::try_from_json(value, typ, arg_name))?;
+                let mut index = 0;
+                let array_elements = try_vecmap(array, |value| {
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_json(value, typ, &sub_name);
+                    index += 1;
+                    value
+                })?;
                 InputValue::Vec(array_elements)
             }
 
@@ -200,8 +209,12 @@ impl InputValue {
             }
 
             (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
+                let mut index = 0;
                 let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
-                    InputValue::try_from_json(value, typ, arg_name)
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_json(value, typ, &sub_name);
+                    index += 1;
+                    value
                 })?;
                 InputValue::Vec(tuple_fields)
             }
