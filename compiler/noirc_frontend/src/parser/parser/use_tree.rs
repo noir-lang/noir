@@ -143,14 +143,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{ItemVisibility, PathKind, UseTree, UseTreeKind},
-        parser::{
-            parser::{parse_program, tests::expect_no_errors},
-            ItemKind,
-        },
+        parse_program_with_dummy_file,
+        parser::{parser::tests::expect_no_errors, ItemKind},
     };
 
     fn parse_use_tree_no_errors(src: &str) -> (UseTree, ItemVisibility) {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -281,14 +279,14 @@ mod tests {
     #[test]
     fn errors_on_crate_in_subtree() {
         let src = "use foo::{crate::bar}";
-        let (_, errors) = parse_program(src);
+        let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
     }
 
     #[test]
     fn errors_on_double_colon_after_self() {
         let src = "use foo::{self::bar};";
-        let (_, errors) = parse_program(src);
+        let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());
     }
 }

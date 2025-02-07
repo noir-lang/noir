@@ -56,14 +56,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{NoirTypeAlias, UnresolvedTypeData},
-        parser::{
-            parser::{parse_program, tests::expect_no_errors},
-            ItemKind,
-        },
+        parse_program_with_dummy_file,
+        parser::{parser::tests::expect_no_errors, ItemKind},
     };
 
     fn parse_type_alias_no_errors(src: &str) -> NoirTypeAlias {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);

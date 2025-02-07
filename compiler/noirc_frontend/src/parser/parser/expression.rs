@@ -912,7 +912,7 @@ mod tests {
     };
 
     fn parse_expression_no_errors(src: &str) -> Expression {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         expect_no_errors(&parser.errors);
@@ -1076,7 +1076,7 @@ mod tests {
             2
             3
         }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 2);
@@ -1125,7 +1125,7 @@ mod tests {
         ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected an expression but found end of input");
@@ -1138,7 +1138,7 @@ mod tests {
            ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let reason = get_single_error_reason(&parser.errors, span);
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
@@ -1191,7 +1191,7 @@ mod tests {
            ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
 
@@ -1352,7 +1352,7 @@ mod tests {
               ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
         assert_eq!(expr.span.end() as usize, src.len());
         let reason = get_single_error_reason(&parser.errors, span);
@@ -1373,7 +1373,7 @@ mod tests {
     #[test]
     fn parses_call_with_wrong_expression() {
         let src = "foo(]) ";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         parser.parse_expression_or_error();
         assert!(!parser.errors.is_empty());
     }
@@ -1496,7 +1496,7 @@ mod tests {
                 ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
@@ -1524,7 +1524,7 @@ mod tests {
                      ^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
 
         let error = get_single_error(&parser.errors, span);
@@ -1613,7 +1613,7 @@ mod tests {
            ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_expression();
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a type but found end of input");
@@ -1634,7 +1634,7 @@ mod tests {
     fn parses_operators() {
         for operator in BinaryOpKind::iter() {
             let src = format!("1 {operator} 2");
-            let mut parser = Parser::for_str(&src);
+            let mut parser = Parser::for_str_with_dummy_file(&src);
             let expr = parser.parse_expression_or_error();
             assert_eq!(expr.span.end() as usize, src.len());
             assert!(parser.errors.is_empty(), "Expected no errors for {operator}");
@@ -1828,7 +1828,7 @@ mod tests {
         ^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let expression = parser.parse_expression_or_error();
         let ExpressionKind::Constrain(constrain) = expression.kind else {
             panic!("Expected constrain expression");

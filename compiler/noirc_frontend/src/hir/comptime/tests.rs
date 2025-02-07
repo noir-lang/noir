@@ -16,7 +16,7 @@ use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
-use crate::{parse_program, parse_program_with_dummy_file};
+use crate::parse_program;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///

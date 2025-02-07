@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parse_program,
+        parse_program_with_dummy_file,
         parser::parser::tests::{get_single_error, get_source_with_error_span},
     };
 
@@ -246,7 +246,7 @@ mod tests {
                     ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected an item but found 'hello'");
@@ -259,7 +259,7 @@ mod tests {
                              ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a '}' but found end of input");
@@ -273,7 +273,7 @@ mod tests {
         ^^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("Documentation comment does not document anything"));

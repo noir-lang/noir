@@ -288,9 +288,9 @@ fn empty_trait(
 mod tests {
     use crate::{
         ast::{NoirTrait, NoirTraitImpl, TraitItem},
+        parse_program_with_dummy_file,
         parser::{
             parser::{
-                parse_program,
                 tests::{expect_no_errors, get_single_error, get_source_with_error_span},
                 ParserErrorReason,
             },
@@ -299,7 +299,7 @@ mod tests {
     };
 
     fn parse_trait_opt_impl_no_errors(src: &str) -> (NoirTrait, Option<NoirTraitImpl>) {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         let (item, impl_item) = if module.items.len() == 2 {
             let item = module.items.remove(0);
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias() {
         let src = "trait Foo = ;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias_with_generics() {
         let src = "trait Foo<A, B> = ;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias_with_where_clause() {
         let src = "trait Foo<A, B> = where A: Z;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -527,7 +527,7 @@ mod tests {
                     ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_module, errors) = parse_program(&src);
+        let (_module, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("Visibility is ignored on a trait method"));
     }

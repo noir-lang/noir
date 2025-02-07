@@ -440,7 +440,7 @@ mod tests {
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         expect_no_errors(&parser.errors);
         typ
@@ -546,7 +546,7 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses_type() {
         let src = "(Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         assert_eq!(parser.errors.len(), 1);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
@@ -591,7 +591,7 @@ mod tests {
               ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a ']' but found end of input");
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_colon_in_parameter() {
         let src = "fn(value: T) -> Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let _ = parser.parse_type_or_error();
         assert!(!parser.errors.is_empty());
     }

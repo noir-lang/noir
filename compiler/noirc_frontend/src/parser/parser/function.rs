@@ -298,20 +298,18 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -405,7 +403,7 @@ mod tests {
     #[test]
     fn parse_function_unclosed_parentheses() {
         let src = "fn foo(x: i32,";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -422,7 +420,7 @@ mod tests {
                         ^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
     }
@@ -434,7 +432,7 @@ mod tests {
                 ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedFunctionBody));
     }
@@ -446,7 +444,7 @@ mod tests {
                ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -464,7 +462,7 @@ mod tests {
                ^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -482,7 +480,7 @@ mod tests {
                   ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -509,7 +507,7 @@ mod tests {
            ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
     }

@@ -227,7 +227,7 @@ mod tests {
     };
 
     fn parse_path_no_errors(src: &str) -> Path {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
         expect_no_errors(&parser.errors);
         path
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn parses_plain_one_segment_with_trailing_colons() {
         let src = "foo::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
         assert_eq!(path.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn parses_path_stops_before_trailing_double_colon() {
         let src = "foo::bar::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
         assert_eq!(path.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn parses_path_with_turbofish_stops_before_trailing_double_colon() {
         let src = "foo::bar::<1>::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
         assert_eq!(path.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
@@ -346,7 +346,7 @@ mod tests {
                ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let path = parser.parse_path();
         assert!(path.is_none());
 

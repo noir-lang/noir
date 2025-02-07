@@ -80,7 +80,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
     let root_file_id = FileId::dummy();
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-    let (program, parser_errors) = parse_program(src);
+    let (program, parser_errors) = parse_program(src, root_file_id);
     let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
     remove_experimental_warnings(&mut errors);
 

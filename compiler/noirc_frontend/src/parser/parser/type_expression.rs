@@ -405,14 +405,14 @@ mod tests {
     };
 
     fn parse_type_expression_no_errors(src: &str) -> UnresolvedTypeExpression {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_type_expression().unwrap();
         expect_no_errors(&parser.errors);
         expr
     }
 
     fn parse_type_or_type_expression_no_errors(src: &str) -> UnresolvedType {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_type_expression().unwrap();
         expect_no_errors(&parser.errors);
         typ
@@ -569,7 +569,7 @@ mod tests {
                ^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
 
         let typ = parser.parse_type_or_type_expression().unwrap();
 
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn parses_type_or_type_expression_tuple_type_single_element() {
         let src = "(Field,)";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_type_expression().unwrap();
         expect_no_errors(&parser.errors);
         let UnresolvedTypeData::Tuple(types) = typ.typ else {

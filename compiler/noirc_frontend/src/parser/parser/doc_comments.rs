@@ -37,7 +37,7 @@ mod tests {
     #[test]
     fn parses_inner_doc_comments() {
         let src = "//! Hello\n//! World";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn parses_outer_doc_comments() {
         let src = "/// Hello\n/// World";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);

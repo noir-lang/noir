@@ -443,7 +443,7 @@ mod tests {
     };
 
     fn parse_statement_no_errors(src: &str) -> Statement {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         expect_no_errors(&parser.errors);
         statement
@@ -691,7 +691,7 @@ mod tests {
         ^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Error));
         let reason = get_single_error_reason(&parser.errors, span);
@@ -705,7 +705,7 @@ mod tests {
         ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Let(..)));
         let error = get_single_error(&parser.errors, span);
@@ -715,7 +715,7 @@ mod tests {
     #[test]
     fn recovers_on_unknown_statement_followed_by_semicolon() {
         let src = " ] ;";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement();
         assert!(statement.is_none());
         assert_eq!(parser.errors.len(), 2);
@@ -724,7 +724,7 @@ mod tests {
     #[test]
     fn recovers_on_unknown_statement_followed_by_right_brace() {
         let src = " ] }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement();
         assert!(statement.is_none());
         assert_eq!(parser.errors.len(), 2);
@@ -733,7 +733,7 @@ mod tests {
     #[test]
     fn parses_empty_loop() {
         let src = "loop { }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::Loop(block, span) = statement.kind else {
             panic!("Expected loop");
@@ -749,7 +749,7 @@ mod tests {
     #[test]
     fn parses_loop_with_statements() {
         let src = "loop { 1; 2 }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::Loop(block, _) = statement.kind else {
             panic!("Expected loop");
@@ -763,7 +763,7 @@ mod tests {
     #[test]
     fn parses_let_with_assert() {
         let src = "let _ = assert(true);";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let");

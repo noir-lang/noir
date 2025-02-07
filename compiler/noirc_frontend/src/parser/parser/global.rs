@@ -74,20 +74,18 @@ mod tests {
         ast::{
             IntegerBitSize, ItemVisibility, LetStatement, Pattern, Signedness, UnresolvedTypeData,
         },
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -155,7 +153,7 @@ mod tests {
                ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
     }
@@ -167,7 +165,7 @@ mod tests {
                       ^ 
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a ';' but found end of input");
     }

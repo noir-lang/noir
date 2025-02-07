@@ -264,7 +264,7 @@ mod tests {
     };
 
     fn parse_pattern_no_errors(src: &str) -> Pattern {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         expect_no_errors(&parser.errors);
         pattern
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn parses_unclosed_tuple_pattern() {
         let src = "(foo,";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
         let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn parses_struct_pattern_no_fields() {
         let src = "foo::Bar {}";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         expect_no_errors(&parser.errors);
         let Pattern::Struct(path, patterns, _) = pattern else {
@@ -353,7 +353,7 @@ mod tests {
                      ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let pattern = parser.parse_pattern_or_error();
 
         let error = get_single_error(&parser.errors, span);
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn parses_unclosed_struct_pattern() {
         let src = "foo::Bar { x";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
         let Pattern::Struct(path, _, _) = pattern else { panic!("Expected a struct pattern") };
@@ -391,7 +391,7 @@ mod tests {
         ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let pattern = parser.parse_pattern();
         assert!(pattern.is_none());
 

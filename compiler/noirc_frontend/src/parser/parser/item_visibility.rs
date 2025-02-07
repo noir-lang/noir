@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn parses_private_visibility() {
         let src = "(";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let visibility = parser.parse_item_visibility();
         expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::Private);
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn parses_public_visibility() {
         let src = "pub";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let visibility = parser.parse_item_visibility();
         expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::Public);
@@ -69,7 +69,7 @@ mod tests {
             ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
         let error = get_single_error(&parser.errors, span);
@@ -83,7 +83,7 @@ mod tests {
             ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::Public);
         let error = get_single_error(&parser.errors, span);
@@ -96,7 +96,7 @@ mod tests {
                  ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let visibility = parser.parse_item_visibility();
         assert_eq!(visibility, ItemVisibility::PublicCrate);
         let error = get_single_error(&parser.errors, span);
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn parses_public_crate_visibility() {
         let src = "pub(crate)";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let visibility = parser.parse_item_visibility();
         expect_no_errors(&parser.errors);
         assert_eq!(visibility, ItemVisibility::PublicCrate);

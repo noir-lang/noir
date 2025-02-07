@@ -260,17 +260,15 @@ mod tests {
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
         },
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            },
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             ItemKind,
         },
     };
 
     fn parse_type_impl_no_errors(src: &str) -> TypeImpl {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -281,7 +279,7 @@ mod tests {
     }
 
     fn parse_trait_impl_no_errors(src: &str) -> NoirTraitImpl {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -426,7 +424,7 @@ mod tests {
     #[test]
     fn parse_empty_impl_missing_right_brace() {
         let src = "impl Foo {";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -439,7 +437,7 @@ mod tests {
     #[test]
     fn parse_empty_impl_incorrect_body() {
         let src = "impl Foo { hello fn foo() {} }";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -531,7 +529,7 @@ mod tests {
                    ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -551,7 +549,7 @@ mod tests {
                            ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

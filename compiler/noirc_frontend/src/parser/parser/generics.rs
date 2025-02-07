@@ -175,14 +175,14 @@ mod tests {
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let generics = parser.parse_generics();
         expect_no_errors(&parser.errors);
         generics
     }
 
     fn parse_generic_type_args_no_errors(src: &str) -> GenericTypeArgs {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let generics = parser.parse_generic_type_args();
         expect_no_errors(&parser.errors);
         generics
@@ -263,7 +263,7 @@ mod tests {
                 ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_generics();
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));

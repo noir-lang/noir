@@ -130,20 +130,18 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, NoirStruct, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_struct_no_errors(src: &str) -> NoirStruct {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -218,7 +216,7 @@ mod tests {
     #[test]
     fn parse_empty_struct_with_doc_comments() {
         let src = "/// Hello\nstruct Foo {}";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -232,7 +230,7 @@ mod tests {
     #[test]
     fn parse_unclosed_struct() {
         let src = "struct Foo {";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -249,7 +247,7 @@ mod tests {
         ^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
@@ -261,7 +259,7 @@ mod tests {
                      ^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

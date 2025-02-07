@@ -123,17 +123,15 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{expect_no_errors, get_source_with_error_span},
-            },
+            parser::tests::{expect_no_errors, get_source_with_error_span},
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_enum_no_errors(src: &str) -> NoirEnumeration {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -205,7 +203,7 @@ mod tests {
     #[test]
     fn parse_empty_enum_with_doc_comments() {
         let src = "/// Hello\nenum Foo {}";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -219,7 +217,7 @@ mod tests {
     #[test]
     fn parse_unclosed_enum() {
         let src = "enum Foo {";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -236,7 +234,7 @@ mod tests {
         ^^^^^^^
         ";
         let (src, _) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = errors[0].reason().unwrap();
         assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
@@ -248,7 +246,7 @@ mod tests {
                    ^^
         ";
         let (src, _) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
