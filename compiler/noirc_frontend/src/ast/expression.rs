@@ -589,7 +589,7 @@ impl BlockExpression {
 pub struct ConstrainExpression {
     pub kind: ConstrainKind,
     pub arguments: Vec<Expression>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl Display for ConstrainExpression {

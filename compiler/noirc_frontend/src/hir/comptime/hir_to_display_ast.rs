@@ -179,7 +179,7 @@ impl HirExpression {
                 ExpressionKind::Constrain(ConstrainExpression {
                     kind: ConstrainKind::Assert,
                     arguments,
-                    span,
+                    location,
                 })
             }
             HirExpression::Cast(cast) => {

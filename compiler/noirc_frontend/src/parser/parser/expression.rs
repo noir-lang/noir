@@ -833,7 +833,7 @@ impl<'a> Parser<'a> {
                 ConstrainExpression {
                     kind,
                     arguments,
-                    span: self.location_since(start_location).span,
+                    location: self.location_since(start_location),
                 }
             }
             ConstrainKind::Constrain => {
@@ -846,7 +846,7 @@ impl<'a> Parser<'a> {
                 ConstrainExpression {
                     kind,
                     arguments: vec![expression],
-                    span: self.location_since(start_location).span,
+                    location: self.location_since(start_location),
                 }
             }
         })

@@ -394,7 +394,7 @@ impl<'a> Visitor for SignatureFinder<'a> {
         }
 
         let kind_len = constrain_statement.kind.to_string().len() as u32;
-        let span = constrain_statement.span;
+        let span = constrain_statement.location.span;
         let arguments_span = Span::from(span.start() + kind_len + 1..span.end() - 1);
 
         if !self.includes_span(arguments_span) {

@@ -594,8 +594,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         mut expr: ConstrainExpression,
     ) -> (HirExpression, Type) {
-        let span = expr.span;
-        let location = Location::new(span, self.file); // TODO: fix this
+        let location = expr.location;
+        let span = location.span;
         let min_args_count = expr.kind.required_arguments_count();
         let max_args_count = min_args_count + 1;
         let actual_args_count = expr.arguments.len();
