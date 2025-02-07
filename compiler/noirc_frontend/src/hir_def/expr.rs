@@ -34,6 +34,7 @@ pub enum HirExpression {
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
     MethodCall(HirMethodCallExpression),
+    Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
     Match(HirMatch),
@@ -200,6 +201,13 @@ pub struct HirMethodCallExpression {
     pub arguments: Vec<ExprId>,
     pub location: Location,
 }
+
+/// Corresponds to `assert` and `assert_eq` in the source code.
+/// This node also contains the FileId of the file the constrain
+/// originates from. This is used later in the SSA pass to issue
+/// an error if a constrain is found to be always false.
+#[derive(Debug, Clone)]
+pub struct HirConstrainExpression(pub ExprId, pub FileId, pub Option<ExprId>);
 
 #[derive(Debug, Clone)]
 pub enum HirMethodReference {

@@ -3,7 +3,6 @@ use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
 use crate::Type;
-use fm::FileId;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -13,7 +12,6 @@ use noirc_errors::{Location, Span};
 #[derive(Debug, Clone)]
 pub enum HirStatement {
     Let(HirLetStatement),
-    Constrain(HirConstrainStatement),
     Assign(HirAssignStatement),
     For(HirForStatement),
     Loop(ExprId),
@@ -78,13 +76,6 @@ pub struct HirAssignStatement {
     pub lvalue: HirLValue,
     pub expression: ExprId,
 }
-
-/// Corresponds to `constrain expr;` in the source code.
-/// This node also contains the FileId of the file the constrain
-/// originates from. This is used later in the SSA pass to issue
-/// an error if a constrain is found to be always false.
-#[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId, pub FileId, pub Option<ExprId>);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum HirPattern {
