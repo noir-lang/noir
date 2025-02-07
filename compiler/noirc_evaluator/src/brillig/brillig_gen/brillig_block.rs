@@ -873,7 +873,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     ctx.deallocate_register(rc_register);
                 };
 
-                if true || array_register == orig_array_register {
+                if array_register == orig_array_register {
                     codegen_dec_rc(self.brillig_context);
                 } else {
                     // Check if the current and original register point at the same memory.
