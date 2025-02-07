@@ -73,7 +73,7 @@ describe('input validation', () => {
       chai
         .expect(knownError.message)
         .to.equal(
-          'The value passed for parameter `x` is invalid:\nExpected witness values to be integers, provided value causes `invalid digit found in string` error',
+          'The value passed for parameter `x` is invalid:\nExpected witness values to be integers, but `foo` failed with `invalid digit found in string`',
         );
     }
   });
