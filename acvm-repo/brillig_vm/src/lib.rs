@@ -1032,7 +1032,7 @@ mod tests {
 
         // Start VM
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
@@ -1083,7 +1083,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1152,7 +1152,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1225,7 +1225,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1286,7 +1286,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1333,7 +1333,7 @@ mod tests {
             Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1399,7 +1399,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1496,7 +1496,7 @@ mod tests {
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false, None);
 
         // Calldata copy
         let status = vm.process_opcode();
@@ -1626,7 +1626,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(vec![], opcodes, vec![], &solver, false);
+        let mut vm = VM::new(vec![], opcodes, vec![], &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1853,7 +1853,7 @@ mod tests {
         opcodes: &'a [Opcode<F>],
         solver: &'a StubbedBlackBoxSolver,
     ) -> VM<'a, F, StubbedBlackBoxSolver> {
-        let mut vm = VM::new(calldata, opcodes, vec![], solver, false);
+        let mut vm = VM::new(calldata, opcodes, vec![], solver, false, None);
         brillig_execute(&mut vm);
         assert_eq!(vm.call_stack, vec![]);
         vm
@@ -2541,7 +2541,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false, None);
 
         vm.process_opcode();
         vm.process_opcode();
