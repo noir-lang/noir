@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields,
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         }
     }
 
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields: Vec::new(),
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         }
     }
 }
