@@ -1,4 +1,4 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
                 visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
                 span: start_location.span,
             };
         };
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
                 visibility,
                 name,
                 generics,
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
                 span,
             };
         }

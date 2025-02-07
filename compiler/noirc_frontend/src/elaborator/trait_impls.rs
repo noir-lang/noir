@@ -72,7 +72,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(DefCollectorErrorKind::TraitMissingMethod {
                         trait_name: self.interner.get_trait(trait_id).name.clone(),
                         method_name: method.name.clone(),
-                        trait_impl_span: trait_impl.object_type.span,
+                        trait_impl_span: trait_impl.object_type.location.span,
                     });
                 }
             } else {
@@ -224,7 +224,7 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.interner.get_trait(trait_id);
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                span: trait_impl.object_type.span,
+                span: trait_impl.object_type.location.span,
             });
         }
     }

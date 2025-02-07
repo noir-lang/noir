@@ -75,7 +75,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         };
 
         let span = if let Some(typ) = typ {
-            Span::from(name.span().start()..typ.span.end())
+            Span::from(name.span().start()..typ.location.span.end())
         } else {
             name.span()
         };
@@ -114,7 +114,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         let mut span = name.span();
 
         // If there's a type span, extend the span to include it
-        span = Span::from(span.start()..typ.span.end());
+        span = Span::from(span.start()..typ.location.span.end());
 
         // If there's a default value, extend the span to include it
         if let Some(default_value) = default_value {
@@ -190,7 +190,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         for field in &noir_struct.fields {
             let field_name = &field.item.name;
             let typ = &field.item.typ;
-            let span = Span::from(field_name.span().start()..typ.span.end());
+            let span = Span::from(field_name.span().start()..typ.location.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
                 continue;
@@ -296,7 +296,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
                 span = Span::from(span.start()..return_type_span.end());
             }
             FunctionReturnType::Ty(typ) => {
-                span = Span::from(span.start()..typ.span.end());
+                span = Span::from(span.start()..typ.location.span.end());
             }
         }
 
@@ -432,7 +432,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         }
 
-        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.location.span) else {
             return false;
         };
 

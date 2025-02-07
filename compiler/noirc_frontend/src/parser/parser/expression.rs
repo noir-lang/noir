@@ -307,10 +307,10 @@ impl<'a> Parser<'a> {
             Token::InternedUnresolvedTypeData(..) | Token::QuotedType(..)
         ) && self.next_is(Token::LeftBrace)
         {
-            let span = self.current_token_location.span;
+            let location = self.current_token_location;
             let typ = self.parse_interned_type().or_else(|| self.parse_resolved_type()).unwrap();
             self.eat_or_error(Token::LeftBrace);
-            let typ = UnresolvedType { typ, span };
+            let typ = UnresolvedType { typ, location };
             return Some(self.parse_constructor(typ));
         }
 
@@ -630,7 +630,7 @@ impl<'a> Parser<'a> {
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
         let typ = self.parse_primitive_type()?;
-        let typ = UnresolvedType { typ, span: self.location_since(start_location).span };
+        let typ = UnresolvedType { typ, location: self.location_since(start_location) };
 
         self.eat_or_error(Token::DoubleColon);
 

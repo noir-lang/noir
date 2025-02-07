@@ -2676,7 +2676,7 @@ fn function_def_set_return_type(
     mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
         func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
             typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            span: location.span,
+            location,
         });
         replace_func_meta_return_type(&mut func_meta.typ, return_type);
     });

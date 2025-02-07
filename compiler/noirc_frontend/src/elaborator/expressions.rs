@@ -684,7 +684,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constructor: ConstructorExpression,
     ) -> (HirExpression, Type) {
-        let span = constructor.typ.span;
+        let location = constructor.typ.location;
 
         // A constructor type can either be a Path or an interned UnresolvedType.
         // We represent both as UnresolvedType (with Path being a Named UnresolvedType)
@@ -697,10 +697,18 @@ impl<'context> Elaborator<'context> {
             // If this type is already resolved we can skip the rest of this function
             // which just resolves the type, and go straight to resolving the fields.
             let resolved = self.interner.get_quoted_type(id).clone();
-            return self.elaborate_constructor_with_type(resolved, constructor.fields, span, None);
+            return self.elaborate_constructor_with_type(
+                resolved,
+                constructor.fields,
+                location.span,
+                None,
+            );
         }
         let UnresolvedTypeData::Named(mut path, generics, _) = typ else {
-            self.push_err(ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span });
+            self.push_err(ResolverError::NonStructUsedInConstructor {
+                typ: typ.to_string(),
+                span: location.span,
+            });
             return (HirExpression::Error, Type::Error);
         };
 
@@ -722,7 +730,12 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        self.elaborate_constructor_with_type(typ, constructor.fields, span, Some(last_segment))
+        self.elaborate_constructor_with_type(
+            typ,
+            constructor.fields,
+            location.span,
+            Some(last_segment),
+        )
     }
 
     fn elaborate_constructor_with_type(

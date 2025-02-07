@@ -196,7 +196,7 @@ impl<'a> NodeFinder<'a> {
         let span = if let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ {
             path.last_ident().span()
         } else {
-            constructor_expression.typ.span
+            constructor_expression.typ.location.span
         };
 
         let location = Location::new(span, self.file);
@@ -1763,7 +1763,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_unresolved_type(&mut self, unresolved_type: &UnresolvedType) -> bool {
-        self.includes_span(unresolved_type.span)
+        self.includes_span(unresolved_type.location.span)
     }
 
     fn visit_named_type(

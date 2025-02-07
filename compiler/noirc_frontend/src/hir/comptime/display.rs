@@ -802,7 +802,7 @@ fn remove_interned_in_unresolved_type(
 ) -> UnresolvedType {
     UnresolvedType {
         typ: remove_interned_in_unresolved_type_data(interner, typ.typ),
-        span: typ.span,
+        location: typ.location,
     }
 }
 

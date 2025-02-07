@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Located, Span, Spanned};
+use noirc_errors::{Located, Location, Span, Spanned};
 
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
@@ -382,7 +382,7 @@ impl Type {
             }
         };
 
-        UnresolvedType { typ, span: Span::default() }
+        UnresolvedType { typ, location: Location::dummy() }
     }
 
     /// Convert to AST for display (some details lost)

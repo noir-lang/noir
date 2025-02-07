@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 
-use noirc_errors::{Location, Span};
+use noirc_errors::{Located, Location};
 
 use crate::ast::{
     Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern,
@@ -61,17 +61,17 @@ impl<'a> Parser<'a> {
             (bounds, where_clause, items, is_alias)
         };
 
-        let span = self.location_since(start_location).span;
+        let location = self.location_since(start_location);
 
         let noir_impl = is_alias.then(|| {
-            let object_type_ident = Ident::new("#T".to_string(), span);
+            let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
             let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
                 typ: UnresolvedTypeData::Named(object_type_path, vec![].into(), is_synthesized),
-                span,
+                location,
             };
 
             let mut impl_generics = generics.clone();
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
                         vec![].into(),
                         is_synthesized,
                     ),
-                    span,
+                    location,
                 };
 
                 GenericTypeArg::Ordered(generic_type)
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             generics,
             bounds,
             where_clause,
-            span,
+            span: location.span,
             items,
             attributes,
             visibility,
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
         };
 
         let default_value =

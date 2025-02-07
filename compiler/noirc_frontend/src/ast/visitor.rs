@@ -1324,73 +1324,84 @@ impl UnresolvedType {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match &self.typ {
             UnresolvedTypeData::Array(unresolved_type_expression, unresolved_type) => {
-                if visitor.visit_array_type(unresolved_type_expression, unresolved_type, self.span)
-                {
+                if visitor.visit_array_type(
+                    unresolved_type_expression,
+                    unresolved_type,
+                    self.location.span,
+                ) {
                     unresolved_type.accept(visitor);
                 }
             }
             UnresolvedTypeData::Slice(unresolved_type) => {
-                if visitor.visit_slice_type(unresolved_type, self.span) {
+                if visitor.visit_slice_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }
             UnresolvedTypeData::Parenthesized(unresolved_type) => {
-                if visitor.visit_parenthesized_type(unresolved_type, self.span) {
+                if visitor.visit_parenthesized_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }
             UnresolvedTypeData::Named(path, generic_type_args, _) => {
-                if visitor.visit_named_type(path, generic_type_args, self.span) {
+                if visitor.visit_named_type(path, generic_type_args, self.location.span) {
                     path.accept(visitor);
                     generic_type_args.accept(visitor);
                 }
             }
             UnresolvedTypeData::TraitAsType(path, generic_type_args) => {
-                if visitor.visit_trait_as_type(path, generic_type_args, self.span) {
+                if visitor.visit_trait_as_type(path, generic_type_args, self.location.span) {
                     path.accept(visitor);
                     generic_type_args.accept(visitor);
                 }
             }
             UnresolvedTypeData::MutableReference(unresolved_type) => {
-                if visitor.visit_mutable_reference_type(unresolved_type, self.span) {
+                if visitor.visit_mutable_reference_type(unresolved_type, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }
             UnresolvedTypeData::Tuple(unresolved_types) => {
-                if visitor.visit_tuple_type(unresolved_types, self.span) {
+                if visitor.visit_tuple_type(unresolved_types, self.location.span) {
                     visit_unresolved_types(unresolved_types, visitor);
                 }
             }
             UnresolvedTypeData::Function(args, ret, env, unconstrained) => {
-                if visitor.visit_function_type(args, ret, env, *unconstrained, self.span) {
+                if visitor.visit_function_type(args, ret, env, *unconstrained, self.location.span) {
                     visit_unresolved_types(args, visitor);
                     ret.accept(visitor);
                     env.accept(visitor);
                 }
             }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
-                if visitor.visit_as_trait_path_type(as_trait_path, self.span) {
-                    as_trait_path.accept(self.span, visitor);
+                if visitor.visit_as_trait_path_type(as_trait_path, self.location.span) {
+                    as_trait_path.accept(self.location.span, visitor);
                 }
             }
-            UnresolvedTypeData::Expression(expr) => visitor.visit_expression_type(expr, self.span),
+            UnresolvedTypeData::Expression(expr) => {
+                visitor.visit_expression_type(expr, self.location.span);
+            }
             UnresolvedTypeData::FormatString(expr, typ) => {
-                if visitor.visit_format_string_type(expr, typ, self.span) {
+                if visitor.visit_format_string_type(expr, typ, self.location.span) {
                     typ.accept(visitor);
                 }
             }
-            UnresolvedTypeData::String(expr) => visitor.visit_string_type(expr, self.span),
-            UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.span),
-            UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.span),
-            UnresolvedTypeData::FieldElement => visitor.visit_field_element_type(self.span),
-            UnresolvedTypeData::Integer(signdness, size) => {
-                visitor.visit_integer_type(*signdness, *size, self.span);
+            UnresolvedTypeData::String(expr) => visitor.visit_string_type(expr, self.location.span),
+            UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
+            UnresolvedTypeData::Quoted(typ) => visitor.visit_quoted_type(typ, self.location.span),
+            UnresolvedTypeData::FieldElement => {
+                visitor.visit_field_element_type(self.location.span);
             }
-            UnresolvedTypeData::Bool => visitor.visit_bool_type(self.span),
-            UnresolvedTypeData::Unit => visitor.visit_unit_type(self.span),
-            UnresolvedTypeData::Resolved(id) => visitor.visit_resolved_type(*id, self.span),
-            UnresolvedTypeData::Interned(id) => visitor.visit_interned_type(*id, self.span),
-            UnresolvedTypeData::Error => visitor.visit_error_type(self.span),
+            UnresolvedTypeData::Integer(signdness, size) => {
+                visitor.visit_integer_type(*signdness, *size, self.location.span);
+            }
+            UnresolvedTypeData::Bool => visitor.visit_bool_type(self.location.span),
+            UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
+            UnresolvedTypeData::Resolved(id) => {
+                visitor.visit_resolved_type(*id, self.location.span);
+            }
+            UnresolvedTypeData::Interned(id) => {
+                visitor.visit_interned_type(*id, self.location.span);
+            }
+            UnresolvedTypeData::Error => visitor.visit_error_type(self.location.span),
         }
     }
 }

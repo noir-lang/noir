@@ -190,14 +190,17 @@ impl<'a> Parser<'a> {
             self.eat_semicolons();
             return Some(TraitImplItemKind::Type {
                 name: Ident::default(),
-                alias: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
+                alias: UnresolvedType {
+                    typ: UnresolvedTypeData::Error,
+                    location: Location::dummy(),
+                },
             });
         };
 
         let alias = if self.eat_assign() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() }
+            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
         };
 
         self.eat_semicolons();

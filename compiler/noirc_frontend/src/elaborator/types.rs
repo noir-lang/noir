@@ -50,7 +50,7 @@ pub(super) struct TraitPathResolution {
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        let span = typ.span;
+        let span = typ.location.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { span });
@@ -63,7 +63,8 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
-        let span = typ.span;
+        let location = typ.location;
+        let span = location.span;
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
                 (
@@ -101,7 +102,7 @@ impl<'context> Elaborator<'context> {
             Quoted(quoted) => {
                 let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
                 if in_function && !self.in_comptime_context() {
-                    let span = typ.span;
+                    let span = typ.location.span;
                     let typ = quoted.to_string();
                     self.push_err(ResolverError::ComptimeTypeInRuntimeCode { span, typ });
                 }
@@ -109,7 +110,7 @@ impl<'context> Elaborator<'context> {
             }
             Unit => Type::Unit,
             Unspecified => {
-                let span = typ.span;
+                let span = typ.location.span;
                 self.push_err(TypeCheckError::UnspecifiedType { span });
                 Type::Error
             }
@@ -123,7 +124,7 @@ impl<'context> Elaborator<'context> {
             Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
                 let ret = Box::new(self.resolve_type_inner(*ret, kind));
-                let env_span = env.span;
+                let env_span = env.location.span;
 
                 let env = Box::new(self.resolve_type_inner(*env, kind));
 
@@ -148,11 +149,11 @@ impl<'context> Elaborator<'context> {
             AsTraitPath(path) => self.resolve_as_trait_path(*path),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
-                return self.resolve_type_inner(UnresolvedType { typ, span }, kind);
+                return self.resolve_type_inner(UnresolvedType { typ, location }, kind);
             }
         };
 
-        let location = Location::new(named_path_span.unwrap_or(typ.span), self.file);
+        let location = Location::new(named_path_span.unwrap_or(typ.location.span), self.file);
         match resolved_type {
             Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference

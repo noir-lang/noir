@@ -1,4 +1,4 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
                 pattern: ident_to_pattern(Ident::default(), mutable),
                 r#type: UnresolvedType {
                     typ: UnresolvedTypeData::Unspecified,
-                    span: Span::default(),
+                    location: Location::dummy(),
                 },
                 expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
                 attributes,

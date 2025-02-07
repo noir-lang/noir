@@ -196,7 +196,7 @@ impl<'a> Parser<'a> {
     /// TypeOrTypeExpression = Type | TypeExpression
     pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let typ = self.parse_add_or_subtract_type_or_type_expression()?;
-        let span = typ.span;
+        let span = typ.location;
 
         // If we end up with a Variable type expression, make it a Named type (they are equivalent),
         // but for testing purposes and simplicity we default to types instead of type expressions.
@@ -206,7 +206,7 @@ impl<'a> Parser<'a> {
             {
                 UnresolvedType {
                     typ: UnresolvedTypeData::Named(path, GenericTypeArgs::default(), false),
-                    span,
+                    location: span,
                 }
             } else {
                 typ
@@ -256,15 +256,15 @@ impl<'a> Parser<'a> {
                         start_location.span,
                     );
                     let op = BinaryTypeOperator::Subtraction;
-                    let span = self.location_since(start_location).span;
+                    let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         op,
                         Box::new(rhs),
-                        span,
+                        location.span,
                     );
                     let typ = UnresolvedTypeData::Expression(type_expr);
-                    Some(UnresolvedType { typ, span })
+                    Some(UnresolvedType { typ, location })
                 }
                 None => {
                     self.push_expected_expression();
@@ -282,14 +282,14 @@ impl<'a> Parser<'a> {
         if let Some(path) = self.parse_path() {
             let generics = self.parse_generic_type_args();
             let typ = UnresolvedTypeData::Named(path, generics, false);
-            let span = self.location_since(start_location).span;
-            return Some(UnresolvedType { typ, span });
+            let location = self.location_since(start_location);
+            return Some(UnresolvedType { typ, location });
         }
 
         if let Some(type_expr) = self.parse_constant_type_expression() {
             let typ = UnresolvedTypeData::Expression(type_expr);
-            let span = self.location_since(start_location).span;
-            return Some(UnresolvedType { typ, span });
+            let location = self.location_since(start_location);
+            return Some(UnresolvedType { typ, location });
         }
 
         if let Some(typ) = self.parse_parenthesized_type_or_type_expression() {
@@ -309,7 +309,7 @@ impl<'a> Parser<'a> {
         if self.eat_right_paren() {
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Unit,
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             });
         }
 
@@ -324,14 +324,14 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightParen);
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Expression(type_expr),
-                span: typ.span,
+                location: typ.location,
             });
         }
 
         if self.eat_right_paren() {
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             });
         }
 
@@ -352,7 +352,7 @@ impl<'a> Parser<'a> {
 
         Some(UnresolvedType {
             typ: UnresolvedTypeData::Tuple(types),
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         })
     }
 
@@ -391,7 +391,7 @@ fn type_is_type_expr(typ: &UnresolvedType) -> bool {
 
 fn type_expr_to_type(lhs: UnresolvedTypeExpression, location: Location) -> UnresolvedType {
     let lhs = UnresolvedTypeData::Expression(lhs);
-    UnresolvedType { typ: lhs, span: location.span }
+    UnresolvedType { typ: lhs, location }
 }
 
 #[cfg(test)]

@@ -930,7 +930,7 @@ impl<'context> Elaborator<'context> {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
-            let type_span = typ.span;
+            let type_location = typ.location;
             let typ = match typ.typ {
                 UnresolvedTypeData::TraitAsType(path, args) => {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
@@ -943,7 +943,7 @@ impl<'context> Elaborator<'context> {
                 &typ,
                 is_entry_point,
                 has_inline_attribute,
-                type_span,
+                type_location.span,
             );
 
             if is_entry_point {
@@ -1328,7 +1328,7 @@ impl<'context> Elaborator<'context> {
                     impl_trait: impl_trait.clone(),
                     missing_trait,
                     type_missing_trait: trait_constraint_type.to_string(),
-                    span: trait_impl.object_type.span,
+                    span: trait_impl.object_type.location.span,
                     missing_trait_location: Location::new(trait_bound.span, the_trait_file),
                 });
             }
@@ -1395,7 +1395,7 @@ impl<'context> Elaborator<'context> {
                     impl_trait: impl_trait.clone(),
                     missing_trait,
                     type_missing_trait: trait_impl.object_type.to_string(),
-                    span: trait_impl.object_type.span,
+                    span: trait_impl.object_type.location.span,
                     missing_trait_location: Location::new(parent_trait_bound.span, the_trait_file),
                 });
             }
@@ -1428,10 +1428,10 @@ impl<'context> Elaborator<'context> {
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
         self.self_type = Some(self_type.clone());
-        let self_type_span = trait_impl.object_type.span;
+        let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type, Type::MutableReference(_)) {
-            let span = self_type_span;
+            let span = self_type_location.span;
             self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
         }
 
@@ -1443,8 +1443,8 @@ impl<'context> Elaborator<'context> {
 
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
-            let span = trait_impl.object_type.span;
-            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, span);
+            let location = trait_impl.object_type.location;
+            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, location.span);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -1480,7 +1480,7 @@ impl<'context> Elaborator<'context> {
             ) {
                 self.push_err(DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
-                    span: self_type_span,
+                    span: self_type_location.span,
                 });
 
                 // The 'previous impl defined here' note must be a separate error currently
@@ -1599,14 +1599,14 @@ impl<'context> Elaborator<'context> {
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
-        let span = alias.type_alias_def.typ.span;
+        let location = alias.type_alias_def.typ.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let typ = self.resolve_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
-            self.check_type_is_not_more_private_then_item(name, visibility, &typ, span);
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, location.span);
         }
 
         self.interner.set_type_alias(alias_id, typ, generics);
@@ -1833,10 +1833,9 @@ impl<'context> Elaborator<'context> {
 
             let self_type = Type::DataType(datatype.clone(), generics);
             let self_type_id = self.interner.push_quoted_type(self_type.clone());
-            let unresolved = UnresolvedType {
-                typ: UnresolvedTypeData::Resolved(self_type_id),
-                span: typ.enum_def.span,
-            };
+            let location = Location::new(typ.enum_def.span, FileId::dummy()); // TODO: fix this
+            let unresolved =
+                UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 
             datatype.borrow_mut().init_variants();
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };

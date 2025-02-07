@@ -189,7 +189,8 @@ impl<'a> Parser<'a> {
             );
 
             let visibility = Visibility::Private;
-            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() };
+            let typ =
+                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
             (visibility, typ)
         } else {
             (self.parse_visibility(), self.parse_type_or_error())

@@ -14,6 +14,8 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use fm::FileId;
+use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
@@ -165,7 +167,7 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// An argument to a generic type or trait.
@@ -365,6 +367,7 @@ impl UnresolvedType {
 
     pub fn from_path(mut path: Path) -> Self {
         let span = path.span;
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
@@ -377,7 +380,7 @@ impl UnresolvedType {
             GenericTypeArgs::default()
         };
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
-        UnresolvedType { typ, span }
+        UnresolvedType { typ, location }
     }
 
     pub(crate) fn contains_unspecified(&self) -> bool {
@@ -400,8 +403,13 @@ impl UnresolvedTypeData {
         }
     }
 
+    pub fn with_location(&self, location: Location) -> UnresolvedType {
+        UnresolvedType { typ: self.clone(), location }
+    }
+
     pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span }
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        self.with_location(location)
     }
 
     fn contains_unspecified(&self) -> bool {

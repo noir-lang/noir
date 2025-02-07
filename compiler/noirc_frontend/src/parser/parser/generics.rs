@@ -1,6 +1,3 @@
-use fm::FileId;
-use noirc_errors::Location;
-
 use crate::{
     ast::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
@@ -78,18 +75,17 @@ impl<'a> Parser<'a> {
             );
             let typ = UnresolvedType {
                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             };
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
         let typ = self.parse_type_or_error();
-        let location = Location::new(typ.span, FileId::dummy()); // TODO: fix this
         if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
             if matches!(signedness, Signedness::Signed)
                 || matches!(bit_size, IntegerBitSize::SixtyFour)
             {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, location);
+                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.location);
             }
         }
 
