@@ -74,7 +74,7 @@ mod tests {
             .expect("Could not start debugger");
 
         let num_steps = 16;
-        for step_number in 1..=num_steps {
+        for _ in 1..=num_steps {
             // While running the debugger, issue a "next" cmd,
             // which should run to the program to the next source line given
             // we haven't set any breakpoints.
