@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
         }
     }
 
@@ -173,7 +173,8 @@ impl<'a> Parser<'a> {
                 FieldElement::zero(),
                 self.current_token_location,
             );
-            let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
+            let typ =
+                UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }
 
@@ -267,7 +268,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightBracket);
             typ
         } else {
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -291,7 +292,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Arrow);
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -432,7 +433,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_span(self.span_at_previous_token_end())
+        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
     }
 }
 

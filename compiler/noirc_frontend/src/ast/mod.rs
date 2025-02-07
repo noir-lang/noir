@@ -14,7 +14,6 @@ mod traits;
 mod type_alias;
 mod visitor;
 
-use fm::FileId;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
@@ -406,9 +405,8 @@ impl UnresolvedTypeData {
         UnresolvedType { typ: self.clone(), location }
     }
 
-    pub fn with_span(&self, span: Span) -> UnresolvedType {
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
-        self.with_location(location)
+    pub fn with_dummy_location(&self) -> UnresolvedType {
+        self.with_location(Location::dummy())
     }
 
     fn contains_unspecified(&self) -> bool {

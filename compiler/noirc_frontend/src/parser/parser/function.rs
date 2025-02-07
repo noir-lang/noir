@@ -208,12 +208,12 @@ impl<'a> Parser<'a> {
         let path = Path::from_single("Self".to_owned(), ident_location.span);
         let no_args = GenericTypeArgs::default();
         let mut self_type =
-            UnresolvedTypeData::Named(path, no_args, true).with_span(ident_location.span);
+            UnresolvedTypeData::Named(path, no_args, true).with_location(ident_location);
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
             self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
-                .with_span(ident_location.span);
+                .with_location(ident_location);
         } else if self_pattern.mutable {
             pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
         }

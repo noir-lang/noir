@@ -807,7 +807,7 @@ impl ForRange {
                 let let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        UnresolvedTypeData::Unspecified.with_dummy_location(),
                         array,
                         vec![],
                     ),
@@ -852,7 +852,7 @@ impl ForRange {
                 let let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        UnresolvedTypeData::Unspecified.with_dummy_location(),
                         Expression::new(loop_element, array_location),
                         vec![],
                     ),

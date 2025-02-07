@@ -830,16 +830,16 @@ impl<'context> Elaborator<'context> {
                     let kind = associated_type.type_var.kind();
                     let type_var = TypeVariable::unbound(new_generic_id, kind);
 
-                    let span = bound.trait_path.location.span;
+                    let location = bound.trait_path.location;
                     let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                     let name = Rc::new(name);
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
-                    let typ = UnresolvedTypeData::Resolved(typ).with_span(span);
-                    let ident = Ident::new(associated_type.name.as_ref().clone(), span);
+                    let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
+                    let ident = Ident::new(associated_type.name.as_ref().clone(), location.span);
 
                     bound.trait_generics.named_args.push((ident, typ));
-                    added_generics.push(ResolvedGeneric { name, span, type_var });
+                    added_generics.push(ResolvedGeneric { name, span: location.span, type_var });
                 }
             }
         }

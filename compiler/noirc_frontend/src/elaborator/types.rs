@@ -1,5 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
+use fm::FileId;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -347,7 +348,8 @@ impl<'context> Elaborator<'context> {
                 found: args.ordered_args.len(),
                 span,
             });
-            let error_type = UnresolvedTypeData::Error.with_span(span);
+            let location = Location::new(span, FileId::dummy()); // TODO: fix this
+            let error_type = UnresolvedTypeData::Error.with_location(location);
             args.ordered_args.resize(expected_kinds.len(), error_type);
         }
 
