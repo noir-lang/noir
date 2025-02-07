@@ -20,9 +20,9 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let typ = self.parse_unresolved_type_data()?;
-        let span = self.span_since(start_span);
+        let span = self.location_since(start_location).span;
         Some(UnresolvedType { typ, span })
     }
 

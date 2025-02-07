@@ -104,8 +104,8 @@ pub struct Parser<'a> {
 #[derive(Debug)]
 pub(crate) struct StatementDocComments {
     pub(crate) doc_comments: Vec<String>,
-    pub(crate) start_span: Span,
-    pub(crate) end_span: Span,
+    pub(crate) start_location: Location,
+    pub(crate) end_location: Location,
 
     /// Were these doc comments "read" by an unsafe statement?
     /// If not, these doc comments aren't documenting anything and they produce an error.
@@ -478,9 +478,15 @@ impl<'a> Parser<'a> {
         self.token.token() == &Token::EOF
     }
 
-    fn span_since(&self, start_span: Span) -> Span {
-        // TODO: change this to take a location instead of a span
-        if self.current_token_location.span == start_span {
+    fn location_since(&self, start_location: Location) -> Location {
+        // When taking the span between locations in different files, just keep the first one
+        if self.current_token_location.file != start_location.file {
+            return start_location;
+        }
+
+        let start_span = start_location.span;
+
+        let span = if self.current_token_location.span == start_location.span {
             start_span
         } else {
             let end_span = self.previous_token_location.span;
@@ -490,7 +496,9 @@ impl<'a> Parser<'a> {
                 // TODO: workaround for now
                 start_span
             }
-        }
+        };
+
+        Location::new(span, start_location.file)
     }
 
     fn span_at_previous_token_end(&self) -> Span {
@@ -548,20 +556,20 @@ impl<'a> Parser<'a> {
                 ParserErrorReason::VisibilityNotFollowedByAnItem {
                     visibility: modifiers.visibility,
                 },
-                modifiers.visibility_span,
+                modifiers.visibility_location.span,
             );
         }
     }
 
     fn unconstrained_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, span);
+        if let Some(location) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, location.span);
         }
     }
 
     fn comptime_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, span);
+        if let Some(location) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, location.span);
         }
     }
 
@@ -572,20 +580,20 @@ impl<'a> Parser<'a> {
     }
 
     fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.mutable {
-            self.push_error(ParserErrorReason::MutableNotApplicable, span);
+        if let Some(location) = modifiers.mutable {
+            self.push_error(ParserErrorReason::MutableNotApplicable, location.span);
         }
     }
 
     fn comptime_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotApplicable, span);
+        if let Some(location) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotApplicable, location.span);
         }
     }
 
     fn unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, span);
+        if let Some(location) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, location.span);
         }
     }
 

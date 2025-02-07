@@ -3,7 +3,7 @@ use crate::parser::ParserErrorReason;
 
 use crate::token::{Keyword, Token};
 
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
     ) -> Option<Path> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         let kind = self.parse_path_kind();
 
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             kind,
             allow_turbofish,
             allow_trailing_double_colon,
-            start_span,
+            start_location,
         )?;
         if path.segments.is_empty() {
             if path.kind != PathKind::Plain {
@@ -90,13 +90,13 @@ impl<'a> Parser<'a> {
         kind: PathKind,
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> Option<Path> {
         let path = self.parse_path_after_kind(
             kind,
             allow_turbofish,
             allow_trailing_double_colon,
-            start_span,
+            start_location,
         );
 
         if path.segments.is_empty() && path.kind == PathKind::Plain {
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
         kind: PathKind,
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> Path {
         let mut segments = Vec::new();
 
@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Path { segments, kind, span: self.span_since(start_span) }
+        Path { segments, kind, span: self.location_since(start_location).span }
     }
 
     /// PathGenerics = GenericTypeArgs

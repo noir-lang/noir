@@ -20,13 +20,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
     ) -> StatementOrExpressionOrLValue {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         // First check if it's an interned LValue
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
+                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location).span);
 
                     // If it is, it could be something like `lvalue = expr`: check that.
                     if self.eat(Token::Assign) {
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
                         let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
                         return StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
-                            span: self.span_since(start_span),
+                            span: self.location_since(start_location).span,
                         });
                     } else {
                         return StatementOrExpressionOrLValue::LValue(lvalue);

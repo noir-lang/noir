@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
@@ -13,19 +13,19 @@ use super::Parser;
 impl<'a> Parser<'a> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let is_tag = self.eat_inner_attribute_start()?;
         let attribute = if is_tag {
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         } else {
-            self.parse_non_tag_attribute(start_span)
+            self.parse_non_tag_attribute(start_location)
         };
 
         match attribute {
             Attribute::Function(function_attribute) => {
                 self.errors.push(
                     LexerErrorKind::InvalidInnerAttribute {
-                        span: self.span_since(start_span),
+                        span: self.location_since(start_location).span,
                         found: function_attribute.to_string(),
                     }
                     .into(),
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Attributes = Attribute*
-    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
+    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Location)> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
@@ -73,26 +73,29 @@ impl<'a> Parser<'a> {
     /// AttributeValue
     ///     = Path
     ///     | integer
-    pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
-        let start_span = self.current_token_location.span;
+    pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Location)> {
+        let start_location = self.current_token_location;
         let is_tag = self.eat_attribute_start()?;
         let attribute = if is_tag {
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         } else {
-            self.parse_non_tag_attribute(start_span)
+            self.parse_non_tag_attribute(start_location)
         };
-        Some((attribute, self.span_since(start_span)))
+        Some((attribute, self.location_since(start_location)))
     }
 
     pub(super) fn validate_secondary_attributes(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Vec<SecondaryAttribute> {
         attributes
             .into_iter()
-            .filter_map(|(attribute, span)| match attribute {
+            .filter_map(|(attribute, location)| match attribute {
                 Attribute::Function(..) => {
-                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnType, span);
+                    self.push_error(
+                        ParserErrorReason::NoFunctionAttributesAllowedOnType,
+                        location.span,
+                    );
                     None
                 }
                 Attribute::Secondary(attr) => Some(attr),
@@ -100,9 +103,9 @@ impl<'a> Parser<'a> {
             .collect()
     }
 
-    fn parse_tag_attribute(&mut self, start_span: Span) -> Attribute {
-        let contents_start_span = self.current_token_location.span;
-        let mut contents_span = contents_start_span;
+    fn parse_tag_attribute(&mut self, start_location: Location) -> Attribute {
+        let contents_start_location = self.current_token_location;
+        let mut contents_location = contents_start_location;
         let mut contents = String::new();
 
         let mut brackets_count = 1; // 1 because of the starting `#[`
@@ -113,7 +116,7 @@ impl<'a> Parser<'a> {
             } else if self.at(Token::RightBracket) {
                 brackets_count -= 1;
                 if brackets_count == 0 {
-                    contents_span = self.span_since(contents_start_span);
+                    contents_location = self.location_since(contents_start_location);
                     self.bump();
                     break;
                 }
@@ -125,66 +128,68 @@ impl<'a> Parser<'a> {
 
         Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
             contents,
-            span: self.span_since(start_span),
-            contents_span,
+            span: self.location_since(start_location).span,
+            contents_span: contents_location.span,
         }))
     }
 
-    fn parse_non_tag_attribute(&mut self, start_span: Span) -> Attribute {
+    fn parse_non_tag_attribute(&mut self, start_location: Location) -> Attribute {
         if matches!(&self.token.token(), Token::Keyword(..))
             && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
         {
             // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
             let path = Path::from_single(self.token.to_string(), self.current_token_location.span);
             self.bump();
-            self.parse_meta_attribute(path, start_span)
+            self.parse_meta_attribute(path, start_location)
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.0.contents == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
-                    self.parse_test_attribute(start_span)
+                    self.parse_test_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
-                    self.parse_ident_attribute_other_than_test(ident, start_span)
+                    self.parse_ident_attribute_other_than_test(ident, start_location)
                 }
             } else {
                 // This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
-                self.parse_meta_attribute(path, start_span)
+                self.parse_meta_attribute(path, start_location)
             }
         } else {
             self.expected_label(ParsingRuleLabel::Path);
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         }
     }
 
-    fn parse_meta_attribute(&mut self, name: Path, start_span: Span) -> Attribute {
+    fn parse_meta_attribute(&mut self, name: Path, start_location: Location) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
             name,
             arguments,
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }))
     }
 
     fn parse_ident_attribute_other_than_test(
         &mut self,
         ident: &Ident,
-        start_span: Span,
+        start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         match ident.0.contents.as_str() {
-            "abi" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Abi(name))
             }),
-            "allow" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "allow" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Allow(name))
             }),
-            "builtin" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Builtin(name))
-            }),
+            "builtin" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Builtin(name))
+                })
+            }
             "deprecated" => self.parse_deprecated_attribute(ident, arguments),
             "contract_library_method" => {
                 let attr = Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod);
@@ -194,16 +199,18 @@ impl<'a> Parser<'a> {
                 let attr = Attribute::Secondary(SecondaryAttribute::Export);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "field" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "field" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Field(name))
             }),
             "fold" => {
                 let attr = Attribute::Function(FunctionAttribute::Fold);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "foreign" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Foreign(name))
-            }),
+            "foreign" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Foreign(name))
+                })
+            }
             "inline_always" => {
                 let attr = Attribute::Function(FunctionAttribute::InlineAlways);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -212,9 +219,11 @@ impl<'a> Parser<'a> {
                 let attr = Attribute::Function(FunctionAttribute::NoPredicates);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "oracle" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Oracle(name))
-            }),
+            "oracle" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Oracle(name))
+                })
+            }
             "use_callers_scope" => {
                 let attr = Attribute::Secondary(SecondaryAttribute::UseCallersScope);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -226,7 +235,7 @@ impl<'a> Parser<'a> {
             _ => Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
                 name: Path::from_ident(ident.clone()),
                 arguments,
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             })),
         }
     }
@@ -265,7 +274,7 @@ impl<'a> Parser<'a> {
         Attribute::Secondary(SecondaryAttribute::Deprecated(Some(message)))
     }
 
-    fn parse_test_attribute(&mut self, start_span: Span) -> Attribute {
+    fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {
         let scope = if self.eat_left_paren() {
             let scope = if let Some(ident) = self.eat_ident() {
                 match ident.0.contents.as_str() {
@@ -295,7 +304,10 @@ impl<'a> Parser<'a> {
             scope
         } else {
             self.errors.push(
-                LexerErrorKind::MalformedTestAttribute { span: self.span_since(start_span) }.into(),
+                LexerErrorKind::MalformedTestAttribute {
+                    span: self.location_since(start_location).span,
+                }
+                .into(),
             );
             TestScope::None
         };
@@ -307,7 +319,7 @@ impl<'a> Parser<'a> {
         &mut self,
         ident: &Ident,
         mut arguments: Vec<Expression>,
-        start_span: Span,
+        start_location: Location,
         f: F,
     ) -> Attribute
     where
@@ -332,7 +344,7 @@ impl<'a> Parser<'a> {
                 f(argument.to_string())
             }
             _ => {
-                let span = self.span_since(start_span);
+                let span = self.location_since(start_location).span;
                 self.errors.push(
                     LexerErrorKind::MalformedFuncAttribute { span, found: argument.to_string() }
                         .into(),

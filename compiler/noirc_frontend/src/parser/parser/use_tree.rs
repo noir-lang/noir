@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, Path, PathKind, UseTree, UseTreeKind},
@@ -15,12 +15,14 @@ impl<'a> Parser<'a> {
     ///
     /// UseTreeList = UseTree (',' UseTree)* ','?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         let kind = self.parse_path_kind();
 
         let use_tree = self.parse_use_tree_without_kind(
-            start_span, kind, false, // nested
+            start_location,
+            kind,
+            false, // nested
         );
         if !self.eat_semicolons() {
             self.expected_token(Token::Semicolon);
@@ -30,14 +32,15 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_use_tree_without_kind(
         &mut self,
-        start_span: Span,
+        start_location: Location,
         kind: PathKind,
         nested: bool,
     ) -> UseTree {
         let prefix = self.parse_path_after_kind(
-            kind, false, // allow turbofish
+            kind,
+            false, // allow turbofish
             false, // allow trailing double colon
-            start_span,
+            start_location,
         );
         let trailing_double_colon = if prefix.segments.is_empty() && kind != PathKind::Plain {
             true
@@ -56,37 +59,41 @@ impl<'a> Parser<'a> {
                 UseTree {
                     prefix,
                     kind: UseTreeKind::List(use_trees),
-                    span: self.span_since(start_span),
+                    span: self.location_since(start_location).span,
                 }
             } else {
                 self.expected_token(Token::LeftBrace);
-                self.parse_path_use_tree_end(prefix, nested, start_span)
+                self.parse_path_use_tree_end(prefix, nested, start_location)
             }
         } else {
-            self.parse_path_use_tree_end(prefix, nested, start_span)
+            self.parse_path_use_tree_end(prefix, nested, start_location)
         }
     }
 
     fn parse_use_tree_in_list(&mut self) -> Option<UseTree> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         // Special case: "self" cannot be followed by anything else
         if self.eat_self() {
             return Some(UseTree {
-                prefix: Path { segments: Vec::new(), kind: PathKind::Plain, span: start_span },
-                kind: UseTreeKind::Path(Ident::new("self".to_string(), start_span), None),
-                span: start_span,
+                prefix: Path {
+                    segments: Vec::new(),
+                    kind: PathKind::Plain,
+                    span: start_location.span,
+                },
+                kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location.span), None),
+                span: start_location.span,
             });
         }
 
         let use_tree = self.parse_use_tree_without_kind(
-            start_span,
+            start_location,
             PathKind::Plain,
             true, // nested
         );
 
         // If we didn't advance at all, we are done
-        if start_span == self.current_token_location.span {
+        if start_location.span == self.current_token_location.span {
             self.expected_label(ParsingRuleLabel::UseSegment);
             None
         } else {
@@ -98,7 +105,7 @@ impl<'a> Parser<'a> {
         &mut self,
         mut prefix: Path,
         nested: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> UseTree {
         if prefix.segments.is_empty() {
             if nested {
@@ -109,7 +116,7 @@ impl<'a> Parser<'a> {
             UseTree {
                 prefix,
                 kind: UseTreeKind::Path(Ident::default(), None),
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
@@ -118,21 +125,21 @@ impl<'a> Parser<'a> {
                     UseTree {
                         prefix,
                         kind: UseTreeKind::Path(ident, Some(alias)),
-                        span: self.span_since(start_span),
+                        span: self.location_since(start_location).span,
                     }
                 } else {
                     self.expected_identifier();
                     UseTree {
                         prefix,
                         kind: UseTreeKind::Path(ident, None),
-                        span: self.span_since(start_span),
+                        span: self.location_since(start_location).span,
                     }
                 }
             } else {
                 UseTree {
                     prefix,
                     kind: UseTreeKind::Path(ident, None),
-                    span: self.span_since(start_span),
+                    span: self.location_since(start_location).span,
                 }
             }
         }

@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
@@ -14,9 +14,9 @@ impl<'a> Parser<'a> {
     /// StructField = OuterDocComments identifier ':' Type
     pub(crate) fn parse_struct(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirStruct {
         let attributes = self.validate_secondary_attributes(attributes);
 
@@ -27,19 +27,19 @@ impl<'a> Parser<'a> {
                 attributes,
                 visibility,
                 Vec::new(),
-                start_span,
+                start_location,
             );
         };
 
         let generics = self.parse_generics();
 
         if self.eat_semicolons() {
-            return self.empty_struct(name, attributes, visibility, generics, start_span);
+            return self.empty_struct(name, attributes, visibility, generics, start_location);
         }
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_struct(name, attributes, visibility, generics, start_span);
+            return self.empty_struct(name, attributes, visibility, generics, start_location);
         }
 
         let fields = self.parse_many(
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields,
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }
     }
 
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
-            let doc_comments_start_span = self.current_token_location.span;
+            let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
             visibility = self.parse_item_visibility();
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.span_since(doc_comments_start_span),
+                    self.location_since(doc_comments_start_location).span,
                 );
             }
 
@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
         generics: UnresolvedGenerics,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirStruct {
         NoirStruct {
             name,
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields: Vec::new(),
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }
     }
 }

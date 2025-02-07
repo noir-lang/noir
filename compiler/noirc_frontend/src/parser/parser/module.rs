@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, ItemVisibility, ModuleDeclaration},
@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         is_contract: bool,
         visibility: ItemVisibility,
     ) -> ItemKind {

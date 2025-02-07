@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            let start_span = self.current_token_location.span;
+            let start_location = self.current_token_location;
             let mut new_elements = f(self);
             if new_elements.is_empty() {
                 if let Some(end) = &separated_by.until {
@@ -81,7 +81,11 @@ impl<'a> Parser<'a> {
 
             if let Some(separator) = &separated_by.token {
                 if !trailing_separator && !elements.is_empty() {
-                    self.expected_token_separating_items(separator.clone(), items, start_span);
+                    self.expected_token_separating_items(
+                        separator.clone(),
+                        items,
+                        start_location.span,
+                    );
                 }
             }
 

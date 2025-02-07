@@ -1,4 +1,4 @@
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Location, Span, Spanned};
 
 use crate::{
     ast::{
@@ -25,22 +25,22 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
-            let span_before_doc_comments = self.current_token_location.span;
+            let location_before_doc_comments = self.current_token_location;
             let doc_comments = self.parse_outer_doc_comments();
-            let span_after_doc_comments = self.current_token_location.span;
+            let location_after_doc_comments = self.current_token_location;
             if doc_comments.is_empty() {
                 self.statement_doc_comments = None;
             } else {
                 self.statement_doc_comments = Some(StatementDocComments {
                     doc_comments,
-                    start_span: span_before_doc_comments,
-                    end_span: span_after_doc_comments,
+                    start_location: location_before_doc_comments,
+                    end_location: location_after_doc_comments,
                     read: false,
                 });
             }
 
             let attributes = self.parse_attributes();
-            let start_span = self.current_token_location.span;
+            let start_location = self.current_token_location;
             let kind = self.parse_statement_kind(attributes);
 
             if let Some(statement_doc_comments) = &self.statement_doc_comments {
@@ -48,8 +48,8 @@ impl<'a> Parser<'a> {
                     self.push_error(
                         ParserErrorReason::DocCommentDoesNotDocumentAnything,
                         Span::from(
-                            statement_doc_comments.start_span.start()
-                                ..statement_doc_comments.end_span.start(),
+                            statement_doc_comments.start_location.span.start()
+                                ..statement_doc_comments.end_location.span.start(),
                         ),
                     );
                 }
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
                 (None, self.previous_token_location.span)
             };
 
-            let span = self.span_since(start_span);
+            let span = self.location_since(start_location).span;
 
             if let Some(kind) = kind {
                 let statement = Statement { kind, span };
@@ -112,9 +112,9 @@ impl<'a> Parser<'a> {
     /// ExpressionStatement = Expression
     fn parse_statement_kind(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
@@ -135,7 +135,10 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Return) {
             self.parse_expression();
-            self.push_error(ParserErrorReason::EarlyReturn, self.span_since(start_span));
+            self.push_error(
+                ParserErrorReason::EarlyReturn,
+                self.location_since(start_location).span,
+            );
             return Some(StatementKind::Error);
         }
 
@@ -157,26 +160,26 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(kind) = self.parse_if_expr() {
-            let span = self.span_since(start_span);
+            let span = self.location_since(start_location).span;
             return Some(StatementKind::Expression(Expression { kind, span }));
         }
 
         if let Some(kind) = self.parse_match_expr() {
-            let span = self.span_since(start_span);
+            let span = self.location_since(start_location).span;
             return Some(StatementKind::Expression(Expression { kind, span }));
         }
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             }));
         }
 
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
+                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location).span);
                     self.eat_or_error(Token::Assign);
                     let expression = self.parse_expression_or_error();
                     return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
@@ -210,7 +213,7 @@ impl<'a> Parser<'a> {
                 };
                 let expression = Expression::new(
                     ExpressionKind::Infix(Box::new(infix)),
-                    self.span_since(start_span),
+                    self.location_since(start_location).span,
                 );
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {
@@ -225,7 +228,7 @@ impl<'a> Parser<'a> {
     }
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
                 Token::Plus => Some(BinaryOpKind::Add),
@@ -249,7 +252,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = operator {
             self.bump();
             self.bump();
-            Some(Spanned::from(self.span_since(start_span), operator))
+            Some(Spanned::from(self.location_since(start_location).span, operator))
         } else {
             None
         }
@@ -257,7 +260,7 @@ impl<'a> Parser<'a> {
 
     /// ForStatement = 'for' identifier 'in' ForRange Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if !self.eat_keyword(Keyword::For) {
             return None;
@@ -266,51 +269,62 @@ impl<'a> Parser<'a> {
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
             let identifier = Ident::default();
-            return Some(self.empty_for_loop(identifier, start_span));
+            return Some(self.empty_for_loop(identifier, start_location));
         };
 
         if !self.eat_keyword(Keyword::In) {
             self.expected_token(Token::Keyword(Keyword::In));
-            return Some(self.empty_for_loop(identifier, start_span));
+            return Some(self.empty_for_loop(identifier, start_location));
         }
 
         let range = self.parse_for_range();
 
-        let block_start_span = self.current_token_location.span;
+        let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(block_start_span),
+                span: self.location_since(block_start_location).span,
             }
         } else {
             self.expected_token(Token::LeftBrace);
-            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+            Expression {
+                kind: ExpressionKind::Error,
+                span: self.location_since(block_start_location).span,
+            }
         };
 
-        Some(ForLoopStatement { identifier, range, block, span: self.span_since(start_span) })
+        Some(ForLoopStatement {
+            identifier,
+            range,
+            block,
+            span: self.location_since(start_location).span,
+        })
     }
 
     /// LoopStatement = 'loop' Block
     fn parse_loop(&mut self) -> Option<(Expression, Span)> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_location.span);
 
-        let block_start_span = self.current_token_location.span;
+        let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(block_start_span),
+                span: self.location_since(block_start_location).span,
             }
         } else {
             self.expected_token(Token::LeftBrace);
-            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+            Expression {
+                kind: ExpressionKind::Error,
+                span: self.location_since(block_start_location).span,
+            }
         };
 
-        Some((block, start_span))
+        Some((block, start_location.span))
     }
 
     /// ForRange
@@ -330,7 +344,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn empty_for_loop(&mut self, identifier: Ident, start_span: Span) -> ForLoopStatement {
+    fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
         ForLoopStatement {
             identifier,
             range: ForRange::Array(Expression {
@@ -338,7 +352,7 @@ impl<'a> Parser<'a> {
                 span: Span::default(),
             }),
             block: Expression { kind: ExpressionKind::Error, span: Span::default() },
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }
     }
 
@@ -354,9 +368,9 @@ impl<'a> Parser<'a> {
     /// ComptimeFor = 'comptime' ForStatement
     fn parse_comptime_statement(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -365,7 +379,7 @@ impl<'a> Parser<'a> {
         if let Some(kind) = self.parse_comptime_statement_kind(attributes) {
             return Some(StatementKind::Comptime(Box::new(Statement {
                 kind,
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             })));
         }
 
@@ -380,14 +394,14 @@ impl<'a> Parser<'a> {
 
     fn parse_comptime_statement_kind(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             }));
         }
 
@@ -403,7 +417,10 @@ impl<'a> Parser<'a> {
     }
 
     /// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
-    fn parse_let_statement(&mut self, attributes: Vec<(Attribute, Span)>) -> Option<LetStatement> {
+    fn parse_let_statement(
+        &mut self,
+        attributes: Vec<(Attribute, Location)>,
+    ) -> Option<LetStatement> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
         }

@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
     /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         comptime: bool,
         mutable: bool,
     ) -> LetStatement {

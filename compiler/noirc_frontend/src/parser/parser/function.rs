@@ -13,7 +13,7 @@ use crate::{
 };
 use acvm::AcirField;
 
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use super::parse_many::separated_by_comma_until_right_paren;
 use super::pattern::SelfPattern;
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_function_definition(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -114,10 +114,10 @@ impl<'a> Parser<'a> {
 
         let where_clause = self.parse_where_clause();
 
-        let body_start_span = self.current_token_location.span;
+        let body_start_location = self.current_token_location;
         let body = if self.eat_semicolons() {
             if !allow_optional_body {
-                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
+                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_location.span);
             }
 
             None
@@ -130,7 +130,7 @@ impl<'a> Parser<'a> {
             generics,
             parameters,
             body,
-            span: self.span_since(body_start_span),
+            span: self.location_since(body_start_location).span,
             where_clause,
             return_type,
             return_visibility,
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
-            let start_span = self.current_token_location.span;
+            let start_location = self.current_token_location;
 
             let pattern_or_self = if allow_self {
                 self.parse_pattern_or_self()
@@ -175,13 +175,13 @@ impl<'a> Parser<'a> {
             };
 
             return Some(match pattern_or_self {
-                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_span),
+                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_location),
                 PatternOrSelf::SelfPattern(self_pattern) => self.self_pattern_param(self_pattern),
             });
         }
     }
 
-    fn pattern_param(&mut self, pattern: Pattern, start_span: Span) -> Param {
+    fn pattern_param(&mut self, pattern: Pattern, start_location: Location) -> Param {
         let (visibility, typ) = if !self.eat_colon() {
             self.push_error(
                 ParserErrorReason::MissingTypeForFunctionParameter,
@@ -195,29 +195,30 @@ impl<'a> Parser<'a> {
             (self.parse_visibility(), self.parse_type_or_error())
         };
 
-        Param { visibility, pattern, typ, span: self.span_since(start_span) }
+        Param { visibility, pattern, typ, span: self.location_since(start_location).span }
     }
 
     fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
-        let ident_span = self.previous_token_location.span;
-        let ident = Ident::new("self".to_string(), ident_span);
-        let path = Path::from_single("Self".to_owned(), ident_span);
+        let ident_location = self.previous_token_location;
+        let ident = Ident::new("self".to_string(), ident_location.span);
+        let path = Path::from_single("Self".to_owned(), ident_location.span);
         let no_args = GenericTypeArgs::default();
-        let mut self_type = UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
+        let mut self_type =
+            UnresolvedTypeData::Named(path, no_args, true).with_span(ident_location.span);
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
-            self_type =
-                UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(ident_span);
+            self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+                .with_span(ident_location.span);
         } else if self_pattern.mutable {
-            pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
+            pattern = Pattern::Mutable(Box::new(pattern), ident_location.span, true);
         }
 
         Param {
             visibility: Visibility::Private,
             pattern,
             typ: self_type,
-            span: self.span_since(ident_span),
+            span: self.location_since(ident_location).span,
         }
     }
 
@@ -256,17 +257,20 @@ impl<'a> Parser<'a> {
         Visibility::Private
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
+    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
         let mut function = None;
         let mut secondary = Vec::new();
 
-        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
+        for (index, (attribute, location)) in attributes.into_iter().enumerate() {
             match attribute {
                 Attribute::Function(attr) => {
                     if function.is_none() {
                         function = Some((attr, index));
                     } else {
-                        self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
+                        self.push_error(
+                            ParserErrorReason::MultipleFunctionAttributesFound,
+                            location.span,
+                        );
                     }
                 }
                 Attribute::Secondary(attr) => secondary.push(attr),

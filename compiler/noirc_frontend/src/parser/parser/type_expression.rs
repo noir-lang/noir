@@ -6,7 +6,7 @@ use crate::{
 };
 
 use acvm::acir::{AcirField, FieldElement};
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
@@ -24,15 +24,15 @@ impl<'a> Parser<'a> {
     /// AddOrSubtractTypeExpression
     ///     = MultiplyOrDivideOrModuloTypeExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloTypeExpression )*
     fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
-        Some(self.parse_add_or_subtract_type_expression_after_lhs(lhs, start_span))
+        Some(self.parse_add_or_subtract_type_expression_after_lhs(lhs, start_location))
     }
 
     fn parse_add_or_subtract_type_expression_after_lhs(
         &mut self,
         mut lhs: UnresolvedTypeExpression,
-        start_span: Span,
+        start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
             let operator = if self.eat(Token::Plus) {
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
 
             match self.parse_multiply_or_divide_or_modulo_type_expression() {
                 Some(rhs) => {
-                    let span = self.span_since(start_span);
+                    let span = self.location_since(start_location).span;
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         operator,
@@ -67,15 +67,15 @@ impl<'a> Parser<'a> {
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
     ) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let lhs = self.parse_term_type_expression()?;
-        Some(self.parse_multiply_or_divide_or_modulo_type_expression_after_lhs(lhs, start_span))
+        Some(self.parse_multiply_or_divide_or_modulo_type_expression_after_lhs(lhs, start_location))
     }
 
     fn parse_multiply_or_divide_or_modulo_type_expression_after_lhs(
         &mut self,
         mut lhs: UnresolvedTypeExpression,
-        start_span: Span,
+        start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
             let operator = if self.eat(Token::Star) {
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
 
             match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let span = self.span_since(start_span);
+                    let span = self.location_since(start_location).span;
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         operator,
@@ -112,13 +112,16 @@ impl<'a> Parser<'a> {
     ///    = '- TermTypeExpression
     ///    | AtomTypeExpression
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(FieldElement::zero(), start_span);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        start_location.span,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
-                    let span = self.span_since(start_span);
+                    let span = self.location_since(start_location).span;
                     Some(UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         op,
@@ -212,7 +215,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_or_type_expression()?;
 
         // If lhs is a type then no operator can follow, so we stop right away
@@ -221,14 +224,14 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = type_to_type_expr(lhs).unwrap();
-        let lhs = self.parse_add_or_subtract_type_expression_after_lhs(lhs, start_span);
-        Some(type_expr_to_type(lhs, self.span_since(start_span)))
+        let lhs = self.parse_add_or_subtract_type_expression_after_lhs(lhs, start_location);
+        Some(type_expr_to_type(lhs, self.location_since(start_location)))
     }
 
     fn parse_multiply_or_divide_or_modulo_type_or_type_expression(
         &mut self,
     ) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         let lhs = self.parse_term_type_or_type_expression()?;
 
         // If lhs is a type then no operator can follow, so we stop right away
@@ -238,19 +241,22 @@ impl<'a> Parser<'a> {
 
         let lhs = type_to_type_expr(lhs).unwrap();
         let lhs =
-            self.parse_multiply_or_divide_or_modulo_type_expression_after_lhs(lhs, start_span);
-        Some(type_expr_to_type(lhs, self.span_since(start_span)))
+            self.parse_multiply_or_divide_or_modulo_type_expression_after_lhs(lhs, start_location);
+        Some(type_expr_to_type(lhs, self.location_since(start_location)))
     }
 
     fn parse_term_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
         if self.eat(Token::Minus) {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(FieldElement::zero(), start_span);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        start_location.span,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
-                    let span = self.span_since(start_span);
+                    let span = self.location_since(start_location).span;
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         op,
@@ -271,18 +277,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_atom_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if let Some(path) = self.parse_path() {
             let generics = self.parse_generic_type_args();
             let typ = UnresolvedTypeData::Named(path, generics, false);
-            let span = self.span_since(start_span);
+            let span = self.location_since(start_location).span;
             return Some(UnresolvedType { typ, span });
         }
 
         if let Some(type_expr) = self.parse_constant_type_expression() {
             let typ = UnresolvedTypeData::Expression(type_expr);
-            let span = self.span_since(start_span);
+            let span = self.location_since(start_location).span;
             return Some(UnresolvedType { typ, span });
         }
 
@@ -294,7 +300,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parenthesized_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_location.span;
+        let start_location = self.current_token_location;
 
         if !self.eat_left_paren() {
             return None;
@@ -303,7 +309,7 @@ impl<'a> Parser<'a> {
         if self.eat_right_paren() {
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Unit,
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             });
         }
 
@@ -325,7 +331,7 @@ impl<'a> Parser<'a> {
         if self.eat_right_paren() {
             return Some(UnresolvedType {
                 typ: UnresolvedTypeData::Parenthesized(Box::new(typ)),
-                span: self.span_since(start_span),
+                span: self.location_since(start_location).span,
             });
         }
 
@@ -346,7 +352,7 @@ impl<'a> Parser<'a> {
 
         Some(UnresolvedType {
             typ: UnresolvedTypeData::Tuple(types),
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         })
     }
 
@@ -383,9 +389,9 @@ fn type_is_type_expr(typ: &UnresolvedType) -> bool {
     }
 }
 
-fn type_expr_to_type(lhs: UnresolvedTypeExpression, span: Span) -> UnresolvedType {
+fn type_expr_to_type(lhs: UnresolvedTypeExpression, location: Location) -> UnresolvedType {
     let lhs = UnresolvedTypeData::Expression(lhs);
-    UnresolvedType { typ: lhs, span }
+    UnresolvedType { typ: lhs, span: location.span }
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
@@ -24,9 +24,9 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_impl(&mut self) -> Impl {
         let generics = self.parse_generics();
 
-        let type_span_start = self.current_token_location.span;
+        let type_location_start = self.current_token_location;
         let object_type = self.parse_type_or_error();
-        let type_span = self.span_since(type_span_start);
+        let type_location = self.location_since(type_location_start);
 
         if self.eat_keyword(Keyword::For) {
             if let UnresolvedTypeData::Named(trait_name, trait_generics, _) = object_type.typ {
@@ -46,20 +46,26 @@ impl<'a> Parser<'a> {
             };
         }
 
-        self.parse_type_impl(object_type, type_span, generics)
+        self.parse_type_impl(object_type, type_location, generics)
     }
 
     /// TypeImpl = 'impl' Generics Type TypeImplBody
     fn parse_type_impl(
         &mut self,
         object_type: UnresolvedType,
-        type_span: Span,
+        type_location: Location,
         generics: Vec<UnresolvedGeneric>,
     ) -> Impl {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
 
-        Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
+        Impl::Impl(TypeImpl {
+            object_type,
+            type_span: type_location.span,
+            generics,
+            where_clause,
+            methods,
+        })
     }
 
     /// TypeImplBody = '{' TypeImplItem* '}'
@@ -81,7 +87,7 @@ impl<'a> Parser<'a> {
     fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Span)> {
         self.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
-            let start_span = parser.current_token_location.span;
+            let start_location = parser.current_token_location;
             let attributes = parser.parse_attributes();
             let modifiers = parser.parse_modifiers(
                 false, // allow mutable
@@ -95,7 +101,10 @@ impl<'a> Parser<'a> {
                     modifiers.unconstrained.is_some(),
                     true, // allow_self
                 );
-                Some((Documented::new(method, doc_comments), parser.span_since(start_span)))
+                Some((
+                    Documented::new(method, doc_comments),
+                    parser.location_since(start_location).span,
+                ))
             } else {
                 parser.modifiers_not_followed_by_an_item(modifiers);
                 None
@@ -142,11 +151,11 @@ impl<'a> Parser<'a> {
 
     fn parse_trait_impl_item(&mut self) -> Option<Documented<TraitImplItem>> {
         self.parse_item_in_list(ParsingRuleLabel::TraitImplItem, |parser| {
-            let start_span = parser.current_token_location.span;
+            let start_location = parser.current_token_location;
             let doc_comments = parser.parse_outer_doc_comments();
 
             if let Some(kind) = parser.parse_trait_impl_item_kind() {
-                let item = TraitImplItem { kind, span: parser.span_since(start_span) };
+                let item = TraitImplItem { kind, span: parser.location_since(start_location).span };
                 Some(Documented::new(item, doc_comments))
             } else {
                 None
@@ -234,7 +243,7 @@ impl<'a> Parser<'a> {
         if modifiers.visibility != ItemVisibility::Private {
             self.push_error(
                 ParserErrorReason::TraitImplVisibilityIgnored,
-                modifiers.visibility_span,
+                modifiers.visibility_location.span,
             );
         }
 

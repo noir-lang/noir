@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Documented, EnumVariant, Ident, ItemVisibility, NoirEnumeration, UnresolvedGenerics},
@@ -17,13 +17,13 @@ impl<'a> Parser<'a> {
     /// EnumField = OuterDocComments identifier ':' Type
     pub(crate) fn parse_enum(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location.span);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
                 attributes,
                 visibility,
                 Vec::new(),
-                start_span,
+                start_location,
             );
         };
 
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_enum(name, attributes, visibility, generics, start_span);
+            return self.empty_enum(name, attributes, visibility, generics, start_location);
         }
 
         let comma_separated = separated_by_comma_until_right_brace();
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             variants,
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }
     }
 
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
-            let doc_comments_start_span = self.current_token_location.span;
+            let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
             if let Some(ident) = self.eat_ident() {
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.span_since(doc_comments_start_span),
+                    self.location_since(doc_comments_start_location).span,
                 );
             }
 
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
         generics: UnresolvedGenerics,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirEnumeration {
         NoirEnumeration {
             name,
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             variants: Vec::new(),
-            span: self.span_since(start_span),
+            span: self.location_since(start_location).span,
         }
     }
 }

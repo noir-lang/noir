@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::ast::{
     Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern,
@@ -20,15 +20,16 @@ impl<'a> Parser<'a> {
     ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
     pub(crate) fn parse_trait(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            let noir_trait = empty_trait(attributes, visibility, self.span_since(start_span));
+            let noir_trait =
+                empty_trait(attributes, visibility, self.location_since(start_location));
             let no_implicit_impl = None;
             return (noir_trait, no_implicit_impl);
         };
@@ -63,7 +64,7 @@ impl<'a> Parser<'a> {
             (bounds, where_clause, items, is_alias)
         };
 
-        let span = self.span_since(start_span);
+        let span = self.location_since(start_location).span;
 
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::new("#T".to_string(), span);
@@ -229,7 +230,10 @@ impl<'a> Parser<'a> {
         );
 
         if modifiers.visibility != ItemVisibility::Private {
-            self.push_error(ParserErrorReason::TraitVisibilityIgnored, modifiers.visibility_span);
+            self.push_error(
+                ParserErrorReason::TraitVisibilityIgnored,
+                modifiers.visibility_location.span,
+            );
         }
 
         if !self.eat_keyword(Keyword::Fn) {
@@ -272,14 +276,14 @@ impl<'a> Parser<'a> {
 fn empty_trait(
     attributes: Vec<SecondaryAttribute>,
     visibility: ItemVisibility,
-    span: Span,
+    location: Location,
 ) -> NoirTrait {
     NoirTrait {
         name: Ident::default(),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),
-        span,
+        span: location.span,
         items: Vec::new(),
         attributes,
         visibility,
