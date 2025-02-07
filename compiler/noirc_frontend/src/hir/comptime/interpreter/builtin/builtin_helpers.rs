@@ -10,7 +10,7 @@ use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::SpannedToken;
+use crate::token::LocatedToken;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -371,7 +371,7 @@ pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<Ty
     }
 }
 
-pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<SpannedToken>>> {
+pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<LocatedToken>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
@@ -484,13 +484,10 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
-pub(super) fn lex(input: &str, location: Location) -> Vec<SpannedToken> {
+pub(super) fn lex(input: &str, location: Location) -> Vec<LocatedToken> {
     let (tokens, _) = Lexer::lex(input, location.file);
-    let mut tokens: Vec<_> = tokens
-        .0
-        .into_iter()
-        .map(|token| SpannedToken::new(token.into_token(), location.span))
-        .collect();
+    let mut tokens: Vec<_> =
+        tokens.0.into_iter().map(|token| LocatedToken::new(token.into_token(), location)).collect();
     if let Some(Token::EOF) = tokens.last().map(|t| t.token()) {
         tokens.pop();
     }
@@ -517,7 +514,7 @@ where
 }
 
 pub(super) fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<SpannedToken>>,
+    tokens: Rc<Vec<LocatedToken>>,
     quoted: Tokens,
     interner: &NodeInterner,
     location: Location,
@@ -591,10 +588,10 @@ pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
     Value::Quoted(ident_to_tokens(ident, location))
 }
 
-fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<SpannedToken>> {
+fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
     let token = Token::Ident(ident.0.contents.clone());
     // TODO: check this
-    let token = SpannedToken::new(token, location.span);
+    let token = LocatedToken::new(token, location);
     Rc::new(vec![token])
 }
 

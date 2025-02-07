@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use noirc_errors::{Position, Span, Spanned};
+use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
 use crate::{
@@ -350,6 +350,63 @@ impl Display for FmtStrFragment {
 pub enum DocStyle {
     Outer,
     Inner,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LocatedToken(Located<Token>);
+
+impl PartialEq<LocatedToken> for Token {
+    fn eq(&self, other: &LocatedToken) -> bool {
+        self == &other.0.contents
+    }
+}
+impl PartialEq<Token> for LocatedToken {
+    fn eq(&self, other: &Token) -> bool {
+        &self.0.contents == other
+    }
+}
+
+impl From<LocatedToken> for Token {
+    fn from(spt: LocatedToken) -> Self {
+        spt.0.contents
+    }
+}
+
+impl<'a> From<&'a LocatedToken> for &'a Token {
+    fn from(spt: &'a LocatedToken) -> Self {
+        &spt.0.contents
+    }
+}
+
+impl LocatedToken {
+    pub fn new(token: Token, location: Location) -> LocatedToken {
+        LocatedToken(Located::from(location, token))
+    }
+    pub fn to_location(&self) -> Location {
+        self.0.location()
+    }
+    pub fn to_span(&self) -> Span {
+        self.0.span()
+    }
+    pub fn token(&self) -> &Token {
+        &self.0.contents
+    }
+    pub fn into_token(self) -> Token {
+        self.0.contents
+    }
+    pub fn kind(&self) -> TokenKind {
+        self.token().kind()
+    }
+    pub fn into_spanned_token(self) -> SpannedToken {
+        let span = self.to_span();
+        SpannedToken::new(self.into_token(), span)
+    }
+}
+
+impl std::fmt::Display for LocatedToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.token().fmt(f)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -1202,7 +1259,7 @@ impl Keyword {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Tokens(pub Vec<SpannedToken>);
+pub struct Tokens(pub Vec<LocatedToken>);
 
 #[cfg(test)]
 mod keywords {

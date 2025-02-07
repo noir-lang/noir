@@ -2,11 +2,11 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, Tokens},
+    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
-use noirc_errors::{Position, Span};
+use noirc_errors::{Location, Position, Span};
 use num_bigint::BigInt;
 use num_traits::{Num, One};
 use std::str::{CharIndices, FromStr};
@@ -25,6 +25,8 @@ pub struct Lexer<'a> {
 }
 
 pub type SpannedTokenResult = Result<SpannedToken, LexerErrorKind>;
+
+pub type LocatedTokenResult = Result<LocatedToken, LexerErrorKind>;
 
 impl<'a> Lexer<'a> {
     /// Given a source file of noir code, return all the tokens in the file
@@ -109,12 +111,19 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next_token(&mut self) -> SpannedTokenResult {
+    fn next_token(&mut self) -> LocatedTokenResult {
+        self.next_spanned_token().map(|token| {
+            let span = token.to_span();
+            LocatedToken::new(token.into_token(), Location::new(span, self.file_id))
+        })
+    }
+
+    fn next_spanned_token(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
-                    self.next_token()
+                    self.next_spanned_token()
                 } else {
                     Ok(spanned)
                 }
@@ -710,7 +719,11 @@ impl<'a> Lexer<'a> {
             Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
             Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
             Token::LeftParen => (Token::LeftParen, Token::RightParen),
-            _ => return Err(LexerErrorKind::InvalidQuoteDelimiter { delimiter }),
+            _ => {
+                return Err(LexerErrorKind::InvalidQuoteDelimiter {
+                    delimiter: delimiter.into_spanned_token(),
+                })
+            }
         };
 
         let mut tokens = Vec::new();
@@ -728,7 +741,10 @@ impl<'a> Lexer<'a> {
             } else if *token.token() == Token::EOF {
                 let start_delim =
                     nested_delimiters.pop().expect("If this were empty, we wouldn't be looping");
-                return Err(LexerErrorKind::UnclosedQuote { start_delim, end_delim });
+                return Err(LexerErrorKind::UnclosedQuote {
+                    start_delim: start_delim.into_spanned_token(),
+                    end_delim,
+                });
             }
 
             tokens.push(token);
@@ -763,7 +779,7 @@ impl<'a> Lexer<'a> {
         }
 
         if doc_style.is_none() && self.skip_comments {
-            return self.next_token();
+            return self.next_spanned_token();
         }
 
         Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
@@ -812,7 +828,7 @@ impl<'a> Lexer<'a> {
             }
 
             if doc_style.is_none() && self.skip_comments {
-                return self.next_token();
+                return self.next_spanned_token();
             }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
@@ -834,7 +850,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = SpannedTokenResult;
+    type Item = LocatedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -1334,7 +1350,7 @@ mod tests {
         for spanned_token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
             assert_eq!(got.to_span(), spanned_token.to_span());
-            assert_eq!(got, spanned_token);
+            assert_eq!(got.into_spanned_token(), spanned_token);
         }
     }
 

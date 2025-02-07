@@ -14,7 +14,7 @@ use crate::{
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
-    token::{Keyword, SpannedToken, Token},
+    token::{Keyword, LocatedToken, Token},
     Type,
 };
 
@@ -24,7 +24,7 @@ use super::{
 };
 
 pub(super) fn display_quoted(
-    tokens: &[SpannedToken],
+    tokens: &[LocatedToken],
     indent: usize,
     interner: &NodeInterner,
     f: &mut std::fmt::Formatter<'_>,
@@ -44,7 +44,7 @@ pub(super) fn display_quoted(
 }
 
 struct TokensPrettyPrinter<'tokens, 'interner> {
-    tokens: &'tokens [SpannedToken],
+    tokens: &'tokens [LocatedToken],
     interner: &'interner NodeInterner,
     indent: usize,
 }
@@ -63,7 +63,7 @@ impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
     }
 }
 
-pub(super) fn tokens_to_string(tokens: &[SpannedToken], interner: &NodeInterner) -> String {
+pub(super) fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
     TokensPrettyPrinter { tokens, interner, indent: 0 }.to_string()
 }
 

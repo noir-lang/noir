@@ -303,7 +303,7 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
+                Ok(token) => token.into_spanned_token(),
                 Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
             }
         } else {

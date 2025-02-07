@@ -20,7 +20,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    token::{SpannedToken, Token, Tokens},
+    token::{LocatedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -59,10 +59,7 @@ pub enum Value {
     Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
-    /// Quoted tokens don't have spans because otherwise inserting them in the middle of other
-    /// tokens can cause larger spans to be before lesser spans, causing an assert. They may also
-    /// be inserted into separate files entirely.
-    Quoted(Rc<Vec<SpannedToken>>),
+    Quoted(Rc<Vec<LocatedToken>>),
     StructDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
@@ -265,8 +262,8 @@ impl Value {
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
                 let mut tokens_to_parse = unwrap_rc(tokens.clone());
-                tokens_to_parse.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
-                tokens_to_parse.push(SpannedToken::new(Token::RightBrace, location.span));
+                tokens_to_parse.insert(0, LocatedToken::new(Token::LeftBrace, location));
+                tokens_to_parse.push(LocatedToken::new(Token::RightBrace, location));
 
                 let tokens_to_parse = Tokens(tokens_to_parse);
 
@@ -472,7 +469,7 @@ impl Value {
         self,
         interner: &mut NodeInterner,
         location: Location,
-    ) -> IResult<Vec<SpannedToken>> {
+    ) -> IResult<Vec<LocatedToken>> {
         let tokens: Vec<Token> = match self {
             Value::Unit => {
                 vec![Token::LeftParen, Token::RightParen]
@@ -534,7 +531,7 @@ impl Value {
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
         // TODO: check this
-        let tokens = vecmap(tokens, |token| SpannedToken::new(token, location.span));
+        let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
     }
 
@@ -593,7 +590,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 }
 
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<SpannedToken>>,
+    tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
