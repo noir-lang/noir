@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
             self.expected_token(Token::Less);
             let expr = UnresolvedTypeExpression::Constant(
                 FieldElement::zero(),
-                self.current_token_location.span,
+                self.current_token_location,
             );
             return Some(UnresolvedTypeData::String(expr));
         }
@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
                 self.errors.push(error);
                 UnresolvedTypeExpression::Constant(
                     FieldElement::zero(),
-                    self.current_token_location.span,
+                    self.current_token_location,
                 )
             }
         };
@@ -171,7 +171,7 @@ impl<'a> Parser<'a> {
             self.expected_token(Token::Less);
             let expr = UnresolvedTypeExpression::Constant(
                 FieldElement::zero(),
-                self.current_token_location.span,
+                self.current_token_location,
             );
             let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
                 self.errors.push(error);
                 UnresolvedTypeExpression::Constant(
                     FieldElement::zero(),
-                    self.current_token_location.span,
+                    self.current_token_location,
                 )
             }
         };

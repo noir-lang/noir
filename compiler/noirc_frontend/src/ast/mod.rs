@@ -245,12 +245,12 @@ pub struct UnaryRhsMethodCall {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Span),
+    Constant(FieldElement, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
         Box<UnresolvedTypeExpression>,
-        Span,
+        Location,
     ),
     AsTraitPath(Box<AsTraitPath>),
 }
@@ -484,8 +484,8 @@ impl UnresolvedTypeExpression {
     pub fn span(&self) -> Span {
         match self {
             UnresolvedTypeExpression::Variable(path) => path.span(),
-            UnresolvedTypeExpression::Constant(_, span) => *span,
-            UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
+            UnresolvedTypeExpression::Constant(_, location) => location.span,
+            UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => location.span,
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 path.trait_path.location.merge(path.impl_item.location()).span
             }
@@ -495,18 +495,18 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location.span)),
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
                 None => Err(expr),
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
                     FieldElement::zero(),
-                    expr.location.span,
+                    expr.location,
                 ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location.span))
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
             ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
                 let lhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.lhs)?);
@@ -532,7 +532,7 @@ impl UnresolvedTypeExpression {
                         unreachable!("impossible via `operator_allowed` check")
                     }
                 };
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location.span))
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
             ExpressionKind::AsTraitPath(path) => {
                 Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))

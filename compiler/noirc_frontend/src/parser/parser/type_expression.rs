@@ -45,12 +45,12 @@ impl<'a> Parser<'a> {
 
             match self.parse_multiply_or_divide_or_modulo_type_expression() {
                 Some(rhs) => {
-                    let span = self.location_since(start_location).span;
+                    let location = self.location_since(start_location);
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         operator,
                         Box::new(rhs),
-                        span,
+                        location,
                     );
                 }
                 None => {
@@ -90,12 +90,12 @@ impl<'a> Parser<'a> {
 
             match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let span = self.location_since(start_location).span;
+                    let location = self.location_since(start_location);
                     lhs = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         operator,
                         Box::new(rhs),
-                        span,
+                        location,
                     );
                 }
                 None => {
@@ -116,17 +116,15 @@ impl<'a> Parser<'a> {
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
-                        start_location.span,
-                    );
+                    let lhs =
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
                     let op = BinaryTypeOperator::Subtraction;
-                    let span = self.location_since(start_location).span;
+                    let location = self.location_since(start_location);
                     Some(UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         op,
                         Box::new(rhs),
-                        span,
+                        location,
                     ))
                 }
                 None => {
@@ -162,8 +160,7 @@ impl<'a> Parser<'a> {
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let int = self.eat_int()?;
-
-        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_location.span))
+        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -251,17 +248,15 @@ impl<'a> Parser<'a> {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
-                        start_location.span,
-                    );
+                    let lhs =
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(
                         Box::new(lhs),
                         op,
                         Box::new(rhs),
-                        location.span,
+                        location,
                     );
                     let typ = UnresolvedTypeData::Expression(type_expr);
                     Some(UnresolvedType { typ, location })

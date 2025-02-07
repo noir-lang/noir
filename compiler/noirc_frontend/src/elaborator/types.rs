@@ -505,7 +505,7 @@ impl<'context> Elaborator<'context> {
             UnresolvedTypeExpression::Constant(int, _span) => {
                 Type::Constant(int, expected_kind.clone())
             }
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, span) => {
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
                 let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
                 let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_span);
@@ -516,11 +516,11 @@ impl<'context> Elaborator<'context> {
                             self.push_err(TypeCheckError::TypeKindMismatch {
                                 expected_kind: lhs_kind.to_string(),
                                 expr_kind: rhs_kind.to_string(),
-                                expr_span: span,
+                                expr_span: location.span,
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, span) {
+                        match op.function(lhs, rhs, &lhs_kind, location.span) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
@@ -529,7 +529,7 @@ impl<'context> Elaborator<'context> {
                                     op,
                                     rhs,
                                     err,
-                                    span,
+                                    span: location.span,
                                 });
                                 Type::Error
                             }

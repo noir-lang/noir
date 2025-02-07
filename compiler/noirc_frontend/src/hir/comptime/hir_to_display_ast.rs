@@ -382,8 +382,8 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
                 let rhs = Box::new(rhs.to_type_expression());
-                let span = Span::default();
-                let expr = UnresolvedTypeExpression::BinaryOperation(lhs, *op, rhs, span);
+                let location = Location::dummy();
+                let expr = UnresolvedTypeExpression::BinaryOperation(lhs, *op, rhs, location);
                 UnresolvedTypeData::Expression(expr)
             }
         };
@@ -393,12 +393,12 @@ impl Type {
 
     /// Convert to AST for display (some details lost)
     fn to_type_expression(&self) -> UnresolvedTypeExpression {
-        let span = Span::default();
+        let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, span),
+            Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
             Type::NamedGeneric(_var, name) => {
-                let path = Path::from_single(name.as_ref().clone(), span);
+                let path = Path::from_single(name.as_ref().clone(), location.span);
                 UnresolvedTypeExpression::Variable(path)
             }
             // TODO: This should be turned into a proper error.

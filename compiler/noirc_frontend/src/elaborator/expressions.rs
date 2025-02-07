@@ -266,14 +266,14 @@ impl<'context> Elaborator<'context> {
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
-                let span = length.location.span;
-                let length =
-                    UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
+                let location = length.location;
+                let length = UnresolvedTypeExpression::from_expr(*length, location.span)
+                    .unwrap_or_else(|error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), span)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
                     });
 
-                let length = self.convert_expression_type(length, &Kind::u32(), span);
+                let length = self.convert_expression_type(length, &Kind::u32(), location.span);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
