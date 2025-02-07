@@ -369,7 +369,6 @@ mod tests {
         let baz_whatever_call_location =
             Location::new(find_spans_for(source_code, "whatever()")[2], file_id);
 
-        //  let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
         let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
         let mut call_stack_hlp = CallStackHelper::default();
         // main::foo::baz::whatever

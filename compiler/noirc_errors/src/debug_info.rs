@@ -100,7 +100,7 @@ pub struct DebugInfo {
         BTreeMap<BrilligFunctionId, BTreeMap<BrilligOpcodeLocation, CallStackId>>,
     pub location_tree: LocationTree,
     /// Map opcode index of an ACIR circuit into the source code location
-    pub location_map: BTreeMap<AcirOpcodeLocation, CallStackId>,
+    pub acir_locations: BTreeMap<AcirOpcodeLocation, CallStackId>,
     pub variables: DebugVariables,
     pub functions: DebugFunctions,
     pub types: DebugTypes,
@@ -127,7 +127,7 @@ impl DebugInfo {
     ) -> Self {
         Self {
             brillig_locations,
-            location_map,
+            acir_locations: location_map,
             location_tree,
             variables,
             functions,
@@ -143,17 +143,17 @@ impl DebugInfo {
     /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     #[tracing::instrument(level = "trace", skip(self, update_map))]
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
-        let old_locations = mem::take(&mut self.location_map);
+        let old_locations = mem::take(&mut self.acir_locations);
 
         for (old_opcode_location, source_locations) in old_locations {
             update_map.new_acir_locations(old_opcode_location).for_each(|new_opcode_location| {
-                self.location_map.insert(new_opcode_location, source_locations);
+                self.acir_locations.insert(new_opcode_location, source_locations);
             });
         }
     }
 
     pub fn acir_opcode_location(&self, loc: &AcirOpcodeLocation) -> Option<Vec<Location>> {
-        self.location_map
+        self.acir_locations
             .get(loc)
             .map(|call_stack_id| self.location_tree.get_call_stack(*call_stack_id))
     }

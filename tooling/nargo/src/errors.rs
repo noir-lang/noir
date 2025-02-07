@@ -168,7 +168,7 @@ fn extract_locations_from_error<F: AcirField>(
             .flat_map(|resolved_location| {
                 let call_stack_id = match resolved_location.opcode_location {
                     OpcodeLocation::Acir(idx) => *debug[resolved_location.acir_function_index]
-                        .location_map
+                        .acir_locations
                         .get(&AcirOpcodeLocation::new(idx))
                         .unwrap_or(&CallStackId::root()),
                     // TODO: should we use acir_index here and merge the 2 call stacks?
@@ -230,7 +230,6 @@ pub fn try_to_diagnose_runtime_error(
 ) -> Option<FileDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
-            dbg!(&debug);
             extract_locations_from_error(execution_error, debug)?
         }
         _ => return None,

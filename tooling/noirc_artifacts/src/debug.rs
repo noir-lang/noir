@@ -26,13 +26,12 @@ impl DebugArtifact {
         let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
             .flat_map(|function_symbols| {
-                function_symbols.location_map.values().flat_map(|call_stack_id| {
+                function_symbols.acir_locations.values().flat_map(|call_stack_id| {
                     function_symbols
                         .location_tree
                         .get_call_stack(*call_stack_id)
-                        .iter()
+                        .into_iter()
                         .map(|location| location.file)
-                        .collect::<Vec<_>>()
                 })
             })
             .collect();
@@ -46,9 +45,8 @@ impl DebugArtifact {
                             function_symbols
                                 .location_tree
                                 .get_call_stack(*call_stack_id)
-                                .iter()
+                                .into_iter()
                                 .map(|location| location.file)
-                                .collect::<Vec<_>>()
                         })
                     });
                 brillig_location_maps
