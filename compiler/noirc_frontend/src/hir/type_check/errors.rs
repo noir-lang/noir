@@ -416,7 +416,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty.clone() {
-                            FunctionReturnType::Default(span) => span,
+                            FunctionReturnType::Default(location) => location.span,
                             FunctionReturnType::Ty(ty) => ty.location.span,
                         };
 

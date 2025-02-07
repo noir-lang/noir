@@ -109,7 +109,10 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (FunctionReturnType::Default(self.span_at_previous_token_end()), Visibility::Private)
+            (
+                FunctionReturnType::Default(self.location_at_previous_token_end()),
+                Visibility::Private,
+            )
         };
 
         let where_clause = self.parse_where_clause();
@@ -291,7 +294,7 @@ fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
         body: None,
         location: Location::new(span, location.file),
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Span::default()),
+        return_type: FunctionReturnType::Default(Location::dummy()),
         return_visibility: Visibility::Private,
     }
 }

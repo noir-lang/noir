@@ -292,8 +292,8 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
 
         // If there's a return type, extend the span to include it
         match return_type {
-            FunctionReturnType::Default(return_type_span) => {
-                span = Span::from(span.start()..return_type_span.end());
+            FunctionReturnType::Default(return_type_location) => {
+                span = Span::from(span.start()..return_type_location.span.end());
             }
             FunctionReturnType::Ty(typ) => {
                 span = Span::from(span.start()..typ.location.span.end());

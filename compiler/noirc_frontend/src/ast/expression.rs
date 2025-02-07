@@ -515,7 +515,7 @@ pub struct Param {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FunctionReturnType {
     /// Returns type is not specified.
-    Default(Span),
+    Default(Location),
     /// Everything else.
     Ty(UnresolvedType),
 }
@@ -940,9 +940,8 @@ impl Display for FunctionDefinition {
 impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
-            FunctionReturnType::Default(span) => {
-                let location = Location::new(*span, FileId::dummy()); // TODO: fix this
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, location })
+            FunctionReturnType::Default(location) => {
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, location: *location })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }
