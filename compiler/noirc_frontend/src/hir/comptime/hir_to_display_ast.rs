@@ -278,12 +278,8 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(mut value) => {
-                let is_negative = value < 0;
-                if is_negative {
-                    value = -value;
-                }
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), is_negative))
+            Constructor::Int(value) => {
+                ExpressionKind::Literal(Literal::Integer(value.field, value.is_negative))
             }
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {

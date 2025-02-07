@@ -738,7 +738,7 @@ impl<'a> FunctionContext<'a> {
 
         for i in 0..last_case {
             let case = &match_expr.cases[i];
-            let variant_tag = self.variant_index_value(&case.constructor, tag_type);
+            let variant_tag = self.variant_index_value(&case.constructor, tag_type)?;
             let eq = self.builder.insert_binary(tag, BinaryOp::Eq, variant_tag);
 
             let case_block = self.builder.insert_block();
@@ -772,10 +772,14 @@ impl<'a> FunctionContext<'a> {
         Ok(result)
     }
 
-    fn variant_index_value(&mut self, constructor: &Constructor, typ: NumericType) -> ValueId {
+    fn variant_index_value(
+        &mut self,
+        constructor: &Constructor,
+        typ: NumericType,
+    ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(x) => self.builder.numeric_constant(*x as i128, typ),
-            other => self.builder.numeric_constant(other.variant_index(), typ),
+            Constructor::Int(x) => self.checked_numeric_constant(x.field, x.is_negative, typ),
+            other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }
 

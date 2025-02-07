@@ -1,4 +1,3 @@
-use acvm::AcirField;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::{Location, Span};
@@ -13,7 +12,7 @@ use crate::{
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirMatch,
+            HirIdent, HirMatch, SignedField,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
@@ -23,7 +22,7 @@ use crate::{
     DataType, Kind, Shared, Type,
 };
 
-use super::{path_resolution::PathResolution, Elaborator};
+use super::Elaborator;
 
 impl Elaborator<'_> {
     /// Defines the value of an enum variant that we resolve an enum
@@ -303,17 +302,14 @@ impl Elaborator<'_> {
 
         match expression.kind {
             ExpressionKind::Literal(Literal::Integer(x, negative)) => {
-                let Some(mut x): Option<i64> = x.try_to_u64().and_then(|x| x.try_into().ok())
-                else {
-                    panic!("integer too big! or small")
-                };
-                if negative {
-                    x = -x;
-                }
-
                 let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
                 unify_with_expected_type(self, &actual);
-                Pattern::Int(x)
+                Pattern::Int(SignedField::new(x, negative))
+            }
+            ExpressionKind::Literal(Literal::Bool(value)) => {
+                unify_with_expected_type(self, &Type::Bool);
+                let constructor = if value { Constructor::True } else { Constructor::False };
+                Pattern::Constructor(constructor, Vec::new())
             }
             ExpressionKind::Variable(path) => {
                 // A variable can be free or bound if it refers to an enum constant:
@@ -326,7 +322,7 @@ impl Elaborator<'_> {
                 let location = Location::new(path.span(), self.file);
                 let last_ident = path.last_ident();
 
-                match self.resolve_path(path) {
+                match self.resolve_path_or_error(path) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         Vec::new(),
@@ -417,7 +413,7 @@ impl Elaborator<'_> {
                 let span = path.span();
                 let location = Location::new(span, self.file);
 
-                match self.resolve_path(path) {
+                match self.resolve_path_or_error(path) {
                     Ok(resolution) => {
                         self.path_resolution_to_constructor(resolution, args, expected_type, span)
                     }
@@ -449,15 +445,15 @@ impl Elaborator<'_> {
 
     fn path_resolution_to_constructor(
         &mut self,
-        name: PathResolution,
+        name: PathResolutionItem,
         args: Vec<Expression>,
         expected_type: &Type,
         span: Span,
     ) -> Pattern {
-        let (actual_type, expected_arg_types, variant_index) = match &name.item {
+        let (actual_type, expected_arg_types, variant_index) = match name {
             PathResolutionItem::Global(id) => {
                 // variant constant
-                let global = self.interner.get_global(*id);
+                let global = self.interner.get_global(id);
                 let variant_index = match global.value {
                     GlobalValue::Resolved(Value::Enum(tag, ..)) => tag,
                     _ => todo!("Value is not an enum constant"),
@@ -467,15 +463,15 @@ impl Elaborator<'_> {
                 let actual_type = global_type.instantiate(self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
-            PathResolutionItem::Method(_type_id, _turbofish, func_id) => {
-                // TODO: Is this turbofish on the type or on the method?
-                let meta = self.interner.function_meta(func_id);
+            PathResolutionItem::Method(_type_id, _type_turbofish, func_id) => {
+                // TODO: Take type_turbofish into account when instantiating the function's type
+                let meta = self.interner.function_meta(&func_id);
                 let Some(variant_index) = meta.enum_variant_index else { todo!("not a variant") };
 
                 let (actual_type, expected_arg_types) = match meta.typ.instantiate(self.interner).0
                 {
                     Type::Function(args, ret, _env, _) => (*ret, args),
-                    other => todo!("Not a function! Found {other}"),
+                    other => unreachable!("Not a function! Found {other}"),
                 };
 
                 (actual_type, expected_arg_types, variant_index)
@@ -659,7 +655,7 @@ impl Elaborator<'_> {
     ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows = Vec::new();
-        let mut tested: HashMap<(i64, i64), usize> = HashMap::default();
+        let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
 
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
@@ -881,12 +877,12 @@ impl Elaborator<'_> {
 enum Pattern {
     /// A pattern such as `Some(42)`.
     Constructor(Constructor, Vec<Pattern>),
-    Int(i64),
+    Int(SignedField),
     Binding(DefinitionId),
     #[allow(unused)]
     Or(Vec<Pattern>),
     #[allow(unused)]
-    Range(i64, i64),
+    Range(SignedField, SignedField),
 }
 
 #[derive(Clone)]

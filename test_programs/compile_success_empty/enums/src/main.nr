@@ -1,7 +1,24 @@
 fn main() {
+    primitive_tests();
     foo_tests();
     option_tests();
     abc_tests();
+}
+
+fn primitive_tests() {
+    let x: i32 = -2;
+    match x {
+        -3 => fail(),
+        -2 => (),
+        0 => fail(),
+        2 => fail(),
+        _ => fail(),
+    }
+
+    match true {
+        false => fail(),
+        true => (),
+    }
 }
 
 enum Foo<T> {

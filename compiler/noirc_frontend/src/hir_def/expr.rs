@@ -382,15 +382,58 @@ impl Case {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct SignedField {
+    pub field: FieldElement,
+    pub is_negative: bool,
+}
+
+impl SignedField {
+    pub fn new(field: FieldElement, is_negative: bool) -> Self {
+        Self { field, is_negative }
+    }
+}
+
+impl std::ops::Neg for SignedField {
+    type Output = Self;
+
+    fn neg(mut self) -> Self::Output {
+        self.is_negative = !self.is_negative;
+        self
+    }
+}
+
+impl std::cmp::PartialOrd for SignedField {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.is_negative != other.is_negative {
+            if self.is_negative {
+                return Some(std::cmp::Ordering::Less);
+            } else {
+                return Some(std::cmp::Ordering::Greater);
+            }
+        }
+        self.field.partial_cmp(&other.field)
+    }
+}
+
+impl std::fmt::Display for SignedField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_negative {
+            write!(f, "-")?;
+        }
+        write!(f, "{}", self.field)
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Constructor {
     True,
     False,
     Unit,
-    Int(i64),
+    Int(SignedField),
     Tuple(Vec<Type>),
     Variant(Type, usize),
-    Range(i64, i64),
+    Range(SignedField, SignedField),
 }
 
 impl Constructor {
