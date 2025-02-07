@@ -3,7 +3,6 @@ use std::{cmp::max, time::Instant};
 
 use acvm::{
     acir::{
-        self,
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
@@ -22,10 +21,7 @@ mod types;
 
 use corpus::{Corpus, TestCase, TestCaseId};
 use mutation::InputMutator;
-use rayon::{
-    iter::{IntoParallelRefIterator, ParallelIterator},
-    ThreadPool,
-};
+use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
 use types::{
     CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult, SuccessfulCaseOutcome,
@@ -192,9 +188,7 @@ impl Metrics {
     pub fn is_brillig_dominating(&self) -> bool {
         self.total_brillig_execution_time > self.total_acir_execution_time
     }
-    pub fn increment_processed_testcase_count(&mut self) {
-        self.processed_testcase_count += 1;
-    }
+
     pub fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
@@ -391,18 +385,25 @@ impl<
 
         println!("Starting corpus size: {}", starting_corpus_ids.len());
 
-        let mut start_with_only_default_input = false;
-
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
         if starting_corpus_ids.is_empty() {
-            start_with_only_default_input = true;
             let default_testcase = TestCase::from(&default_map);
-            corpus.insert(
+            match corpus.insert(
                 default_testcase.id(),
                 default_testcase.value().clone(),
                 /*save_to_disk=*/ true,
-            );
+            ) {
+                Ok(_) => (),
+                Err(error_string) => {
+                    return FuzzTestResult {
+                        success: false,
+                        reason: Some(error_string),
+                        counterexample: None,
+                        foreign_call_failure: false,
+                    }
+                }
+            }
             starting_corpus_ids.push(default_testcase.id());
         }
 
@@ -555,23 +556,15 @@ impl<
 
             if processed_starting_corpus {
                 // Update the testcase execution multipliers so that we spend at least around 200ms on each round
-                let timing = 500_000u128;
+                let mut time_per_testcase =
+                    fuzz_time_micros / brillig_executions_multiplier as u128;
+                time_per_testcase = max(time_per_testcase, 30);
+                let executions_multiplier =
+                    (SINGLE_FUZZING_ROUND_TARGET_TIME / time_per_testcase) as usize;
                 if acir_round {
-                    let mut time_per_testcase =
-                        fuzz_time_micros / acir_executions_multiplier as u128;
-                    time_per_testcase = max(time_per_testcase, 30);
-                    acir_executions_multiplier = (timing / time_per_testcase) as usize;
-                    if acir_executions_multiplier == 0 {
-                        acir_executions_multiplier = 1;
-                    }
+                    acir_executions_multiplier = max(1, executions_multiplier);
                 } else {
-                    let mut time_per_testcase =
-                        fuzz_time_micros / brillig_executions_multiplier as u128;
-                    time_per_testcase = max(time_per_testcase, 30);
-                    brillig_executions_multiplier = (timing / time_per_testcase) as usize;
-                    if brillig_executions_multiplier == 0 {
-                        brillig_executions_multiplier = 1;
-                    }
+                    brillig_executions_multiplier = max(1, executions_multiplier);
                 }
             }
 
@@ -581,13 +574,10 @@ impl<
             self.metrics.increase_processed_testcase_count(&current_round_size);
 
             // Check if there are any failures and immediately break the loop if some are found
-            for fast_result in all_fuzzing_results.iter().filter(|fast_result| fast_result.failed())
+            if let Some(individual_failing_result) =
+                all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
-                failing_result = Some(fast_result.outcome().clone());
-                break;
-            }
-            if let Some(result) = failing_result {
-                break result;
+                break individual_failing_result.outcome().clone();
             }
 
             let mut analysis_queue = Vec::new();
@@ -649,11 +639,9 @@ impl<
                 );
 
                 // In case this is just a brillig round, we need to detect first, since a merge might skip some witnesses that we haven't added from acir
-                if !acir_round {
-                    if accumulated_coverage.detect_new_coverage(&new_coverage) {
-                        acir_cases_to_execute.push((case_id, case.clone(), brillig_coverage));
-                        continue;
-                    }
+                if !acir_round && accumulated_coverage.detect_new_coverage(&new_coverage) {
+                    acir_cases_to_execute.push((case_id, case.clone(), brillig_coverage));
+                    continue;
                 }
 
                 // If both acir and brillig have been run, we can try to merge the coverage (there is an automatic detect)
@@ -1042,19 +1030,19 @@ impl<
                         exit_reason: err,
                     });
                 }
-                if self.fail_on_specific_asserts {
-                    if !err.contains(
+                if self.fail_on_specific_asserts
+                    && !err.contains(
                         self.failure_reason.as_ref().expect("Failure reason should be provided"),
-                    ) {
-                        return FuzzOutcome::Case(SuccessfulCaseOutcome {
-                            case_id: testcase.id(),
-                            case: testcase.value().clone(),
-                            witness: None,
-                            brillig_coverage: Some(coverage.unwrap()),
-                            acir_time: 0,
-                            brillig_time: brillig_elapsed.as_micros(),
-                        });
-                    }
+                    )
+                {
+                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                        case_id: testcase.id(),
+                        case: testcase.value().clone(),
+                        witness: None,
+                        brillig_coverage: Some(coverage.unwrap()),
+                        acir_time: 0,
+                        brillig_time: brillig_elapsed.as_micros(),
+                    });
                 }
                 FuzzOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),

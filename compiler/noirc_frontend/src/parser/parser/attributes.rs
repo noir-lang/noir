@@ -315,11 +315,7 @@ impl<'a> Parser<'a> {
                 match ident.0.contents.as_str() {
                     "only_fail_with" => {
                         self.eat_or_error(Token::Assign);
-                        if let Some(reason) = self.eat_str() {
-                            Some(FuzzingScope::OnlyFailWith { reason: reason })
-                        } else {
-                            None
-                        }
+                        self.eat_str().map(|reason| FuzzingScope::OnlyFailWith { reason })
                     }
                     _ => None,
                 }

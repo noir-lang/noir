@@ -124,14 +124,6 @@ impl<'a> ArrayMutator<'a> {
         result
     }
 
-    /// Perform structural mutations on a InputValue that is a vector
-    fn perform_structure_mutation(&mut self, input_buffer: &InputValue) -> InputValue {
-        let input_vec = match input_buffer {
-            InputValue::Vec(internal_vector) => internal_vector,
-            _ => panic!("Expect to get a vector input value"),
-        };
-        InputValue::Vec(self.perform_structure_mutation_on_vector(input_vec))
-    }
     /// Swap 2 random chunks in the buffer
     fn swap(&mut self, buffer: &Vec<InputValue>) -> Vec<InputValue> {
         let mut result = Vec::new();

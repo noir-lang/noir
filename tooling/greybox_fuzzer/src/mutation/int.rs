@@ -310,7 +310,7 @@ impl<'a> IntMutator<'a> {
 
     /// Get one of the fixed values in place of the original value
     fn substitute_signed_int_with_fixed_value(&mut self, width: u32) -> InputValue {
-        return InputValue::Field(i128_to_field(
+        InputValue::Field(i128_to_field(
             match BASIC_FIXED_INT_SUBSTITUTION_CONFIGURATION.select(self.prng) {
                 FixedIntSubstitution::Minimum => {
                     FIXED_SIGNED_VALUES[self.prng.gen_range(0..width as usize)]
@@ -321,7 +321,7 @@ impl<'a> IntMutator<'a> {
                 FixedIntSubstitution::Pow2 => 2i128.pow(self.prng.gen_range(0..width)),
             },
             width,
-        ));
+        ))
     }
 
     /// Negate a signed value
@@ -371,7 +371,7 @@ impl<'a> IntMutator<'a> {
         if width_dictionary.is_empty() {
             return InputValue::Field(generate_random_for_width(self.prng, width));
         }
-        InputValue::Field(width_dictionary.choose(self.prng).unwrap().clone())
+        InputValue::Field(*width_dictionary.choose(self.prng).unwrap())
     }
 
     /// Perform a binary operation with the given value and a random dictionary value
@@ -387,10 +387,10 @@ impl<'a> IntMutator<'a> {
         let dictionary_value = width_dictionary.choose(self.prng).unwrap();
         let chosen_operation = BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
         InputValue::Field(match width {
-            8 => add_sub_xor_and_or_signed::<i8>(input, &dictionary_value, chosen_operation),
-            16 => add_sub_xor_and_or_signed::<i16>(input, &dictionary_value, chosen_operation),
-            32 => add_sub_xor_and_or_signed::<i32>(input, &dictionary_value, chosen_operation),
-            64 => add_sub_xor_and_or_signed::<i64>(input, &dictionary_value, chosen_operation),
+            8 => add_sub_xor_and_or_signed::<i8>(input, dictionary_value, chosen_operation),
+            16 => add_sub_xor_and_or_signed::<i16>(input, dictionary_value, chosen_operation),
+            32 => add_sub_xor_and_or_signed::<i32>(input, dictionary_value, chosen_operation),
+            64 => add_sub_xor_and_or_signed::<i64>(input, dictionary_value, chosen_operation),
             _ => {
                 panic!("Shouldn't be reachable")
             }
@@ -399,7 +399,7 @@ impl<'a> IntMutator<'a> {
 
     /// Perform a mutation on a signed int
     fn mutate_signed(&mut self, input: &FieldElement, width: u32) -> InputValue {
-        let initial_i128 = field_to_i128(&input, width);
+        let initial_i128 = field_to_i128(input, width);
         match BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
             IntTopLevelMutation::FixedSubstitution => {
                 self.substitute_signed_int_with_fixed_value(width)
@@ -420,11 +420,10 @@ impl<'a> IntMutator<'a> {
 
     // Get one of the fixed values in place of the original value
     fn substitute_unsigned_int_with_fixed_value(&mut self, width: u32) -> InputValue {
-        let result_subst = InputValue::Field(FieldElement::from(
+        InputValue::Field(FieldElement::from(
             FIXED_UNSIGNED_VALUES[self.prng.gen_range(0..(width * 4) as usize)]
                 & ((1i128 << width) - 1),
-        ));
-        return result_subst;
+        ))
     }
 
     /// Negate an unsigned value
@@ -460,7 +459,7 @@ impl<'a> IntMutator<'a> {
 
         // Probability of addition and subtraction is equal
         if self.prng.gen_range(0..2).is_zero() {
-            return InputValue::Field(match width {
+            InputValue::Field(match width {
                 8 => wrapping_add_small_unsigned::<u8>(input, update),
                 16 => wrapping_add_small_unsigned::<u16>(input, update),
                 32 => wrapping_add_small_unsigned::<u32>(input, update),
@@ -468,9 +467,9 @@ impl<'a> IntMutator<'a> {
                 _ => {
                     panic!("Shouldn't be reachable")
                 }
-            });
+            })
         } else {
-            return InputValue::Field(match width {
+            InputValue::Field(match width {
                 8 => wrapping_sub_small_unsigned::<u8>(input, update),
                 16 => wrapping_sub_small_unsigned::<u16>(input, update),
                 32 => wrapping_sub_small_unsigned::<u32>(input, update),
@@ -478,7 +477,7 @@ impl<'a> IntMutator<'a> {
                 _ => {
                     panic!("Shouldn't be reachable")
                 }
-            });
+            })
         }
     }
 
@@ -495,10 +494,10 @@ impl<'a> IntMutator<'a> {
         let dictionary_value = width_dictionary.choose(self.prng).unwrap();
         let chosen_operation = BASIC_BINARY_INT_OPERATION_MUTATION_CONFIGURATION.select(self.prng);
         InputValue::Field(match width {
-            8 => add_sub_xor_and_or_unsigned::<u8>(input, &dictionary_value, chosen_operation),
-            16 => add_sub_xor_and_or_unsigned::<u16>(input, &dictionary_value, chosen_operation),
-            32 => add_sub_xor_and_or_unsigned::<u32>(input, &dictionary_value, chosen_operation),
-            64 => add_sub_xor_and_or_unsigned::<u64>(input, &dictionary_value, chosen_operation),
+            8 => add_sub_xor_and_or_unsigned::<u8>(input, dictionary_value, chosen_operation),
+            16 => add_sub_xor_and_or_unsigned::<u16>(input, dictionary_value, chosen_operation),
+            32 => add_sub_xor_and_or_unsigned::<u32>(input, dictionary_value, chosen_operation),
+            64 => add_sub_xor_and_or_unsigned::<u64>(input, dictionary_value, chosen_operation),
             _ => {
                 panic!("Shouldn't be reachable")
             }
@@ -506,7 +505,7 @@ impl<'a> IntMutator<'a> {
     }
     /// Perform a mutation on an unsigned int
     pub fn mutate_unsigned(&mut self, input: &FieldElement, width: u32) -> InputValue {
-        let initial_i128 = field_to_i128(&input, width + 1);
+        let initial_i128 = field_to_i128(input, width + 1);
         match BASIC_INT_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
             IntTopLevelMutation::FixedSubstitution => {
                 self.substitute_unsigned_int_with_fixed_value(width)
@@ -530,18 +529,17 @@ impl<'a> IntMutator<'a> {
         let initial_field_value = match input {
             InputValue::Field(inner_field) => inner_field,
             _ => panic!("Shouldn't be used with other input value types"),
-        }
-        .clone();
+        };
         assert!(width == 1 || width == 8 || width == 16 || width == 32 || width == 64);
 
         // If it's just one bit just get a random value
         if width == 1 {
             assert!(*sign == Sign::Unsigned);
-            return InputValue::Field(FieldElement::from(self.prng.gen_range(0..1u32)));
+            InputValue::Field(FieldElement::from(self.prng.gen_range(0..1u32)))
         } else {
             match sign {
-                Sign::Signed => self.mutate_signed(&initial_field_value, width),
-                Sign::Unsigned => self.mutate_unsigned(&initial_field_value, width),
+                Sign::Signed => self.mutate_signed(initial_field_value, width),
+                Sign::Unsigned => self.mutate_unsigned(initial_field_value, width),
             }
         }
     }

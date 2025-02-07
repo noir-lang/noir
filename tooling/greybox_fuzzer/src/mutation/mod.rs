@@ -85,7 +85,7 @@ impl UnbalancedSpliceConfiguration {
         if selector < self.first_testcase_weight {
             return UnbalancedSplice::FirstTestCase;
         }
-        return UnbalancedSplice::SecondTestCase;
+        UnbalancedSplice::SecondTestCase
     }
 }
 
@@ -218,7 +218,7 @@ impl InputMutator {
             AbiType::Field => (
                 mutate_field_input_value(
                     previous_input,
-                    &self.full_dictionary.get_field_dictionary(),
+                    self.full_dictionary.get_field_dictionary(),
                     prng,
                 ),
                 None,
@@ -228,7 +228,7 @@ impl InputMutator {
                     previous_input,
                     sign,
                     *width,
-                    &self.full_dictionary.get_int_dictionary(),
+                    self.full_dictionary.get_int_dictionary(),
                     prng,
                 ),
                 None,
@@ -237,7 +237,7 @@ impl InputMutator {
                 mutate_string_input_value(
                     previous_input,
                     prng,
-                    &self.full_dictionary.get_int_dictionary(),
+                    self.full_dictionary.get_int_dictionary(),
                 ),
                 None,
             ),
@@ -426,7 +426,7 @@ impl InputMutator {
                 if length == 1 {
                     return InputValue::Vec(
                         [Self::splice_unbalanced(
-                            &typ,
+                            typ,
                             first_input_vector.first().unwrap(),
                             second_input_vector.first().unwrap(),
                             prng,
@@ -508,7 +508,6 @@ impl InputMutator {
         abi_type: &AbiType,
         first_input: &InputValue,
         second_input: &InputValue,
-        prng: &mut XorShiftRng,
         weight_tree_node: &NodeWeight,
         mutation_weight: u32,
     ) -> InputValue {
@@ -541,7 +540,6 @@ impl InputMutator {
                                     typ,
                                     &first_input_vector[idx],
                                     &second_input_vector[idx],
-                                    prng,
                                     weight_node,
                                     mutation_weight,
                                 )
@@ -575,7 +573,6 @@ impl InputMutator {
                                     typ,
                                     &first_input_struct[name],
                                     &second_input_struct[name],
-                                    prng,
                                     weight_node,
                                     mutation_weight,
                                 )
@@ -609,7 +606,6 @@ impl InputMutator {
                                 typ,
                                 first_tuple_input,
                                 second_tuple_input,
-                                prng,
                                 weight_node,
                                 mutation_weight,
                             )
@@ -686,7 +682,6 @@ impl InputMutator {
                                     &param.typ,
                                     &first_input_map[&param.name],
                                     &second_input_map[&param.name],
-                                    prng,
                                     &current_level_weight_tree[idx],
                                     chosen_weight,
                                 )

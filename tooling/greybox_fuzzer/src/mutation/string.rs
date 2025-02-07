@@ -73,30 +73,28 @@ impl<'a> StringMutator<'a> {
         }
         .as_bytes()
         .to_vec();
-        assert!(result.len() != 0);
+        assert!(!result.is_empty());
         result = match BASIC_TOP_LEVEL_MUTATION_CONFIGURATION.select(self.prng) {
             TopLevelMutation::Value => self.perform_value_mutation(&result),
             TopLevelMutation::Structure => self.perform_structure_mutation(&result),
         };
 
-        return InputValue::String(
+        InputValue::String(
             String::from_utf8(result)
                 .expect("We expect that the values in the string are just ASCII"),
-        );
+        )
     }
 
     /// Perform one of structural mutations on the buffer
     fn perform_structure_mutation(&mut self, input_buffer: &Vec<u8>) -> Vec<u8> {
-        let result = match BASIC_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
+        match BASIC_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
             StructuralMutation::ChaoticSelfSplice => {
                 self.chaotic_splice(input_buffer, input_buffer)
             }
             StructuralMutation::ChunkDuplication => self.duplicate_chunk(input_buffer),
             StructuralMutation::RandomValueDuplication => self.duplicate_random_value(input_buffer),
             StructuralMutation::Swap => self.swap(input_buffer),
-        };
-
-        result
+        }
     }
     /// Swap 2 random chunks in the buffer
     fn swap(&mut self, buffer: &Vec<u8>) -> Vec<u8> {
@@ -174,8 +172,8 @@ impl<'a> StringMutator<'a> {
 
         // Pick value
         let value = self.prng.gen_range(MIN_ASCII..=MAX_ASCII);
-        for i in insertion_position..(insertion_position + insertion_count) {
-            result[i] = value;
+        for item in result.iter_mut().skip(insertion_position).take(insertion_count) {
+            *item = value;
         }
         result
     }
@@ -205,7 +203,7 @@ impl<'a> StringMutator<'a> {
     }
 
     /// Create buffer from random chunks of 2 buffers
-    fn chaotic_splice(&mut self, first_buffer: &Vec<u8>, second_buffer: &Vec<u8>) -> Vec<u8> {
+    fn chaotic_splice(&mut self, first_buffer: &[u8], second_buffer: &[u8]) -> Vec<u8> {
         let mut result = Vec::new();
         let mut index = 0;
         let buffer_length = first_buffer.len();
@@ -265,10 +263,10 @@ impl<'a> StringMutator<'a> {
             }
             SpliceMutation::RandomChunks => self.chaotic_splice(&first_buffer, &second_buffer),
         };
-        return InputValue::String(
+        InputValue::String(
             String::from_utf8(result)
                 .expect("We expect that the values in the string are just ASCII"),
-        );
+        )
     }
 }
 
@@ -278,8 +276,7 @@ pub fn mutate_string_input_value(
     dictionary: &IntDictionary,
 ) -> InputValue {
     let mut string_mutator = StringMutator::new(dictionary, prng);
-    let result = string_mutator.mutate(previous_input);
-    result
+    string_mutator.mutate(previous_input)
 }
 
 pub fn splice_string_input_value(

@@ -205,7 +205,7 @@ impl TopLevelMutationConfiguration {
 
     /// Select a mutation according to weights
     pub fn select(&self, prng: &mut XorShiftRng) -> TopLevelMutation {
-        let mut selector = prng.gen_range(0..self.total_weight);
+        let selector = prng.gen_range(0..self.total_weight);
         if selector < self.value_mutation_weight {
             return TopLevelMutation::Value;
         }
