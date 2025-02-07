@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
@@ -60,7 +60,7 @@ pub struct TypeImpl {
     pub type_location: Location,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub methods: Vec<(Documented<NoirFunction>, Span)>,
+    pub methods: Vec<(Documented<NoirFunction>, Location)>,
 }
 
 /// Ast node for an implementation of a trait for a particular type

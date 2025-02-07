@@ -1325,11 +1325,11 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
-        for (method, span) in &type_impl.methods {
-            method.item.accept(*span, self);
+        for (method, location) in &type_impl.methods {
+            method.item.accept(location.span, self);
 
             // Optimization: stop looking in functions past the completion cursor
-            if span.end() as usize > self.byte_index {
+            if location.span.end() as usize > self.byte_index {
                 break;
             }
         }

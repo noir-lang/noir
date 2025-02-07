@@ -1,4 +1,4 @@
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
     /// TypeImplBody = '{' TypeImplItem* '}'
     ///
     /// TypeImplItem = OuterDocComments Attributes Modifiers Function
-    fn parse_type_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Span)> {
+    fn parse_type_impl_body(&mut self) -> Vec<(Documented<NoirFunction>, Location)> {
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
             return Vec::new();
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
         )
     }
 
-    fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Span)> {
+    fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Location)> {
         self.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
             let start_location = parser.current_token_location;
@@ -95,10 +95,7 @@ impl<'a> Parser<'a> {
                     modifiers.unconstrained.is_some(),
                     true, // allow_self
                 );
-                Some((
-                    Documented::new(method, doc_comments),
-                    parser.location_since(start_location).span,
-                ))
+                Some((Documented::new(method, doc_comments), parser.location_since(start_location)))
             } else {
                 parser.modifiers_not_followed_by_an_item(modifiers);
                 None

@@ -440,8 +440,8 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         let old_symbols = std::mem::take(&mut self.symbols);
         self.symbols = Vec::new();
 
-        for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.item.accept(*noir_function_span, self);
+        for (noir_function, noir_function_location) in &type_impl.methods {
+            noir_function.item.accept(noir_function_location.span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);

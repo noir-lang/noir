@@ -658,8 +658,8 @@ impl TypeImpl {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.object_type.accept(visitor);
 
-        for (method, span) in &self.methods {
-            method.item.accept(*span, visitor);
+        for (method, location) in &self.methods {
+            method.item.accept(location.span, visitor);
         }
     }
 }
