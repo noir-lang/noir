@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738942444896,
+  "lastUpdate": 1738942449270,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14067,95 +14067,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc",
-          "message": "feat(ssa): Expand feature set of the Brillig constraint check (#7060)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-23T19:10:44Z",
-          "tree_id": "06af55b3709d97b47e52f026ce80202392f9bbae",
-          "url": "https://github.com/noir-lang/noir/commit/2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc"
-        },
-        "date": 1737661653229,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.87,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.06,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.15,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 516.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 491.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 516.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 747.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 609.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.66,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 209.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -18485,6 +18396,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/87196e9419f9c12bc7739024e2f649dcbd3e7340"
         },
         "date": 1738924465125,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.89,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "60afb1e0c06e72fe76b99084038d4f62f007a7b4",
+          "message": "chore: add timeouts to reports CI (#7317)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-02-07T15:12:31Z",
+          "tree_id": "97a32d37379462d17d62c6c238c46bc0597385b3",
+          "url": "https://github.com/noir-lang/noir/commit/60afb1e0c06e72fe76b99084038d4f62f007a7b4"
+        },
+        "date": 1738942447812,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
