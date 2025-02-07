@@ -292,7 +292,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download nargo binary
-        uses: scripts/.github/actions/download-nargo
+        uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -390,7 +390,7 @@ jobs:
         with:
           path: scripts
           sparse-checkout: |
-            ./.github/actions/download-nargo/action.yml
+            .github/actions/download-nargo/action.yml
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
@@ -477,21 +477,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: in_progress_compilation_report
+          path: ./reports
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
           pattern: compilation_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge compilation reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Compilation Time"
@@ -532,15 +533,15 @@ jobs:
         with:
           pattern: compilation_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Compilation Memory"
@@ -581,17 +582,15 @@ jobs:
         with:
           pattern: execution_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          # Rename the memory report as to not clash with the compilation memory report file name
-          cp memory_report.json execution_memory_report.json
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json          
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Execution Memory"
@@ -633,15 +632,15 @@ jobs:
         with:
           pattern: execution_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge execution reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh execution_report
-          jq ".execution_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Execution Time"

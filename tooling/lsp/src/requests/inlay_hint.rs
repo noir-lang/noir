@@ -575,6 +575,7 @@ fn get_expression_name(expression: &Expression) -> Option<String> {
         ExpressionKind::Parenthesized(expr) => get_expression_name(expr),
         ExpressionKind::AsTraitPath(path) => Some(path.impl_item.to_string()),
         ExpressionKind::TypePath(path) => Some(path.item.to_string()),
+        ExpressionKind::Constrain(constrain) => Some(constrain.kind.to_string()),
         ExpressionKind::Constructor(..)
         | ExpressionKind::Infix(..)
         | ExpressionKind::Index(..)
