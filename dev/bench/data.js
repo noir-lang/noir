@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738943011431,
+  "lastUpdate": 1738943013033,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,100 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c17e228f98e5714fb3a2b56ff4c0a2aa469e77c4",
-          "message": "feat: inline simple functions (#7160)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-01-23T19:45:12Z",
-          "tree_id": "17abbd06d6427b547d80629e8f1031c81a3d5f12",
-          "url": "https://github.com/noir-lang/noir/commit/c17e228f98e5714fb3a2b56ff4c0a2aa469e77c4"
-        },
-        "date": 1737662916612,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.86,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 19.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.656,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 82.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 74.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.748,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 35.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 13.1,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.067,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.54,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.206,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -9821,6 +9727,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.606,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0d78578981bfcc4aa021dcc0f0238548f6ff9ca0",
+          "message": "fix!: check abi integer input is within signed range (#7316)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-02-07T15:24:23Z",
+          "tree_id": "b057ad8a9dfc62c1056579a1134205a12e9d4176",
+          "url": "https://github.com/noir-lang/noir/commit/0d78578981bfcc4aa021dcc0f0238548f6ff9ca0"
+        },
+        "date": 1738943012183,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.02,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.879,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.689,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.99,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.318,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.988,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.57,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 25.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.49,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 71.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.738,
             "unit": "s"
           }
         ]
