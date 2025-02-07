@@ -240,9 +240,9 @@ impl TestCaseOrchestrator {
                 additional_id =
                     self.executions_per_testcase.iter().map(|(&id, _)| id).choose(prng).unwrap();
             }
-            return (self.current_sequence.testcase_id, Some(additional_id));
+            (self.current_sequence.testcase_id, Some(additional_id))
         } else {
-            return (self.current_sequence.testcase_id, None);
+            (self.current_sequence.testcase_id, None)
         }
     }
 }
@@ -288,12 +288,8 @@ impl Corpus {
 
     /// Get ALL the files that have been added to the corpus all the time (even deprecated ones) and put them into cache
     pub fn get_full_stored_corpus(&mut self) -> Vec<TestCase> {
-        let stored_corpus: Vec<_> = self
-            .corpus_file_manager
-            .get_full_corpus()
-            .into_iter()
-            .map(|value| TestCase::from(value))
-            .collect();
+        let stored_corpus: Vec<_> =
+            self.corpus_file_manager.get_full_corpus().into_iter().map(TestCase::from).collect();
         let id_testcase_pair: Vec<_> =
             stored_corpus.iter().map(|x| (x.id(), x.value().clone())).collect();
         for (id, input_map) in id_testcase_pair.iter() {

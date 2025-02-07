@@ -150,9 +150,8 @@ impl SingleTestCaseCoverage {
 
             // Collect states of all boolean witnesses
             for potential_bool_witness_index in potential_bool_witness_list.witness.iter() {
-                let value = witness_map
-                    .get(&potential_bool_witness_index)
-                    .expect("Witness should be there");
+                let value =
+                    witness_map.get(potential_bool_witness_index).expect("Witness should be there");
                 assert!(value.is_zero() || value.is_one());
 
                 acir_bool_coverage.push(AcirBoolState {
@@ -382,49 +381,55 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
 
-            // If we've encountered a new minimum, replace everything
-            if least_different_bits < cmp_approach.closest_bits {
-                // Remove testcases used in approach at previous difference
-                add_to_leavers(cmp_approach.maximum_testcase);
-                add_to_leavers(cmp_approach.closest_bits_testcase);
-
-                // Remove testcases used in approach
-                for i in 0..32 {
-                    add_to_leavers(cmp_approach.testcases_involved[i]);
-                }
-
-                // Register new metrics that have been reached
-                cmp_approach.closest_bits = least_different_bits;
-                cmp_approach.encountered_loop_maximum = last_value;
-                let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
-                cmp_approach.encountered_loop_log2s = 1u32 << loop_log_shift;
-
-                // Memorize the testcase that showed this feature
-                cmp_approach.closest_bits_testcase = Some(new_coverage.testcase_id);
-                cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
-                cmp_approach.testcases_involved = [None; 32];
-                cmp_approach.testcases_involved[loop_log_shift as usize] =
-                    Some(new_coverage.testcase_id);
-                // If we've hit the equality case, tracking comparisons makes no sense
-                if least_different_bits == 0 {
-                    cmp_approach.enabled = false;
-                    println!("Disabled one comparison tracing;");
-                }
-            } else if least_different_bits == cmp_approach.closest_bits {
-                // In case the difference stays the same, observe if there are more repetitions
-                let prev_value = *cmp_approach;
-                let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
-                add_to_leavers(cmp_approach.testcases_involved[loop_log_shift as usize]);
-
-                cmp_approach.encountered_loop_log2s |= 1u32 << loop_log_shift;
-                cmp_approach.testcases_involved[loop_log_shift as usize] =
-                    Some(new_coverage.testcase_id);
-                if last_value > prev_value.encountered_loop_maximum {
-                    cmp_approach.encountered_loop_maximum = last_value;
+            match least_different_bits.cmp(&cmp_approach.closest_bits) {
+                std::cmp::Ordering::Less => {
+                    // Remove testcases used in approach at previous difference
                     add_to_leavers(cmp_approach.maximum_testcase);
+                    add_to_leavers(cmp_approach.closest_bits_testcase);
+
+                    // Remove testcases used in approach
+                    for i in 0..32 {
+                        add_to_leavers(cmp_approach.testcases_involved[i]);
+                    }
+
+                    // Register new metrics that have been reached
+                    cmp_approach.closest_bits = least_different_bits;
+                    cmp_approach.encountered_loop_maximum = last_value;
+                    let loop_log_shift =
+                        if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
+                    cmp_approach.encountered_loop_log2s = 1u32 << loop_log_shift;
+
+                    // Memorize the testcase that showed this feature
+                    cmp_approach.closest_bits_testcase = Some(new_coverage.testcase_id);
                     cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
+                    cmp_approach.testcases_involved = [None; 32];
+                    cmp_approach.testcases_involved[loop_log_shift as usize] =
+                        Some(new_coverage.testcase_id);
+                    // If we've hit the equality case, tracking comparisons makes no sense
+                    if least_different_bits == 0 {
+                        cmp_approach.enabled = false;
+                        println!("Disabled one comparison tracing;");
+                    }
                 }
+                std::cmp::Ordering::Equal => {
+                    // In case the difference stays the same, observe if there are more repetitions
+                    let prev_value = *cmp_approach;
+                    let loop_log_shift =
+                        if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
+                    add_to_leavers(cmp_approach.testcases_involved[loop_log_shift as usize]);
+
+                    cmp_approach.encountered_loop_log2s |= 1u32 << loop_log_shift;
+                    cmp_approach.testcases_involved[loop_log_shift as usize] =
+                        Some(new_coverage.testcase_id);
+                    if last_value > prev_value.encountered_loop_maximum {
+                        cmp_approach.encountered_loop_maximum = last_value;
+                        add_to_leavers(cmp_approach.maximum_testcase);
+                        cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
+                    }
+                }
+                std::cmp::Ordering::Greater => {}
             }
+            // If we've encountered a new minimum, replace everything
         }
 
         // Insert all ACIR states and replace testcase association
