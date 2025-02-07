@@ -353,15 +353,8 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let fuzzing_active = false;
-        let mut vm = VM::new(
-            calldata,
-            bytecode,
-            vec![],
-            &DummyBlackBoxSolver,
-            profiling_active,
-            fuzzing_active,
-        );
+        let mut vm =
+            VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -443,7 +436,7 @@ pub(crate) mod tests {
             vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
             &DummyBlackBoxSolver,
             false,
-            false,
+            None,
         );
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
