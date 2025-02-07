@@ -352,7 +352,7 @@ fn parse_str_to_signed(
             let min = BigInt::from(-(2_i128.pow(width - 1)));
 
             if bigint < min {
-                return Err(InputParserError::InputExceedsMinimum {
+                return Err(InputParserError::InputUnderflowsMinimum {
                     arg_name: arg_name.into(),
                     value: bigint.to_string(),
                     min: min.to_string(),
@@ -360,7 +360,7 @@ fn parse_str_to_signed(
             }
 
             if bigint > max {
-                return Err(InputParserError::InputExceedsMaximum {
+                return Err(InputParserError::InputOverflowsMaximum {
                     arg_name: arg_name.into(),
                     value: bigint.to_string(),
                     max: max.to_string(),
@@ -393,7 +393,7 @@ fn parse_integer_to_signed(
     let max = (1 << (width - 1)) - 1;
 
     if integer < min {
-        return Err(InputParserError::InputExceedsMinimum {
+        return Err(InputParserError::InputUnderflowsMinimum {
             arg_name: arg_name.into(),
             value: integer.to_string(),
             min: min.to_string(),
@@ -401,7 +401,7 @@ fn parse_integer_to_signed(
     }
 
     if integer > max {
-        return Err(InputParserError::InputExceedsMaximum {
+        return Err(InputParserError::InputOverflowsMaximum {
             arg_name: arg_name.into(),
             value: integer.to_string(),
             max: max.to_string(),

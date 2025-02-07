@@ -14,9 +14,9 @@ pub enum InputParserError {
     )]
     ParseStr { arg_name: String, value: String, error: String },
     #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}")]
-    InputExceedsMinimum { arg_name: String, value: String, min: String },
+    InputUnderflowsMinimum { arg_name: String, value: String, min: String },
     #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}")]
-    InputExceedsMaximum { arg_name: String, value: String, max: String },
+    InputOverflowsMaximum { arg_name: String, value: String, max: String },
     #[error(
         "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
         FieldElement::modulus()
