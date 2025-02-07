@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
@@ -20,7 +20,7 @@ pub struct NoirTrait {
     pub generics: UnresolvedGenerics,
     pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub span: Span,
+    pub location: Location,
     pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,

@@ -735,7 +735,7 @@ impl NodeInterner {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
-            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
+            location: unresolved_trait.trait_def.location,
             generics,
             visibility: ItemVisibility::Private,
             self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
