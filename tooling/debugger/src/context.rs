@@ -422,7 +422,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     /// happen for certain opcodes inserted synthetically by the compiler).
     /// This function also filters source locations that are determined to be in
     /// the internal debug module.
-    pub(super) fn get_current_source_location(&self) -> Option<Vec<Location>> {
+    pub fn get_current_source_location(&self) -> Option<Vec<Location>> {
         self.get_current_debug_location()
             .as_ref()
             .map(|debug_location| self.get_source_location_for_debug_location(debug_location))
@@ -650,7 +650,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn step_into_opcode(&mut self) -> DebugCommandResult {
+    pub fn step_into_opcode(&mut self) -> DebugCommandResult {
         if self.brillig_solver.is_some() {
             return self.step_brillig_opcode();
         }

@@ -103,13 +103,35 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
+    /// Steps debugging execution until the next source location, while simultaneously checking for return values after each opcode
+    fn next_into_with_return_values_check(&mut self) -> DebugCommandResult {
+        let start_location = self.debug_context.get_current_source_location();
+        loop {
+            let result = self.debug_context.step_into_opcode();
+            if !matches!(result, DebugCommandResult::Ok) {
+                return result;
+            }
+
+            // check for return values
+            let stack_frames = get_stack_frames(&self.debug_context);
+            if let Some(frame) = stack_frames.last() {
+                Self::maybe_update_saved_return_value(frame, &mut self.saved_return_value);
+            }
+
+            let new_location = self.debug_context.get_current_source_location();
+            if new_location.is_some() && new_location != start_location {
+                return DebugCommandResult::Ok;
+            }
+        }
+    }
+
     /// Steps the debugger until a new line is reached, or the debugger returns anything other than
     /// Ok.
     ///
     /// Propagates the debugger result.
     fn step_debugger(&mut self) -> DebugStepResult<NargoError<FieldElement>> {
         loop {
-            match self.debug_context.next_into() {
+            match self.next_into_with_return_values_check() {
                 DebugCommandResult::Done => return DebugStepResult::Finished,
                 DebugCommandResult::Error(error) => return DebugStepResult::Error(error),
                 DebugCommandResult::BreakpointReached(loc) => {
