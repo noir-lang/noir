@@ -335,16 +335,13 @@ impl AccumulatedFuzzerCoverage {
         let mut potential_leavers: UnusedTestcaseIdSet = UnusedTestcaseIdSet::new();
 
         let mut add_to_leavers = |x| {
-            match x {
-                Some(leaver_id) => {
-                    potential_leavers.insert(leaver_id);
-                }
-                None => {}
+            if let Some(leaver_id) = x {
+                potential_leavers.insert(leaver_id);
             };
         };
         // Go through all single branch coverage ranges and merge branch coverage in
         for branch in self.brillig_branch_coverage.iter_mut() {
-            let prev_value = branch.clone();
+            let prev_value = *branch;
             let testcase_value = new_coverage.brillig_coverage[branch.raw_index];
             // If the branch was taken at least once
             if !testcase_value.is_zero() {
@@ -415,7 +412,7 @@ impl AccumulatedFuzzerCoverage {
                 }
             } else if least_different_bits == cmp_approach.closest_bits {
                 // In case the difference stays the same, observe if there are more repetitions
-                let prev_value = cmp_approach.clone();
+                let prev_value = *cmp_approach;
                 let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
                 add_to_leavers(cmp_approach.testcases_involved[loop_log_shift as usize]);
 
@@ -451,7 +448,7 @@ impl AccumulatedFuzzerCoverage {
         // Check that all boolean state witnesses observed in accumulated coverage are booleans here, too
         for state in self.acir_bool_coverage.iter() {
             if !all_witnesses_in_bool_coverage.contains(&state.witness_id) {
-                states_to_remove.push(state.clone());
+                states_to_remove.push(*state);
             }
         }
         // Remove states that are not booleans
@@ -503,18 +500,20 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
 
-            if least_different_bits < cmp_approach.closest_bits {
-                return true;
-            } else if least_different_bits == cmp_approach.closest_bits {
-                if (cmp_approach.encountered_loop_log2s
-                    | 1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 }))
-                    != cmp_approach.encountered_loop_log2s
-                {
-                    return true;
+            match least_different_bits.cmp(&cmp_approach.closest_bits) {
+                std::cmp::Ordering::Less => return true,
+                std::cmp::Ordering::Equal => {
+                    if (cmp_approach.encountered_loop_log2s
+                        | 1u32 << (if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 }))
+                        != cmp_approach.encountered_loop_log2s
+                    {
+                        return true;
+                    }
+                    if last_value > cmp_approach.encountered_loop_maximum {
+                        return true;
+                    }
                 }
-                if last_value > cmp_approach.encountered_loop_maximum {
-                    return true;
-                }
+                std::cmp::Ordering::Greater => {}
             }
         }
         // Check if a boolean state has been observed before

@@ -44,6 +44,12 @@ const SINGLE_FUZZING_ROUND_TARGET_TIME: u128 = 500_000u128;
 /// A seed for the XorShift RNG for use during mutation
 type SimpleXorShiftRNGSeed = <XorShiftRng as SeedableRng>::Seed;
 
+/// Information collected from testcase execution on success
+pub type WitnessAndCoverage = (WitnessStack<FieldElement>, Option<Vec<u32>>);
+
+/// Information collected from testcase execution on failure
+pub type ErrorAndCoverage = (String, Option<Vec<u32>>);
+
 /// A structure with the values for a single mutation-fuzz iteration in the fuzzer
 struct FuzzTask {
     /// The id of the main testcase that is going to be mutated
@@ -211,6 +217,14 @@ impl Metrics {
         self.num_threads = count;
     }
 }
+
+pub struct FuzzedExecutorFailureConfiguration {
+    /// Fail on specific asserts
+    pub fail_on_specific_asserts: bool,
+
+    /// Failure reason
+    pub failure_reason: Option<String>,
+}
 /// An executor for Noir programs which which provides fuzzing support
 ///
 /// After instantiation, calling `fuzz` will proceed to hammer the program with
@@ -247,16 +261,16 @@ pub struct FuzzedExecutor<E, F> {
     /// Number of threads to use
     num_threads: usize,
 
-    /// Fail on specific asserts
-    fail_on_specific_asserts: bool,
-
-    /// Failure reason
-    failure_reason: Option<String>,
+    /// Determines what is considered a failure during execution
+    failure_configuration: FuzzedExecutorFailureConfiguration,
 
     /// Execution metric
     metrics: Metrics,
 }
-
+pub struct AcirAndBrilligPrograms {
+    pub acir_program: ProgramArtifact,
+    pub brillig_program: ProgramArtifact,
+}
 impl<
         E: Fn(
                 &Program<FieldElement>,
@@ -267,37 +281,35 @@ impl<
                 &Program<FieldElement>,
                 WitnessMap<FieldElement>,
                 &FeatureToIndexMap,
-            )
-                -> Result<(WitnessStack<FieldElement>, Option<Vec<u32>>), (String, Option<Vec<u32>>)>
+            ) -> Result<WitnessAndCoverage, ErrorAndCoverage>
             + Sync,
     > FuzzedExecutor<E, F>
 {
     /// Instantiates a fuzzed executor given an executor
     pub fn new(
-        acir_program: ProgramArtifact,
-        brillig_program: ProgramArtifact,
+        acir_and_brillig_programs: AcirAndBrilligPrograms,
         acir_executor: E,
         brillig_executor: F,
         package_name: &str,
         function_name: &str,
         num_threads: usize,
-        fail_on_specific_asserts: bool,
-        failure_reason: Option<String>,
+        failure_configuration: FuzzedExecutorFailureConfiguration,
     ) -> Self {
         // Analyze brillig program for branches and comparisons
         let (location_to_feature_map, brillig_coverage_ranges) =
-            analyze_brillig_program_before_fuzzing(&brillig_program);
+            analyze_brillig_program_before_fuzzing(&acir_and_brillig_programs.brillig_program);
 
         // Create a dictionary from acir bytecode
         // TODO: replace with building a dictionary from brillig. It makes much more sense
-        let dictionary = build_dictionary_from_program(&acir_program.bytecode);
+        let dictionary =
+            build_dictionary_from_program(&acir_and_brillig_programs.acir_program.bytecode);
 
         // Create a mutator for the following interface with the dictionary generated from acir bytecode
-        let mutator = InputMutator::new(&acir_program.abi, &dictionary);
+        let mutator = InputMutator::new(&acir_and_brillig_programs.acir_program.abi, &dictionary);
 
         Self {
-            acir_program,
-            brillig_program,
+            acir_program: acir_and_brillig_programs.acir_program,
+            brillig_program: acir_and_brillig_programs.brillig_program,
             acir_executor,
             brillig_executor,
             location_to_feature_map,
@@ -306,8 +318,7 @@ impl<
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
             num_threads,
-            fail_on_specific_asserts,
-            failure_reason,
+            failure_configuration,
             metrics: Metrics::default(),
         }
     }
@@ -339,7 +350,7 @@ impl<
         // We don't care about the testcase id, since we are not merging this, just detecting if it has new coverage
         let new_coverage = SingleTestCaseCoverage::new(
             TestCaseId::default(),
-            &witness,
+            witness,
             brillig_coverage.clone().unwrap(),
             bool_witness_list,
         );
@@ -931,9 +942,12 @@ impl<
                     });
                 }
                 // If failures are expected and this is not the failure that we are looking for, then don't treat as failure
-                if self.fail_on_specific_asserts
+                if self.failure_configuration.fail_on_specific_asserts
                     && !err.contains(
-                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                        self.failure_configuration
+                            .failure_reason
+                            .as_ref()
+                            .expect("Failure reason should be provided"),
                     )
                 {
                     return FuzzOutcome::Case(SuccessfulCaseOutcome {
@@ -979,9 +993,12 @@ impl<
                         exit_reason: err,
                     });
                 }
-                if self.fail_on_specific_asserts
+                if self.failure_configuration.fail_on_specific_asserts
                     && !err.contains(
-                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                        self.failure_configuration
+                            .failure_reason
+                            .as_ref()
+                            .expect("Failure reason should be provided"),
                     )
                 {
                     // TODO: in the future we can add partial witness propagation from ACIR
@@ -1030,9 +1047,12 @@ impl<
                         exit_reason: err,
                     });
                 }
-                if self.fail_on_specific_asserts
+                if self.failure_configuration.fail_on_specific_asserts
                     && !err.contains(
-                        self.failure_reason.as_ref().expect("Failure reason should be provided"),
+                        self.failure_configuration
+                            .failure_reason
+                            .as_ref()
+                            .expect("Failure reason should be provided"),
                     )
                 {
                     return FuzzOutcome::Case(SuccessfulCaseOutcome {

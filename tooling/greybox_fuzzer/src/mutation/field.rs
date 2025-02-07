@@ -89,10 +89,10 @@ impl<'a> FieldMutator<'a> {
                 *self.dictionary.choose(self.prng).unwrap()
             }
             FieldElementSubstitutionMutation::PowerOfTwo => unsafe {
-                POWERS_OF_TWO.choose(self.prng).unwrap().clone()
+                *POWERS_OF_TWO.choose(self.prng).unwrap()
             },
             FieldElementSubstitutionMutation::PowerOfTwoMinusOne => unsafe {
-                POWERS_OF_TWO_MINUS_ONE.choose(self.prng).unwrap().clone()
+                *POWERS_OF_TWO_MINUS_ONE.choose(self.prng).unwrap()
             },
         }
     }
@@ -137,11 +137,10 @@ impl<'a> FieldMutator<'a> {
 
     pub fn mutate(&mut self, input: &InputValue) -> InputValue {
         let initial_field_value = match input {
-            InputValue::Field(inner_field) => inner_field,
+            InputValue::Field(inner_field) => *inner_field,
             _ => panic!("Shouldn't be used with other input value types"),
-        }
-        .clone();
-        return InputValue::Field(
+        };
+        InputValue::Field(
             match BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION.select(self.prng) {
                 TopLevelFieldElementMutation::Substitution => self.apply_substitution(),
                 TopLevelFieldElementMutation::Inversion => {
@@ -157,7 +156,7 @@ impl<'a> FieldMutator<'a> {
                     self.apply_dictionary_update(initial_field_value)
                 }
             },
-        );
+        )
     }
 }
 pub fn mutate_field_input_value(
@@ -165,6 +164,6 @@ pub fn mutate_field_input_value(
     dictionary: &Vec<FieldElement>,
     prng: &mut XorShiftRng,
 ) -> InputValue {
-    let mut field_mutator = FieldMutator::new(&dictionary, prng);
+    let mut field_mutator = FieldMutator::new(dictionary, prng);
     field_mutator.mutate(previous_input)
 }

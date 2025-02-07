@@ -31,7 +31,7 @@ impl ByteValueMutationConfiguration {
         if selector < self.random_byte_mutation_weight {
             return ByteValueMutation::RandomByte;
         }
-        return ByteValueMutation::DictionaryByte;
+        ByteValueMutation::DictionaryByte
     }
 }
 
@@ -62,7 +62,7 @@ impl SpliceMutationConfiguration {
         if selector < self.position_preserving_mutation_weight {
             return SpliceMutation::PositionPreserving;
         }
-        return SpliceMutation::RandomChunks;
+        SpliceMutation::RandomChunks
     }
 }
 
@@ -92,7 +92,7 @@ impl UnbalancedArraySpliceConfiguration {
         if selector < self.array_specific_weight {
             return UnbalancedArraySpliceType::ArraySpecific;
         }
-        return UnbalancedArraySpliceType::Recurse;
+        UnbalancedArraySpliceType::Recurse
     }
 }
 /// Enum for splice candidate selection
@@ -122,7 +122,7 @@ impl SpliceCandidatePrioritizationConfiguration {
         if selector < self.first_weight {
             return SpliceCandidate::First;
         }
-        return SpliceCandidate::Second;
+        SpliceCandidate::Second
     }
 }
 
@@ -179,7 +179,7 @@ impl StructuralMutationConfiguration {
         if selector < self.random_value_duplication_weight {
             return StructuralMutation::RandomValueDuplication;
         }
-        return StructuralMutation::Swap;
+        StructuralMutation::Swap
     }
 }
 
@@ -209,7 +209,7 @@ impl TopLevelMutationConfiguration {
         if selector < self.value_mutation_weight {
             return TopLevelMutation::Value;
         }
-        return TopLevelMutation::Structure;
+        TopLevelMutation::Structure
     }
 }
 
@@ -287,7 +287,7 @@ impl SubstitutionConfiguration {
         }
         selector -= self.substitution_by_power_of_2_weight;
         debug_assert!(selector < self.substitution_by_power_of_2_minus_one);
-        return FieldElementSubstitutionMutation::PowerOfTwoMinusOne;
+        FieldElementSubstitutionMutation::PowerOfTwoMinusOne
     }
 }
 
@@ -314,7 +314,7 @@ impl FieldElementInversionConfiguration {
         if selector < self.additive_inversion_weight {
             return FieldElementInversionMutation::Additive;
         }
-        return FieldElementInversionMutation::Multiplicative;
+        FieldElementInversionMutation::Multiplicative
     }
 }
 
@@ -365,7 +365,7 @@ impl Pow2UpdateConfiguration {
         if selector < self.multiplication_weight {
             return FieldElementPow2Update::Multiplication;
         }
-        return FieldElementPow2Update::Division;
+        FieldElementPow2Update::Division
     }
 }
 
@@ -402,7 +402,7 @@ impl FieldElementSmallValueUpdateConfiguration {
         if selector < self.subtraction_weight {
             return FieldElementSmallValueUpdate::Subtraction;
         }
-        return FieldElementSmallValueUpdate::Multiplication;
+        FieldElementSmallValueUpdate::Multiplication
     }
 }
 
@@ -439,7 +439,7 @@ impl FieldElementDictionaryUpdateConfiguration {
         if selector < self.subtraction_weight {
             return FieldElementDictionaryUpdate::Subtraction;
         }
-        return FieldElementDictionaryUpdate::Multiplication;
+        FieldElementDictionaryUpdate::Multiplication
     }
 }
 
@@ -501,7 +501,7 @@ impl TopLevelFieldElementMutationConfiguration {
         if selector < self.small_value_update_weight {
             return TopLevelFieldElementMutation::SmallValueUpdate;
         }
-        return TopLevelFieldElementMutation::DictionaryUpdate;
+        TopLevelFieldElementMutation::DictionaryUpdate
     }
 }
 
@@ -549,7 +549,7 @@ impl TestCaseSpliceConfiguration {
         if selector < self.unbalanced_full_weight {
             return TestCaseSpliceType::UnbalancedFull;
         }
-        return TestCaseSpliceType::SingleElementImport;
+        TestCaseSpliceType::SingleElementImport
     }
 }
 /// Int-specific configurations
@@ -583,7 +583,7 @@ impl FixedIntSubstitutionConfiguration {
         if selector < self.maximum_weight {
             return FixedIntSubstitution::Maximum;
         }
-        return FixedIntSubstitution::Pow2;
+        FixedIntSubstitution::Pow2
     }
 }
 
@@ -646,7 +646,7 @@ impl BinaryIntOperationMutationConfiguration {
         if selector < self.or_operation_weight {
             return BinaryIntOperationMutation::Or;
         }
-        return BinaryIntOperationMutation::Xor;
+        BinaryIntOperationMutation::Xor
     }
 }
 pub(crate) enum IntTopLevelMutation {
@@ -718,7 +718,7 @@ impl IntTopLevelMutationConfiguration {
         if selector < self.small_value_update_weight {
             return IntTopLevelMutation::SmallValueUpdate;
         }
-        return IntTopLevelMutation::DictionaryValueUpdate;
+        IntTopLevelMutation::DictionaryValueUpdate
     }
 }
 
@@ -835,6 +835,7 @@ pub(crate) const BASIC_TESTCASE_SPLICE_CONFIGURATION: TestCaseSpliceConfiguratio
     };
 
 /// Generic vector structural mutation configuration (random value duplication weight MUST stay zero)
+#[allow(clippy::identity_op)]
 pub(crate) const BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION: StructuralMutationConfiguration =
     StructuralMutationConfiguration {
         chaotic_self_splice_weight: 3,

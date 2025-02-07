@@ -178,8 +178,8 @@ impl<'a> StringMutator<'a> {
         result
     }
     /// Create a spliced version of 2 buffers, where each element in the result is at the same index as in the original ones
-    fn structured_splice(&mut self, first_buffer: &Vec<u8>, second_buffer: &Vec<u8>) -> Vec<u8> {
-        let mut result = first_buffer.clone();
+    fn structured_splice(&mut self, first_buffer: &[u8], second_buffer: &[u8]) -> Vec<u8> {
+        let mut result = first_buffer.to_vec();
         let mut index = 0;
         let buffer_length = first_buffer.len();
         while index != buffer_length {

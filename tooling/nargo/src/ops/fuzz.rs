@@ -5,6 +5,10 @@ use acvm::{
     brillig_vm::BranchToFeatureMap,
     BlackBoxFunctionSolver, FieldElement,
 };
+use noir_greybox_fuzzer::{
+    AcirAndBrilligPrograms, ErrorAndCoverage, FuzzedExecutorFailureConfiguration,
+    WitnessAndCoverage,
+};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
@@ -112,47 +116,50 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 };
 
                 let brillig_error_types = brillig_program.abi.error_types.clone();
-                let brillig_executor = |program: &Program<FieldElement>,
-                                        initial_witness: WitnessMap<FieldElement>,
-                                        location_to_feature_map: &BranchToFeatureMap|
-                 -> Result<
-                    (WitnessStack<FieldElement>, Option<Vec<u32>>),
-                    (String, Option<Vec<u32>>),
-                > {
-                    execute_program_with_brillig_fuzzing(
-                        program,
-                        initial_witness,
-                        &B::default(),
-                        &mut DefaultForeignCallExecutor::new(
-                            if show_output { PrintOutput::Stdout } else { PrintOutput::None },
-                            foreign_call_resolver_url,
-                            root_path.clone(),
-                            package_name.clone(),
-                        ),
-                        Some(location_to_feature_map),
-                    )
-                    .map_err(|(nargo_err, brillig_coverage)| {
-                        (
-                            nargo_err.to_string()
-                                + ": "
-                                + &nargo_err
-                                    .user_defined_failure_message(&brillig_error_types)
-                                    .unwrap_or("<no message>".to_owned()),
-                            brillig_coverage,
+                let brillig_executor =
+                    |program: &Program<FieldElement>,
+                     initial_witness: WitnessMap<FieldElement>,
+                     location_to_feature_map: &BranchToFeatureMap|
+                     -> Result<WitnessAndCoverage, ErrorAndCoverage> {
+                        execute_program_with_brillig_fuzzing(
+                            program,
+                            initial_witness,
+                            &B::default(),
+                            &mut DefaultForeignCallExecutor::new(
+                                if show_output { PrintOutput::Stdout } else { PrintOutput::None },
+                                foreign_call_resolver_url,
+                                root_path.clone(),
+                                package_name.clone(),
+                            ),
+                            Some(location_to_feature_map),
                         )
-                    })
-                };
+                        .map_err(|(nargo_err, brillig_coverage)| {
+                            (
+                                nargo_err.to_string()
+                                    + ": "
+                                    + &nargo_err
+                                        .user_defined_failure_message(&brillig_error_types)
+                                        .unwrap_or("<no message>".to_owned()),
+                                brillig_coverage,
+                            )
+                        })
+                    };
                 let abi = acir_program.abi.clone();
+                let acir_and_brillig_programs = AcirAndBrilligPrograms {
+                    acir_program: acir_program.into(),
+                    brillig_program: brillig_program.into(),
+                };
                 let mut fuzzer = FuzzedExecutor::new(
-                    acir_program.into(),
-                    brillig_program.into(),
+                    acir_and_brillig_programs,
                     acir_executor,
                     brillig_executor,
                     &package_name.clone().unwrap(),
                     context.def_interner.function_name(&fuzzing_harness.get_id()),
                     num_threads,
-                    fuzzing_harness.only_fail_enabled(),
-                    fuzzing_harness.failure_reason(),
+                    FuzzedExecutorFailureConfiguration {
+                        fail_on_specific_asserts: fuzzing_harness.only_fail_enabled(),
+                        failure_reason: fuzzing_harness.failure_reason(),
+                    },
                 );
 
                 let result = fuzzer.fuzz();

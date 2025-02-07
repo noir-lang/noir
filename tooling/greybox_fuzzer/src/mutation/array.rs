@@ -22,10 +22,10 @@ impl<'a> ArrayMutator<'a> {
     /// Create a spliced version of 2 buffers, where each element in the result is at the same index as in the original ones
     fn structured_splice(
         &mut self,
-        first_buffer: &Vec<InputValue>,
-        second_buffer: &Vec<InputValue>,
+        first_buffer: &[InputValue],
+        second_buffer: &[InputValue],
     ) -> Vec<InputValue> {
-        let mut result = first_buffer.clone();
+        let mut result = first_buffer.to_vec();
         let mut index = 0;
         let buffer_length = first_buffer.len();
         while index != buffer_length {
@@ -51,8 +51,8 @@ impl<'a> ArrayMutator<'a> {
     /// Create buffer from random chunks of 2 buffers
     fn chaotic_splice(
         &mut self,
-        first_buffer: &Vec<InputValue>,
-        second_buffer: &Vec<InputValue>,
+        first_buffer: &[InputValue],
+        second_buffer: &[InputValue],
     ) -> Vec<InputValue> {
         let mut result = Vec::new();
         let mut index = 0;
@@ -98,9 +98,9 @@ impl<'a> ArrayMutator<'a> {
 
         let result = match BASIC_SPLICE_MUTATION_CONFIGURATION.select(self.prng) {
             SpliceMutation::PositionPreserving => {
-                self.structured_splice(&first_buffer, &second_buffer)
+                self.structured_splice(first_buffer, second_buffer)
             }
-            SpliceMutation::RandomChunks => self.chaotic_splice(&first_buffer, &second_buffer),
+            SpliceMutation::RandomChunks => self.chaotic_splice(first_buffer, second_buffer),
         };
         InputValue::Vec(result)
     }
@@ -110,7 +110,7 @@ impl<'a> ArrayMutator<'a> {
         &mut self,
         input_buffer: &Vec<InputValue>,
     ) -> Vec<InputValue> {
-        let result = match BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
+        match BASIC_VECTOR_STRUCTURE_MUTATION_CONFIGURATION.select(self.prng) {
             StructuralMutation::ChaoticSelfSplice => {
                 self.chaotic_splice(input_buffer, input_buffer)
             }
@@ -119,9 +119,7 @@ impl<'a> ArrayMutator<'a> {
             StructuralMutation::RandomValueDuplication => {
                 panic!("Vector mutations should have a value duplication weight of zero")
             }
-        };
-
-        result
+        }
     }
 
     /// Swap 2 random chunks in the buffer

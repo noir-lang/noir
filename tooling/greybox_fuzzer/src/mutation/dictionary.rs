@@ -13,7 +13,7 @@ pub struct IntDictionary {
 pub type FieldDictionary = Vec<FieldElement>;
 
 impl IntDictionary {
-    pub fn new(original_dictionary: &Vec<FieldElement>) -> Self {
+    pub fn new(original_dictionary: &[FieldElement]) -> Self {
         Self { width_dictionaries: Self::filter_dictionary_by_width(original_dictionary) }
     }
     pub fn get_dictionary_by_width(&self, width: u32) -> &Vec<FieldElement> {
@@ -26,9 +26,7 @@ impl IntDictionary {
         }
     }
     /// Filter values in the original dictionary collected from the program into 4 categories, separated by width of integers into which those elements can fit
-    fn filter_dictionary_by_width(
-        original_dictionary: &Vec<FieldElement>,
-    ) -> [Vec<FieldElement>; 4] {
+    fn filter_dictionary_by_width(original_dictionary: &[FieldElement]) -> [Vec<FieldElement>; 4] {
         let mut width8_dict = Vec::new();
         let mut width16_dict = Vec::new();
         let mut width32_dict = Vec::new();

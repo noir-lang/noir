@@ -9,6 +9,8 @@ use acvm::pwg::{
 };
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
+type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
+type WitnessAndCoverage<F> = (WitnessStack<F>, Option<Vec<u32>>);
 
 use crate::errors::ExecutionError;
 use crate::foreign_calls::ForeignCallExecutor;
@@ -277,7 +279,7 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
     blackbox_solver: &B,
     foreign_call_executor: &mut E,
     brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
-) -> Result<(WitnessStack<F>, Option<Vec<u32>>), (NargoError<F>, Option<Vec<u32>>)> {
+) -> Result<WitnessAndCoverage<F>, NargoErrorAndCoverage<F>> {
     let mut executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
