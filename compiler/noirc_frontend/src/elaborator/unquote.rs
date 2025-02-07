@@ -21,13 +21,12 @@ impl<'a> Elaborator<'a> {
             if is_unquote {
                 if let Some(next) = tokens.next() {
                     let location = next.to_location();
-                    let span = location.span;
 
                     match next.into_token() {
                         Token::Ident(name) => {
                             // Don't want the leading `$` anymore
                             new_tokens.pop();
-                            let path = Path::from_single(name, span);
+                            let path = Path::from_single(name, location);
                             let (expr_id, _) = self.elaborate_variable(path);
                             new_tokens
                                 .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));

@@ -135,7 +135,7 @@ impl HirExpression {
             })),
             HirExpression::Constructor(constructor) => {
                 let type_name = constructor.r#type.borrow().name.to_string();
-                let type_name = Path::from_single(type_name, span);
+                let type_name = Path::from_single(type_name, location);
                 let fields = vecmap(constructor.fields.clone(), |(name, expr): (Ident, ExprId)| {
                     (name, expr.to_display_ast(interner))
                 });
@@ -277,7 +277,7 @@ impl HirPattern {
                     other => other.to_string(),
                 };
                 // The name span is lost here
-                let path = Path::from_single(name, location.span);
+                let path = Path::from_single(name, *location);
                 Pattern::Struct(path, patterns, *location)
             }
         }
@@ -344,7 +344,8 @@ impl Type {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) => {
                     let name = format!("var_{:?}_{}", type_var_kind, id);
-                    let path = Path::from_single(name, Span::empty(0));
+                    let path =
+                        Path::from_single(name, Location::new(Span::empty(0), FileId::dummy()));
                     let expression = UnresolvedTypeExpression::Variable(path);
                     UnresolvedTypeData::Expression(expression)
                 }
@@ -355,11 +356,11 @@ impl Type {
                     (named_type.name.clone(), named_type.typ.to_display_ast())
                 });
                 let generics = GenericTypeArgs { ordered_args, named_args, kinds: Vec::new() };
-                let name = Path::from_single(name.as_ref().clone(), Span::default());
+                let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
             Type::NamedGeneric(_var, name) => {
-                let name = Path::from_single(name.as_ref().clone(), Span::default());
+                let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
             Type::CheckedCast { to, .. } => to.to_display_ast().typ,
@@ -400,7 +401,7 @@ impl Type {
         match self.follow_bindings() {
             Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
             Type::NamedGeneric(_var, name) => {
-                let path = Path::from_single(name.as_ref().clone(), location.span);
+                let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }
             // TODO: This should be turned into a proper error.

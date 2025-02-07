@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
             && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
         {
             // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_location.span);
+            let path = Path::from_single(self.token.to_string(), self.current_token_location);
             self.bump();
             self.parse_meta_attribute(path, start_location)
         } else if let Some(path) = self.parse_path_no_turbofish() {

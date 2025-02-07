@@ -301,6 +301,8 @@ impl<'context> Elaborator<'context> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
+                let string_location = Location::new(*string_span, self.file); // TODO: fix this
+
                 let scope_tree = self.scopes.current_scope_tree();
                 let variable = scope_tree.find(ident_name);
 
@@ -308,7 +310,7 @@ impl<'context> Elaborator<'context> {
                     old_value.num_times_used += 1;
                     old_value.ident.clone()
                 } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *string_span))
+                    self.lookup_global(Path::from_single(ident_name.to_string(), string_location))
                 {
                     HirIdent::non_trait_method(
                         definition_id,

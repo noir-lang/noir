@@ -1490,7 +1490,6 @@ fn check_duplicate_variant_names(
 mod find_module_tests {
     use super::*;
 
-    use noirc_errors::Spanned;
     use std::path::{Path, PathBuf};
 
     fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
@@ -1509,7 +1508,9 @@ mod find_module_tests {
         anchor: FileId,
         mod_name: &str,
     ) -> Result<FileId, DefCollectorErrorKind> {
-        let mod_name = Ident::from(Spanned::from_position(0, 1, mod_name.to_string()));
+        let span = Span::from(0..1);
+        let location = Location::new(span, FileId::dummy());
+        let mod_name = Ident::new(mod_name.to_string(), location);
         super::find_module(file_manager, anchor, &mod_name)
     }
 

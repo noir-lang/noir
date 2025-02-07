@@ -61,7 +61,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
@@ -1749,8 +1749,8 @@ impl<'context> Elaborator<'context> {
             // Check that the a public struct doesn't have a private type as a public field.
             if typ.struct_def.visibility != ItemVisibility::Private {
                 for field in &fields {
-                    let ident = Ident::from(Spanned::from(
-                        field.name.span(),
+                    let ident = Ident::from(Located::from(
+                        field.name.location(),
                         format!("{}::{}", typ.struct_def.name, field.name),
                     ));
                     self.check_type_is_not_more_private_then_item(

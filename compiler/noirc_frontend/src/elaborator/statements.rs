@@ -298,8 +298,8 @@ impl<'context> Elaborator<'context> {
         match lvalue {
             LValue::Ident(ident) => {
                 let mut mutable = true;
-                let span = ident.span();
-                let path = Path::from_single(ident.0.contents, span);
+                let location = ident.location();
+                let path = Path::from_single(ident.0.contents, location);
                 let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);
@@ -322,8 +322,7 @@ impl<'context> Elaborator<'context> {
                     typ.follow_bindings()
                 };
 
-                let reference_location = Location::new(span, self.file);
-                self.interner.add_local_reference(ident.id, reference_location);
+                self.interner.add_local_reference(ident.id, location);
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }

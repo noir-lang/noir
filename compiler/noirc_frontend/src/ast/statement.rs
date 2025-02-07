@@ -4,7 +4,7 @@ use acvm::acir::AcirField;
 use acvm::FieldElement;
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
 use super::{
     BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -208,17 +208,9 @@ impl From<Located<String>> for Ident {
     }
 }
 
-impl From<Spanned<String>> for Ident {
-    fn from(a: Spanned<String>) -> Ident {
-        let span = a.span();
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
-        Ident(Located::from(location, a.contents))
-    }
-}
-
 impl From<String> for Ident {
     fn from(a: String) -> Ident {
-        Spanned::from_position(Default::default(), Default::default(), a).into()
+        Located::from(Location::dummy(), a).into()
     }
 }
 impl From<&str> for Ident {
@@ -405,8 +397,8 @@ impl Path {
     }
 
     /// Construct a PathKind::Plain from this single
-    pub fn from_single(name: String, span: Span) -> Path {
-        let segment = Ident::from(Spanned::from(span, name));
+    pub fn from_single(name: String, location: Location) -> Path {
+        let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
