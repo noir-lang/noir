@@ -15,7 +15,7 @@ fn main() {
     let rc2 = array_refcount(u32_array);
     borrow_mut_two_separate(&mut array, &mut u32_array, rc1, rc2);
 
-    regression_7297();
+    unsafe { regression_7297(); }
 }
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
@@ -82,7 +82,7 @@ fn assert_refcount<T>(array: [T; 3], expected: u32) {
 }
 
 
-fn regression_7297() {
+unconstrained fn regression_7297() {
     println("regression_7297");
     let mut array = [0, 1, 2];
 
