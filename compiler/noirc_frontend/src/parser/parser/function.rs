@@ -24,7 +24,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) generics: UnresolvedGenerics,
     pub(crate) parameters: Vec<Param>,
     pub(crate) body: Option<BlockExpression>,
-    pub(crate) span: Span,
+    pub(crate) location: Location,
     pub(crate) where_clause: Vec<UnresolvedTraitConstraint>,
     pub(crate) return_type: FunctionReturnType,
     pub(crate) return_visibility: Visibility,
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             generics: func.generics,
             parameters: func.parameters,
             body: func.body.unwrap_or_else(empty_body),
-            span: func.span,
+            span: func.location.span,
             where_clause: func.where_clause,
             return_type: func.return_type,
             return_visibility: func.return_visibility,
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return empty_function(self.previous_token_location.span);
+            return empty_function(self.previous_token_location);
         };
 
         let generics = self.parse_generics();
@@ -130,7 +130,7 @@ impl<'a> Parser<'a> {
             generics,
             parameters,
             body,
-            span: self.location_since(body_start_location).span,
+            location: self.location_since(body_start_location),
             where_clause,
             return_type,
             return_visibility,
@@ -281,13 +281,14 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn empty_function(span: Span) -> FunctionDefinitionWithOptionalBody {
+fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
+    let span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
         name: Ident::default(),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        span: Span::from(span.end()..span.end()),
+        location: Location::new(span, location.file),
         where_clause: Vec::new(),
         return_type: FunctionReturnType::Default(Span::default()),
         return_visibility: Visibility::Private,
