@@ -430,7 +430,7 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(block) = self.parse_block() {
-            Some(ExpressionKind::Unsafe(block, self.location_since(start_location).span))
+            Some(ExpressionKind::Unsafe(block, self.location_since(start_location)))
         } else {
             Some(ExpressionKind::Error)
         }
@@ -586,7 +586,7 @@ impl<'a> Parser<'a> {
             return None;
         };
 
-        Some(ExpressionKind::Comptime(block, self.location_since(start_location).span))
+        Some(ExpressionKind::Comptime(block, self.location_since(start_location)))
     }
 
     /// UnquoteExpression

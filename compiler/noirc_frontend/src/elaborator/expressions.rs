@@ -79,8 +79,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.location.span, target_type)
             }
-            ExpressionKind::Unsafe(block_expression, span) => {
-                self.elaborate_unsafe_block(block_expression, span, target_type)
+            ExpressionKind::Unsafe(block_expression, location) => {
+                self.elaborate_unsafe_block(block_expression, location.span, target_type)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {

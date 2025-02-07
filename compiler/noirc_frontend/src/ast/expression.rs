@@ -40,8 +40,8 @@ pub enum ExpressionKind {
     Parenthesized(Box<Expression>),
     Quote(Tokens),
     Unquote(Box<Expression>),
-    Comptime(BlockExpression, Span),
-    Unsafe(BlockExpression, Span),
+    Comptime(BlockExpression, Location),
+    Unsafe(BlockExpression, Location),
     AsTraitPath(AsTraitPath),
     TypePath(TypePath),
 
