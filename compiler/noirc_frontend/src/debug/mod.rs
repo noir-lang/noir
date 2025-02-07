@@ -200,9 +200,11 @@ impl DebugInstrumenter {
         statements.push(last_stmt);
     }
 
-    fn walk_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
-        let location = Location::new(*span, FileId::dummy()); // TODO: fix this
-
+    fn walk_let_statement(
+        &mut self,
+        let_stmt: &ast::LetStatement,
+        location: Location,
+    ) -> ast::Statement {
         // rewrites let statements written like this:
         //   let (((a,b,c),D { d }),e,f) = x;
         //
@@ -284,10 +286,8 @@ impl DebugInstrumenter {
     fn walk_assign_statement(
         &mut self,
         assign_stmt: &ast::AssignStatement,
-        span: &Span,
+        location: Location,
     ) -> ast::Statement {
-        let location = Location::new(*span, FileId::dummy()); // TODO: fix this
-
         // X = Y becomes:
         // X = {
         //   let __debug_expr = Y;
@@ -481,10 +481,10 @@ impl DebugInstrumenter {
     fn walk_statement(&mut self, stmt: &mut ast::Statement) {
         match &mut stmt.kind {
             ast::StatementKind::Let(let_stmt) => {
-                *stmt = self.walk_let_statement(let_stmt, &stmt.location.span);
+                *stmt = self.walk_let_statement(let_stmt, stmt.location);
             }
             ast::StatementKind::Assign(assign_stmt) => {
-                *stmt = self.walk_assign_statement(assign_stmt, &stmt.location.span);
+                *stmt = self.walk_assign_statement(assign_stmt, stmt.location);
             }
             ast::StatementKind::Expression(expr) => {
                 self.walk_expr(expr);
