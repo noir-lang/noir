@@ -332,7 +332,7 @@ pub enum PathKind {
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl Display for UseTree {

@@ -106,12 +106,12 @@ fn use_tree_without_unused_import(
                 let mut prefix = use_tree.prefix.clone();
                 prefix.segments.extend(new_use_tree.prefix.segments);
 
-                Some(UseTree { prefix, kind: new_use_tree.kind, span: use_tree.span })
+                Some(UseTree { prefix, kind: new_use_tree.kind, location: use_tree.location })
             } else {
                 Some(UseTree {
                     prefix: use_tree.prefix.clone(),
                     kind: UseTreeKind::List(new_use_trees),
-                    span: use_tree.span,
+                    location: use_tree.location,
                 })
             };
 

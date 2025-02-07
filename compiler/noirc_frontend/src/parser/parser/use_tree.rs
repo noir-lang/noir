@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
                 UseTree {
                     prefix,
                     kind: UseTreeKind::List(use_trees),
-                    span: self.location_since(start_location).span,
+                    location: self.location_since(start_location),
                 }
             } else {
                 self.expected_token(Token::LeftBrace);
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
                     location: start_location,
                 },
                 kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location.span), None),
-                span: start_location.span,
+                location: start_location,
             });
         }
 
@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
             UseTree {
                 prefix,
                 kind: UseTreeKind::Path(Ident::default(), None),
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             }
         } else {
             let ident = prefix.segments.pop().unwrap().ident;
@@ -125,21 +125,21 @@ impl<'a> Parser<'a> {
                     UseTree {
                         prefix,
                         kind: UseTreeKind::Path(ident, Some(alias)),
-                        span: self.location_since(start_location).span,
+                        location: self.location_since(start_location),
                     }
                 } else {
                     self.expected_identifier();
                     UseTree {
                         prefix,
                         kind: UseTreeKind::Path(ident, None),
-                        span: self.location_since(start_location).span,
+                        location: self.location_since(start_location),
                     }
                 }
             } else {
                 UseTree {
                     prefix,
                     kind: UseTreeKind::Path(ident, None),
-                    span: self.location_since(start_location).span,
+                    location: self.location_since(start_location),
                 }
             }
         }
