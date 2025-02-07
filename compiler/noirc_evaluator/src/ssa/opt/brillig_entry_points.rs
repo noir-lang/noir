@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -137,11 +137,12 @@ fn update_function_calls(
 /// Returns a map of Brillig entry points to all functions called in that entry point.
 /// This includes any nested calls as well, as we want to be able to associate
 /// any Brillig function with the appropriate global allocations.
+/// TODO: return a BTreeMap
 pub(crate) fn get_brillig_entry_points(
     functions: &BTreeMap<FunctionId, Function>,
     main_id: FunctionId,
-) -> HashMap<FunctionId, HashSet<FunctionId>> {
-    let mut brillig_entry_points = HashMap::default();
+) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+    let mut brillig_entry_points = BTreeMap::default();
     let acir_functions = functions.iter().filter(|(_, func)| func.runtime().is_acir());
     for (_, function) in acir_functions {
         for block_id in function.reachable_blocks() {
@@ -160,7 +161,7 @@ pub(crate) fn get_brillig_entry_points(
                 }
 
                 // We have now found a Brillig entry point.
-                brillig_entry_points.insert(*func_id, HashSet::default());
+                brillig_entry_points.insert(*func_id, BTreeSet::default());
                 build_entry_points_map_recursive(
                     functions,
                     *func_id,
@@ -176,7 +177,7 @@ pub(crate) fn get_brillig_entry_points(
     // Run the same analysis from above on main.
     let main_func = &functions[&main_id];
     if main_func.runtime().is_brillig() {
-        brillig_entry_points.insert(main_id, HashSet::default());
+        brillig_entry_points.insert(main_id, BTreeSet::default());
         build_entry_points_map_recursive(
             functions,
             main_id,
@@ -194,7 +195,7 @@ fn build_entry_points_map_recursive(
     functions: &BTreeMap<FunctionId, Function>,
     entry_point: FunctionId,
     called_function: &Function,
-    brillig_entry_points: &mut HashMap<FunctionId, HashSet<FunctionId>>,
+    brillig_entry_points: &mut BTreeMap<FunctionId, BTreeSet<FunctionId>>,
     mut explored_functions: im::HashSet<FunctionId>,
 ) {
     if explored_functions.insert(called_function.id()).is_some() {
@@ -219,7 +220,7 @@ fn build_entry_points_map_recursive(
 }
 
 pub(crate) fn build_inner_call_to_entry_points(
-    brillig_entry_points: &HashMap<FunctionId, HashSet<FunctionId>>,
+    brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
 ) -> HashMap<FunctionId, Vec<FunctionId>> {
     // Map for fetching the correct entry point globals when compiling any function
     let mut inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>> = HashMap::default();

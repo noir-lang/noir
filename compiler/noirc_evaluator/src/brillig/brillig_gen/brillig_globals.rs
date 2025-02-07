@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -24,7 +24,7 @@ pub(crate) struct BrilligGlobals {
     /// Maps a Brillig entry point to all functions called in that entry point.
     /// This includes any nested calls as well, as we want to be able to associate
     /// any Brillig function with the appropriate global allocations.
-    brillig_entry_points: HashMap<FunctionId, HashSet<FunctionId>>,
+    brillig_entry_points: BTreeMap<FunctionId, BTreeSet<FunctionId>>,
 
     /// Maps an inner call to its Brillig entry point
     /// This is simply used to simplify fetching global allocations when compiling
