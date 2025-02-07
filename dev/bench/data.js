@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738952963035,
+  "lastUpdate": 1738952963912,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14007,95 +14007,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ff55a77b809cf40f747d79048639a8c544d733b5",
-          "message": "fix(docs): Update broken links to EC lib (#7141)",
-          "timestamp": "2025-01-23T20:45:01Z",
-          "tree_id": "b95dcc33b2e44b72acceac9d0dfb66d41c4c86eb",
-          "url": "https://github.com/noir-lang/noir/commit/ff55a77b809cf40f747d79048639a8c544d733b5"
-        },
-        "date": 1737666516223,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.87,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.11,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.15,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 516.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 491.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 516.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 748.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 609.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.66,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 209.75,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -18385,6 +18296,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0d78578981bfcc4aa021dcc0f0238548f6ff9ca0"
         },
         "date": 1738943257966,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.89,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "09d77058fa119fd8a8db1d16375411ec86932c45",
+          "message": "chore: bump noir_bigcurve timeout (#7322)",
+          "timestamp": "2025-02-07T18:05:52Z",
+          "tree_id": "d66ce6ac0c79f968353b3da5d1650c60c1933b1d",
+          "url": "https://github.com/noir-lang/noir/commit/09d77058fa119fd8a8db1d16375411ec86932c45"
+        },
+        "date": 1738952962773,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
