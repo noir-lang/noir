@@ -796,10 +796,8 @@ impl ForRange {
         self,
         identifier: Ident,
         block: Expression,
-        for_loop_span: Span,
+        for_loop_location: Location,
     ) -> Statement {
-        let for_loop_location = Location::new(for_loop_span, FileId::dummy()); // TODO: fix this
-
         // Counter used to generate unique names when desugaring
         // code in the parser requires the creation of fresh variables.
         let mut unique_name_counter: u32 = 0;
@@ -893,7 +891,7 @@ impl ForRange {
                         identifier: fresh_identifier,
                         range: ForRange::range(start_range, end_range),
                         block: new_block,
-                        span: for_loop_span,
+                        location: for_loop_location,
                     }),
                     location: for_loop_location,
                 };
@@ -902,7 +900,7 @@ impl ForRange {
                     statements: vec![let_array, for_loop],
                 });
                 Statement {
-                    kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_location.span)),
                     location: for_loop_location,
                 }
             }
@@ -915,7 +913,7 @@ pub struct ForLoopStatement {
     pub identifier: Ident,
     pub range: ForRange,
     pub block: Expression,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl Display for StatementKind {

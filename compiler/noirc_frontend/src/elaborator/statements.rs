@@ -172,7 +172,7 @@ impl<'context> Elaborator<'context> {
             ForRange::Range(bounds) => bounds.into_half_open(),
             ForRange::Array(_) => {
                 let for_stmt =
-                    for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                    for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.location);
 
                 return self.elaborate_statement_value(for_stmt);
             }

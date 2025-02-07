@@ -296,7 +296,7 @@ impl<'a> Parser<'a> {
             identifier,
             range,
             block,
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         })
     }
 
@@ -351,7 +351,7 @@ impl<'a> Parser<'a> {
                 location: Location::dummy(),
             }),
             block: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         }
     }
 

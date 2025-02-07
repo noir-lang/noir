@@ -451,7 +451,7 @@ impl DebugInstrumenter {
         let set_and_drop_stmt = var_id.map(|var_id| {
             (
                 build_assign_var_stmt(var_id, id_expr(&for_stmt.identifier)),
-                build_drop_var_stmt(var_id, Span::empty(for_stmt.span.end())),
+                build_drop_var_stmt(var_id, Span::empty(for_stmt.location.span.end())),
             )
         });
 
@@ -473,7 +473,7 @@ impl DebugInstrumenter {
 
         for_stmt.block = ast::Expression {
             kind: ast::ExpressionKind::Block(ast::BlockExpression { statements }),
-            location: Location::new(for_stmt.span, FileId::dummy()), // TODO: fix this
+            location: for_stmt.location,
         };
     }
 
