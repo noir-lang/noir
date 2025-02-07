@@ -33,7 +33,8 @@ pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver<FieldElement>> {
     // Brillig functions referenced from the ACIR circuits above
     unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
 
-    // whether to print the source without highlighting / pretty-printing
+    // whether to print the source without highlighting, pretty-printing,
+    // or line numbers
     raw_source_printing: bool,
 }
 
