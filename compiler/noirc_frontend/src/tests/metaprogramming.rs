@@ -1,4 +1,4 @@
-use noirc_errors::Spanned;
+use noirc_errors::Located;
 
 use crate::{
     ast::Ident,
@@ -157,7 +157,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
         CompilationError::DefinitionError(
             DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Function,
-                first_def: Ident(Spanned { contents, .. }),
+                first_def: Ident(Located { contents, .. }),
                 ..
             },
         ) if contents == "foo"

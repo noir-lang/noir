@@ -2,8 +2,9 @@ use std::fmt::Display;
 
 use acvm::acir::AcirField;
 use acvm::FieldElement;
+use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location, Span, Spanned};
 
 use super::{
     BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -18,7 +19,7 @@ use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::{SecondaryAttribute, Token};
+use crate::token::{LocatedToken, SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -181,7 +182,7 @@ impl StatementKind {
 }
 
 #[derive(Eq, Debug, Clone, Default)]
-pub struct Ident(pub Spanned<String>);
+pub struct Ident(pub Located<String>);
 
 impl Ident {
     pub fn is_self_type_name(&self) -> bool {
@@ -225,9 +226,17 @@ impl Display for Ident {
     }
 }
 
+impl From<Located<String>> for Ident {
+    fn from(a: Located<String>) -> Ident {
+        Ident(a)
+    }
+}
+
 impl From<Spanned<String>> for Ident {
     fn from(a: Spanned<String>) -> Ident {
-        Ident(a)
+        let span = a.span();
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        Ident(Located::from(location, a.contents))
     }
 }
 
@@ -242,10 +251,19 @@ impl From<&str> for Ident {
     }
 }
 
+impl From<LocatedToken> for Ident {
+    fn from(lt: LocatedToken) -> Ident {
+        let located_str = Located::from(lt.to_location(), lt.token().to_string());
+        Ident(located_str)
+    }
+}
+
 impl From<SpannedToken> for Ident {
     fn from(st: SpannedToken) -> Ident {
-        let spanned_str = Spanned::from(st.to_span(), st.token().to_string());
-        Ident(spanned_str)
+        let span = st.to_span();
+        let string = st.into_token().to_string();
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        Ident(Located::from(location, string))
     }
 }
 
@@ -272,7 +290,8 @@ impl Ident {
     }
 
     pub fn new(text: String, span: Span) -> Ident {
-        Ident(Spanned::from(span, text))
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        Ident(Located::from(location, text))
     }
 }
 

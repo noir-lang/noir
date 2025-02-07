@@ -6,7 +6,8 @@ use std::marker::Copy;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::Located;
+use noirc_errors::{Location, Span};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -1071,8 +1072,8 @@ impl NodeInterner {
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
-        let span = self.function_meta(func_id).name.location.span;
-        crate::ast::Ident(Spanned::from(span, name))
+        let location = self.function_meta(func_id).name.location;
+        crate::ast::Ident(Located::from(location, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {

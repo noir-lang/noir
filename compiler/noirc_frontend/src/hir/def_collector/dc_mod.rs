@@ -1509,7 +1509,7 @@ mod find_module_tests {
         anchor: FileId,
         mod_name: &str,
     ) -> Result<FileId, DefCollectorErrorKind> {
-        let mod_name = Ident(Spanned::from_position(0, 1, mod_name.to_string()));
+        let mod_name = Ident::from(Spanned::from_position(0, 1, mod_name.to_string()));
         super::find_module(file_manager, anchor, &mod_name)
     }
 

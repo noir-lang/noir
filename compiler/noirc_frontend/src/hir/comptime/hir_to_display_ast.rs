@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Span, Spanned};
 
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
@@ -280,7 +280,7 @@ impl HirIdent {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> Ident {
         let name = interner.definition_name(self.id).to_owned();
-        Ident(Spanned::from(self.location.span, name))
+        Ident(Located::from(self.location, name))
     }
 }
 

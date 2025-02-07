@@ -61,7 +61,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span, Spanned};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
@@ -459,8 +459,8 @@ impl<'context> Elaborator<'context> {
 
         // Check arg and return-value visibility of standalone functions.
         if self.should_check_function_visibility(&func_meta, &modifiers) {
-            let name = Ident(Spanned::from(
-                func_meta.name.location.span,
+            let name = Ident(Located::from(
+                func_meta.name.location,
                 self.interner.definition_name(func_meta.name.id).to_string(),
             ));
             for (_, typ, _) in func_meta.parameters.iter() {
@@ -1748,7 +1748,7 @@ impl<'context> Elaborator<'context> {
             // Check that the a public struct doesn't have a private type as a public field.
             if typ.struct_def.visibility != ItemVisibility::Private {
                 for field in &fields {
-                    let ident = Ident(Spanned::from(
+                    let ident = Ident::from(Spanned::from(
                         field.name.span(),
                         format!("{}::{}", typ.struct_def.name, field.name),
                     ));

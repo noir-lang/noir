@@ -755,7 +755,7 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
 }
 
 fn ident(s: &str, span: Span) -> ast::Ident {
-    ast::Ident(Spanned::from(span, s.to_string()))
+    ast::Ident::from(Spanned::from(span, s.to_string()))
 }
 
 fn id_expr(id: &ast::Ident) -> ast::Expression {
