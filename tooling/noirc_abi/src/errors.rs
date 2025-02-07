@@ -3,7 +3,6 @@ use crate::{
     AbiType,
 };
 use acvm::{acir::native_types::Witness, AcirField, FieldElement};
-use num_bigint::BigInt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -18,10 +17,6 @@ pub enum InputParserError {
     InputExceedsMinimum { arg_name: String, value: String, min: String },
     #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}")]
     InputExceedsMaximum { arg_name: String, value: String, max: String },
-    #[error(
-        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} outside of valid range. Value must fall within [{min}, {max}]"
-    )]
-    InputOutsideOfRange { arg_name: String, value: BigInt, min: BigInt, max: BigInt },
     #[error(
         "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
         FieldElement::modulus()

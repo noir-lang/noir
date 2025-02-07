@@ -351,12 +351,19 @@ fn parse_str_to_signed(
             let max = BigInt::from(2_u128.pow(width - 1) - 1);
             let min = BigInt::from(-(2_i128.pow(width - 1)));
 
-            if bigint < min || bigint > max {
-                return Err(InputParserError::InputOutsideOfRange {
+            if bigint < min {
+                return Err(InputParserError::InputExceedsMinimum {
                     arg_name: arg_name.into(),
-                    value: bigint,
-                    min,
-                    max,
+                    value: bigint.to_string(),
+                    min: min.to_string(),
+                });
+            }
+
+            if bigint > max {
+                return Err(InputParserError::InputExceedsMaximum {
+                    arg_name: arg_name.into(),
+                    value: bigint.to_string(),
+                    max: max.to_string(),
                 });
             }
 
