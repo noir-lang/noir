@@ -37,8 +37,8 @@ impl<'context> Elaborator<'context> {
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
             StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
-            StatementKind::Break => self.elaborate_jump(true, statement.span),
-            StatementKind::Continue => self.elaborate_jump(false, statement.span),
+            StatementKind::Break => self.elaborate_jump(true, statement.location.span),
+            StatementKind::Continue => self.elaborate_jump(false, statement.location.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
@@ -50,7 +50,7 @@ impl<'context> Elaborator<'context> {
             }
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
-                let statement = Statement { kind: kind.clone(), span: statement.span };
+                let statement = Statement { kind: kind.clone(), location: statement.location };
                 self.elaborate_statement_value_with_target_type(statement, target_type)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
@@ -66,11 +66,11 @@ impl<'context> Elaborator<'context> {
         statement: Statement,
         target_type: Option<&Type>,
     ) -> (StmtId, Type) {
-        let span = statement.span;
+        let location = statement.location;
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, span, self.file);
+        self.interner.push_stmt_location(id, location.span, self.file);
         (id, typ)
     }
 
@@ -530,12 +530,12 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
-        let span = statement.span;
+        let location = statement.location;
         let (hir_statement, _typ) =
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, span);
+        let (expr, typ) = self.inline_comptime_value(value, location.span);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

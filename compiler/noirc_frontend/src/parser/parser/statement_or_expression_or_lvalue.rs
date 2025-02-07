@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
                         let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
                         return StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
-                            span: self.location_since(start_location).span,
+                            location: self.location_since(start_location),
                         });
                     } else {
                         return StatementOrExpressionOrLValue::LValue(lvalue);

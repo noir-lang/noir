@@ -1483,7 +1483,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             statement.accept(self);
 
             // Optimization: stop looking in statements past the completion cursor
-            if statement.span.end() as usize > self.byte_index {
+            if statement.location.span.end() as usize > self.byte_index {
                 break;
             }
         }

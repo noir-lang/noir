@@ -2320,7 +2320,7 @@ fn expr_resolve(
             Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
         }
         ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
+            let statement = Statement { kind: statement_kind, location: self_argument_location };
             let (stmt_id, _) = elaborator.elaborate_statement(statement);
             Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
         }
@@ -2593,7 +2593,7 @@ fn function_def_set_body(
         }
     };
 
-    let statement = Statement { kind: statement_kind, span: body_location.span };
+    let statement = Statement { kind: statement_kind, location: body_location };
     let body = BlockExpression { statements: vec![statement] };
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);

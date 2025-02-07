@@ -26,6 +26,8 @@ use crate::node_interner::{ExprId, NodeInterner, StmtId};
 
 impl HirStatement {
     pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Statement {
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
@@ -59,7 +61,7 @@ impl HirStatement {
             }
         };
 
-        Statement { kind, span }
+        Statement { kind, location }
     }
 }
 

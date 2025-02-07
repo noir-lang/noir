@@ -303,7 +303,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         // If there's a body, extend the span to include it
         if let Some(body) = body {
             if let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.span.end());
+                span = Span::from(span.start()..statement.location.span.end());
             }
         }
 

@@ -34,7 +34,7 @@ pub const WILDCARD_TYPE: &str = "_";
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Ast node for statements in noir. Statements are always within a block { }
@@ -798,6 +798,8 @@ impl ForRange {
         block: Expression,
         for_loop_span: Span,
     ) -> Statement {
+        let for_loop_location = Location::new(for_loop_span, FileId::dummy()); // TODO: fix this
+
         // Counter used to generate unique names when desugaring
         // code in the parser requires the creation of fresh variables.
         let mut unique_name_counter: u32 = 0;
@@ -826,7 +828,7 @@ impl ForRange {
                         array,
                         vec![],
                     ),
-                    span: array_span,
+                    location: array_location,
                 };
 
                 // array.len()
@@ -871,14 +873,18 @@ impl ForRange {
                         Expression::new(loop_element, array_span),
                         vec![],
                     ),
-                    span: array_span,
+                    location: array_location,
                 };
 
-                let block_span = block.location.span;
+                let block_location = block.location;
+                let block_span = block_location.span;
                 let new_block = BlockExpression {
                     statements: vec![
                         let_elem,
-                        Statement { kind: StatementKind::Expression(block), span: block_span },
+                        Statement {
+                            kind: StatementKind::Expression(block),
+                            location: block_location,
+                        },
                     ],
                 };
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
@@ -889,7 +895,7 @@ impl ForRange {
                         block: new_block,
                         span: for_loop_span,
                     }),
-                    span: for_loop_span,
+                    location: for_loop_location,
                 };
 
                 let block = ExpressionKind::Block(BlockExpression {
@@ -897,7 +903,7 @@ impl ForRange {
                 });
                 Statement {
                     kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
-                    span: for_loop_span,
+                    location: for_loop_location,
                 }
             }
         }

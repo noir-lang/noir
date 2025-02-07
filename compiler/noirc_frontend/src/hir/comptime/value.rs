@@ -288,7 +288,7 @@ impl Value {
             Value::Expr(ExprValue::Expression(expr)) => expr,
             Value::Expr(ExprValue::Statement(statement)) => {
                 ExpressionKind::Block(BlockExpression {
-                    statements: vec![Statement { kind: statement, span: location.span }],
+                    statements: vec![Statement { kind: statement, location }],
                 })
             }
             Value::Expr(ExprValue::LValue(lvalue)) => lvalue.as_expression().kind,

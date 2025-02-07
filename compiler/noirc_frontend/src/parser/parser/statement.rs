@@ -18,7 +18,10 @@ impl<'a> Parser<'a> {
             statement
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
-            Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }
+            Statement {
+                kind: StatementKind::Error,
+                location: self.location_at_previous_token_end(),
+            }
         }
     }
 
@@ -66,10 +69,10 @@ impl<'a> Parser<'a> {
                 (None, self.previous_token_location.span)
             };
 
-            let span = self.location_since(start_location).span;
+            let location = self.location_since(start_location);
 
             if let Some(kind) = kind {
-                let statement = Statement { kind, span };
+                let statement = Statement { kind, location };
                 return Some((statement, (semicolon_token, semicolon_span)));
             }
 
@@ -375,7 +378,7 @@ impl<'a> Parser<'a> {
         if let Some(kind) = self.parse_comptime_statement_kind(attributes) {
             return Some(StatementKind::Comptime(Box::new(Statement {
                 kind,
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             })));
         }
 

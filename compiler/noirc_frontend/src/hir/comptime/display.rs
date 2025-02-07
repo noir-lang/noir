@@ -719,7 +719,7 @@ fn remove_interned_in_array_literal(
 fn remove_interned_in_statement(interner: &NodeInterner, statement: Statement) -> Statement {
     Statement {
         kind: remove_interned_in_statement_kind(interner, statement.kind),
-        span: statement.span,
+        location: statement.location,
     }
 }
 

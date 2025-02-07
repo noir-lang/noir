@@ -358,7 +358,7 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {
-        self.intersects_span(statement.span)
+        self.intersects_span(statement.location.span)
     }
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
