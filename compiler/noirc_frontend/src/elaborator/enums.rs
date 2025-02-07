@@ -388,6 +388,7 @@ impl Elaborator<'_> {
             | ExpressionKind::Infix(_)
             | ExpressionKind::If(_)
             | ExpressionKind::Match(_)
+            | ExpressionKind::Constrain(_)
             | ExpressionKind::Lambda(_)
             | ExpressionKind::Quote(_)
             | ExpressionKind::Unquote(_)
