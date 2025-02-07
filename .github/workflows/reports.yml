@@ -446,7 +446,7 @@ jobs:
           MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
           MEMORY_LIMIT=6000
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
-            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
             echo "Failing due to compilation exceeding memory limit..."
             echo "Limit: "$MEMORY_LIMIT"MB"
             echo "Compilation took: "$MEMORY"MB".
