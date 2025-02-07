@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
                 name: Ident::default(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
-                span: start_location.span,
+                location: start_location,
             };
         };
 
@@ -30,7 +30,7 @@ impl<'a> Parser<'a> {
         if !self.eat_assign() {
             self.expected_token(Token::Assign);
 
-            let span = self.location_since(start_location).span;
+            let location = self.location_since(start_location);
             self.eat_semicolons();
 
             return NoirTypeAlias {
@@ -38,17 +38,17 @@ impl<'a> Parser<'a> {
                 name,
                 generics,
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
-                span,
+                location,
             };
         }
 
         let typ = self.parse_type_or_error();
-        let span = self.location_since(start_location).span;
+        let location = self.location_since(start_location);
         if !self.eat_semicolons() {
             self.expected_token(Token::Semicolon);
         }
 
-        NoirTypeAlias { visibility, name, generics, typ, span }
+        NoirTypeAlias { visibility, name, generics, typ, location }
     }
 }
 
