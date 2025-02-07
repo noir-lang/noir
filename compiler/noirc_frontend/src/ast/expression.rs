@@ -76,7 +76,7 @@ pub enum UnresolvedGeneric {
     /// splices existing types into a generic list. In this case we have
     /// to validate the type refers to a named generic and treat that
     /// as a ResolvedGeneric when this is resolved.
-    Resolved(QuotedTypeId, Span),
+    Resolved(QuotedTypeId, Location),
 }
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
@@ -87,12 +87,16 @@ pub struct UnsupportedNumericGenericType {
 }
 
 impl UnresolvedGeneric {
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.0.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location).span,
-            UnresolvedGeneric::Resolved(_, span) => *span,
+            UnresolvedGeneric::Variable(ident) => ident.0.location(),
+            UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
+            UnresolvedGeneric::Resolved(_, location) => *location,
         }
+    }
+
+    pub fn span(&self) -> Span {
+        self.location().span
     }
 
     pub fn kind(&self) -> Result<Kind, UnsupportedNumericGenericType> {

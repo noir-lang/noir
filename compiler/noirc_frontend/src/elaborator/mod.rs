@@ -408,7 +408,7 @@ impl<'context> Elaborator<'context> {
             if let Kind::Numeric(typ) = &generic.kind() {
                 let definition =
                     DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
-                let ident = Ident::new(generic.name.to_string(), generic.span);
+                let ident = Ident::new(generic.name.to_string(), generic.location.span);
                 let hir_ident = self.add_variable_decl(
                     ident, false, // mutable
                     false, // allow_shadowing
@@ -634,9 +634,9 @@ impl<'context> Elaborator<'context> {
                 }
             };
 
-            let span = generic.span();
+            let location = generic.location();
             let name_owned = name.as_ref().clone();
-            let resolved_generic = ResolvedGeneric { name, type_var, span };
+            let resolved_generic = ResolvedGeneric { name, type_var, location };
 
             // Check for name collisions of this generic
             // Checking `is_error` here prevents DuplicateDefinition errors when
@@ -646,8 +646,8 @@ impl<'context> Elaborator<'context> {
                 if let Some(generic) = self.find_generic(&name_owned) {
                     self.push_err(ResolverError::DuplicateDefinition {
                         name: name_owned,
-                        first_span: generic.span,
-                        second_span: span,
+                        first_span: generic.location.span,
+                        second_span: location.span,
                     });
                 } else {
                     self.generics.push(resolved_generic.clone());
@@ -674,11 +674,11 @@ impl<'context> Elaborator<'context> {
             }
             // An already-resolved generic is only possible if it is the result of a
             // previous macro call being inserted into a generics list.
-            UnresolvedGeneric::Resolved(id, span) => {
+            UnresolvedGeneric::Resolved(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
-                        span: *span,
+                        span: location.span,
                         typ: other.clone(),
                     }),
                 }
@@ -839,7 +839,7 @@ impl<'context> Elaborator<'context> {
                     let ident = Ident::new(associated_type.name.as_ref().clone(), location.span);
 
                     bound.trait_generics.named_args.push((ident, typ));
-                    added_generics.push(ResolvedGeneric { name, span: location.span, type_var });
+                    added_generics.push(ResolvedGeneric { name, location, type_var });
                 }
             }
         }

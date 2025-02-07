@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         let token = self.eat_kind(TokenKind::QuotedType)?;
         match token.into_token() {
             Token::QuotedType(id) => {
-                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location.span))
+                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location))
             }
             _ => unreachable!(),
         }

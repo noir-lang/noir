@@ -246,12 +246,12 @@ impl Context<'_, '_> {
             });
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
-            let span = ident.0.span();
+            let location = ident.0.location();
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            ResolvedGeneric { name, type_var, span }
+            ResolvedGeneric { name, type_var, location }
         })
     }
 

@@ -435,7 +435,7 @@ fn struct_def_add_generic(
             return Err(InterpreterError::DuplicateGeneric {
                 name,
                 struct_name: the_struct.name.to_string(),
-                existing_location: Location::new(generic.span, the_struct.location.file),
+                existing_location: generic.location,
                 duplicate_location: generic_location,
             });
         }
@@ -443,9 +443,8 @@ fn struct_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let span = generic_location.span;
     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
-    let new_generic = ResolvedGeneric { name, type_var, span };
+    let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
     Ok(Value::Type(typ))

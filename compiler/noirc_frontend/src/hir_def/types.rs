@@ -395,7 +395,7 @@ pub type Generics = Vec<ResolvedGeneric>;
 pub struct ResolvedGeneric {
     pub name: Rc<String>,
     pub type_var: TypeVariable,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl ResolvedGeneric {

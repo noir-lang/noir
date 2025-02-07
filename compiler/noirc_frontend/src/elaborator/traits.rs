@@ -117,15 +117,15 @@ impl<'context> Elaborator<'context> {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let name_span = the_trait.name.span();
+                    let name_location = the_trait.name.location();
 
                     this.add_existing_generic(
                         &UnresolvedGeneric::Variable(Ident::from("Self")),
-                        name_span,
+                        name_location.span,
                         &ResolvedGeneric {
                             name: Rc::new("Self".to_owned()),
                             type_var: self_typevar,
-                            span: name_span,
+                            location: name_location,
                         },
                     );
 

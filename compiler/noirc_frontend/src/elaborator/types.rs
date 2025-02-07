@@ -1993,7 +1993,7 @@ impl<'context> Elaborator<'context> {
         if let Some(generic) = self.find_generic(name) {
             self.push_err(ResolverError::DuplicateDefinition {
                 name: name.clone(),
-                first_span: generic.span,
+                first_span: generic.location.span,
                 second_span: span,
             });
         } else {
