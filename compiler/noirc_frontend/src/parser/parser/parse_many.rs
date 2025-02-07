@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            let start_span = self.current_token_span;
+            let start_span = self.current_token_location.span;
             let mut new_elements = f(self);
             if new_elements.is_empty() {
                 if let Some(end) = &separated_by.until {

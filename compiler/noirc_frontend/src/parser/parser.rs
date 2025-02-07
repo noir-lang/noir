@@ -87,8 +87,8 @@ pub struct Parser<'a> {
     // - check if we get `>` or `>>`
     token: LocatedToken,
     next_token: LocatedToken,
-    current_token_span: Span,
-    previous_token_span: Span,
+    current_token_location: Location,
+    previous_token_location: Location,
 
     /// The current statement's doc comments.
     /// This is used to eventually know if an `unsafe { ... }` expression is documented
@@ -136,8 +136,8 @@ impl<'a> Parser<'a> {
             tokens,
             token: eof_located_token(),
             next_token: eof_located_token(),
-            current_token_span: Default::default(),
-            previous_token_span: Default::default(),
+            current_token_location: Location::dummy(),
+            previous_token_location: Location::dummy(),
             statement_doc_comments: None,
         };
         parser.read_two_first_tokens();
@@ -185,17 +185,17 @@ impl<'a> Parser<'a> {
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
     fn bump(&mut self) -> LocatedToken {
-        self.previous_token_span = self.current_token_span;
+        self.previous_token_location = self.current_token_location;
         let next_next_token = self.read_token_internal();
         let next_token = std::mem::replace(&mut self.next_token, next_next_token);
         let token = std::mem::replace(&mut self.token, next_token);
-        self.current_token_span = self.token.to_span();
+        self.current_token_location = self.token.to_location();
         token
     }
 
     fn read_two_first_tokens(&mut self) {
         self.token = self.read_token_internal();
-        self.current_token_span = self.token.to_span();
+        self.current_token_location = self.token.to_location();
         self.next_token = self.read_token_internal();
     }
 
@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
             match token.into_token() {
-                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_span)),
+                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location.span)),
                 _ => unreachable!(),
             }
         } else {
@@ -368,7 +368,10 @@ impl<'a> Parser<'a> {
     fn eat_commas(&mut self) -> bool {
         if self.eat_comma() {
             while self.eat_comma() {
-                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_span);
+                self.push_error(
+                    ParserErrorReason::UnexpectedComma,
+                    self.previous_token_location.span,
+                );
             }
             true
         } else {
@@ -383,7 +386,10 @@ impl<'a> Parser<'a> {
     fn eat_semicolons(&mut self) -> bool {
         if self.eat_semicolon() {
             while self.eat_semicolon() {
-                self.push_error(ParserErrorReason::UnexpectedSemicolon, self.previous_token_span);
+                self.push_error(
+                    ParserErrorReason::UnexpectedSemicolon,
+                    self.previous_token_location.span,
+                );
             }
             true
         } else {
@@ -473,10 +479,11 @@ impl<'a> Parser<'a> {
     }
 
     fn span_since(&self, start_span: Span) -> Span {
-        if self.current_token_span == start_span {
+        // TODO: change this to take a location instead of a span
+        if self.current_token_location.span == start_span {
             start_span
         } else {
-            let end_span = self.previous_token_span;
+            let end_span = self.previous_token_location.span;
             if start_span.start() <= end_span.end() {
                 Span::from(start_span.start()..end_span.end())
             } else {
@@ -487,7 +494,7 @@ impl<'a> Parser<'a> {
     }
 
     fn span_at_previous_token_end(&self) -> Span {
-        Span::from(self.previous_token_span.end()..self.previous_token_span.end())
+        Span::from(self.previous_token_location.span.end()..self.previous_token_location.span.end())
     }
 
     fn expected_identifier(&mut self) {
@@ -498,7 +505,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location.span,
         ));
     }
 
@@ -506,7 +513,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location.span,
         ));
     }
 
@@ -514,7 +521,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location.span,
         ));
     }
 
@@ -525,7 +532,7 @@ impl<'a> Parser<'a> {
     fn expected_mut_after_ampersand(&mut self) {
         self.push_error(
             ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },
-            self.current_token_span,
+            self.current_token_location.span,
         );
     }
 

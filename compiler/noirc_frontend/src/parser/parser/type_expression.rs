@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     /// AddOrSubtractTypeExpression
     ///     = MultiplyOrDivideOrModuloTypeExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloTypeExpression )*
     fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
         Some(self.parse_add_or_subtract_type_expression_after_lhs(lhs, start_span))
     }
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
     ) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let lhs = self.parse_term_type_expression()?;
         Some(self.parse_multiply_or_divide_or_modulo_type_expression_after_lhs(lhs, start_span))
     }
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
     ///    = '- TermTypeExpression
     ///    | AtomTypeExpression
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let int = self.eat_int()?;
 
-        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_span))
+        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_location.span))
     }
 
     /// VariableTypeExpression = Path
@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_or_type_expression()?;
 
         // If lhs is a type then no operator can follow, so we stop right away
@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
     fn parse_multiply_or_divide_or_modulo_type_or_type_expression(
         &mut self,
     ) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let lhs = self.parse_term_type_or_type_expression()?;
 
         // If lhs is a type then no operator can follow, so we stop right away
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_term_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         if self.eat(Token::Minus) {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_atom_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if let Some(path) = self.parse_path() {
             let generics = self.parse_generic_type_args();
@@ -294,7 +294,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_parenthesized_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat_left_paren() {
             return None;
@@ -330,7 +330,7 @@ impl<'a> Parser<'a> {
         }
 
         let comma_after_first_type = self.eat_comma();
-        let second_type_span = self.current_token_span;
+        let second_type_span = self.current_token_location.span;
 
         let mut types = self.parse_many(
             "tuple items",
@@ -356,7 +356,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::expected_label(
             ParsingRuleLabel::TypeExpression,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location.span,
         ))
     }
 }

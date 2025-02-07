@@ -20,18 +20,18 @@ impl<'a> Parser<'a> {
     /// The formatter will put it after the visibility.
     pub(crate) fn parse_modifiers(&mut self, allow_mutable: bool) -> Modifiers {
         let unconstrained = if self.eat_keyword(Keyword::Unconstrained) {
-            Some(self.previous_token_span)
+            Some(self.previous_token_location.span)
         } else {
             None
         };
 
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let visibility = self.parse_item_visibility();
         let visibility_span = self.span_since(start_span);
 
         let unconstrained = if unconstrained.is_none() {
             if self.eat_keyword(Keyword::Unconstrained) {
-                Some(self.previous_token_span)
+                Some(self.previous_token_location.span)
             } else {
                 None
             }
@@ -39,10 +39,13 @@ impl<'a> Parser<'a> {
             unconstrained
         };
 
-        let comptime =
-            if self.eat_keyword(Keyword::Comptime) { Some(self.previous_token_span) } else { None };
+        let comptime = if self.eat_keyword(Keyword::Comptime) {
+            Some(self.previous_token_location.span)
+        } else {
+            None
+        };
         let mutable = if allow_mutable && self.eat_keyword(Keyword::Mut) {
-            Some(self.previous_token_span)
+            Some(self.previous_token_location.span)
         } else {
             None
         };

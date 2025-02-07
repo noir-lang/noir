@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_impl(&mut self) -> Impl {
         let generics = self.parse_generics();
 
-        let type_span_start = self.current_token_span;
+        let type_span_start = self.current_token_location.span;
         let object_type = self.parse_type_or_error();
         let type_span = self.span_since(type_span_start);
 
@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::ExpectedTrait { found: object_type.typ.to_string() },
-                    self.current_token_span,
+                    self.current_token_location.span,
                 );
 
                 // Error, but we continue parsing the type and assume this is going to be a regular type impl
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
     fn parse_type_impl_method(&mut self) -> Option<(Documented<NoirFunction>, Span)> {
         self.parse_item_in_list(ParsingRuleLabel::Function, |parser| {
             let doc_comments = parser.parse_outer_doc_comments();
-            let start_span = parser.current_token_span;
+            let start_span = parser.current_token_location.span;
             let attributes = parser.parse_attributes();
             let modifiers = parser.parse_modifiers(
                 false, // allow mutable
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
 
     fn parse_trait_impl_item(&mut self) -> Option<Documented<TraitImplItem>> {
         self.parse_item_in_list(ParsingRuleLabel::TraitImplItem, |parser| {
-            let start_span = parser.current_token_span;
+            let start_span = parser.current_token_location.span;
             let doc_comments = parser.parse_outer_doc_comments();
 
             if let Some(kind) = parser.parse_trait_impl_item_kind() {

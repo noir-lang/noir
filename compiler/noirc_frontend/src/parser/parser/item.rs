@@ -89,7 +89,7 @@ impl<'a> Parser<'a> {
 
     /// Item = OuterDocComments ItemKind
     fn parse_item(&mut self) -> Vec<Item> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let doc_comments = self.parse_outer_doc_comments();
         let kinds = self.parse_item_kind();
         let span = self.span_since(start_span);
@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::InnerAttribute(kind)];
         }
 
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let attributes = self.parse_attributes();
 
         let modifiers = self.parse_modifiers(

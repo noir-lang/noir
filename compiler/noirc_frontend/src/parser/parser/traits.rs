@@ -41,7 +41,10 @@ impl<'a> Parser<'a> {
             let bounds = self.parse_trait_bounds();
 
             if bounds.is_empty() {
-                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_span);
+                self.push_error(
+                    ParserErrorReason::EmptyTraitAlias,
+                    self.previous_token_location.span,
+                );
             }
 
             let where_clause = self.parse_where_clause();

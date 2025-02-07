@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
     ///
     /// UseTreeList = UseTree (',' UseTree)* ','?
     pub(super) fn parse_use_tree(&mut self) -> UseTree {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         let kind = self.parse_path_kind();
 
@@ -68,7 +68,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_use_tree_in_list(&mut self) -> Option<UseTree> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         // Special case: "self" cannot be followed by anything else
         if self.eat_self() {
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
         );
 
         // If we didn't advance at all, we are done
-        if start_span == self.current_token_span {
+        if start_span == self.current_token_location.span {
             self.expected_label(ParsingRuleLabel::UseSegment);
             None
         } else {

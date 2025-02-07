@@ -25,9 +25,9 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
         loop {
-            let span_before_doc_comments = self.current_token_span;
+            let span_before_doc_comments = self.current_token_location.span;
             let doc_comments = self.parse_outer_doc_comments();
-            let span_after_doc_comments = self.current_token_span;
+            let span_after_doc_comments = self.current_token_location.span;
             if doc_comments.is_empty() {
                 self.statement_doc_comments = None;
             } else {
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
             }
 
             let attributes = self.parse_attributes();
-            let start_span = self.current_token_span;
+            let start_span = self.current_token_location.span;
             let kind = self.parse_statement_kind(attributes);
 
             if let Some(statement_doc_comments) = &self.statement_doc_comments {
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
 
                 (Some(token.into_token()), span)
             } else {
-                (None, self.previous_token_span)
+                (None, self.previous_token_location.span)
             };
 
             let span = self.span_since(start_span);
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
@@ -225,7 +225,7 @@ impl<'a> Parser<'a> {
     }
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
                 Token::Plus => Some(BinaryOpKind::Add),
@@ -257,7 +257,7 @@ impl<'a> Parser<'a> {
 
     /// ForStatement = 'for' identifier 'in' ForRange Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat_keyword(Keyword::For) {
             return None;
@@ -276,7 +276,7 @@ impl<'a> Parser<'a> {
 
         let range = self.parse_for_range();
 
-        let block_start_span = self.current_token_span;
+        let block_start_span = self.current_token_location.span;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
@@ -292,14 +292,14 @@ impl<'a> Parser<'a> {
 
     /// LoopStatement = 'loop' Block
     fn parse_loop(&mut self) -> Option<(Expression, Span)> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
         }
 
         self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
 
-        let block_start_span = self.current_token_span;
+        let block_start_span = self.current_token_location.span;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
@@ -356,7 +356,7 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -382,7 +382,7 @@ impl<'a> Parser<'a> {
         &mut self,
         attributes: Vec<(Attribute, Span)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
@@ -415,7 +415,7 @@ impl<'a> Parser<'a> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, span: self.current_token_span }
+            Expression { kind: ExpressionKind::Error, span: self.current_token_location.span }
         };
 
         Some(LetStatement {

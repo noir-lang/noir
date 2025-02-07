@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     /// Pattern
     ///     = 'mut' PatternNoMut
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let mutable = self.eat_keyword(Keyword::Mut);
         self.parse_pattern_after_modifiers(mutable, start_span)
     }
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
     ///     = Pattern
     ///     | SelfPattern
     pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.next_is_colon() && self.eat_self() {
             return Some(PatternOrSelf::SelfPattern(SelfPattern {
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::RefMutCanOnlyBeUsedWithSelf,
-                    self.current_token_span,
+                    self.current_token_location.span,
                 );
                 return Some(PatternOrSelf::Pattern(
                     self.parse_pattern_after_modifiers(true, start_span)?,
@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
     ///
     /// IdentifierPattern = identifier
     fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if let Some(pattern) = self.parse_interned_pattern() {
             return Some(pattern);
@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
             if self.at_built_in_type() {
                 self.push_error(
                     ParserErrorReason::ExpectedPatternButFoundType(self.token.token().clone()),
-                    self.current_token_span,
+                    self.current_token_location.span,
                 );
             }
             return None;
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
 
         match token.into_token() {
             Token::InternedPattern(pattern) => {
-                Some(Pattern::Interned(pattern, self.previous_token_span))
+                Some(Pattern::Interned(pattern, self.previous_token_location.span))
             }
             _ => unreachable!(),
         }
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
     ///
     /// PatternList = Pattern ( ',' Pattern )* ','?
     fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat_left_paren() {
             return None;

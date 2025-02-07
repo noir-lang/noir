@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
-            let doc_comments_start_span = self.current_token_span;
+            let doc_comments_start_span = self.current_token_location.span;
             doc_comments = self.parse_outer_doc_comments();
 
             visibility = self.parse_item_visibility();

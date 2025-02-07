@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
     ) -> Option<Path> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         let kind = self.parse_path_kind();
 

@@ -157,11 +157,11 @@ impl<'a> Parser<'a> {
         Next: FnMut(&mut Parser<'a>, bool) -> Option<Expression>,
         Op: FnMut(&mut Parser<'a>) -> Option<BinaryOpKind>,
     {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let mut lhs = next(self, allow_constructors)?;
 
         loop {
-            let operator_start_span = self.current_token_span;
+            let operator_start_span = self.current_token_location.span;
             let Some(operator) = op(self) else {
                 break;
             };

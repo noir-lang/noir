@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
     ) -> StatementOrExpressionOrLValue {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         // First check if it's an interned LValue
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {

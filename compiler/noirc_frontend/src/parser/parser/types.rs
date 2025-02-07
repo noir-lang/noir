@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let typ = self.parse_unresolved_type_data()?;
         let span = self.span_since(start_span);
         Some(UnresolvedType { typ, span })
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
                 Err(err) => {
                     self.push_error(
                         ParserErrorReason::InvalidBitSize(err.0),
-                        self.previous_token_span,
+                        self.previous_token_location.span,
                     );
                     UnresolvedTypeData::Error
                 }
@@ -139,8 +139,10 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location.span,
+            );
             return Some(UnresolvedTypeData::String(expr));
         }
 
@@ -148,7 +150,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location.span,
+                )
             }
         };
 
@@ -164,8 +169,10 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location.span,
+            );
             let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }
@@ -174,7 +181,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location.span,
+                )
             }
         };
 

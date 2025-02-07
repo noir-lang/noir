@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return empty_function(self.previous_token_span);
+            return empty_function(self.previous_token_location.span);
         };
 
         let generics = self.parse_generics();
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
 
         let where_clause = self.parse_where_clause();
 
-        let body_start_span = self.current_token_span;
+        let body_start_span = self.current_token_location.span;
         let body = if self.eat_semicolons() {
             if !allow_optional_body {
                 self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
@@ -154,7 +154,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
-            let start_span = self.current_token_span;
+            let start_span = self.current_token_location.span;
 
             let pattern_or_self = if allow_self {
                 self.parse_pattern_or_self()
@@ -185,7 +185,7 @@ impl<'a> Parser<'a> {
         let (visibility, typ) = if !self.eat_colon() {
             self.push_error(
                 ParserErrorReason::MissingTypeForFunctionParameter,
-                Span::from(pattern.span().start()..self.current_token_span.end()),
+                Span::from(pattern.span().start()..self.current_token_location.span.end()),
             );
 
             let visibility = Visibility::Private;
@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
     }
 
     fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
-        let ident_span = self.previous_token_span;
+        let ident_span = self.previous_token_location.span;
         let ident = Ident::new("self".to_string(), ident_span);
         let path = Path::from_single("Self".to_owned(), ident_span);
         let no_args = GenericTypeArgs::default();

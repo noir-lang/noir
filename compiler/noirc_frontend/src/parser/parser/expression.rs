@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
     ///    = UnaryOp Term
     ///    | AtomOrUnaryRightExpression
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_term(allow_constructors) else {
@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
     /// AtomOrUnaryRightExpression
     ///     = Atom UnaryRightExpression*
     fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let mut atom = self.parse_atom(allow_constructors)?;
         let mut parsed;
 
@@ -196,11 +196,11 @@ impl<'a> Parser<'a> {
         if let Some(ident) = self.eat_ident() {
             Some(ident)
         } else if let Some(int) = self.eat_int() {
-            Some(Ident::new(int.to_string(), self.previous_token_span))
+            Some(Ident::new(int.to_string(), self.previous_token_location.span))
         } else {
             self.push_error(
                 ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
-                self.current_token_span,
+                self.current_token_location.span,
             );
             None
         }
@@ -261,13 +261,13 @@ impl<'a> Parser<'a> {
     ///     | InternedExpression
     ///     | InternedStatementExpression
     fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let kind = self.parse_atom_kind(allow_constructors)?;
         Some(Expression { kind, span: self.span_since(start_span) })
     }
 
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
-        let span_before_doc_comments = self.current_token_span;
+        let span_before_doc_comments = self.current_token_location.span;
         let doc_comments = self.parse_outer_doc_comments();
         let has_doc_comments = !doc_comments.is_empty();
 
@@ -300,7 +300,7 @@ impl<'a> Parser<'a> {
             Token::InternedUnresolvedTypeData(..) | Token::QuotedType(..)
         ) && self.next_is(Token::LeftBrace)
         {
-            let span = self.current_token_span;
+            let span = self.current_token_location.span;
             let typ = self.parse_interned_type().or_else(|| self.parse_resolved_type()).unwrap();
             self.eat_or_error(Token::LeftBrace);
             let typ = UnresolvedType { typ, span };
@@ -392,7 +392,7 @@ impl<'a> Parser<'a> {
         doc_comments: &[String],
         span_before_doc_comments: Span,
     ) -> Option<ExpressionKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
@@ -491,7 +491,7 @@ impl<'a> Parser<'a> {
 
         let condition = self.parse_expression_except_constructor_or_error();
 
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let Some(consequence) = self.parse_block() else {
             self.expected_token(Token::LeftBrace);
             let span = self.span_at_previous_token_end();
@@ -505,7 +505,7 @@ impl<'a> Parser<'a> {
         let consequence = Expression { kind: ExpressionKind::Block(consequence), span };
 
         let alternative = if self.eat_keyword(Keyword::Else) {
-            let start_span = self.current_token_span;
+            let start_span = self.current_token_location.span;
             if let Some(block) = self.parse_block() {
                 let span = self.span_since(start_span);
                 Some(Expression { kind: ExpressionKind::Block(block), span })
@@ -524,7 +524,7 @@ impl<'a> Parser<'a> {
 
     /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
     pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         if !self.eat_keyword(Keyword::Match) {
             return None;
         }
@@ -548,7 +548,7 @@ impl<'a> Parser<'a> {
         let pattern = self.parse_expression()?;
         self.eat_or_error(Token::FatArrow);
 
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let branch = match self.parse_block() {
             Some(block) => {
                 let span = self.span_since(start_span);
@@ -571,7 +571,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         let Some(block) = self.parse_block() else {
             self.expected_token(Token::LeftBrace);
@@ -585,7 +585,7 @@ impl<'a> Parser<'a> {
     ///     = '$' identifier
     ///     | '$' '(' Expression ')'
     fn parse_unquote_expr(&mut self) -> Option<ExpressionKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
 
         if !self.eat(Token::DollarSign) {
             return None;
@@ -599,7 +599,7 @@ impl<'a> Parser<'a> {
             return Some(ExpressionKind::Unquote(Box::new(expr)));
         }
 
-        let span_at_left_paren = self.current_token_span;
+        let span_at_left_paren = self.current_token_location.span;
         if self.eat_left_paren() {
             let expr = self.parse_expression_or_error();
             self.eat_or_error(Token::RightParen);
@@ -612,7 +612,7 @@ impl<'a> Parser<'a> {
 
         self.push_error(
             ParserErrorReason::ExpectedIdentifierOrLeftParenAfterDollar,
-            self.current_token_span,
+            self.current_token_location.span,
         );
 
         None
@@ -620,7 +620,7 @@ impl<'a> Parser<'a> {
 
     /// TypePathExpression = PrimitiveType '::' identifier ( '::' GenericTypeArgs )?
     fn parse_type_path_expr(&mut self) -> Option<ExpressionKind> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let typ = self.parse_primitive_type()?;
         let typ = UnresolvedType { typ, span: self.span_since(start_span) };
 
@@ -738,7 +738,7 @@ impl<'a> Parser<'a> {
         }
 
         let comma_after_first_expr = self.eat_comma();
-        let second_expr_span = self.current_token_span;
+        let second_expr_span = self.current_token_location.span;
 
         let mut exprs = self.parse_many(
             "expressions",
@@ -811,7 +811,7 @@ impl<'a> Parser<'a> {
     ///     | 'assert' Arguments
     ///     | 'assert_eq' Arguments
     pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let kind = self.parse_constrain_kind()?;
 
         Some(match kind {
@@ -825,7 +825,10 @@ impl<'a> Parser<'a> {
                 ConstrainExpression { kind, arguments, span: self.span_since(start_span) }
             }
             ConstrainKind::Constrain => {
-                self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
+                self.push_error(
+                    ParserErrorReason::ConstrainDeprecated,
+                    self.previous_token_location.span,
+                );
 
                 let expression = self.parse_expression_or_error();
                 ConstrainExpression {

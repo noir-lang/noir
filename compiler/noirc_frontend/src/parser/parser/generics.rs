@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
             // If we didn't get a type after the colon, error and assume it's u32
             self.push_error(
                 ParserErrorReason::MissingTypeForNumericGeneric,
-                self.current_token_span,
+                self.current_token_location.span,
             );
             let typ = UnresolvedType {
                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         let token = self.eat_kind(TokenKind::QuotedType)?;
         match token.into_token() {
             Token::QuotedType(id) => {
-                Some(UnresolvedGeneric::Resolved(id, self.previous_token_span))
+                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location.span))
             }
             _ => unreachable!(),
         }

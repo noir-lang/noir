@@ -13,7 +13,7 @@ use super::Parser;
 impl<'a> Parser<'a> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let is_tag = self.eat_inner_attribute_start()?;
         let attribute = if is_tag {
             self.parse_tag_attribute(start_span)
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
     ///     = Path
     ///     | integer
     pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
-        let start_span = self.current_token_span;
+        let start_span = self.current_token_location.span;
         let is_tag = self.eat_attribute_start()?;
         let attribute = if is_tag {
             self.parse_tag_attribute(start_span)
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_tag_attribute(&mut self, start_span: Span) -> Attribute {
-        let contents_start_span = self.current_token_span;
+        let contents_start_span = self.current_token_location.span;
         let mut contents_span = contents_start_span;
         let mut contents = String::new();
 
@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
             && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
         {
             // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_span);
+            let path = Path::from_single(self.token.to_string(), self.current_token_location.span);
             self.bump();
             self.parse_meta_attribute(path, start_span)
         } else if let Some(path) = self.parse_path_no_turbofish() {
@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: arguments.len(),
                 },
-                self.current_token_span,
+                self.current_token_location.span,
             );
             return f(String::new());
         }
