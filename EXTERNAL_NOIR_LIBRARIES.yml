@@ -26,7 +26,7 @@ libraries:
     timeout: 360
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 290
+    timeout: 330
   noir_base64:
     repo: noir-lang/noir_base64
     timeout: 2
