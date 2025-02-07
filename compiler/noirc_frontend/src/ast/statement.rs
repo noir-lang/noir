@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use acvm::acir::AcirField;
 use acvm::FieldElement;
-use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -14,7 +13,6 @@ use super::{
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::elaborator::Turbofish;
-use crate::lexer::token::SpannedToken;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -223,15 +221,6 @@ impl From<LocatedToken> for Ident {
     fn from(lt: LocatedToken) -> Ident {
         let located_str = Located::from(lt.to_location(), lt.token().to_string());
         Ident(located_str)
-    }
-}
-
-impl From<SpannedToken> for Ident {
-    fn from(st: SpannedToken) -> Ident {
-        let span = st.to_span();
-        let string = st.into_token().to_string();
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
-        Ident(Located::from(location, string))
     }
 }
 
