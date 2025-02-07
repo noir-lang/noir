@@ -253,12 +253,6 @@ pub enum UnresolvedTypeExpression {
     AsTraitPath(Box<AsTraitPath>),
 }
 
-impl Recoverable for UnresolvedType {
-    fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span }
-    }
-}
-
 impl std::fmt::Display for GenericTypeArg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -527,19 +527,13 @@ jobs:
           nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
           TIME=$(($SECONDS-$BEFORE))
 
-          if [ "TIME" -gt "${{ matrix.project.timeout }}" ]; then
-            # Library testing time has regressed past the set timeout.
-            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
-            exit 1
-          fi
-
           NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
           # Replace any slashes with underscores
           NAME=${NAME//\//_}
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
-          jq --null-input "{ test_reports: [{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]}" > $TEST_REPORT_NAME.json
+          jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
 
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
@@ -547,6 +541,17 @@ jobs:
           fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+      
+      - name: Check test time limit
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json)
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.project.timeout }}"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to test suite exceeding timeout..."
+            echo "Timeout: ${{ matrix.project.timeout }}"
+            echo "Test suite took: $TIME".
+            exit 1
+          fi
 
       - name: Compare test results
         working-directory: ./noir-repo
@@ -613,16 +618,15 @@ jobs:
         with:
           pattern: test_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge test reports using jq
         run: |
-          jq --null-input "{ test_reports: [] }" > test_report.json
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh test_report
-          jq ".test_reports" < ./test_report.json > test_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Test Suite Duration"
