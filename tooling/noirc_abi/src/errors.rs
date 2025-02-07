@@ -11,7 +11,7 @@ pub enum InputParserError {
     #[error("input file is badly formed, could not parse, {0}")]
     ParseInputMap(String),
     #[error(
-        "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, provided value causes `{value}` error"
+        "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, but `{value}` failed with `{error_str}`"
     )]
     ParseStr { arg_name: String, value: String },
     #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}")]
