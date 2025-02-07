@@ -59,7 +59,7 @@ it('0x prefixed string input for inputs will throw', async () => {
 });
 
 describe('input validation', () => {
-  it('x should be a uint64 not a string', async () => {
+  it('x should be a int64 not a string', async () => {
     const inputs = {
       x: 'foo',
       y: '3',
@@ -67,7 +67,7 @@ describe('input validation', () => {
 
     try {
       await new Noir(assert_lt_json).execute(inputs);
-      chai.expect.fail('Expected generatedWitness to throw, due to x not being convertible to a uint64');
+      chai.expect.fail('Expected generatedWitness to throw, due to x not being convertible to a int64');
     } catch (error) {
       const knownError = error;
       chai
