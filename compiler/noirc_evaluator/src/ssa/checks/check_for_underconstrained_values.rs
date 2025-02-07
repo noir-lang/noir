@@ -663,10 +663,11 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
+        let returns = function.returns();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()
-            .chain(function.returns())
+            .chain(returns)
             .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
             .map(|value_id| function.dfg.resolve(*value_id));
 
