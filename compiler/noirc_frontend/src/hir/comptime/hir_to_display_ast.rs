@@ -25,9 +25,7 @@ use crate::node_interner::{ExprId, NodeInterner, StmtId};
 // - Type::TypeVariable has no equivalent in the Ast
 
 impl HirStatement {
-    pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Statement {
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
-
+    pub fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> Statement {
         let kind = match self {
             HirStatement::Let(let_stmt) => {
                 let pattern = let_stmt.pattern.to_display_ast(interner);
@@ -71,9 +69,9 @@ impl StmtId {
     /// Convert to AST for display (some details lost)
     pub fn to_display_ast(self, interner: &NodeInterner) -> Statement {
         let statement = interner.statement(&self);
-        let span = interner.statement_span(self);
+        let location = interner.statement_location(self);
 
-        statement.to_display_ast(interner, span)
+        statement.to_display_ast(interner, location)
     }
 }
 

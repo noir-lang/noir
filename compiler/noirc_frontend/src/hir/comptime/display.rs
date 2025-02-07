@@ -463,7 +463,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::TypedExpr(TypedExpr::StmtId(id)) => {
                 let hir_statement = self.interner.statement(id);
-                let stmt = hir_statement.to_display_ast(self.interner, Span::default());
+                let stmt = hir_statement.to_display_ast(self.interner, Location::dummy());
                 write!(f, "{}", stmt.kind)
             }
             Value::UnresolvedType(typ) => {
