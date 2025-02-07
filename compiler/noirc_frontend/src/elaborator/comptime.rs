@@ -183,8 +183,7 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(), (CompilationError, FileId)> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
-        let span = attribute.span;
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        let location = attribute.location;
 
         let function =
             Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
@@ -199,22 +198,30 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error =
-                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span };
+                let error = ResolverError::AttributeFunctionIsNotAPath {
+                    function: function_string,
+                    span: location.span,
+                };
                 return Err((error.into(), self.file));
             }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error = ResolverError::AttributeFunctionNotInScope { name: function_string, span };
+            let error = ResolverError::AttributeFunctionNotInScope {
+                name: function_string,
+                span: location.span,
+            };
             return Err((error.into(), self.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
-            return Err((ResolverError::NonFunctionInAnnotation { span }.into(), self.file));
+            return Err((
+                ResolverError::NonFunctionInAnnotation { span: location.span }.into(),
+                self.file,
+            ));
         };
 
-        attributes_to_run.push((function, item, arguments, attribute_context, span));
+        attributes_to_run.push((function, item, arguments, attribute_context, location.span));
         Ok(())
     }
 

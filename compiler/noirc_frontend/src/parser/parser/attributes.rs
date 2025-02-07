@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
         Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
             name,
             arguments,
-            span: self.location_since(start_location).span,
+            location: self.location_since(start_location),
         }))
     }
 
@@ -232,7 +232,7 @@ impl<'a> Parser<'a> {
             _ => Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
                 name: Path::from_ident(ident.clone()),
                 arguments,
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             })),
         }
     }
