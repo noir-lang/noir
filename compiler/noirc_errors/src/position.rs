@@ -186,7 +186,7 @@ impl Location {
     }
 
     pub fn dummy() -> Self {
-        Self { span: Span::single_char(0), file: FileId::dummy() }
+        Self { span: Span::default(), file: FileId::dummy() }
     }
 
     pub fn contains(&self, other: &Location) -> bool {
