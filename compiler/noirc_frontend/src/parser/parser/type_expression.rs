@@ -336,7 +336,7 @@ impl<'a> Parser<'a> {
         }
 
         let comma_after_first_type = self.eat_comma();
-        let second_type_span = self.current_token_location.span;
+        let second_type_location = self.current_token_location;
 
         let mut types = self.parse_many(
             "tuple items",
@@ -345,7 +345,7 @@ impl<'a> Parser<'a> {
         );
 
         if !types.is_empty() && !comma_after_first_type {
-            self.expected_token_separating_items(Token::Comma, "tuple items", second_type_span);
+            self.expected_token_separating_items(Token::Comma, "tuple items", second_type_location);
         }
 
         types.insert(0, typ);

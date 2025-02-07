@@ -746,7 +746,7 @@ impl<'a> Parser<'a> {
         }
 
         let comma_after_first_expr = self.eat_comma();
-        let second_expr_span = self.current_token_location.span;
+        let second_expr_location = self.current_token_location;
 
         let mut exprs = self.parse_many(
             "expressions",
@@ -755,7 +755,7 @@ impl<'a> Parser<'a> {
         );
 
         if !exprs.is_empty() && !comma_after_first_expr {
-            self.expected_token_separating_items(Token::Comma, "expressions", second_expr_span);
+            self.expected_token_separating_items(Token::Comma, "expressions", second_expr_location);
         }
 
         exprs.insert(0, first_expr);

@@ -533,8 +533,16 @@ impl<'a> Parser<'a> {
         ));
     }
 
-    fn expected_token_separating_items(&mut self, token: Token, items: &'static str, span: Span) {
-        self.push_error(ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items }, span);
+    fn expected_token_separating_items(
+        &mut self,
+        token: Token,
+        items: &'static str,
+        location: Location,
+    ) {
+        self.push_error(
+            ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items },
+            location.span,
+        );
     }
 
     fn expected_mut_after_ampersand(&mut self) {

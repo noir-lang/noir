@@ -81,11 +81,7 @@ impl<'a> Parser<'a> {
 
             if let Some(separator) = &separated_by.token {
                 if !trailing_separator && !elements.is_empty() {
-                    self.expected_token_separating_items(
-                        separator.clone(),
-                        items,
-                        start_location.span,
-                    );
+                    self.expected_token_separating_items(separator.clone(), items, start_location);
                 }
             }
 
