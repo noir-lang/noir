@@ -223,7 +223,7 @@ impl DebugInstrumenter {
                 if *is_mut {
                     ast::Pattern::Mutable(
                         Box::new(ast::Pattern::Identifier(id.clone())),
-                        id.span(),
+                        id.location(),
                         true,
                     )
                 } else {
@@ -264,7 +264,7 @@ impl DebugInstrumenter {
 
         ast::Statement {
             kind: ast::StatementKind::new_let(
-                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
+                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
                 ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {

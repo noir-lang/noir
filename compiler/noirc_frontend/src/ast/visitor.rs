@@ -1480,28 +1480,28 @@ impl Pattern {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
             Pattern::Identifier(ident) => visitor.visit_identifier_pattern(ident),
-            Pattern::Mutable(pattern, span, is_synthesized) => {
-                if visitor.visit_mutable_pattern(pattern, *span, *is_synthesized) {
+            Pattern::Mutable(pattern, location, is_synthesized) => {
+                if visitor.visit_mutable_pattern(pattern, location.span, *is_synthesized) {
                     pattern.accept(visitor);
                 }
             }
-            Pattern::Tuple(patterns, span) => {
-                if visitor.visit_tuple_pattern(patterns, *span) {
+            Pattern::Tuple(patterns, location) => {
+                if visitor.visit_tuple_pattern(patterns, location.span) {
                     for pattern in patterns {
                         pattern.accept(visitor);
                     }
                 }
             }
-            Pattern::Struct(path, fields, span) => {
-                if visitor.visit_struct_pattern(path, fields, *span) {
+            Pattern::Struct(path, fields, location) => {
+                if visitor.visit_struct_pattern(path, fields, location.span) {
                     path.accept(visitor);
                     for (_, pattern) in fields {
                         pattern.accept(visitor);
                     }
                 }
             }
-            Pattern::Interned(id, span) => {
-                visitor.visit_interned_pattern(id, *span);
+            Pattern::Interned(id, location) => {
+                visitor.visit_interned_pattern(id, location.span);
             }
         }
     }

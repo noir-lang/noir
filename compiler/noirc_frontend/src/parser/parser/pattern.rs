@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
         Some(if mutable {
             Pattern::Mutable(
                 Box::new(pattern),
-                self.location_since(start_location).span,
+                self.location_since(start_location),
                 false, // is synthesized
             )
         } else {
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
 
         match token.into_token() {
             Token::InternedPattern(pattern) => {
-                Some(Pattern::Interned(pattern, self.previous_token_location.span))
+                Some(Pattern::Interned(pattern, self.previous_token_location))
             }
             _ => unreachable!(),
         }
@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
             Self::parse_tuple_pattern_element,
         );
 
-        Some(Pattern::Tuple(patterns, self.location_since(start_location).span))
+        Some(Pattern::Tuple(patterns, self.location_since(start_location)))
     }
 
     fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
             Self::parse_struct_pattern_field,
         );
 
-        Pattern::Struct(path, fields, self.location_since(start_location).span)
+        Pattern::Struct(path, fields, self.location_since(start_location))
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{
@@ -187,7 +187,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 self.print_value(&value, f)
             }
             Token::InternedPattern(id) => {
-                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
+                let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 self.print_value(&value, f)
             }
             Token::UnquoteMarker(id) => {
@@ -510,7 +510,7 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
                 value.display(self.interner).fmt(f)
             }
             Token::InternedPattern(id) => {
-                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
+                let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 value.display(self.interner).fmt(f)
             }
             Token::UnquoteMarker(id) => {
@@ -532,7 +532,10 @@ fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitCon
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
 fn remove_interned_in_expression(interner: &NodeInterner, expr: Expression) -> Expression {
-    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), location: expr.location }
+    Expression {
+        kind: remove_interned_in_expression_kind(interner, expr.kind),
+        location: expr.location,
+    }
 }
 
 // Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.

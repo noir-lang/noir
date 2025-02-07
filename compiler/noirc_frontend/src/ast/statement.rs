@@ -593,10 +593,10 @@ pub enum LValue {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
-    Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
-    Tuple(Vec<Pattern>, Span),
-    Struct(Path, Vec<(Ident, Pattern)>, Span),
-    Interned(InternedPattern, Span),
+    Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
+    Tuple(Vec<Pattern>, Location),
+    Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Interned(InternedPattern, Location),
 }
 
 impl Pattern {
@@ -606,24 +606,17 @@ impl Pattern {
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
-            Pattern::Mutable(_, span, _)
-            | Pattern::Tuple(_, span)
-            | Pattern::Struct(_, _, span)
-            | Pattern::Interned(_, span) => {
-                Location::new(*span, FileId::dummy()) // TODO: fix this
-            }
+            Pattern::Mutable(_, location, _)
+            | Pattern::Tuple(_, location)
+            | Pattern::Struct(_, _, location)
+            | Pattern::Interned(_, location) => *location,
         }
     }
 
     pub fn span(&self) -> Span {
-        match self {
-            Pattern::Identifier(ident) => ident.span(),
-            Pattern::Mutable(_, span, _)
-            | Pattern::Tuple(_, span)
-            | Pattern::Struct(_, _, span)
-            | Pattern::Interned(_, span) => *span,
-        }
+        self.location().span
     }
+
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
@@ -639,28 +632,26 @@ impl Pattern {
                 location: ident.location(),
             }),
             Pattern::Mutable(_, _, _) => None,
-            Pattern::Tuple(patterns, span) => {
+            Pattern::Tuple(patterns, location) => {
                 let mut expressions = Vec::new();
                 for pattern in patterns {
                     expressions.push(pattern.try_as_expression(interner)?);
                 }
-                let location = Location::new(*span, FileId::dummy()); // TODO: fix this
-                Some(Expression { kind: ExpressionKind::Tuple(expressions), location })
+                Some(Expression { kind: ExpressionKind::Tuple(expressions), location: *location })
             }
-            Pattern::Struct(path, patterns, span) => {
+            Pattern::Struct(path, patterns, location) => {
                 let mut fields = Vec::new();
                 for (field, pattern) in patterns {
                     let expression = pattern.try_as_expression(interner)?;
                     fields.push((field.clone(), expression));
                 }
-                let location = Location::new(*span, FileId::dummy()); // TODO: fix this
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
                         typ: UnresolvedType::from_path(path.clone()),
                         fields,
                         struct_type: None,
                     })),
-                    location,
+                    location: *location,
                 })
             }
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),

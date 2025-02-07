@@ -251,11 +251,11 @@ impl HirPattern {
             HirPattern::Identifier(ident) => Pattern::Identifier(ident.to_display_ast(interner)),
             HirPattern::Mutable(pattern, location) => {
                 let pattern = Box::new(pattern.to_display_ast(interner));
-                Pattern::Mutable(pattern, location.span, false)
+                Pattern::Mutable(pattern, *location, false)
             }
             HirPattern::Tuple(patterns, location) => {
                 let patterns = vecmap(patterns, |pattern| pattern.to_display_ast(interner));
-                Pattern::Tuple(patterns, location.span)
+                Pattern::Tuple(patterns, *location)
             }
             HirPattern::Struct(typ, patterns, location) => {
                 let patterns = vecmap(patterns, |(name, pattern)| {
@@ -273,7 +273,7 @@ impl HirPattern {
                 };
                 // The name span is lost here
                 let path = Path::from_single(name, location.span);
-                Pattern::Struct(path, patterns, location.span)
+                Pattern::Struct(path, patterns, *location)
             }
         }
     }

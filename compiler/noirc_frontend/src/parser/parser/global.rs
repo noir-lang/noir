@@ -61,8 +61,8 @@ impl<'a> Parser<'a> {
 
 fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
     if mutable {
-        let span = ident.span();
-        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), span, false)
+        let location = ident.location();
+        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), location, false)
     } else {
         Pattern::Identifier(ident)
     }

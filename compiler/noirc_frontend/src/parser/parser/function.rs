@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
             self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
                 .with_span(ident_location.span);
         } else if self_pattern.mutable {
-            pattern = Pattern::Mutable(Box::new(pattern), ident_location.span, true);
+            pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
         }
 
         Param {

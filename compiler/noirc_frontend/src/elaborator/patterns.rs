@@ -96,23 +96,25 @@ impl<'context> Elaborator<'context> {
                 new_definitions.push(ident.clone());
                 HirPattern::Identifier(ident)
             }
-            Pattern::Mutable(pattern, span, _) => {
+            Pattern::Mutable(pattern, location, _) => {
                 if let Some(first_mut) = mutable {
-                    self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
+                    self.push_err(ResolverError::UnnecessaryMut {
+                        first_mut,
+                        second_mut: location.span,
+                    });
                 }
 
                 let pattern = self.elaborate_pattern_mut(
                     *pattern,
                     expected_type,
                     definition,
-                    Some(span),
+                    Some(location.span),
                     new_definitions,
                     warn_if_unused,
                 );
-                let location = Location::new(span, self.file);
                 HirPattern::Mutable(Box::new(pattern), location)
             }
-            Pattern::Tuple(fields, span) => {
+            Pattern::Tuple(fields, location) => {
                 let field_types = match expected_type.follow_bindings() {
                     Type::Tuple(fields) => fields,
                     Type::Error => Vec::new(),
@@ -123,7 +125,7 @@ impl<'context> Elaborator<'context> {
                         self.push_err(TypeCheckError::TypeMismatchWithSource {
                             expected: expected_type,
                             actual: tuple,
-                            span,
+                            span: location.span,
                             source: Source::Assignment,
                         });
                         Vec::new()
@@ -141,13 +143,12 @@ impl<'context> Elaborator<'context> {
                         warn_if_unused,
                     )
                 });
-                let location = Location::new(span, self.file);
                 HirPattern::Tuple(fields, location)
             }
-            Pattern::Struct(name, fields, span) => self.elaborate_struct_pattern(
+            Pattern::Struct(name, fields, location) => self.elaborate_struct_pattern(
                 name,
                 fields,
-                span,
+                location.span,
                 expected_type,
                 definition,
                 mutable,
