@@ -227,11 +227,10 @@ mod tests {
             if func_id.to_u32() == 1 {
                 assert_eq!(
                     artifact.byte_code.len(),
-                    2,
+                    1,
                     "Expected just a `Return`, but got more than a single opcode"
                 );
-                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
-                // assert!(matches!(&artifact.byte_code[0], Opcode::Return));
+                assert!(matches!(&artifact.byte_code[0], Opcode::Return));
             } else if func_id.to_u32() == 2 {
                 assert_eq!(
                     artifact.byte_code.len(),
@@ -345,17 +344,16 @@ mod tests {
             if func_id.to_u32() == 1 {
                 assert_eq!(
                     artifact.byte_code.len(),
-                    30,
+                    2,
                     "Expected enough opcodes to initialize the globals"
                 );
-                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
-                // let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-                //     panic!("First opcode is expected to be `Const`");
-                // };
-                // assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-                // assert!(matches!(bit_size, BitSize::Field));
-                // assert_eq!(*value, FieldElement::from(1u128));
-                // assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                    panic!("First opcode is expected to be `Const`");
+                };
+                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert!(matches!(bit_size, BitSize::Field));
+                assert_eq!(*value, FieldElement::from(1u128));
+                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
             } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
                 // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
                 // to have the same globals initialized.
