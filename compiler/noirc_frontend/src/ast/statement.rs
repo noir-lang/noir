@@ -272,7 +272,7 @@ impl From<Ident> for Expression {
         Expression {
             location: i.0.location(),
             kind: ExpressionKind::Variable(Path {
-                span: i.span(),
+                location: i.location(),
                 segments: vec![PathSegment::from(i)],
                 kind: PathKind::Plain,
             }),
@@ -420,7 +420,7 @@ pub struct TypePath {
 pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl Path {
@@ -440,11 +440,15 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { span: name.span(), segments: vec![PathSegment::from(name)], kind: PathKind::Plain }
+        Path {
+            location: name.location(),
+            segments: vec![PathSegment::from(name)],
+            kind: PathKind::Plain,
+        }
     }
 
     pub fn span(&self) -> Span {
-        self.span
+        self.location.span
     }
 
     pub fn last_segment(&self) -> PathSegment {
@@ -819,7 +823,8 @@ impl ForRange {
                 let next_unique_id = unique_name_counter;
                 unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
-                let array_span = array.location.span;
+                let array_location = array.location;
+                let array_span = array_location.span;
                 let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
@@ -838,7 +843,7 @@ impl ForRange {
                 let array_ident = ExpressionKind::Variable(Path {
                     segments,
                     kind: PathKind::Plain,
-                    span: array_span,
+                    location: array_location,
                 });
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
@@ -859,7 +864,7 @@ impl ForRange {
                 let index_ident = ExpressionKind::Variable(Path {
                     segments,
                     kind: PathKind::Plain,
-                    span: array_span,
+                    location: array_location,
                 });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {

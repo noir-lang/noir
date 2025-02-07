@@ -241,7 +241,7 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
         mut in_the_middle: bool,
     ) {
-        if !self.includes_span(path.span) {
+        if !self.includes_span(path.location.span) {
             return;
         }
 
@@ -1408,7 +1408,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.span) {
+            if self.includes_span(path.location.span) {
                 self.find_in_path_impl(path, RequestedItems::AnyItems, true);
                 return false;
             }
@@ -1816,7 +1816,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
-        if self.byte_index == attribute.name.span.end() as usize {
+        if self.byte_index == attribute.name.location.span.end() as usize {
             self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 

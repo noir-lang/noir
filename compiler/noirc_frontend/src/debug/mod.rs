@@ -181,7 +181,7 @@ impl DebugInstrumenter {
                     kind: ast::ExpressionKind::Variable(ast::Path {
                         segments: vec![PathSegment::from(ident("__debug_expr", span))],
                         kind: PathKind::Plain,
-                        span,
+                        location,
                     }),
                     location,
                 }),
@@ -631,7 +631,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
             kind: ast::ExpressionKind::Variable(ast::Path {
                 segments: vec![PathSegment::from(ident("__debug_var_assign", location.span))],
                 kind: PathKind::Plain,
-                span: location.span,
+                location,
             }),
             location,
         }),
@@ -651,7 +651,7 @@ fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
             kind: ast::ExpressionKind::Variable(ast::Path {
                 segments: vec![PathSegment::from(ident("__debug_var_drop", span))],
                 kind: PathKind::Plain,
-                span,
+                location,
             }),
             location,
         }),
@@ -679,7 +679,7 @@ fn build_assign_member_stmt(
                     location.span,
                 ))],
                 kind: PathKind::Plain,
-                span: location.span,
+                location,
             }),
             location,
         }),
@@ -704,7 +704,7 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Stat
             kind: ast::ExpressionKind::Variable(ast::Path {
                 segments: vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], span))],
                 kind: PathKind::Plain,
-                span,
+                location,
             }),
             location,
         }),
@@ -773,7 +773,7 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
         kind: ast::ExpressionKind::Variable(Path {
             segments: vec![PathSegment::from(id.clone())],
             kind: PathKind::Plain,
-            span: id.span(),
+            location: id.location(),
         }),
         location: id.location(),
     }

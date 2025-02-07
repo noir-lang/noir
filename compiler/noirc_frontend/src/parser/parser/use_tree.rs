@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
                 prefix: Path {
                     segments: Vec::new(),
                     kind: PathKind::Plain,
-                    span: start_location.span,
+                    location: start_location,
                 },
                 kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location.span), None),
                 span: start_location.span,

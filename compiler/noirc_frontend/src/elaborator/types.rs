@@ -298,7 +298,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_as_type(&mut self, path: Path, args: GenericTypeArgs) -> Type {
         // Fetch information needed from the trait as the closure for resolving all the `args`
         // requires exclusive access to `self`
-        let span = path.span;
+        let span = path.location.span;
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
@@ -562,7 +562,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
-        let span = path.trait_path.span;
+        let span = path.trait_path.location.span;
         let Some(trait_id) = self.resolve_trait_by_path(path.trait_path.clone()) else {
             // Error should already be pushed in the None case
             return Type::Error;
@@ -623,7 +623,7 @@ impl<'context> Elaborator<'context> {
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.0.contents.as_str())?;
-                let constraint = the_trait.as_constraint(path.span);
+                let constraint = the_trait.as_constraint(path.location.span);
                 return Some(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: true },
                     item: None,
@@ -644,7 +644,7 @@ impl<'context> Elaborator<'context> {
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
-        let constraint = the_trait.as_constraint(path.span);
+        let constraint = the_trait.as_constraint(path.location.span);
         Some(TraitPathResolution {
             method: TraitMethod { method_id: method, constraint, assumed: false },
             item: Some(path_resolution.item),

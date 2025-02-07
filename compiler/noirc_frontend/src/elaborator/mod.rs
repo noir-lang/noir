@@ -830,7 +830,7 @@ impl<'context> Elaborator<'context> {
                     let kind = associated_type.type_var.kind();
                     let type_var = TypeVariable::unbound(new_generic_id, kind);
 
-                    let span = bound.trait_path.span;
+                    let span = bound.trait_path.location.span;
                     let name = format!("<{object} as {trait_name}>::{}", associated_type.name);
                     let name = Rc::new(name);
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
@@ -859,7 +859,7 @@ impl<'context> Elaborator<'context> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
 
         self.add_trait_bound_to_scope(
-            constraint.trait_bound.trait_path.span,
+            constraint.trait_bound.trait_path.location.span,
             &typ,
             &trait_bound,
             trait_bound.trait_id,
@@ -871,7 +871,7 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
-        let span = bound.trait_path.span;
+        let span = bound.trait_path.location.span;
 
         let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
 
@@ -2012,7 +2012,7 @@ impl<'context> Elaborator<'context> {
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            let path_span = trait_impl.trait_path.span;
+            let path_span = trait_impl.trait_path.location.span;
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
                 .map(|trait_id| {

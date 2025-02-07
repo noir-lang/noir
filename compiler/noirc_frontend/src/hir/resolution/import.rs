@@ -227,7 +227,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
 
     fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
-            let span_start = path.span.start();
+            let span_start = path.location.span.start();
             let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
             return Err(PathResolutionError::NoSuper(span));
         };

@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             trait_path: Path {
                 kind: PathKind::Plain,
                 segments: Vec::new(),
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             },
             trait_id: None,
             trait_generics: GenericTypeArgs::default(),

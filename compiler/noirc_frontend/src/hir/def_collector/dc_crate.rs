@@ -550,7 +550,7 @@ fn inject_prelude(
         let path = Path {
             segments: segments.clone(),
             kind: crate::ast::PathKind::Plain,
-            span: Span::default(),
+            location: Location::dummy(),
         };
 
         if let Ok(resolved_import) = resolve_import(
@@ -576,7 +576,7 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Plain, span: Span::default() },
+                        path: Path { segments, kind: PathKind::Plain, location: Location::dummy() },
                         alias: None,
                         is_prelude: true,
                     },

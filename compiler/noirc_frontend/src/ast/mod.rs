@@ -366,8 +366,7 @@ impl UnresolvedType {
     }
 
     pub fn from_path(mut path: Path) -> Self {
-        let span = path.span;
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        let location = path.location;
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
@@ -488,7 +487,7 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Constant(_, span) => *span,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                path.trait_path.span.merge(path.impl_item.span())
+                path.trait_path.location.merge(path.impl_item.location()).span
             }
         }
     }

@@ -1,3 +1,4 @@
+use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span, Spanned};
 
@@ -75,6 +76,7 @@ impl StmtId {
 impl HirExpression {
     /// Convert to AST for display (some details lost)
     pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Expression {
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
         let kind = match self {
             HirExpression::Ident(ident, generics) => {
                 let ident = ident.to_display_ast(interner);
@@ -87,7 +89,7 @@ impl HirExpression {
                 };
 
                 let path =
-                    Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, span };
+                    Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, location };
 
                 ExpressionKind::Variable(path)
             }
@@ -219,7 +221,8 @@ impl HirExpression {
                 let variant = &typ.variant_at(constructor.variant_index);
                 let segment1 = PathSegment { ident: typ.name.clone(), span, generics: None };
                 let segment2 = PathSegment { ident: variant.name.clone(), span, generics: None };
-                let path = Path { segments: vec![segment1, segment2], kind: PathKind::Plain, span };
+                let path =
+                    Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
                 let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
                 let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
                 let call = CallExpression { func, arguments, is_macro_call: false };

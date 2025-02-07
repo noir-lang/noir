@@ -533,7 +533,7 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
-        let span = variable.span;
+        let span = variable.location.span;
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
@@ -643,7 +643,7 @@ impl<'context> Elaborator<'context> {
 
             (
                 HirIdent {
-                    location: Location::new(path.span, self.file),
+                    location: path.location,
                     id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
                     impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
                 },

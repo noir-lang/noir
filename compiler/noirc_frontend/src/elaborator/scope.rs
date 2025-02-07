@@ -192,7 +192,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let span = path.span;
+        let span = path.location.span;
         match self.resolve_path_or_error(path) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);

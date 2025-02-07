@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
             Path {
                 segments: Vec::new(),
                 kind: PathKind::Plain,
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             }
         }
     }
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
             Path {
                 segments: Vec::new(),
                 kind: PathKind::Plain,
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             }
         }
     }
@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Path { segments, kind, span: self.location_since(start_location).span }
+        Path { segments, kind, location: self.location_since(start_location) }
     }
 
     /// PathGenerics = GenericTypeArgs
@@ -296,7 +296,7 @@ mod tests {
         let src = "foo::";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
@@ -324,7 +324,7 @@ mod tests {
         let src = "foo::bar::";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar");
     }
@@ -334,7 +334,7 @@ mod tests {
         let src = "foo::bar::<1>::";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar::<1>");
     }

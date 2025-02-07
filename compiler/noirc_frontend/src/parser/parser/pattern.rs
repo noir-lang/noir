@@ -1,4 +1,3 @@
-use fm::FileId;
 use noirc_errors::Location;
 
 use crate::{
@@ -143,8 +142,7 @@ impl<'a> Parser<'a> {
         }
 
         if !path.is_ident() {
-            let location = Location::new(path.span, FileId::dummy()); // TODO: fix this
-            self.push_error(ParserErrorReason::InvalidPattern, location);
+            self.push_error(ParserErrorReason::InvalidPattern, path.location);
 
             let ident = path.segments.pop().unwrap().ident;
             return Some(Pattern::Identifier(ident));

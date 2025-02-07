@@ -349,7 +349,8 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let Some(name_location) = self.to_lsp_location(noir_trait_impl.trait_name.span) else {
+        let Some(name_location) = self.to_lsp_location(noir_trait_impl.trait_name.location.span)
+        else {
             return false;
         };
 
