@@ -179,7 +179,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 self.print_value(&value, f)
             }
             Token::InternedLValue(id) => {
-                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
                 self.print_value(&value, f)
             }
             Token::InternedUnresolvedTypeData(id) => {
@@ -502,7 +502,7 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
                 value.display(self.interner).fmt(f)
             }
             Token::InternedLValue(id) => {
-                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
                 value.display(self.interner).fmt(f)
             }
             Token::InternedUnresolvedTypeData(id) => {
@@ -779,15 +779,15 @@ fn remove_interned_in_statement_kind(
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
         LValue::Ident(_) => lvalue,
-        LValue::MemberAccess { object, field_name, span } => LValue::MemberAccess {
+        LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,
-            span,
+            location: span,
         },
-        LValue::Index { array, index, span } => LValue::Index {
+        LValue::Index { array, index, location: span } => LValue::Index {
             array: Box::new(remove_interned_in_lvalue(interner, *array)),
             index: remove_interned_in_expression(interner, index),
-            span,
+            location: span,
         },
         LValue::Dereference(lvalue, span) => {
             LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, *lvalue)), span)

@@ -414,16 +414,16 @@ impl HirLValue {
             HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
                 let object = Box::new(object.to_display_ast(interner));
-                LValue::MemberAccess { object, field_name: field_name.clone(), span: location.span }
+                LValue::MemberAccess { object, field_name: field_name.clone(), location: *location }
             }
             HirLValue::Index { array, index, typ: _, location } => {
                 let array = Box::new(array.to_display_ast(interner));
                 let index = index.to_display_ast(interner);
-                LValue::Index { array, index, span: location.span }
+                LValue::Index { array, index, location: *location }
             }
             HirLValue::Dereference { lvalue, element_type: _, location } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
-                LValue::Dereference(lvalue, location.span)
+                LValue::Dereference(lvalue, *location)
             }
         }
     }

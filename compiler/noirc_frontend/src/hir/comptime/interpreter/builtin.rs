@@ -2054,7 +2054,7 @@ fn expr_as_member_access(
                 quote_ident(&member_access.rhs, location),
             ]))
         }
-        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
+        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, location: _ }) => {
             Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name, location)]))
         }
         _ => None,

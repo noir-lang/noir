@@ -1247,23 +1247,23 @@ impl LValue {
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
             LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
-            LValue::MemberAccess { object, field_name, span } => {
-                if visitor.visit_lvalue_member_access(object, field_name, *span) {
+            LValue::MemberAccess { object, field_name, location } => {
+                if visitor.visit_lvalue_member_access(object, field_name, location.span) {
                     object.accept(visitor);
                 }
             }
-            LValue::Index { array, index, span } => {
-                if visitor.visit_lvalue_index(array, index, *span) {
+            LValue::Index { array, index, location } => {
+                if visitor.visit_lvalue_index(array, index, location.span) {
                     array.accept(visitor);
                     index.accept(visitor);
                 }
             }
-            LValue::Dereference(lvalue, span) => {
-                if visitor.visit_lvalue_dereference(lvalue, *span) {
+            LValue::Dereference(lvalue, location) => {
+                if visitor.visit_lvalue_dereference(lvalue, location.span) {
                     lvalue.accept(visitor);
                 }
             }
-            LValue::Interned(id, span) => visitor.visit_lvalue_interned(*id, *span),
+            LValue::Interned(id, location) => visitor.visit_lvalue_interned(*id, location.span),
         }
     }
 }

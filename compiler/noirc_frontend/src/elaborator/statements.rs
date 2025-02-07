@@ -327,14 +327,13 @@ impl<'context> Elaborator<'context> {
 
                 (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
             }
-            LValue::MemberAccess { object, field_name, span } => {
+            LValue::MemberAccess { object, field_name, location } => {
                 let (object, lhs_type, mut mutable) = self.elaborate_lvalue(*object);
                 let mut object = Box::new(object);
                 let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
-                let location = Location::new(span, self.file);
 
                 let dereference_lhs = move |_: &mut Self, _, element_type| {
                     // We must create a temporary value first to move out of object_ref before
@@ -360,10 +359,9 @@ impl<'context> Elaborator<'context> {
                     HirLValue::MemberAccess { object, field_name, field_index, typ, location };
                 (lvalue, object_type, mutable)
             }
-            LValue::Index { array, index, span } => {
+            LValue::Index { array, index, location } => {
                 let expr_span = index.location.span;
                 let (index, index_type) = self.elaborate_expression(index);
-                let location = Location::new(span, self.file);
 
                 let expected = self.polymorphic_integer_or_field();
                 self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
@@ -395,14 +393,16 @@ impl<'context> Elaborator<'context> {
                         Type::Error
                     }
                     Type::TypeVariable(_) => {
-                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { span });
+                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex {
+                            span: location.span,
+                        });
                         Type::Error
                     }
                     other => {
                         self.push_err(TypeCheckError::TypeMismatch {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
-                            expr_span: span,
+                            expr_span: location.span,
                         });
                         Type::Error
                     }
@@ -412,10 +412,9 @@ impl<'context> Elaborator<'context> {
                 let array_type = typ.clone();
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable)
             }
-            LValue::Dereference(lvalue, span) => {
+            LValue::Dereference(lvalue, location) => {
                 let (lvalue, reference_type, _) = self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
-                let location = Location::new(span, self.file);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
@@ -423,7 +422,7 @@ impl<'context> Elaborator<'context> {
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
                     expr_typ: reference_type.to_string(),
-                    expr_span: span,
+                    expr_span: location.span,
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
@@ -431,8 +430,8 @@ impl<'context> Elaborator<'context> {
                 let lvalue = HirLValue::Dereference { lvalue, element_type, location };
                 (lvalue, typ, true)
             }
-            LValue::Interned(id, span) => {
-                let lvalue = self.interner.get_lvalue(id, span).clone();
+            LValue::Interned(id, location) => {
+                let lvalue = self.interner.get_lvalue(id, location).clone();
                 self.elaborate_lvalue(lvalue)
             }
         }

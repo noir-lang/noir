@@ -2129,8 +2129,8 @@ impl NodeInterner {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
-    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
-        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 

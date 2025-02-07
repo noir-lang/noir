@@ -313,13 +313,13 @@ impl DebugInstrumenter {
                     .unwrap_or_else(|| panic!("var lookup failed for var_name={}", &id.0.contents));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.span())))
             }
-            ast::LValue::Dereference(_lv, span) => {
+            ast::LValue::Dereference(_lv, location) => {
                 // TODO: this is a dummy statement for now, but we should
                 // somehow track the derefence and update the pointed to
                 // variable
                 ast::Statement {
-                    kind: ast::StatementKind::Expression(uint_expr(0, *span)),
-                    location,
+                    kind: ast::StatementKind::Expression(uint_expr(0, location.span)),
+                    location: *location,
                 }
             }
             _ => {
@@ -334,12 +334,12 @@ impl DebugInstrumenter {
                             });
                             break;
                         }
-                        ast::LValue::MemberAccess { object, field_name, span } => {
+                        ast::LValue::MemberAccess { object, field_name, location } => {
                             cursor = object;
                             let field_name_id = self.insert_field_name(&field_name.0.contents);
-                            indexes.push(sint_expr(-(field_name_id.0 as i128), *span));
+                            indexes.push(sint_expr(-(field_name_id.0 as i128), location.span));
                         }
-                        ast::LValue::Index { index, array, span: _ } => {
+                        ast::LValue::Index { index, array, location: _ } => {
                             cursor = array;
                             indexes.push(index.clone());
                         }

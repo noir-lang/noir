@@ -288,7 +288,7 @@ pub(crate) fn get_expr(
                 Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
-                Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location).clone()))
             }
             ExprValue::Pattern(Pattern::Interned(id, _)) => {
                 Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))

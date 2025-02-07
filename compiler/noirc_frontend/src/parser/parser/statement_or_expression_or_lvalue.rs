@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location).span);
+                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
 
                     // If it is, it could be something like `lvalue = expr`: check that.
                     if self.eat(Token::Assign) {
