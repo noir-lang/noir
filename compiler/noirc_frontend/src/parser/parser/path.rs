@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
             ident
         } else {
             self.expected_identifier();
-            Ident::new(String::new(), self.span_at_previous_token_end())
+            Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
         Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })

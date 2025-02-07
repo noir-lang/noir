@@ -111,7 +111,7 @@ pub(crate) fn get_struct_fields(
         _ => {
             let expected = DataType::new(
                 TypeId::dummy_id(),
-                Ident::new(name.to_string(), location.span),
+                Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
             );

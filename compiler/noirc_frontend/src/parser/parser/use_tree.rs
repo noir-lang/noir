@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
                     kind: PathKind::Plain,
                     location: start_location,
                 },
-                kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location.span), None),
+                kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location), None),
                 location: start_location,
             });
         }

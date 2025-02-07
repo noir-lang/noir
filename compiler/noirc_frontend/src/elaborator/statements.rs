@@ -350,7 +350,12 @@ impl<'context> Elaborator<'context> {
 
                 let name = &field_name.0.contents;
                 let (object_type, field_index) = self
-                    .check_field_access(&lhs_type, name, field_name.span(), Some(dereference_lhs))
+                    .check_field_access(
+                        &lhs_type,
+                        name,
+                        field_name.location(),
+                        Some(dereference_lhs),
+                    )
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
@@ -442,7 +447,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         lhs_type: &Type,
         field_name: &str,
-        span: Span,
+        location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
@@ -451,10 +456,9 @@ impl<'context> Elaborator<'context> {
             Type::DataType(s, args) => {
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
-                    let reference_location = Location::new(span, self.file);
-                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+                    self.interner.add_struct_member_reference(s.id, index, location);
 
-                    self.check_struct_field_visibility(&s, field_name, visibility, span);
+                    self.check_struct_field_visibility(&s, field_name, visibility, location);
 
                     return Some((field, index));
                 }
@@ -469,7 +473,7 @@ impl<'context> Elaborator<'context> {
                             index,
                             lhs_type,
                             length,
-                            span,
+                            span: location.span,
                         });
                         return None;
                     }
@@ -483,12 +487,12 @@ impl<'context> Elaborator<'context> {
                     return self.check_field_access(
                         element,
                         field_name,
-                        span,
+                        location,
                         Some(dereference_lhs),
                     );
                 } else {
                     let (element, index) =
-                        self.check_field_access(element, field_name, span, dereference_lhs)?;
+                        self.check_field_access(element, field_name, location, dereference_lhs)?;
                     return Some((Type::MutableReference(Box::new(element)), index));
                 }
             }
@@ -498,12 +502,14 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { span });
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess {
+                span: location.span,
+            });
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,
                 field_name: field_name.to_string(),
-                span,
+                span: location.span,
             });
         }
 
@@ -515,7 +521,7 @@ impl<'context> Elaborator<'context> {
         struct_type: &DataType,
         field_name: &str,
         visibility: ItemVisibility,
-        span: Span,
+        location: Location,
     ) {
         if self.silence_field_visibility_errors > 0 {
             return;
@@ -523,7 +529,7 @@ impl<'context> Elaborator<'context> {
 
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), span),
+                Ident::new(field_name.to_string(), location),
             )));
         }
     }

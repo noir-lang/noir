@@ -542,7 +542,7 @@ fn inject_prelude(
             .map(|segment| {
                 crate::ast::PathSegment::from(crate::ast::Ident::new(
                     segment.into(),
-                    Span::default(),
+                    Location::dummy(),
                 ))
             })
             .collect();
@@ -569,7 +569,7 @@ fn inject_prelude(
 
             for path in prelude {
                 let mut segments = segments.clone();
-                segments.push(PathSegment::from(Ident::new(path.to_string(), Span::default())));
+                segments.push(PathSegment::from(Ident::new(path.to_string(), Location::dummy())));
 
                 collected_imports.insert(
                     0,

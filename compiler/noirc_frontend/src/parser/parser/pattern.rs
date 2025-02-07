@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
         }
 
         self.expected_label(ParsingRuleLabel::Pattern);
-        Pattern::Identifier(Ident::new(String::new(), self.span_at_previous_token_end()))
+        Pattern::Identifier(Ident::new(String::new(), self.location_at_previous_token_end()))
     }
 
     /// Pattern

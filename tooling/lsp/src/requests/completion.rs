@@ -268,7 +268,10 @@ impl<'a> NodeFinder<'a> {
                 let substring = ident.0.contents[0..offset].to_string();
                 let ident = Ident::new(
                     substring,
-                    Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                    Location::new(
+                        Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                        ident.location().file,
+                    ),
                 );
                 idents.push(ident);
                 in_the_middle = true;

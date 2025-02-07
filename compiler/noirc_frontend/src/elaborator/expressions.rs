@@ -53,9 +53,7 @@ impl<'context> Elaborator<'context> {
             }
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.location.span),
-            ExpressionKind::MethodCall(call) => {
-                self.elaborate_method_call(*call, expr.location.span)
-            }
+            ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.location),
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
@@ -480,7 +478,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_method_call(
         &mut self,
         method_call: MethodCallExpression,
-        span: Span,
+        location: Location,
     ) -> (HirExpression, Type) {
         let object_span = method_call.object.location.span;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
@@ -488,7 +486,7 @@ impl<'context> Elaborator<'context> {
 
         let method_name_span = method_call.method_name.span();
         let method_name = method_call.method_name.0.contents.as_str();
-        match self.lookup_method(&object_type, method_name, span, true) {
+        match self.lookup_method(&object_type, method_name, location, true) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
@@ -504,7 +502,11 @@ impl<'context> Elaborator<'context> {
                         &mut object,
                     );
 
-                    self.resolve_function_turbofish_generics(&func_id, method_call.generics, span)
+                    self.resolve_function_turbofish_generics(
+                        &func_id,
+                        method_call.generics,
+                        location.span,
+                    )
                 } else {
                     None
                 };
@@ -576,7 +578,8 @@ impl<'context> Elaborator<'context> {
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
-                let mut typ = self.type_check_call(&function_call, func_type, function_args, span);
+                let mut typ =
+                    self.type_check_call(&function_call, func_type, function_args, location.span);
                 if is_macro_call {
                     if self.in_comptime_context() {
                         typ = self.interner.next_type_variable();
@@ -863,20 +866,16 @@ impl<'context> Elaborator<'context> {
 
             if let Some((index, visibility)) = expected_index_and_visibility {
                 let struct_type = struct_type.borrow();
-                let field_span = field_name.span();
+                let field_location = field_name.location();
                 let field_name = &field_name.0.contents;
                 self.check_struct_field_visibility(
                     &struct_type,
                     field_name,
                     *visibility,
-                    field_span,
+                    field_location,
                 );
 
-                self.interner.add_struct_member_reference(
-                    struct_type.id,
-                    index,
-                    Location::new(field_span, self.file),
-                );
+                self.interner.add_struct_member_reference(struct_type.id, index, field_location);
             }
 
             ret.push((field_name, resolved));
@@ -900,11 +899,11 @@ impl<'context> Elaborator<'context> {
     ) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
         let rhs = access.rhs;
-        let rhs_span = rhs.span();
+        let rhs_location = rhs.location();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset: false };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), span);
-        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_span);
+        let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }

@@ -265,12 +265,7 @@ impl Ident {
         self.0.span()
     }
 
-    pub fn from_token(token: Token, span: Span) -> Ident {
-        Ident::from(SpannedToken::new(token, span))
-    }
-
-    pub fn new(text: String, span: Span) -> Ident {
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+    pub fn new(text: String, location: Location) -> Ident {
         Ident(Located::from(location, text))
     }
 }
@@ -800,8 +795,7 @@ impl ForRange {
                 unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
                 let array_location = array.location;
-                let array_span = array_location.span;
-                let array_ident = Ident::new(array_name, array_span);
+                let array_ident = Ident::new(array_name, array_location);
 
                 // let fresh1 = array;
                 let let_array = Statement {
@@ -824,7 +818,7 @@ impl ForRange {
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_location),
-                    method_name: Ident::new("len".to_string(), array_span),
+                    method_name: Ident::new("len".to_string(), array_location),
                     generics: None,
                     is_macro_call: false,
                     arguments: vec![],
@@ -833,10 +827,10 @@ impl ForRange {
 
                 let next_unique_id = unique_name_counter;
                 let index_name = format!("$i{next_unique_id}");
-                let fresh_identifier = Ident::new(index_name.clone(), array_span);
+                let fresh_identifier = Ident::new(index_name.clone(), array_location);
 
                 // array[i]
-                let segments = vec![PathSegment::from(Ident::new(index_name, array_span))];
+                let segments = vec![PathSegment::from(Ident::new(index_name, array_location))];
                 let index_ident = ExpressionKind::Variable(Path {
                     segments,
                     kind: PathKind::Plain,

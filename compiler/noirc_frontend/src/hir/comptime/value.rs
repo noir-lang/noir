@@ -229,7 +229,7 @@ impl Value {
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                    Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
                 let struct_type = match typ.follow_bindings_shallow().as_ref() {
@@ -389,7 +389,7 @@ impl Value {
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                    Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
                 let (r#type, struct_generics) = match typ.follow_bindings() {

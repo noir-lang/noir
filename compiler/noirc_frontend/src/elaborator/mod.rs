@@ -408,7 +408,7 @@ impl<'context> Elaborator<'context> {
             if let Kind::Numeric(typ) = &generic.kind() {
                 let definition =
                     DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
-                let ident = Ident::new(generic.name.to_string(), generic.location.span);
+                let ident = Ident::new(generic.name.to_string(), generic.location);
                 let hir_ident = self.add_variable_decl(
                     ident, false, // mutable
                     false, // allow_shadowing
@@ -836,7 +836,7 @@ impl<'context> Elaborator<'context> {
                     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
                     let typ = self.interner.push_quoted_type(typ);
                     let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
-                    let ident = Ident::new(associated_type.name.as_ref().clone(), location.span);
+                    let ident = Ident::new(associated_type.name.as_ref().clone(), location);
 
                     bound.trait_generics.named_args.push((ident, typ));
                     added_generics.push(ResolvedGeneric { name, location, type_var });
@@ -871,12 +871,13 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
         let the_trait = self.lookup_trait_or_error(bound.trait_path.clone())?;
         let trait_id = the_trait.id;
-        let span = bound.trait_path.location.span;
+        let location = bound.trait_path.location;
 
-        let (ordered, named) = self.resolve_type_args(bound.trait_generics.clone(), trait_id, span);
+        let (ordered, named) =
+            self.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(ResolvedTraitBound { trait_id, trait_generics, span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, span: location.span })
     }
 
     /// Extract metadata from a NoirFunction
@@ -1155,7 +1156,7 @@ impl<'context> Elaborator<'context> {
         // Also assume `self` implements the current trait if we are inside a trait definition
         if let Some(trait_id) = self.current_trait {
             let the_trait = self.interner.get_trait(trait_id);
-            let constraint = the_trait.as_constraint(the_trait.name.span());
+            let constraint = the_trait.as_constraint(the_trait.name.location());
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
             self.add_trait_bound_to_scope(
@@ -2012,12 +2013,12 @@ impl<'context> Elaborator<'context> {
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            let path_span = trait_impl.trait_path.location.span;
+            let path_location = trait_impl.trait_path.location;
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
                 .map(|trait_id| {
                     // Check for missing generics & associated types for the trait being implemented
-                    self.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_span)
+                    self.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_location)
                 })
                 .unwrap_or_default();
 

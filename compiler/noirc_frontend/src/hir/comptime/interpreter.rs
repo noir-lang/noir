@@ -1396,7 +1396,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let method = self
             .elaborator
-            .lookup_method(&typ, method_name, location.span, true)
+            .lookup_method(&typ, method_name, location, true)
             .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {

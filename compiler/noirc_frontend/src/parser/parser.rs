@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
             match token.into_token() {
-                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location.span)),
+                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location)),
                 _ => unreachable!(),
             }
         } else {

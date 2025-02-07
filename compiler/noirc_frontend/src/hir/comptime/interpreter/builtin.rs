@@ -677,7 +677,7 @@ fn struct_def_set_fields(
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                         Ok(hir_def::types::StructField {
                             visibility: ItemVisibility::Public,
-                            name: Ident::new(name.clone(), field_location.span),
+                            name: Ident::new(name.clone(), field_location),
                             typ,
                         })
                     }
@@ -2929,7 +2929,7 @@ fn trait_def_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument)?;
-    let constraint = interner.get_trait(trait_id).as_constraint(location.span);
+    let constraint = interner.get_trait(trait_id).as_constraint(location);
 
     Ok(Value::TraitConstraint(trait_id, constraint.trait_bound.trait_generics))
 }

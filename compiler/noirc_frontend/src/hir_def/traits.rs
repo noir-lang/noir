@@ -186,10 +186,10 @@ impl Trait {
         (ordered, named)
     }
 
-    pub fn get_trait_generics(&self, span: Span) -> TraitGenerics {
+    pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {
         let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
         let named = vecmap(&self.associated_types, |generic| {
-            let name = Ident::new(generic.name.to_string(), span);
+            let name = Ident::new(generic.name.to_string(), location);
             NamedType { name, typ: generic.clone().as_named_generic() }
         });
         TraitGenerics { ordered, named }
@@ -197,11 +197,15 @@ impl Trait {
 
     /// Returns a TraitConstraint for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
-    pub fn as_constraint(&self, span: Span) -> TraitConstraint {
-        let trait_generics = self.get_trait_generics(span);
+    pub fn as_constraint(&self, location: Location) -> TraitConstraint {
+        let trait_generics = self.get_trait_generics(location);
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, span },
+            trait_bound: ResolvedTraitBound {
+                trait_generics,
+                trait_id: self.id,
+                span: location.span,
+            },
         }
     }
 }

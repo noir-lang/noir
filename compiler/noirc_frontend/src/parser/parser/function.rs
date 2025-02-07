@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
 
     fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
         let ident_location = self.previous_token_location;
-        let ident = Ident::new("self".to_string(), ident_location.span);
+        let ident = Ident::new("self".to_string(), ident_location);
         let path = Path::from_single("Self".to_owned(), ident_location.span);
         let no_args = GenericTypeArgs::default();
         let mut self_type =

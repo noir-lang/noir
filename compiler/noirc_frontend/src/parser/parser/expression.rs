@@ -203,7 +203,7 @@ impl<'a> Parser<'a> {
         if let Some(ident) = self.eat_ident() {
             Some(ident)
         } else if let Some(int) = self.eat_int() {
-            Some(Ident::new(int.to_string(), self.previous_token_location.span))
+            Some(Ident::new(int.to_string(), self.previous_token_location))
         } else {
             self.push_error(
                 ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
@@ -638,7 +638,7 @@ impl<'a> Parser<'a> {
             ident
         } else {
             self.expected_identifier();
-            Ident::new(String::new(), self.span_at_previous_token_end())
+            Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
         let turbofish = self.eat_double_colon().then(|| {

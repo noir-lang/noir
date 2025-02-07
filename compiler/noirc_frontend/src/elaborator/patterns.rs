@@ -291,7 +291,7 @@ impl<'context> Elaborator<'context> {
                     &struct_type.borrow(),
                     &field.0.contents,
                     visibility,
-                    field.span(),
+                    field.location(),
                 );
             } else if seen_fields.contains(&field) {
                 // duplicate field
@@ -855,8 +855,7 @@ impl<'context> Elaborator<'context> {
         let location = path.item.location();
         let typ = self.resolve_type(path.typ);
 
-        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, location.span, false)
-        else {
+        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, location, false) else {
             let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);
         };
@@ -865,9 +864,8 @@ impl<'context> Elaborator<'context> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics = path
-            .turbofish
-            .map(|turbofish| self.resolve_type_args(turbofish, func_id, location.span).0);
+        let generics =
+            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, location).0);
 
         let id = self.interner.function_definition_id(func_id);
 
@@ -875,7 +873,7 @@ impl<'context> Elaborator<'context> {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
             HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(location.span);
+                    self.interner.get_trait(method_id.trait_id).as_constraint(location);
                 constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }
