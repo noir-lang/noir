@@ -301,7 +301,7 @@ impl<'a> Parser<'a> {
     }
 
     /// LoopStatement = 'loop' Block
-    fn parse_loop(&mut self) -> Option<(Expression, Span)> {
+    fn parse_loop(&mut self) -> Option<(Expression, Location)> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Some((block, start_location.span))
+        Some((block, start_location))
     }
 
     /// ForRange
@@ -751,15 +751,15 @@ mod tests {
         let src = "loop { }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, span) = statement.kind else {
+        let StatementKind::Loop(block, location) = statement.kind else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {
             panic!("Expected block");
         };
         assert!(block.statements.is_empty());
-        assert_eq!(span.start(), 0);
-        assert_eq!(span.end(), 4);
+        assert_eq!(location.span.start(), 0);
+        assert_eq!(location.span.end(), 4);
     }
 
     #[test]

@@ -36,7 +36,7 @@ impl<'context> Elaborator<'context> {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, span) => self.elaborate_loop(block, span),
+            StatementKind::Loop(block, location) => self.elaborate_loop(block, location.span),
             StatementKind::Break => self.elaborate_jump(true, statement.location.span),
             StatementKind::Continue => self.elaborate_jump(false, statement.location.span),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),

@@ -46,7 +46,7 @@ pub enum StatementKind {
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
-    Loop(Expression, Span /* loop keyword span */),
+    Loop(Expression, Location /* loop keyword location */),
     Break,
     Continue,
     /// This statement should be executed at compile-time
