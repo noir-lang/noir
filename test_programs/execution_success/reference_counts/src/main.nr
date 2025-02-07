@@ -15,7 +15,9 @@ fn main() {
     let rc2 = array_refcount(u32_array);
     borrow_mut_two_separate(&mut array, &mut u32_array, rc1, rc2);
 
-    unsafe { regression_7297(); }
+    unsafe {
+        regression_7297();
+    }
 }
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
@@ -81,7 +83,6 @@ fn assert_refcount<T>(array: [T; 3], expected: u32) {
     }
 }
 
-
 unconstrained fn regression_7297() {
     println("regression_7297");
     let mut array = [0, 1, 2];
@@ -102,5 +103,9 @@ unconstrained fn regression_7297() {
     assert(refcount_1 != 0, "borrow_mut_two should create a fresh array and not decrease its RC");
     assert_eq(refcount_1, 1, "borrow_mut_two should create a fresh array with an RC of 1");
     // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
-    assert_eq(refcount_2, refcount_1 + 1, "not ideal, but original RC permanently increased by copy_mut");
+    assert_eq(
+        refcount_2,
+        refcount_1 + 1,
+        "not ideal, but original RC permanently increased by copy_mut",
+    );
 }
