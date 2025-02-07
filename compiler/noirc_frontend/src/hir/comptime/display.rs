@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -458,7 +458,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::TypedExpr(TypedExpr::ExprId(id)) => {
                 let hir_expr = self.interner.expression(id);
-                let expr = hir_expr.to_display_ast(self.interner, Span::default());
+                let expr = hir_expr.to_display_ast(self.interner, Location::dummy());
                 write!(f, "{}", expr.kind)
             }
             Value::TypedExpr(TypedExpr::StmtId(id)) => {
@@ -658,7 +658,7 @@ fn remove_interned_in_expression_kind(
         }
         ExpressionKind::Resolved(id) => {
             let expr = interner.expression(&id);
-            expr.to_display_ast(interner, Span::default()).kind
+            expr.to_display_ast(interner, Location::dummy()).kind
         }
         ExpressionKind::Interned(id) => {
             let expr = interner.get_expression_kind(id).clone();

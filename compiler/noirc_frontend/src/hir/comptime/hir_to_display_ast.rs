@@ -77,8 +77,7 @@ impl StmtId {
 
 impl HirExpression {
     /// Convert to AST for display (some details lost)
-    pub fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> Expression {
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+    pub fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> Expression {
         let kind = match self {
             HirExpression::Ident(ident, generics) => {
                 let ident = ident.to_display_ast(interner);
@@ -96,11 +95,11 @@ impl HirExpression {
                 ExpressionKind::Variable(path)
             }
             HirExpression::Literal(HirLiteral::Array(array)) => {
-                let array = array.to_display_ast(interner, span);
+                let array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Array(array))
             }
             HirExpression::Literal(HirLiteral::Slice(array)) => {
-                let array = array.to_display_ast(interner, span);
+                let array = array.to_display_ast(interner, location);
                 ExpressionKind::Literal(Literal::Slice(array))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => {
@@ -242,8 +241,8 @@ impl ExprId {
     pub fn to_display_ast(self, interner: &NodeInterner) -> Expression {
         let expression = interner.expression(&self);
         // TODO: empty 0 span
-        let span = interner.try_expr_span(&self).unwrap_or_else(|| Span::empty(0));
-        expression.to_display_ast(interner, span)
+        let location = interner.try_id_location(&self).unwrap_or_else(|| Location::dummy());
+        expression.to_display_ast(interner, location)
     }
 }
 
@@ -432,8 +431,7 @@ impl HirLValue {
 
 impl HirArrayLiteral {
     /// Convert to AST for display (some details lost)
-    fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> ArrayLiteral {
-        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+    fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> ArrayLiteral {
         match self {
             HirArrayLiteral::Standard(elements) => {
                 ArrayLiteral::Standard(vecmap(elements, |element| element.to_display_ast(interner)))

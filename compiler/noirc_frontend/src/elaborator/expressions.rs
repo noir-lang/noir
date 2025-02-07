@@ -301,7 +301,7 @@ impl<'context> Elaborator<'context> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
-                let string_location = Location::new(*string_span, self.file); // TODO: fix this
+                let string_location = Location::new(*string_span, self.file);
 
                 let scope_tree = self.scopes.current_scope_tree();
                 let variable = scope_tree.find(ident_name);
@@ -1162,7 +1162,7 @@ impl<'context> Elaborator<'context> {
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
-            interner.expression(&id).to_display_ast(interner, location.span).kind
+            interner.expression(&id).to_display_ast(interner, location).kind
         });
 
         (id, typ)
