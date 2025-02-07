@@ -102,33 +102,26 @@ impl BrilligGlobals {
         &self,
         brillig_function_id: FunctionId,
     ) -> SsaToBrilligGlobals {
-        let entry_points = self.inner_call_to_entry_point.get(&brillig_function_id);
-
-        let mut globals_allocations = HashMap::default();
         if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
             // Check whether `brillig_function_id` is itself an entry point.
             // If so, return the global allocations directly from `self.entry_point_globals_map`.
-            globals_allocations.extend(globals);
-            return globals_allocations;
+            return globals.clone();
         }
 
-        if let Some(entry_points) = entry_points {
-            assert!(self.entry_point_globals_map.get(&brillig_function_id).is_none());
-            assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
-            // A Brillig function is used by multiple entry points. Fetch both globals allocations
-            // in case one is used by the internal call.
-            let entry_point_allocations = entry_points
-                .iter()
-                .flat_map(|entry_point| self.entry_point_globals_map.get(entry_point))
-                .collect::<Vec<_>>();
-            for map in entry_point_allocations {
-                globals_allocations.extend(map);
-            }
-        } else {
+        let entry_points = self.inner_call_to_entry_point.get(&brillig_function_id);
+        let Some(entry_points) = entry_points else {
             unreachable!(
                 "ICE: Expected global allocation to be set for function {brillig_function_id}"
             );
+        };
+
+        // Sanity check: We should have guaranteed earlier that an inner call has only a single entry point
+        assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
+        let mut globals_allocations = HashMap::default();
+        if let Some(globals) = self.entry_point_globals_map.get(&entry_points[0]) {
+            globals_allocations.extend(globals);
         }
+
         globals_allocations
     }
 }
