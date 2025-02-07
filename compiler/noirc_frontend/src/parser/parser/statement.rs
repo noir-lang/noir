@@ -1,4 +1,4 @@
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
 use crate::{
     ast::{
@@ -251,7 +251,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = operator {
             self.bump();
             self.bump();
-            Some(Spanned::from(self.location_since(start_location).span, operator))
+            Some(Located::from(self.location_since(start_location), operator))
         } else {
             None
         }

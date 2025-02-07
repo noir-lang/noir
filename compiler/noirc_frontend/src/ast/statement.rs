@@ -730,7 +730,7 @@ impl ForBounds {
             let end_location = self.end.location;
             let end = ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: self.end,
-                operator: Spanned::from(end_location.span, BinaryOpKind::Add),
+                operator: Located::from(end_location, BinaryOpKind::Add),
                 rhs: Expression::new(
                     ExpressionKind::integer(FieldElement::from(1u32)),
                     end_location,

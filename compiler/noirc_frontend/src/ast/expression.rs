@@ -14,7 +14,7 @@ use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens}
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
 use super::{AsTraitPath, TypePath};
 
@@ -247,7 +247,7 @@ impl Expression {
     }
 }
 
-pub type BinaryOp = Spanned<BinaryOpKind>;
+pub type BinaryOp = Located<BinaryOpKind>;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
 #[cfg_attr(test, derive(strum_macros::EnumIter))]

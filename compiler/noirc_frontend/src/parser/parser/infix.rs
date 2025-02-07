@@ -1,4 +1,4 @@
-use noirc_errors::{Location, Spanned};
+use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{BinaryOpKind, Expression, ExpressionKind, InfixExpression},
@@ -161,11 +161,11 @@ impl<'a> Parser<'a> {
         let mut lhs = next(self, allow_constructors)?;
 
         loop {
-            let operator_start_span = self.current_token_location.span;
+            let operator_start_location = self.current_token_location;
             let Some(operator) = op(self) else {
                 break;
             };
-            let operator = Spanned::from(operator_start_span, operator);
+            let operator = Located::from(operator_start_location, operator);
 
             let Some(rhs) = next(self, allow_constructors) else {
                 self.push_expected_expression();
@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
     fn new_infix_expression(
         &self,
         lhs: Expression,
-        operator: Spanned<BinaryOpKind>,
+        operator: Located<BinaryOpKind>,
         rhs: Expression,
         start_location: Location,
     ) -> Expression {

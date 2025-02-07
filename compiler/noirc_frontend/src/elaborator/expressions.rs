@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -625,7 +625,7 @@ impl<'context> Elaborator<'context> {
                     let rhs = expr.arguments.pop().unwrap();
                     let lhs = expr.arguments.pop().unwrap();
                     let location = lhs.location.merge(rhs.location);
-                    let operator = Spanned::from(location.span, BinaryOpKind::Equal);
+                    let operator = Located::from(location, BinaryOpKind::Equal);
                     let kind =
                         ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
                     Expression { kind, location }
