@@ -615,7 +615,7 @@ impl TraitImplItem {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.kind.accept(self.span, visitor);
+        self.kind.accept(self.location.span, visitor);
     }
 }
 

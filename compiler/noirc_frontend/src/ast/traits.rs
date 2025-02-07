@@ -106,7 +106,7 @@ pub struct TraitBound {
 #[derive(Clone, Debug)]
 pub struct TraitImplItem {
     pub kind: TraitImplItemKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug)]

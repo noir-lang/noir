@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
             let doc_comments = parser.parse_outer_doc_comments();
 
             if let Some(kind) = parser.parse_trait_impl_item_kind() {
-                let item = TraitImplItem { kind, span: parser.location_since(start_location).span };
+                let item = TraitImplItem { kind, location: parser.location_since(start_location) };
                 Some(Documented::new(item, doc_comments))
             } else {
                 None
