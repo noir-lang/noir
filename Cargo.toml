@@ -96,7 +96,7 @@ noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 bb_abstraction_leaks = { path = "tooling/bb_abstraction_leaks" }
 acvm_cli = { path = "tooling/acvm_cli" }
-runtime_tracing = { git = "https://github.com/metacraft-labs/runtime_tracing.git", tag = "0.5.16" }
+runtime_tracing = { git = "https://github.com/metacraft-labs/runtime_tracing.git", tag = "0.7.0" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
