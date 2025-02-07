@@ -92,10 +92,7 @@ impl<'a> Parser<'a> {
             .into_iter()
             .filter_map(|(attribute, location)| match attribute {
                 Attribute::Function(..) => {
-                    self.push_error(
-                        ParserErrorReason::NoFunctionAttributesAllowedOnType,
-                        location.span,
-                    );
+                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnType, location);
                     None
                 }
                 Attribute::Secondary(attr) => Some(attr),
@@ -257,7 +254,7 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: arguments.len(),
                 },
-                ident.span(),
+                ident.location(),
             );
             return Attribute::Secondary(SecondaryAttribute::Deprecated(None));
         }
@@ -266,7 +263,7 @@ impl<'a> Parser<'a> {
         let ExpressionKind::Literal(Literal::Str(message)) = argument.kind else {
             self.push_error(
                 ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
-                argument.location.span,
+                argument.location,
             );
             return Attribute::Secondary(SecondaryAttribute::Deprecated(None));
         };
@@ -333,7 +330,7 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: arguments.len(),
                 },
-                self.current_token_location.span,
+                self.current_token_location,
             );
             return f(String::new());
         }
@@ -368,7 +365,7 @@ impl<'a> Parser<'a> {
                     max: 0,
                     found: arguments.len(),
                 },
-                ident.span(),
+                ident.location(),
             );
         }
 

@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::ExpectedTrait { found: object_type.typ.to_string() },
-                    self.current_token_location.span,
+                    self.current_token_location,
                 );
 
                 // Error, but we continue parsing the type and assume this is going to be a regular type impl
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
         if modifiers.visibility != ItemVisibility::Private {
             self.push_error(
                 ParserErrorReason::TraitImplVisibilityIgnored,
-                modifiers.visibility_location.span,
+                modifiers.visibility_location,
             );
         }
 

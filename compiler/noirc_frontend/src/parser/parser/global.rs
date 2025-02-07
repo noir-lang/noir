@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
-            self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.span());
+            self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
             Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 

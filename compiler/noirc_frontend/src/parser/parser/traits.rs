@@ -42,10 +42,7 @@ impl<'a> Parser<'a> {
             let bounds = self.parse_trait_bounds();
 
             if bounds.is_empty() {
-                self.push_error(
-                    ParserErrorReason::EmptyTraitAlias,
-                    self.previous_token_location.span,
-                );
+                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_location);
             }
 
             let where_clause = self.parse_where_clause();
@@ -232,7 +229,7 @@ impl<'a> Parser<'a> {
         if modifiers.visibility != ItemVisibility::Private {
             self.push_error(
                 ParserErrorReason::TraitVisibilityIgnored,
-                modifiers.visibility_location.span,
+                modifiers.visibility_location,
             );
         }
 
@@ -253,7 +250,7 @@ impl<'a> Parser<'a> {
                 if let Pattern::Identifier(ident) = param.pattern {
                     Some((ident, param.typ))
                 } else {
-                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.span());
+                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.location());
                     None
                 }
             })

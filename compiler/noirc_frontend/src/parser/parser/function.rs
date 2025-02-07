@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
             None => {
                 self.push_error(
                     ParserErrorReason::MissingParametersForFunctionDefinition,
-                    name.span(),
+                    name.location(),
                 );
                 Vec::new()
             }
@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
         let body_start_location = self.current_token_location;
         let body = if self.eat_semicolons() {
             if !allow_optional_body {
-                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_location.span);
+                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_location);
             }
 
             None
@@ -185,7 +185,7 @@ impl<'a> Parser<'a> {
         let (visibility, typ) = if !self.eat_colon() {
             self.push_error(
                 ParserErrorReason::MissingTypeForFunctionParameter,
-                Span::from(pattern.span().start()..self.current_token_location.span.end()),
+                pattern.location().merge(self.current_token_location),
             );
 
             let visibility = Visibility::Private;
@@ -269,7 +269,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.push_error(
                             ParserErrorReason::MultipleFunctionAttributesFound,
-                            location.span,
+                            location,
                         );
                     }
                 }

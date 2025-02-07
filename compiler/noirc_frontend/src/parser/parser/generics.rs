@@ -1,3 +1,6 @@
+use fm::FileId;
+use noirc_errors::Location;
+
 use crate::{
     ast::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
@@ -71,7 +74,7 @@ impl<'a> Parser<'a> {
             // If we didn't get a type after the colon, error and assume it's u32
             self.push_error(
                 ParserErrorReason::MissingTypeForNumericGeneric,
-                self.current_token_location.span,
+                self.current_token_location,
             );
             let typ = UnresolvedType {
                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -81,11 +84,12 @@ impl<'a> Parser<'a> {
         }
 
         let typ = self.parse_type_or_error();
+        let location = Location::new(typ.span, FileId::dummy()); // TODO: fix this
         if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
             if matches!(signedness, Signedness::Signed)
                 || matches!(bit_size, IntegerBitSize::SixtyFour)
             {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, location);
             }
         }
 

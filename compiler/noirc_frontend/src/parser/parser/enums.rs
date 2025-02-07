@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location.span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.location_since(doc_comments_start_location).span,
+                    self.location_since(doc_comments_start_location),
                 );
             }
 

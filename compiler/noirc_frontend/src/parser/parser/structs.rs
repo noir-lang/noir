@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.location_since(doc_comments_start_location).span,
+                    self.location_since(doc_comments_start_location),
                 );
             }
 

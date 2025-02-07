@@ -368,10 +368,7 @@ impl<'a> Parser<'a> {
     fn eat_commas(&mut self) -> bool {
         if self.eat_comma() {
             while self.eat_comma() {
-                self.push_error(
-                    ParserErrorReason::UnexpectedComma,
-                    self.previous_token_location.span,
-                );
+                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_location);
             }
             true
         } else {
@@ -388,7 +385,7 @@ impl<'a> Parser<'a> {
             while self.eat_semicolon() {
                 self.push_error(
                     ParserErrorReason::UnexpectedSemicolon,
-                    self.previous_token_location.span,
+                    self.previous_token_location,
                 );
             }
             true
@@ -545,14 +542,14 @@ impl<'a> Parser<'a> {
     ) {
         self.push_error(
             ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items },
-            location.span,
+            location,
         );
     }
 
     fn expected_mut_after_ampersand(&mut self) {
         self.push_error(
             ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },
-            self.current_token_location.span,
+            self.current_token_location,
         );
     }
 
@@ -568,20 +565,20 @@ impl<'a> Parser<'a> {
                 ParserErrorReason::VisibilityNotFollowedByAnItem {
                     visibility: modifiers.visibility,
                 },
-                modifiers.visibility_location.span,
+                modifiers.visibility_location,
             );
         }
     }
 
     fn unconstrained_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, location.span);
+            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, location);
         }
     }
 
     fn comptime_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, location.span);
+            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, location);
         }
     }
 
@@ -593,24 +590,24 @@ impl<'a> Parser<'a> {
 
     fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.mutable {
-            self.push_error(ParserErrorReason::MutableNotApplicable, location.span);
+            self.push_error(ParserErrorReason::MutableNotApplicable, location);
         }
     }
 
     fn comptime_not_applicable(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotApplicable, location.span);
+            self.push_error(ParserErrorReason::ComptimeNotApplicable, location);
         }
     }
 
     fn unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, location.span);
+            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, location);
         }
     }
 
-    fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
-        self.errors.push(ParserError::with_reason(reason, span));
+    fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
+        self.errors.push(ParserError::with_reason(reason, location.span));
     }
 }
 

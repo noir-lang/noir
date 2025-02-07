@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
                 Err(err) => {
                     self.push_error(
                         ParserErrorReason::InvalidBitSize(err.0),
-                        self.previous_token_location.span,
+                        self.previous_token_location,
                     );
                     UnresolvedTypeData::Error
                 }

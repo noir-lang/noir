@@ -47,10 +47,9 @@ impl<'a> Parser<'a> {
                 if !statement_doc_comments.read {
                     self.push_error(
                         ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                        Span::from(
-                            statement_doc_comments.start_location.span.start()
-                                ..statement_doc_comments.end_location.span.start(),
-                        ),
+                        statement_doc_comments
+                            .start_location
+                            .merge(statement_doc_comments.end_location),
                     );
                 }
             }
@@ -135,10 +134,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Return) {
             self.parse_expression();
-            self.push_error(
-                ParserErrorReason::EarlyReturn,
-                self.location_since(start_location).span,
-            );
+            self.push_error(ParserErrorReason::EarlyReturn, self.location_since(start_location));
             return Some(StatementKind::Error);
         }
 
@@ -197,7 +193,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.location.span,
+                    expression.location,
                 );
             }
         }
@@ -219,7 +215,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.location.span,
+                    expression.location,
                 );
             }
         }
@@ -308,7 +304,7 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_location.span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_location);
 
         let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {

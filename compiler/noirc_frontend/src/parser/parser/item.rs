@@ -95,10 +95,7 @@ impl<'a> Parser<'a> {
         let span = self.location_since(start_location).span;
 
         if kinds.is_empty() && !doc_comments.is_empty() {
-            self.push_error(
-                ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                start_location.span,
-            );
+            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
         vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })

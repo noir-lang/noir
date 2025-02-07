@@ -207,7 +207,7 @@ impl<'a> Parser<'a> {
         } else {
             self.push_error(
                 ParserErrorReason::ExpectedFieldName(self.token.token().clone()),
-                self.current_token_location.span,
+                self.current_token_location,
             );
             None
         }
@@ -285,7 +285,7 @@ impl<'a> Parser<'a> {
         if has_doc_comments {
             self.push_error(
                 ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                self.location_since(location_before_doc_comments).span,
+                self.location_since(location_before_doc_comments),
             );
         }
 
@@ -416,19 +416,16 @@ impl<'a> Parser<'a> {
                 if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
                     self.push_error(
                         ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                        Span::from(
-                            location_before_doc_comments.span.start()
-                                ..location_after_doc_comments.span.start(),
-                        ),
+                        location_before_doc_comments.merge(location_after_doc_comments),
                     );
                 }
             } else {
-                self.push_error(ParserErrorReason::MissingSafetyComment, start_location.span);
+                self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
             }
         } else if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
             self.push_error(
                 ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                self.location_since(location_before_doc_comments).span,
+                self.location_since(location_before_doc_comments),
             );
         }
 
@@ -549,7 +546,7 @@ impl<'a> Parser<'a> {
 
         self.push_error(
             ParserErrorReason::ExperimentalFeature("Match expressions"),
-            start_location.span,
+            start_location,
         );
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
@@ -623,7 +620,7 @@ impl<'a> Parser<'a> {
 
         self.push_error(
             ParserErrorReason::ExpectedIdentifierOrLeftParenAfterDollar,
-            self.current_token_location.span,
+            self.current_token_location,
         );
 
         None
@@ -842,7 +839,7 @@ impl<'a> Parser<'a> {
             ConstrainKind::Constrain => {
                 self.push_error(
                     ParserErrorReason::ConstrainDeprecated,
-                    self.previous_token_location.span,
+                    self.previous_token_location,
                 );
 
                 let expression = self.parse_expression_or_error();

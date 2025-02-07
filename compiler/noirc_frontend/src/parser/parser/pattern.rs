@@ -1,3 +1,4 @@
+use fm::FileId;
 use noirc_errors::Location;
 
 use crate::{
@@ -77,7 +78,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::RefMutCanOnlyBeUsedWithSelf,
-                    self.current_token_location.span,
+                    self.current_token_location,
                 );
                 return Some(PatternOrSelf::Pattern(
                     self.parse_pattern_after_modifiers(true, start_location)?,
@@ -131,7 +132,7 @@ impl<'a> Parser<'a> {
             if self.at_built_in_type() {
                 self.push_error(
                     ParserErrorReason::ExpectedPatternButFoundType(self.token.token().clone()),
-                    self.current_token_location.span,
+                    self.current_token_location,
                 );
             }
             return None;
@@ -142,7 +143,8 @@ impl<'a> Parser<'a> {
         }
 
         if !path.is_ident() {
-            self.push_error(ParserErrorReason::InvalidPattern, path.span);
+            let location = Location::new(path.span, FileId::dummy()); // TODO: fix this
+            self.push_error(ParserErrorReason::InvalidPattern, location);
 
             let ident = path.segments.pop().unwrap().ident;
             return Some(Pattern::Identifier(ident));

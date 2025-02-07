@@ -165,7 +165,7 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {
-            self.push_error(on_named_arg_error.clone(), name.span());
+            self.push_error(on_named_arg_error.clone(), name.location());
         }
 
         Some(generics.ordered_args)
