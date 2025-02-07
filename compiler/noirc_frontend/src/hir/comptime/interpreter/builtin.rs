@@ -1540,7 +1540,7 @@ fn expr_as_assert(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+        if let ExprValue::Expression(ExpressionKind::Constrain(mut constrain)) = expr {
             if constrain.kind == ConstrainKind::Assert
                 && !constrain.arguments.is_empty()
                 && constrain.arguments.len() <= 2
@@ -1580,7 +1580,7 @@ fn expr_as_assert_eq(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| {
-        if let ExprValue::Statement(StatementKind::Constrain(mut constrain)) = expr {
+        if let ExprValue::Expression(ExpressionKind::Constrain(mut constrain)) = expr {
             if constrain.kind == ConstrainKind::AssertEq
                 && constrain.arguments.len() >= 2
                 && constrain.arguments.len() <= 3

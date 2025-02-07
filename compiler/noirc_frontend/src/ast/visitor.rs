@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
         ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
@@ -294,7 +294,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_constrain_statement(&mut self, _: &ConstrainStatement) -> bool {
+    fn visit_constrain_statement(&mut self, _: &ConstrainExpression) -> bool {
         true
     }
 
@@ -859,6 +859,9 @@ impl Expression {
             ExpressionKind::MethodCall(method_call_expression) => {
                 method_call_expression.accept(self.span, visitor);
             }
+            ExpressionKind::Constrain(constrain) => {
+                constrain.accept(visitor);
+            }
             ExpressionKind::Constructor(constructor_expression) => {
                 constructor_expression.accept(self.span, visitor);
             }
@@ -1152,9 +1155,6 @@ impl Statement {
             StatementKind::Let(let_statement) => {
                 let_statement.accept(visitor);
             }
-            StatementKind::Constrain(constrain_statement) => {
-                constrain_statement.accept(visitor);
-            }
             StatementKind::Expression(expression) => {
                 expression.accept(visitor);
             }
@@ -1209,7 +1209,7 @@ impl LetStatement {
     }
 }
 
-impl ConstrainStatement {
+impl ConstrainExpression {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_constrain_statement(self) {
             self.accept_children(visitor);

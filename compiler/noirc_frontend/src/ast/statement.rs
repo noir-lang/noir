@@ -42,7 +42,6 @@ pub struct Statement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
-    Constrain(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
@@ -89,7 +88,6 @@ impl StatementKind {
 
         match self {
             StatementKind::Let(_)
-            | StatementKind::Constrain(_)
             | StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
@@ -135,12 +133,6 @@ impl StatementKind {
                 }
             }
         }
-    }
-}
-
-impl Recoverable for StatementKind {
-    fn error(_: Span) -> Self {
-        StatementKind::Error
     }
 }
 
@@ -282,25 +274,6 @@ impl Ident {
     }
 }
 
-impl Recoverable for Ident {
-    fn error(span: Span) -> Self {
-        Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
-    }
-}
-
-impl<T> Recoverable for Vec<T> {
-    fn error(_: Span) -> Self {
-        vec![]
-    }
-}
-
-/// Trait for recoverable nodes during parsing.
-/// This is similar to Default but is expected
-/// to return an Error node of the appropriate type.
-pub trait Recoverable {
-    fn error(span: Span) -> Self;
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ModuleDeclaration {
     pub visibility: ItemVisibility,
@@ -418,9 +391,6 @@ pub struct TypePath {
     pub turbofish: Option<GenericTypeArgs>,
 }
 
-// Note: Path deliberately doesn't implement Recoverable.
-// No matter which default value we could give in Recoverable::error,
-// it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
     pub segments: Vec<PathSegment>,
@@ -592,55 +562,6 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement {
-    pub kind: ConstrainKind,
-    pub arguments: Vec<Expression>,
-    pub span: Span,
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
-                f,
-                "{}({})",
-                self.kind,
-                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
-            ),
-            ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ConstrainKind {
-    Assert,
-    AssertEq,
-    Constrain,
-}
-
-impl ConstrainKind {
-    pub fn required_arguments_count(&self) -> usize {
-        match self {
-            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
-            ConstrainKind::AssertEq => 2,
-        }
-    }
-}
-
-impl Display for ConstrainKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConstrainKind::Assert => write!(f, "assert"),
-            ConstrainKind::AssertEq => write!(f, "assert_eq"),
-            ConstrainKind::Constrain => write!(f, "constrain"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
     Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
@@ -702,12 +623,6 @@ impl Pattern {
             }
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
-    }
-}
-
-impl Recoverable for Pattern {
-    fn error(span: Span) -> Self {
-        Pattern::Identifier(Ident::error(span))
     }
 }
 
@@ -974,7 +889,6 @@ impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
-            StatementKind::Constrain(constrain) => constrain.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
