@@ -192,6 +192,15 @@ impl Location {
     pub fn contains(&self, other: &Location) -> bool {
         self.file == other.file && self.span.contains(&other.span)
     }
+
+    #[must_use]
+    pub fn merge(self, other: Location) -> Location {
+        if self.file == other.file {
+            Location::new(self.span.merge(other.span), self.file)
+        } else {
+            self
+        }
+    }
 }
 
 #[cfg(test)]

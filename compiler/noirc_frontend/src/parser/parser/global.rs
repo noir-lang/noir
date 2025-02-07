@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
                     typ: UnresolvedTypeData::Unspecified,
                     span: Span::default(),
                 },
-                expression: Expression { kind: ExpressionKind::Error, span: Span::default() },
+                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
                 attributes,
                 comptime,
                 is_global_let,
@@ -48,7 +48,7 @@ impl<'a> Parser<'a> {
             self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.span());
-            Expression { kind: ExpressionKind::Error, span: Span::default() }
+            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
         if !self.eat_semicolons() {

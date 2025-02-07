@@ -2315,7 +2315,7 @@ fn expr_resolve(
 
     interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
         ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+            let expr = Expression { kind: expression_kind, location: self_argument_location };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
             Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
         }
@@ -2576,10 +2576,9 @@ fn function_def_set_body(
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {
-        ExprValue::Expression(expression_kind) => StatementKind::Expression(Expression {
-            kind: expression_kind,
-            span: body_location.span,
-        }),
+        ExprValue::Expression(expression_kind) => {
+            StatementKind::Expression(Expression { kind: expression_kind, location: body_location })
+        }
         ExprValue::Statement(statement_kind) => statement_kind,
         ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
         ExprValue::Pattern(pattern) => {

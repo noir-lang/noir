@@ -160,19 +160,19 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(kind) = self.parse_if_expr() {
-            let span = self.location_since(start_location).span;
-            return Some(StatementKind::Expression(Expression { kind, span }));
+            let location = self.location_since(start_location);
+            return Some(StatementKind::Expression(Expression { kind, location }));
         }
 
         if let Some(kind) = self.parse_match_expr() {
-            let span = self.location_since(start_location).span;
-            return Some(StatementKind::Expression(Expression { kind, span }));
+            let location = self.location_since(start_location);
+            return Some(StatementKind::Expression(Expression { kind, location }));
         }
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             }));
         }
 
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.span,
+                    expression.location.span,
                 );
             }
         }
@@ -219,7 +219,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.span,
+                    expression.location.span,
                 );
             }
         }
@@ -283,13 +283,13 @@ impl<'a> Parser<'a> {
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.location_since(block_start_location).span,
+                location: self.location_since(block_start_location),
             }
         } else {
             self.expected_token(Token::LeftBrace);
             Expression {
                 kind: ExpressionKind::Error,
-                span: self.location_since(block_start_location).span,
+                location: self.location_since(block_start_location),
             }
         };
 
@@ -314,13 +314,13 @@ impl<'a> Parser<'a> {
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.location_since(block_start_location).span,
+                location: self.location_since(block_start_location),
             }
         } else {
             self.expected_token(Token::LeftBrace);
             Expression {
                 kind: ExpressionKind::Error,
-                span: self.location_since(block_start_location).span,
+                location: self.location_since(block_start_location),
             }
         };
 
@@ -349,9 +349,9 @@ impl<'a> Parser<'a> {
             identifier,
             range: ForRange::Array(Expression {
                 kind: ExpressionKind::Error,
-                span: Span::default(),
+                location: Location::dummy(),
             }),
-            block: Expression { kind: ExpressionKind::Error, span: Span::default() },
+            block: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
             span: self.location_since(start_location).span,
         }
     }
@@ -401,7 +401,7 @@ impl<'a> Parser<'a> {
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             }));
         }
 
@@ -432,7 +432,7 @@ impl<'a> Parser<'a> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, span: self.current_token_location.span }
+            Expression { kind: ExpressionKind::Error, location: self.current_token_location }
         };
 
         Some(LetStatement {

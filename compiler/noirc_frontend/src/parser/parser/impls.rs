@@ -225,7 +225,7 @@ impl<'a> Parser<'a> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, span: Span::default() }
+            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
         self.eat_semicolons();

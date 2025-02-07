@@ -191,7 +191,7 @@ impl<'a> InlayHintCollector<'a> {
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
-                    to_lsp_location(self.files, self.file_id, call_argument.span)
+                    to_lsp_location(self.files, self.file_id, call_argument.location.span)
                 else {
                     continue;
                 };
@@ -234,7 +234,7 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_method_call_chain_hints(&mut self, method: &MethodCallExpression) {
         let Some(object_lsp_location) =
-            to_lsp_location(self.files, self.file_id, method.object.span)
+            to_lsp_location(self.files, self.file_id, method.object.location.span)
         else {
             return;
         };
@@ -249,7 +249,7 @@ impl<'a> InlayHintCollector<'a> {
             return;
         }
 
-        let object_location = Location::new(method.object.span, self.file_id);
+        let object_location = method.object.location;
         let Some(typ) = self.interner.type_at_location(object_location) else {
             return;
         };
@@ -378,13 +378,13 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.intersects_span(expression.span)
+        self.intersects_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, _: Span) -> bool {
         self.collect_call_parameter_names(
             get_expression_name(&call_expression.func),
-            call_expression.func.span,
+            call_expression.func.location.span,
             &call_expression.arguments,
         );
 

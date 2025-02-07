@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use fm::FileId;
 use thiserror::Error;
 
 use crate::ast::{
@@ -14,7 +15,7 @@ use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens}
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Location, Span, Spanned};
 
 use super::{AsTraitPath, TypePath, UnaryRhsMemberAccess};
 
@@ -230,7 +231,7 @@ impl ExpressionKind {
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 // This is important for tests. Two expressions are the same, if their Kind is the same
@@ -243,7 +244,8 @@ impl PartialEq<Expression> for Expression {
 
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
-        Expression { kind, span }
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
+        Expression { kind, location }
     }
 
     pub fn member_access_or_method_call(

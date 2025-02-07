@@ -187,7 +187,7 @@ impl<'a> Parser<'a> {
     ) -> Expression {
         let infix_expr = InfixExpression { lhs, operator, rhs };
         let kind = ExpressionKind::Infix(Box::new(infix_expr));
-        let span = self.location_since(start_location).span;
-        Expression { kind, span }
+        let location = self.location_since(start_location);
+        Expression { kind, location }
     }
 }

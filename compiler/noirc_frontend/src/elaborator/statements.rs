@@ -90,7 +90,7 @@ impl<'context> Elaborator<'context> {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
-        let expr_span = let_stmt.expression.span;
+        let expr_span = let_stmt.expression.location.span;
         let (expression, expr_type) =
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
@@ -145,7 +145,7 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
-        let expr_span = assign.expression.span;
+        let expr_span = assign.expression.location.span;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
@@ -178,8 +178,8 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let start_span = start.span;
-        let end_span = end.span;
+        let start_location = start.location;
+        let end_location = end.location;
 
         let (start_range, start_range_type) = self.elaborate_expression(start);
         let (end_range, end_range_type) = self.elaborate_expression(end);
@@ -201,7 +201,7 @@ impl<'context> Elaborator<'context> {
         );
 
         // Check that start range and end range have the same types
-        let range_span = start_span.merge(end_span);
+        let range_span = start_location.merge(end_location).span;
         self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
             expected_typ: start_range_type.to_string(),
             expr_typ: end_range_type.to_string(),
@@ -361,7 +361,7 @@ impl<'context> Elaborator<'context> {
                 (lvalue, object_type, mutable)
             }
             LValue::Index { array, index, span } => {
-                let expr_span = index.span;
+                let expr_span = index.location.span;
                 let (index, index_type) = self.elaborate_expression(index);
                 let location = Location::new(span, self.file);
 

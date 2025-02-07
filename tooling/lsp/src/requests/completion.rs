@@ -1422,8 +1422,8 @@ impl<'a> Visitor for NodeFinder<'a> {
         // as "foo(...)" but if we are at a dot right after "foo" it means it's
         // the above case and we want to suggest methods of foo's type.
         let after_dot = self.byte == Some(b'.');
-        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
-            let location = Location::new(call_expression.func.span, self.file);
+        if after_dot && call_expression.func.location.span.end() as usize == self.byte_index - 1 {
+            let location = call_expression.func.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
@@ -1453,7 +1453,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if self.includes_span(method_call_expression.method_name.span()) {
-            let location = Location::new(method_call_expression.object.span, self.file);
+            let location = method_call_expression.object.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = method_call_expression.method_name.to_string();
                 let offset =
@@ -1631,9 +1631,9 @@ impl<'a> Visitor for NodeFinder<'a> {
         // to complete for `bar`, not for `foo & bar`.
         if self.completion_items.is_empty()
             && self.byte == Some(b'.')
-            && expression.span.end() as usize == self.byte_index - 1
+            && expression.location.span.end() as usize == self.byte_index - 1
         {
-            let location = Location::new(expression.span, self.file);
+            let location = expression.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
@@ -1706,7 +1706,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         if self.byte_index == ident.span().end() as usize {
             // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
-            let location = Location::new(member_access_expression.lhs.span, self.file);
+            let location = member_access_expression.lhs.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = ident.to_string().to_case(Case::Snake);
                 let self_prefix = false;

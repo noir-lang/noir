@@ -118,7 +118,7 @@ impl<'a> DocumentSymbolCollector<'a> {
 
         // If there's a default value, extend the span to include it
         if let Some(default_value) = default_value {
-            span = Span::from(span.start()..default_value.span.end());
+            span = Span::from(span.start()..default_value.location.span.end());
         }
 
         let Some(location) = self.to_lsp_location(span) else {

@@ -184,8 +184,10 @@ impl<'context> Elaborator<'context> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
         let span = attribute.span;
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
 
-        let function = Expression { kind: ExpressionKind::Variable(attribute.name.clone()), span };
+        let function =
+            Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
         let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
@@ -303,7 +305,7 @@ impl<'context> Elaborator<'context> {
         let mut varargs = im::Vector::new();
 
         for (i, arg) in arguments.into_iter().enumerate() {
-            let arg_location = Location::new(arg.span, location.file);
+            let arg_location = arg.location;
             let param_type = parameters.get(i).or(varargs_elem_type).unwrap_or(&Type::Error);
 
             let mut push_arg = |arg| {

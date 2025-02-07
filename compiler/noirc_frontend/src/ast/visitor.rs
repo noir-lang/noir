@@ -839,78 +839,78 @@ impl Expression {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match &self.kind {
-            ExpressionKind::Literal(literal) => literal.accept(self.span, visitor),
+            ExpressionKind::Literal(literal) => literal.accept(self.location.span, visitor),
             ExpressionKind::Block(block_expression) => {
-                block_expression.accept(Some(self.span), visitor);
+                block_expression.accept(Some(self.location.span), visitor);
             }
             ExpressionKind::Prefix(prefix_expression) => {
-                prefix_expression.accept(self.span, visitor);
+                prefix_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Index(index_expression) => {
-                index_expression.accept(self.span, visitor);
+                index_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Call(call_expression) => {
-                call_expression.accept(self.span, visitor);
+                call_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::MethodCall(method_call_expression) => {
-                method_call_expression.accept(self.span, visitor);
+                method_call_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Constrain(constrain) => {
                 constrain.accept(visitor);
             }
             ExpressionKind::Constructor(constructor_expression) => {
-                constructor_expression.accept(self.span, visitor);
+                constructor_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::MemberAccess(member_access_expression) => {
-                member_access_expression.accept(self.span, visitor);
+                member_access_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Cast(cast_expression) => {
-                cast_expression.accept(self.span, visitor);
+                cast_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Infix(infix_expression) => {
-                infix_expression.accept(self.span, visitor);
+                infix_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::If(if_expression) => {
-                if_expression.accept(self.span, visitor);
+                if_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Match(match_expression) => {
-                match_expression.accept(self.span, visitor);
+                match_expression.accept(self.location.span, visitor);
             }
             ExpressionKind::Tuple(expressions) => {
-                if visitor.visit_tuple(expressions, self.span) {
+                if visitor.visit_tuple(expressions, self.location.span) {
                     visit_expressions(expressions, visitor);
                 }
             }
-            ExpressionKind::Lambda(lambda) => lambda.accept(self.span, visitor),
+            ExpressionKind::Lambda(lambda) => lambda.accept(self.location.span, visitor),
             ExpressionKind::Parenthesized(expression) => {
-                if visitor.visit_parenthesized(expression, self.span) {
+                if visitor.visit_parenthesized(expression, self.location.span) {
                     expression.accept(visitor);
                 }
             }
             ExpressionKind::Unquote(expression) => {
-                if visitor.visit_unquote(expression, self.span) {
+                if visitor.visit_unquote(expression, self.location.span) {
                     expression.accept(visitor);
                 }
             }
             ExpressionKind::Comptime(block_expression, _) => {
-                if visitor.visit_comptime_expression(block_expression, self.span) {
+                if visitor.visit_comptime_expression(block_expression, self.location.span) {
                     block_expression.accept(None, visitor);
                 }
             }
             ExpressionKind::Unsafe(block_expression, _) => {
-                if visitor.visit_unsafe(block_expression, self.span) {
+                if visitor.visit_unsafe(block_expression, self.location.span) {
                     block_expression.accept(None, visitor);
                 }
             }
             ExpressionKind::Variable(path) => {
-                if visitor.visit_variable(path, self.span) {
+                if visitor.visit_variable(path, self.location.span) {
                     path.accept(visitor);
                 }
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                as_trait_path.accept(self.span, visitor);
+                as_trait_path.accept(self.location.span, visitor);
             }
-            ExpressionKind::TypePath(path) => path.accept(self.span, visitor),
+            ExpressionKind::TypePath(path) => path.accept(self.location.span, visitor),
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),

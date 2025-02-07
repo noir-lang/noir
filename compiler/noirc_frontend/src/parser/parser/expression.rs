@@ -47,7 +47,10 @@ impl<'a> Parser<'a> {
             expr
         } else {
             self.push_expected_expression();
-            Expression { kind: ExpressionKind::Error, span: self.span_at_previous_token_end() }
+            Expression {
+                kind: ExpressionKind::Error,
+                location: self.location_at_previous_token_end(),
+            }
         }
     }
 
@@ -67,8 +70,8 @@ impl<'a> Parser<'a> {
                 return None;
             };
             let kind = ExpressionKind::prefix(operator, rhs);
-            let span = self.location_since(start_location).span;
-            return Some(Expression { kind, span });
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
         }
 
         self.parse_atom_or_unary_right(allow_constructors)
@@ -148,8 +151,8 @@ impl<'a> Parser<'a> {
                 arguments: call_arguments.arguments,
                 is_macro_call: call_arguments.is_macro_call,
             }));
-            let span = self.location_since(start_location).span;
-            let atom = Expression { kind, span };
+            let location = self.location_since(start_location);
+            let atom = Expression { kind, location };
             (atom, true)
         } else {
             (atom, false)
@@ -191,8 +194,8 @@ impl<'a> Parser<'a> {
             }))
         };
 
-        let span = self.location_since(start_location).span;
-        let atom = Expression { kind, span };
+        let location = self.location_since(start_location);
+        let atom = Expression { kind, location };
         (atom, true)
     }
 
@@ -218,8 +221,8 @@ impl<'a> Parser<'a> {
 
         let typ = self.parse_type_or_error();
         let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs: atom, r#type: typ }));
-        let span = self.location_since(start_location).span;
-        let atom = Expression { kind, span };
+        let location = self.location_since(start_location);
+        let atom = Expression { kind, location };
         (atom, true)
     }
 
@@ -232,8 +235,8 @@ impl<'a> Parser<'a> {
         let index = self.parse_expression_or_error();
         self.eat_or_error(Token::RightBracket);
         let kind = ExpressionKind::Index(Box::new(IndexExpression { collection: atom, index }));
-        let span = self.location_since(start_location).span;
-        let atom = Expression { kind, span };
+        let location = self.location_since(start_location);
+        let atom = Expression { kind, location };
         (atom, true)
     }
 
@@ -267,7 +270,7 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
         let kind = self.parse_atom_kind(allow_constructors)?;
-        Some(Expression { kind, span: self.location_since(start_location).span })
+        Some(Expression { kind, location: self.location_since(start_location) })
     }
 
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
@@ -499,23 +502,23 @@ impl<'a> Parser<'a> {
         let start_location = self.current_token_location;
         let Some(consequence) = self.parse_block() else {
             self.expected_token(Token::LeftBrace);
-            let span = self.span_at_previous_token_end();
+            let location = self.location_at_previous_token_end();
             return Some(ExpressionKind::If(Box::new(IfExpression {
                 condition,
-                consequence: Expression { kind: ExpressionKind::Error, span },
+                consequence: Expression { kind: ExpressionKind::Error, location },
                 alternative: None,
             })));
         };
-        let span = self.location_since(start_location).span;
-        let consequence = Expression { kind: ExpressionKind::Block(consequence), span };
+        let location = self.location_since(start_location);
+        let consequence = Expression { kind: ExpressionKind::Block(consequence), location };
 
         let alternative = if self.eat_keyword(Keyword::Else) {
             let start_location = self.current_token_location;
             if let Some(block) = self.parse_block() {
-                let span = self.location_since(start_location).span;
-                Some(Expression { kind: ExpressionKind::Block(block), span })
+                let location = self.location_since(start_location);
+                Some(Expression { kind: ExpressionKind::Block(block), location })
             } else if let Some(if_expr) = self.parse_if_expr() {
-                Some(Expression { kind: if_expr, span: self.location_since(start_location).span })
+                Some(Expression { kind: if_expr, location: self.location_since(start_location) })
             } else {
                 self.expected_token(Token::LeftBrace);
                 None
@@ -602,7 +605,7 @@ impl<'a> Parser<'a> {
         if let Some(path) = self.parse_path() {
             let expr = Expression {
                 kind: ExpressionKind::Variable(path),
-                span: self.location_since(start_location).span,
+                location: self.location_since(start_location),
             };
             return Some(ExpressionKind::Unquote(Box::new(expr)));
         }
@@ -613,7 +616,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightParen);
             let expr = Expression {
                 kind: ExpressionKind::Parenthesized(Box::new(expr)),
-                span: self.location_since(location_at_left_paren).span,
+                location: self.location_since(location_at_left_paren),
             };
             return Some(ExpressionKind::Unquote(Box::new(expr)));
         }
@@ -929,7 +932,7 @@ mod tests {
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(expr.location.span.end() as usize, src.len());
         expect_no_errors(&parser.errors);
         expr
     }
@@ -1093,7 +1096,7 @@ mod tests {
         }";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(expr.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 2);
         assert!(matches!(
             parser.errors[0].reason(),
@@ -1208,7 +1211,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(expr.location.span.end() as usize, src.len());
 
         let reason = get_single_error_reason(&parser.errors, span);
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
@@ -1369,7 +1372,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str_with_dummy_file(&src);
         let expr = parser.parse_expression_or_error();
-        assert_eq!(expr.span.end() as usize, src.len());
+        assert_eq!(expr.location.span.end() as usize, src.len());
         let reason = get_single_error_reason(&parser.errors, span);
         let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
             panic!("Expected a different error");
@@ -1651,7 +1654,7 @@ mod tests {
             let src = format!("1 {operator} 2");
             let mut parser = Parser::for_str_with_dummy_file(&src);
             let expr = parser.parse_expression_or_error();
-            assert_eq!(expr.span.end() as usize, src.len());
+            assert_eq!(expr.location.span.end() as usize, src.len());
             assert!(parser.errors.is_empty(), "Expected no errors for {operator}");
             let ExpressionKind::Infix(infix_expr) = expr.kind else {
                 panic!("Expected infix for {operator}");

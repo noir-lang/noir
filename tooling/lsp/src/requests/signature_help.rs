@@ -312,7 +312,9 @@ impl<'a> SignatureFinder<'a> {
     fn compute_active_parameter(&self, arguments: &[Expression]) -> Option<u32> {
         let mut active_parameter = None;
         for (index, arg) in arguments.iter().enumerate() {
-            if self.includes_span(arg.span) || arg.span.start() as usize >= self.byte_index {
+            if self.includes_span(arg.location.span)
+                || arg.location.span.start() as usize >= self.byte_index
+            {
                 active_parameter = Some(index as u32);
                 break;
             }
@@ -340,14 +342,15 @@ impl<'a> Visitor for SignatureFinder<'a> {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.includes_span(expression.span)
+        self.includes_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 
-        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
-        let span = call_expression.func.span;
+        let arguments_span =
+            Span::from(call_expression.func.location.span.end() + 1..span.end() - 1);
+        let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;
 

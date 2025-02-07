@@ -532,7 +532,7 @@ fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitCon
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
 fn remove_interned_in_expression(interner: &NodeInterner, expr: Expression) -> Expression {
-    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), span: expr.span }
+    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), location: expr.location }
 }
 
 // Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.

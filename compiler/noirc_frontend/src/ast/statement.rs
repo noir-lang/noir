@@ -270,7 +270,7 @@ impl From<SpannedToken> for Ident {
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
         Expression {
-            span: i.0.span(),
+            location: i.0.location(),
             kind: ExpressionKind::Variable(Path {
                 span: i.span(),
                 segments: vec![PathSegment::from(i)],
@@ -281,6 +281,10 @@ impl From<Ident> for Expression {
 }
 
 impl Ident {
+    pub fn location(&self) -> Location {
+        self.0.location()
+    }
+
     pub fn span(&self) -> Span {
         self.0.span()
     }
@@ -595,6 +599,17 @@ impl Pattern {
     pub fn is_synthesized(&self) -> bool {
         matches!(self, Pattern::Mutable(_, _, true))
     }
+    pub fn location(&self) -> Location {
+        match self {
+            Pattern::Identifier(ident) => ident.location(),
+            Pattern::Mutable(_, span, _)
+            | Pattern::Tuple(_, span)
+            | Pattern::Struct(_, _, span)
+            | Pattern::Interned(_, span) => {
+                Location::new(*span, FileId::dummy()) // TODO: fix this
+            }
+        }
+    }
 
     pub fn span(&self) -> Span {
         match self {
@@ -617,7 +632,7 @@ impl Pattern {
         match self {
             Pattern::Identifier(ident) => Some(Expression {
                 kind: ExpressionKind::Variable(Path::from_ident(ident.clone())),
-                span: ident.span(),
+                location: ident.location(),
             }),
             Pattern::Mutable(_, _, _) => None,
             Pattern::Tuple(patterns, span) => {
@@ -625,7 +640,8 @@ impl Pattern {
                 for pattern in patterns {
                     expressions.push(pattern.try_as_expression(interner)?);
                 }
-                Some(Expression { kind: ExpressionKind::Tuple(expressions), span: *span })
+                let location = Location::new(*span, FileId::dummy()); // TODO: fix this
+                Some(Expression { kind: ExpressionKind::Tuple(expressions), location })
             }
             Pattern::Struct(path, patterns, span) => {
                 let mut fields = Vec::new();
@@ -633,13 +649,14 @@ impl Pattern {
                     let expression = pattern.try_as_expression(interner)?;
                     fields.push((field.clone(), expression));
                 }
+                let location = Location::new(*span, FileId::dummy()); // TODO: fix this
                 Some(Expression {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
                         typ: UnresolvedType::from_path(path.clone()),
                         fields,
                         struct_type: None,
                     })),
-                    span: *span,
+                    location,
                 })
             }
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
@@ -676,7 +693,7 @@ impl LValue {
     }
 
     pub fn from_expression(expr: Expression) -> Option<LValue> {
-        LValue::from_expression_kind(expr.kind, expr.span)
+        LValue::from_expression_kind(expr.kind, expr.location.span)
     }
 
     pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> Option<LValue> {
@@ -733,7 +750,7 @@ impl ForBounds {
     /// Returns the `start` and `end` expressions.
     pub(crate) fn into_half_open(self) -> (Expression, Expression) {
         let end = if self.inclusive {
-            let end_span = self.end.span;
+            let end_span = self.end.location.span;
             let end = ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: self.end,
                 operator: Spanned::from(end_span, BinaryOpKind::Add),
@@ -795,14 +812,14 @@ impl ForRange {
                 unreachable!()
             }
             ForRange::Array(array) => {
-                let array_span = array.span;
+                let array_span = array.location.span;
                 let start_range = ExpressionKind::integer(FieldElement::zero());
                 let start_range = Expression::new(start_range, array_span);
 
                 let next_unique_id = unique_name_counter;
                 unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
-                let array_span = array.span;
+                let array_span = array.location.span;
                 let array_ident = Ident::new(array_name, array_span);
 
                 // let fresh1 = array;
@@ -861,7 +878,7 @@ impl ForRange {
                     span: array_span,
                 };
 
-                let block_span = block.span;
+                let block_span = block.location.span;
                 let new_block = BlockExpression {
                     statements: vec![
                         let_elem,

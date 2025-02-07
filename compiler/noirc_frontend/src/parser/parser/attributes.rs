@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
         let ExpressionKind::Literal(Literal::Str(message)) = argument.kind else {
             self.push_error(
                 ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
-                argument.span,
+                argument.location.span,
             );
             return Attribute::Secondary(SecondaryAttribute::Deprecated(None));
         };

@@ -37,7 +37,7 @@ impl<'a> CodeActionFinder<'a> {
         }
 
         // Find out the type of the object
-        let object_location = Location::new(method_call.object.span, self.file);
+        let object_location = method_call.object.location;
         let Some(typ) = self.interner.type_at_location(object_location) else {
             return;
         };

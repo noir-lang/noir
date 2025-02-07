@@ -267,7 +267,7 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         }
 
         if call.is_macro_call {
-            self.remove_bang_from_call(call.func.span);
+            self.remove_bang_from_call(call.func.location.span);
         }
 
         true

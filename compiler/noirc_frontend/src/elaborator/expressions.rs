@@ -46,19 +46,25 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
-            ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
+            ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location.span),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
-            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
+            ExpressionKind::Prefix(prefix) => {
+                return self.elaborate_prefix(*prefix, expr.location.span)
+            }
             ExpressionKind::Index(index) => self.elaborate_index(*index),
-            ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
-            ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
+            ExpressionKind::Call(call) => self.elaborate_call(*call, expr.location.span),
+            ExpressionKind::MethodCall(call) => {
+                self.elaborate_method_call(*call, expr.location.span)
+            }
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.span)
+                return self.elaborate_member_access(*access, expr.location.span)
             }
-            ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
-            ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
+            ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location.span),
+            ExpressionKind::Infix(infix) => {
+                return self.elaborate_infix(*infix, expr.location.span)
+            }
             ExpressionKind::If(if_) => self.elaborate_if(*if_, target_type),
             ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
@@ -69,9 +75,9 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Parenthesized(expr) => {
                 return self.elaborate_expression_with_target_type(*expr, target_type)
             }
-            ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.span),
+            ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location.span),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.span, target_type)
+                return self.elaborate_comptime_block(comptime, expr.location.span, target_type)
             }
             ExpressionKind::Unsafe(block_expression, span) => {
                 self.elaborate_unsafe_block(block_expression, span, target_type)
@@ -79,25 +85,25 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
                 let expr_kind = self.interner.get_expression_kind(id);
-                let expr = Expression::new(expr_kind.clone(), expr.span);
+                let expr = Expression::new(expr_kind.clone(), expr.location.span);
                 return self.elaborate_expression(expr);
             }
             ExpressionKind::InternedStatement(id) => {
-                return self.elaborate_interned_statement_as_expr(id, expr.span);
+                return self.elaborate_interned_statement_as_expr(id, expr.location.span);
             }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.location.span });
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.location.span });
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.span, self.file);
+        self.interner.push_expr_location(id, expr.location.span, self.file);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -236,10 +242,10 @@ impl<'context> Elaborator<'context> {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
                 let first_elem_type = self.interner.next_type_variable();
-                let first_span = elements.first().map(|elem| elem.span).unwrap_or(span);
+                let first_span = elements.first().map(|elem| elem.location.span).unwrap_or(span);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
-                    let span = elem.span;
+                    let span = elem.location.span;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
                     self.unify(&elem_type, &first_elem_type, || {
@@ -260,7 +266,7 @@ impl<'context> Elaborator<'context> {
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
-                let span = length.span;
+                let span = length.location.span;
                 let length =
                     UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(|error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
@@ -331,7 +337,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, span: Span) -> (ExprId, Type) {
-        let rhs_span = prefix.rhs.span;
+        let rhs_span = prefix.rhs.location.span;
 
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
         let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
@@ -375,7 +381,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
-        let span = index_expr.index.span;
+        let span = index_expr.index.location.span;
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
         let expected = self.polymorphic_integer_or_field();
@@ -387,7 +393,7 @@ impl<'context> Elaborator<'context> {
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
-        let lhs_span = index_expr.collection.span;
+        let lhs_span = index_expr.collection.location.span;
         let (lhs, lhs_type) = self.elaborate_expression(index_expr.collection);
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
@@ -423,7 +429,7 @@ impl<'context> Elaborator<'context> {
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
-            let span = arg.span;
+            let span = arg.location.span;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
             let (arg, typ) = if call.is_macro_call {
@@ -473,7 +479,7 @@ impl<'context> Elaborator<'context> {
         method_call: MethodCallExpression,
         span: Span,
     ) -> (HirExpression, Type) {
-        let object_span = method_call.object.span;
+        let object_span = method_call.object.location.span;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
 
@@ -534,7 +540,7 @@ impl<'context> Elaborator<'context> {
                 function_args.push((object_type.clone(), object, object_span));
 
                 for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
-                    let span = arg.span;
+                    let span = arg.location.span;
                     let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
                     let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
 
@@ -589,6 +595,7 @@ impl<'context> Elaborator<'context> {
         mut expr: ConstrainExpression,
     ) -> (HirExpression, Type) {
         let span = expr.span;
+        let location = Location::new(span, self.file); // TODO: fix this
         let min_args_count = expr.kind.required_arguments_count();
         let max_args_count = min_args_count + 1;
         let actual_args_count = expr.arguments.len();
@@ -604,7 +611,7 @@ impl<'context> Elaborator<'context> {
             // we don't get further errors.
             let message = None;
             let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
-            let expr = Expression { kind, span };
+            let expr = Expression { kind, location };
             (message, expr)
         } else {
             let message =
@@ -614,17 +621,17 @@ impl<'context> Elaborator<'context> {
                 ConstrainKind::AssertEq => {
                     let rhs = expr.arguments.pop().unwrap();
                     let lhs = expr.arguments.pop().unwrap();
-                    let span = Span::from(lhs.span.start()..rhs.span.end());
-                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let location = lhs.location.merge(rhs.location);
+                    let operator = Spanned::from(location.span, BinaryOpKind::Equal);
                     let kind =
                         ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
-                    Expression { kind, span }
+                    Expression { kind, location }
                 }
             };
             (message, expr)
         };
 
-        let expr_span = expr.span;
+        let expr_span = expr.location.span;
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
@@ -649,7 +656,7 @@ impl<'context> Elaborator<'context> {
             return self.elaborate_expression(arg);
         };
 
-        let span = arg.span;
+        let span = arg.location.span;
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
         let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
@@ -813,7 +820,7 @@ impl<'context> Elaborator<'context> {
             let expected_type =
                 expected_field_with_index.map(|(_, (_, _, typ))| typ).unwrap_or(&Type::Error);
 
-            let field_span = field.span;
+            let field_span = field.location.span;
             let (resolved, field_type) = self.elaborate_expression(field);
 
             if unseen_fields.contains(&field_name) {
@@ -969,8 +976,8 @@ impl<'context> Elaborator<'context> {
         if_expr: IfExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let expr_span = if_expr.condition.span;
-        let consequence_span = if_expr.consequence.span;
+        let expr_span = if_expr.condition.location.span;
+        let consequence_span = if_expr.consequence.location.span;
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
@@ -1087,7 +1094,7 @@ impl<'context> Elaborator<'context> {
             });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);
-        let body_span = lambda.body.span;
+        let body_span = lambda.body.location.span;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
         let lambda_context = self.lambda_stack.pop().unwrap();
