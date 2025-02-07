@@ -313,7 +313,8 @@ fn parse_str_to_field(value: &str, arg_name: &str) -> Result<FieldElement, Input
     big_num
         .map_err(|err_msg| InputParserError::ParseStr {
             arg_name: arg_name.into(),
-            value: err_msg.to_string(),
+            value: value.into(),
+            error: err_msg.to_string(),
         })
         .and_then(|bigint| {
             if bigint < FieldElement::modulus() {
@@ -343,7 +344,8 @@ fn parse_str_to_signed(
     big_num
         .map_err(|err_msg| InputParserError::ParseStr {
             arg_name: arg_name.into(),
-            value: err_msg.to_string(),
+            value: value.into(),
+            error: err_msg.to_string(),
         })
         .and_then(|bigint| {
             let max = BigInt::from(2_u128.pow(width - 1) - 1);
@@ -485,14 +487,31 @@ mod test {
         let value = parse_str_to_signed("-1", 16, "arg_name").unwrap();
         assert_eq!(value, FieldElement::from(65535_u128));
 
-        assert_eq!(parse_str_to_signed("127", 8, "arg_name"), Ok(FieldElement::from(127_i128)));
+        assert_eq!(
+            parse_str_to_signed("127", 8, "arg_name").unwrap(),
+            FieldElement::from(127_i128)
+        );
         assert!(parse_str_to_signed("128", 8, "arg_name").is_err());
-        assert!(parse_str_to_signed("-128", 8, "arg_name").is_ok());
+        assert_eq!(
+            parse_str_to_signed("-128", 8, "arg_name").unwrap(),
+            FieldElement::from(128_i128)
+        );
+        assert_eq!(parse_str_to_signed("-1", 8, "arg_name").unwrap(), FieldElement::from(255_i128));
         assert!(parse_str_to_signed("-129", 8, "arg_name").is_err());
 
-        assert_eq!(parse_str_to_signed("32767", 8, "arg_name"), Ok(FieldElement::from(32767_i128)));
+        assert_eq!(
+            parse_str_to_signed("32767", 16, "arg_name").unwrap(),
+            FieldElement::from(32767_i128)
+        );
         assert!(parse_str_to_signed("32768", 16, "arg_name").is_err());
-        assert_eq!(parse_str_to_signed("-32768", 16, "arg_name"), Ok(FieldElement::from(-32768_i128)));
+        assert_eq!(
+            parse_str_to_signed("-32768", 16, "arg_name").unwrap(),
+            FieldElement::from(32768_i128)
+        );
+        assert_eq!(
+            parse_str_to_signed("-1", 16, "arg_name").unwrap(),
+            FieldElement::from(65535_i128)
+        );
         assert!(parse_str_to_signed("-32769", 16, "arg_name").is_err());
     }
 }
