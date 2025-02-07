@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738942247114,
+  "lastUpdate": 1738942248174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4978,100 +4978,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc",
-          "message": "feat(ssa): Expand feature set of the Brillig constraint check (#7060)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-23T19:10:44Z",
-          "tree_id": "06af55b3709d97b47e52f026ce80202392f9bbae",
-          "url": "https://github.com/noir-lang/noir/commit/2d415ca12b7f4511c6634b833ed1a6dcdf9f76fc"
-        },
-        "date": 1737661478241,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.824,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.742,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.396,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 89.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 87.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.596,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 33.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 13.16,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.995,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.922,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.16,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9836,6 +9742,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.558,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "60afb1e0c06e72fe76b99084038d4f62f007a7b4",
+          "message": "chore: add timeouts to reports CI (#7317)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-02-07T15:12:31Z",
+          "tree_id": "97a32d37379462d17d62c6c238c46bc0597385b3",
+          "url": "https://github.com/noir-lang/noir/commit/60afb1e0c06e72fe76b99084038d4f62f007a7b4"
+        },
+        "date": 1738942246845,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.809,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.683,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.29,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.366,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 26.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.658,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.052,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 73.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 73.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.03,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.606,
             "unit": "s"
           }
         ]
