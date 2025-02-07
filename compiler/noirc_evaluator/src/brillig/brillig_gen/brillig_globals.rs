@@ -94,18 +94,17 @@ impl BrilligGlobals {
     /// by any given Brillig function (non-entry point or entry point).
     /// The allocations available to a function are determined by its entry point.
     /// For a given function id input, this function will search for that function's
-    /// entry point (or multiple entry points) and fetch the global allocations
-    /// associated with those entry points.
+    /// entry point and fetch the global allocations associated with that entry point.
     /// These allocations can then be used when compiling the Brillig function
     /// and resolving global variables.
     pub(crate) fn get_brillig_globals(
         &self,
         brillig_function_id: FunctionId,
-    ) -> SsaToBrilligGlobals {
+    ) -> Option<&SsaToBrilligGlobals> {
         if let Some(globals) = self.entry_point_globals_map.get(&brillig_function_id) {
             // Check whether `brillig_function_id` is itself an entry point.
             // If so, return the global allocations directly from `self.entry_point_globals_map`.
-            return globals.clone();
+            return Some(globals);
         }
 
         let entry_points = self.inner_call_to_entry_point.get(&brillig_function_id);
@@ -117,12 +116,11 @@ impl BrilligGlobals {
 
         // Sanity check: We should have guaranteed earlier that an inner call has only a single entry point
         assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
-        let mut globals_allocations = HashMap::default();
         if let Some(globals) = self.entry_point_globals_map.get(&entry_points[0]) {
-            globals_allocations.extend(globals);
+            return Some(globals);
         }
 
-        globals_allocations
+        None
     }
 }
 
