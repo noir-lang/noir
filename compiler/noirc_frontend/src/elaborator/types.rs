@@ -717,7 +717,7 @@ impl<'context> Elaborator<'context> {
         }
 
         let (hir_method_reference, error) =
-            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.span);
+            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location.span);
         let hir_method_reference = hir_method_reference?;
         let func_id = hir_method_reference.func_id(self.interner)?;
         let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {

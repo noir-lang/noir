@@ -297,7 +297,11 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            self.add_reference(typ, last_segment.span, last_segment.ident.is_self_type_name());
+            self.add_reference(
+                typ,
+                last_segment.location.span,
+                last_segment.ident.is_self_type_name(),
+            );
 
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {

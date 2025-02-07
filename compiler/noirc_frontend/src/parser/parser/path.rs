@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
         if self.token.kind() == TokenKind::Ident {
             loop {
                 let ident = self.eat_ident().unwrap();
-                let span = ident.span();
+                let location = ident.location();
 
                 let generics = if allow_turbofish
                     && self.at(Token::DoubleColon)
@@ -133,7 +133,7 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, span });
+                segments.push(PathSegment { ident, generics, location });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))

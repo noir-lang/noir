@@ -87,7 +87,7 @@ impl HirExpression {
                     generics: generics.as_ref().map(|option| {
                         option.iter().map(|generic| generic.to_display_ast()).collect()
                     }),
-                    span,
+                    location,
                 };
 
                 let path =
@@ -221,8 +221,9 @@ impl HirExpression {
             HirExpression::EnumConstructor(constructor) => {
                 let typ = constructor.r#type.borrow();
                 let variant = &typ.variant_at(constructor.variant_index);
-                let segment1 = PathSegment { ident: typ.name.clone(), span, generics: None };
-                let segment2 = PathSegment { ident: variant.name.clone(), span, generics: None };
+                let segment1 = PathSegment { ident: typ.name.clone(), location, generics: None };
+                let segment2 =
+                    PathSegment { ident: variant.name.clone(), location, generics: None };
                 let path =
                     Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
                 let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));

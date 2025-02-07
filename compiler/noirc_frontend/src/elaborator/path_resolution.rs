@@ -204,7 +204,7 @@ impl<'context> Elaborator<'context> {
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            let location = Location::new(last_segment.span, self.file);
+            let location = last_segment.location;
             self.interner.add_module_def_id_reference(
                 typ,
                 location,

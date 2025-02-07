@@ -521,7 +521,7 @@ impl Path {
 pub struct PathSegment {
     pub ident: Ident,
     pub generics: Option<Vec<UnresolvedType>>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl PathSegment {
@@ -532,7 +532,7 @@ impl PathSegment {
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
-        Span::from(self.ident.span().end()..self.span.end())
+        Span::from(self.ident.span().end()..self.location.span.end())
     }
 
     pub fn turbofish(&self) -> Option<Turbofish> {
@@ -544,8 +544,8 @@ impl PathSegment {
 
 impl From<Ident> for PathSegment {
     fn from(ident: Ident) -> PathSegment {
-        let span = ident.span();
-        PathSegment { ident, generics: None, span }
+        let location = ident.location();
+        PathSegment { ident, generics: None, location }
     }
 }
 
