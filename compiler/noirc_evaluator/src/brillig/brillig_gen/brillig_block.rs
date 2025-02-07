@@ -853,7 +853,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // Check that the refcount didn't go below 1. If we allow it to underflow
                     // and become 0 or usize::MAX, and then return to 1, then it will indicate
                     // an array as mutable when it probably shouldn't be.
-                    {
+                    if ctx.enable_debug_assertions() {
                         let min_addr = ReservedRegisters::usize_one();
                         let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
                         ctx.memory_op_instruction(

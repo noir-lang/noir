@@ -11,6 +11,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, FileDiagnostic};
+use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
@@ -140,6 +141,10 @@ pub struct CompileOptions {
     /// This check should always be run on production code.
     #[arg(long)]
     pub enable_brillig_constraints_check: bool,
+
+    /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
+    #[arg(long, hide = true)]
+    pub enable_brillig_debug_assertions: bool,
 
     /// Hidden Brillig call check flag to maintain CI compatibility (currently ignored)
     #[arg(long, hide = true)]
@@ -674,7 +679,10 @@ pub fn compile_no_check(
                 }
             }
         },
-        enable_brillig_logging: options.show_brillig,
+        brillig_options: BrilligOptions {
+            enable_debug_trace: options.show_brillig,
+            enable_debug_assertions: options.enable_brillig_debug_assertions,
+        },
         print_codegen_timings: options.benchmark_codegen,
         expression_width: if options.bounded_codegen {
             options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
