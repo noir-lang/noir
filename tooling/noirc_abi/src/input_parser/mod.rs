@@ -485,7 +485,7 @@ mod test {
         let value = parse_str_to_signed("-1", 16, "arg_name").unwrap();
         assert_eq!(value, FieldElement::from(65535_u128));
 
-        assert!(parse_str_to_signed("127", 8, "arg_name").is_ok());
+        assert_eq!(parse_str_to_signed("127", 8, "arg_name"), Ok(FieldElement::from(127_i128)));
         assert!(parse_str_to_signed("128", 8, "arg_name").is_err());
         assert!(parse_str_to_signed("-128", 8, "arg_name").is_ok());
         assert!(parse_str_to_signed("-129", 8, "arg_name").is_err());
