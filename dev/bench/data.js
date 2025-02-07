@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1738953890782,
+  "lastUpdate": 1738953896208,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13977,95 +13977,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "29d2d8ad657c21aa230afee38a5be4926857c3e2",
-          "message": "fix: Keep `inc_rc` for array inputs during preprocessing  (#7163)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-01-23T22:53:41Z",
-          "tree_id": "866c876c6abb9820355ee9d203d1199f1b7f6bca",
-          "url": "https://github.com/noir-lang/noir/commit/29d2d8ad657c21aa230afee38a5be4926857c3e2"
-        },
-        "date": 1737674161278,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 74.87,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.99,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.15,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 516.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 491.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 516.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 748.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 609.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.66,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 209.76,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -18335,6 +18246,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/09d77058fa119fd8a8db1d16375411ec86932c45"
         },
         "date": 1738952962773,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.89,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac1da8f4b57290a67240973a7d6172cfbf5680a8",
+          "message": "fix: avoid stack overflow on many comments in a row (#7325)",
+          "timestamp": "2025-02-07T18:20:56Z",
+          "tree_id": "194e13757e4b29173c7f7363902f0fe5a37a1238",
+          "url": "https://github.com/noir-lang/noir/commit/ac1da8f4b57290a67240973a7d6172cfbf5680a8"
+        },
+        "date": 1738953894376,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
