@@ -196,7 +196,7 @@ impl<'a> Parser<'a> {
             (self.parse_visibility(), self.parse_type_or_error())
         };
 
-        Param { visibility, pattern, typ, span: self.location_since(start_location).span }
+        Param { visibility, pattern, typ, location: self.location_since(start_location) }
     }
 
     fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
@@ -219,7 +219,7 @@ impl<'a> Parser<'a> {
             visibility: Visibility::Private,
             pattern,
             typ: self_type,
-            span: self.location_since(ident_location).span,
+            location: self.location_since(ident_location),
         }
     }
 

@@ -1,3 +1,4 @@
+use noirc_errors::Location;
 use noirc_frontend::{
     ast::{NoirTrait, Param, Pattern, TraitItem, Visibility},
     token::{Attributes, Keyword, Token},
@@ -99,7 +100,7 @@ impl<'a> Formatter<'a> {
                         visibility: Visibility::Private,
                         pattern: Pattern::Identifier(name),
                         typ,
-                        span: Default::default(), // Doesn't matter
+                        location: Location::dummy(), // Doesn't matter
                     })
                     .collect();
 

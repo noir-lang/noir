@@ -3069,6 +3069,7 @@ dependencies = [
 name = "nargo_fmt"
 version = "1.0.0-beta.1"
 dependencies = [
+ "noirc_errors",
  "noirc_frontend",
  "serde",
  "similar-asserts",

@@ -925,7 +925,7 @@ impl<'context> Elaborator<'context> {
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
 
-        for Param { visibility, pattern, typ, span: _ } in func.parameters().iter().cloned() {
+        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });

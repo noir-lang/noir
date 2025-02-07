@@ -509,7 +509,7 @@ pub struct Param {
     pub visibility: Visibility,
     pub pattern: Pattern,
     pub typ: UnresolvedType,
-    pub span: Span,
+    pub location: Location,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -883,7 +883,7 @@ impl FunctionDefinition {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
-                span: ident.location().merge(unresolved_type.location).span,
+                location: ident.location().merge(unresolved_type.location),
             })
             .collect();
 
@@ -904,13 +904,14 @@ impl FunctionDefinition {
     }
 
     pub fn signature(&self) -> String {
-        let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
-            if *visibility == Visibility::Public {
-                format!("{pattern}: {visibility} {typ}")
-            } else {
-                format!("{pattern}: {typ}")
-            }
-        });
+        let parameters =
+            vecmap(&self.parameters, |Param { visibility, pattern, typ, location: _ }| {
+                if *visibility == Visibility::Public {
+                    format!("{pattern}: {visibility} {typ}")
+                } else {
+                    format!("{pattern}: {typ}")
+                }
+            });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {
