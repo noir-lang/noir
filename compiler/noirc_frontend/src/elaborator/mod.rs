@@ -1833,7 +1833,7 @@ impl<'context> Elaborator<'context> {
 
             let self_type = Type::DataType(datatype.clone(), generics);
             let self_type_id = self.interner.push_quoted_type(self_type.clone());
-            let location = Location::new(typ.enum_def.span, FileId::dummy()); // TODO: fix this
+            let location = typ.enum_def.location;
             let unresolved =
                 UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 

@@ -1163,7 +1163,7 @@ pub fn collect_enum(
     ) {
         Ok(module_id) => {
             let name = unresolved.enum_def.name.clone();
-            let span = unresolved.enum_def.span;
+            let span = unresolved.enum_def.location.span;
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
             interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
