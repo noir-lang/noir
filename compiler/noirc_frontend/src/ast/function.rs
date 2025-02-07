@@ -97,7 +97,7 @@ impl NoirFunction {
         self.def.body.statements.len()
     }
     pub fn span(&self) -> Span {
-        self.def.span
+        self.def.location.span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {

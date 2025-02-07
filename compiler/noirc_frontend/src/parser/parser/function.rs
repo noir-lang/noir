@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             generics: func.generics,
             parameters: func.parameters,
             body: func.body.unwrap_or_else(empty_body),
-            span: func.location.span,
+            location: func.location,
             where_clause: func.where_clause,
             return_type: func.return_type,
             return_visibility: func.return_visibility,

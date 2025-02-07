@@ -103,7 +103,7 @@ impl DebugInstrumenter {
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
         let fn_id = self.insert_function(func_name, func_args);
-        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.span);
+        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.location.span);
         self.scope.push(HashMap::default());
 
         let set_fn_params: Vec<_> = func
@@ -123,7 +123,7 @@ impl DebugInstrumenter {
         let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
-        self.walk_scope(&mut statements, func.span);
+        self.walk_scope(&mut statements, func.location.span);
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");

@@ -226,7 +226,7 @@ impl<'a> ModCollector<'a> {
                     errors.push((error.into(), self.file_id));
                 }
 
-                let location = Location::new(noir_function.def.span, self.file_id);
+                let location = noir_function.def.location;
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
 

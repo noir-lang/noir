@@ -1015,7 +1015,7 @@ impl<'context> Elaborator<'context> {
             has_inline_attribute,
             source_crate: self.crate_id,
             source_module: self.local_module,
-            function_body: FunctionBody::Unresolved(func.kind, body, func.def.span),
+            function_body: FunctionBody::Unresolved(func.kind, body, func.def.location.span),
             self_type: self.self_type.clone(),
             source_file: self.file,
         };
