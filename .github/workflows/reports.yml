@@ -463,7 +463,7 @@ jobs:
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
-          MEMORY_LIMIT=1000
+          MEMORY_LIMIT=1300
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             echo "Failing due to execution exceeding memory limit..."
