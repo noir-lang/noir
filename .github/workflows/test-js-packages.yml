@@ -13,6 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  critical-library-list:
+    name: Load critical library list
+    runs-on: ubuntu-22.04
+    outputs:
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build list of libraries
+        id: get_critical_libraries
+        run: |
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          echo "libraries=$LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -244,10 +263,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -260,14 +276,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -300,17 +308,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
+        uses: ./.github/actions/download-nargo
 
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
@@ -335,10 +333,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
@@ -351,14 +346,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -388,10 +375,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
@@ -410,14 +394,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -493,25 +469,13 @@ jobs:
         with:
           version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
 
-
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
@@ -521,25 +485,6 @@ jobs:
         working-directory: ./examples/codegen_verifier
         run: ./test.sh
 
-  critical-library-list:
-    name: Load critical library list
-    runs-on: ubuntu-22.04
-    outputs:
-      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build list of libraries
-        id: get_critical_libraries
-        run: |
-          LIBRARIES=$(grep -Po "^https://github.com/\K.+"  ./CRITICAL_NOIR_LIBRARIES | jq -R -s -c 'split("\n") | map(select(. != "")) | map({ repo: ., path: ""})')
-          echo "libraries=$LIBRARIES"
-          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
@@ -548,17 +493,7 @@ jobs:
       fail-fast: false
       matrix:
         project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
-        include:
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/aztec-nr }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/blob }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/parity-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib }
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/types }
-          # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
-          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-lib, nargo_args: "--test-threads 1" }
-
+         
     name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
       - name: Checkout
@@ -574,18 +509,7 @@ jobs:
           ref: ${{ matrix.project.ref }}
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./noir-repo/.github/actions/download-nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo
@@ -598,11 +522,16 @@ jobs:
         id: test_report
         working-directory: ./test-repo/${{ matrix.project.path }}
         run: |
-
           output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
           BEFORE=$SECONDS
           nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
           TIME=$(($SECONDS-$BEFORE))
+
+          if [ "TIME" -gt "${{ matrix.project.timeout }}" ]; then
+            # Library testing time has regressed past the set timeout.
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            exit 1
+          fi
 
           NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
           # Replace any slashes with underscores
@@ -610,7 +539,7 @@ jobs:
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
 
-          jq --null-input "{ test_reports: [{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]}" > $TEST_REPORT_NAME.json
+          jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
 
           if [ ! -s $output_file ]; then
             # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
@@ -618,12 +547,13 @@ jobs:
           fi
         env:
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
-      
+
       - name: Compare test results
         working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
 
       - name: Upload test report
+        if: ${{ matrix.project.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.test_report.outputs.test_report_name }}
@@ -640,22 +570,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          path: noir-repo
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
           repository: AztecProtocol/aztec-packages
           path: test-repo
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./noir-repo/.github/actions/download-nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo
@@ -689,16 +613,15 @@ jobs:
         with:
           pattern: test_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge test reports using jq
         run: |
-          jq --null-input "{ test_reports: [] }" > test_report.json
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh test_report
-          jq ".test_reports" < ./test_report.json > test_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Test Suite Duration"
