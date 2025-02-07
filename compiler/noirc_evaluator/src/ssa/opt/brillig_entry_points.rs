@@ -1,3 +1,64 @@
+//! The purpose of this pass is to perform function specialization of Brillig functions based upon
+//! a function's entry points. Function specialization is performed through duplication of functions.
+//!
+//! This pass is done due to how globals are initialized for Brillig generation.
+//! We allow multiple Brillig entry points (every call to Brillig from ACIR is an entry point),
+//! and in order to avoid re-initializing globals used in one entry point but not another,
+//! we set the globals initialization code based upon the globals used in a given entry point.
+//! The ultimate goal is to optimize for runtime execution.
+//!
+//! However, doing the above on its own is insufficient as we allow entry points to be called from
+//! other entry points and functions can be called across multiple entry points.
+//! As all functions can potentially share entry points and use globals, the global allocations maps
+//! generated for different entry points can conflict.
+//!
+//! To provide a more concrete example, let's take this program:
+//! ```
+//! global ONE: Field = 1;
+//! global TWO: Field = 2;
+//! global THREE: Field = 3;
+//! fn main(x: Field, y: pub Field) {
+//!     /// Safety: testing context
+//!     unsafe {
+//!         entry_point_one(x, y);
+//!         entry_point_two(x, y);
+//!     }
+//! }
+//! unconstrained fn entry_point_one(x: Field, y: Field) {
+//!     let z = ONE + x + y;
+//!     assert(z == 2);
+//!     inner_func(x, y);
+//! }
+//! unconstrained fn entry_point_two(x: Field, y: Field) {
+//!     let z = TWO + x + y;
+//!     assert(z == 3);
+//!     inner_func(x, y);
+//! }
+//! unconstrained fn inner_func(x: Field, y: Field) {
+//!     let z = THREE + x + y;
+//!     assert(z == 4);
+//! }
+//! ```
+//! The two entry points will have different global allocation maps:
+//! ```
+//! GlobalInit(Id(1)):
+//!   CONST M32835 = 1
+//!   CONST M32836 = 2
+//!   CONST M32837 = 3
+//!   RETURN
+//! GlobalInit(Id(2)):
+//!   CONST M32835 = 2
+//!   CONST M32836 = 3
+//!   RETURN
+//! ```
+//! It is then not clear when generating the bytecode for `inner_func` which global allocations map should be used,
+//! and any choice will lead to an incorrect program.
+//! If `inner_func` used the map for `entry_point_one` the bytecode generated would use `M32837` to represent `THREE`.
+//! However, when `inner_func` is called from `entry_point_two`, the address for `THREE` is `M32836`.
+//!
+//! This pass will duplicate `inner_func` so that different functions are called by the different entry points.
+//! The test module for this pass can be referenced to see how this function duplication looks in SSA.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
