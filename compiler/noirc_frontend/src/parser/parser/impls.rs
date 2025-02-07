@@ -59,13 +59,7 @@ impl<'a> Parser<'a> {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
 
-        Impl::Impl(TypeImpl {
-            object_type,
-            type_span: type_location.span,
-            generics,
-            where_clause,
-            methods,
-        })
+        Impl::Impl(TypeImpl { object_type, type_location, generics, where_clause, methods })
     }
 
     /// TypeImplBody = '{' TypeImplItem* '}'

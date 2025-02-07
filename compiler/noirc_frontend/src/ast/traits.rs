@@ -57,7 +57,7 @@ pub enum TraitItem {
 #[derive(Clone, Debug)]
 pub struct TypeImpl {
     pub object_type: UnresolvedType,
-    pub type_span: Span,
+    pub type_location: Location,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub methods: Vec<(Documented<NoirFunction>, Span)>,
