@@ -57,8 +57,6 @@ fn foo_tests() {
     }
 }
 
-// Can't `assert(false)` in a match branch directly without wrapping it in a block first
-// https://github.com/noir-lang/noir/issues/7308
 fn fail() {
     assert(false);
 }
