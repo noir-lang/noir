@@ -205,8 +205,9 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
         // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before DIE.
-        .run_pass(Ssa::duplicate_reused_entry_points, "Brillig Entry Point Duplication")
+        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
+        .run_pass(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())

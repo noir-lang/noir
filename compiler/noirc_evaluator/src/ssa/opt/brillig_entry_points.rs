@@ -14,7 +14,7 @@ use crate::ssa::{
 use super::inlining::called_functions_vec;
 
 impl Ssa {
-    pub(crate) fn duplicate_reused_entry_points(mut self) -> Ssa {
+    pub(crate) fn brillig_entry_point_analysis(mut self) -> Ssa {
         if self.main().runtime().is_brillig() {
             return self;
         }
@@ -233,4 +233,319 @@ pub(crate) fn build_inner_call_to_entry_points(
     }
 
     inner_call_to_entry_point
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use super::Ssa;
+
+    #[test]
+    fn duplicate_inner_call_with_multiple_entry_points() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v3: Field, v4: Field):
+            v5 = add g0, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add g1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add g2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+        let ssa = ssa.remove_unreachable_functions();
+
+        // We expect `inner_func` to be duplicated
+        let expected = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            call f4(v3, v4)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn inner_func f4 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn duplicate_inner_call_with_multiple_entry_points_nested() {
+        let src = "
+        g0 = Field 2
+        g1 = Field 3
+        
+        acir(inline) fn main f0 {
+          b0(v2: Field, v3: Field):
+            call f1(v2, v3)
+            call f2(v2, v3)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v2: Field, v3: Field):
+            v4 = add g0, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f3(v2, v3)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v2: Field, v3: Field):
+            v4 = add g0, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f3(v2, v3)
+            return
+        }
+        brillig(inline) fn inner_func f3 {
+          b0(v2: Field, v3: Field):
+            v4 = add g0, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f4(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f4 {
+          b0(v2: Field, v3: Field):
+            v4 = add g1, v2
+            v5 = add v4, v3
+            constrain v5 == Field 4
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+        let ssa = ssa.remove_unreachable_functions();
+
+        // We expect both `inner_func` and `nested_inner_func` to be duplicated
+        let expected = "
+        g0 = Field 2
+        g1 = Field 3
+        
+        acir(inline) fn main f0 {
+          b0(v2: Field, v3: Field):
+            call f1(v2, v3)
+            call f2(v2, v3)
+            return
+        }
+        brillig(inline) fn entry_point_one f1 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f4(v2, v3)
+            return
+        }
+        brillig(inline) fn entry_point_two f2 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f6(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f3 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 3, v2
+            v5 = add v4, v3
+            constrain v5 == Field 4
+            return
+        }
+        brillig(inline) fn inner_func f4 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f3(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f5 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 3, v2
+            v5 = add v4, v3
+            constrain v5 == Field 4
+            return
+        }
+        brillig(inline) fn inner_func f6 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f5(v2, v3)
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn duplicate_entry_point_called_from_entry_points() {
+        // Check that we duplicate entry points that are also called from another entry point.
+        // In this test the entry points used in other entry points are f2 and f3.
+        // These functions are also called within the wrapper function f4, as we also want to make sure
+        // that we duplicate entry points called from another entry point's inner calls.
+        let src = "
+        g0 = Field 2
+        g1 = Field 3
+        g2 = Field 1
+        
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_inner_func_globals f1 {
+          b0(v3: Field, v4: Field):
+            call f4(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one_global f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add g0, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            return
+        }
+        brillig(inline) fn entry_point_one_diff_global f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add g1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn wrapper f4 {
+          b0(v3: Field, v4: Field):
+            v5 = add g2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f2(v3, v4)
+            call f3(v4, v3)
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        // We expect `entry_point_one_global` and `entry_point_one_diff_global` to be duplicated
+        let expected = "
+        g0 = Field 2
+        g1 = Field 3
+        g2 = Field 1
+        
+        acir(inline) fn main f0 {
+          b0(v3: Field, v4: Field):
+            call f1(v3, v4)
+            call f2(v3, v4)
+            call f3(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_inner_func_globals f1 {
+          b0(v3: Field, v4: Field):
+            call f4(v3, v4)
+            return
+        }
+        brillig(inline) fn entry_point_one_global f2 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            return
+        }
+        brillig(inline) fn entry_point_one_diff_global f3 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn wrapper f4 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 1, v3
+            v6 = add v5, v4
+            constrain v6 == Field 2
+            call f5(v3, v4)
+            call f6(v4, v3)
+            return
+        }
+        brillig(inline) fn entry_point_one_global f5 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
+            return
+        }
+        brillig(inline) fn entry_point_one_diff_global f6 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 3, v3
+            v6 = add v5, v4
+            constrain v6 == Field 4
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }
