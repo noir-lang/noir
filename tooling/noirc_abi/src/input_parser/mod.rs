@@ -490,7 +490,7 @@ mod test {
         assert!(parse_str_to_signed("-128", 8, "arg_name").is_ok());
         assert!(parse_str_to_signed("-129", 8, "arg_name").is_err());
 
-        assert!(parse_str_to_signed("32767", 16, "arg_name").is_ok());
+        assert_eq!(parse_str_to_signed("32767", 8, "arg_name"), Ok(FieldElement::from(32767_i128)));
         assert!(parse_str_to_signed("32768", 16, "arg_name").is_err());
         assert!(parse_str_to_signed("-32768", 16, "arg_name").is_ok());
         assert!(parse_str_to_signed("-32769", 16, "arg_name").is_err());
