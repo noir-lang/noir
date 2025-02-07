@@ -1,12 +1,12 @@
 use acvm::FieldElement;
 use fm::FileId;
 use modifiers::Modifiers;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{Lexer, SpannedTokenResult},
-    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
+    lexer::{lexer::LocatedTokenResult, Lexer},
+    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
@@ -66,15 +66,13 @@ enum TokenStream<'a> {
 }
 
 impl<'a> TokenStream<'a> {
-    fn next(&mut self) -> Option<SpannedTokenResult> {
+    fn next(&mut self) -> Option<LocatedTokenResult> {
         match self {
-            TokenStream::Lexer(lexer) => {
-                lexer.next().map(|value| value.map(|token| token.into_spanned_token()))
-            }
+            TokenStream::Lexer(lexer) => lexer.next(),
             TokenStream::Tokens(tokens) => {
                 // NOTE: `TokenStream::Tokens` is only created via `Parser::for_tokens(tokens)` which
                 // reverses `tokens`. That's why using `pop` here is fine (done for performance reasons).
-                tokens.0.pop().map(|token| token.into_spanned_token()).map(Ok)
+                tokens.0.pop().map(Ok)
             }
         }
     }
@@ -87,8 +85,8 @@ pub struct Parser<'a> {
     // We always have one look-ahead token for these cases:
     // - check if we get `&` or `&mut`
     // - check if we get `>` or `>>`
-    token: SpannedToken,
-    next_token: SpannedToken,
+    token: LocatedToken,
+    next_token: LocatedToken,
     current_token_span: Span,
     previous_token_span: Span,
 
@@ -136,8 +134,8 @@ impl<'a> Parser<'a> {
         let mut parser = Self {
             errors: Vec::new(),
             tokens,
-            token: eof_spanned_token(),
-            next_token: eof_spanned_token(),
+            token: eof_located_token(),
+            next_token: eof_located_token(),
             current_token_span: Default::default(),
             previous_token_span: Default::default(),
             statement_doc_comments: None,
@@ -186,7 +184,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
-    fn bump(&mut self) -> SpannedToken {
+    fn bump(&mut self) -> LocatedToken {
         self.previous_token_span = self.current_token_span;
         let next_next_token = self.read_token_internal();
         let next_token = std::mem::replace(&mut self.next_token, next_next_token);
@@ -201,17 +199,17 @@ impl<'a> Parser<'a> {
         self.next_token = self.read_token_internal();
     }
 
-    fn read_token_internal(&mut self) -> SpannedToken {
+    fn read_token_internal(&mut self) -> LocatedToken {
         loop {
             match self.tokens.next() {
                 Some(Ok(token)) => return token,
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
-                None => return eof_spanned_token(),
+                None => return eof_located_token(),
             }
         }
     }
 
-    fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
+    fn eat_kind(&mut self, kind: TokenKind) -> Option<LocatedToken> {
         if self.token.kind() == kind {
             Some(self.bump())
         } else {
@@ -589,6 +587,6 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn eof_spanned_token() -> SpannedToken {
-    SpannedToken::new(Token::EOF, Default::default())
+fn eof_located_token() -> LocatedToken {
+    LocatedToken::new(Token::EOF, Location::dummy())
 }
