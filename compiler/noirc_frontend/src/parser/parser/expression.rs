@@ -559,8 +559,8 @@ impl<'a> Parser<'a> {
         let start_location = self.current_token_location;
         let branch = match self.parse_block() {
             Some(block) => {
-                let span = self.location_since(start_location).span;
-                let block = Expression::new(ExpressionKind::Block(block), span);
+                let location = self.location_since(start_location);
+                let block = Expression::new(ExpressionKind::Block(block), location);
                 self.eat_comma(); // comma is optional if we have a block
                 block
             }

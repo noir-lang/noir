@@ -85,11 +85,11 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
                 let expr_kind = self.interner.get_expression_kind(id);
-                let expr = Expression::new(expr_kind.clone(), expr.location.span);
+                let expr = Expression::new(expr_kind.clone(), expr.location);
                 return self.elaborate_expression(expr);
             }
             ExpressionKind::InternedStatement(id) => {
-                return self.elaborate_interned_statement_as_expr(id, expr.location.span);
+                return self.elaborate_interned_statement_as_expr(id, expr.location);
             }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
@@ -111,21 +111,24 @@ impl<'context> Elaborator<'context> {
     fn elaborate_interned_statement_as_expr(
         &mut self,
         id: InternedStatementKind,
-        span: Span,
+        location: Location,
     ) -> (ExprId, Type) {
         match self.interner.get_statement_kind(id) {
             StatementKind::Expression(expr) | StatementKind::Semi(expr) => {
                 self.elaborate_expression(expr.clone())
             }
-            StatementKind::Interned(id) => self.elaborate_interned_statement_as_expr(*id, span),
+            StatementKind::Interned(id) => self.elaborate_interned_statement_as_expr(*id, location),
             StatementKind::Error => {
-                let expr = Expression::new(ExpressionKind::Error, span);
+                let expr = Expression::new(ExpressionKind::Error, location);
                 self.elaborate_expression(expr)
             }
             other => {
                 let statement = other.to_string();
-                self.push_err(ResolverError::InvalidInternedStatementInExpr { statement, span });
-                let expr = Expression::new(ExpressionKind::Error, span);
+                self.push_err(ResolverError::InvalidInternedStatementInExpr {
+                    statement,
+                    span: location.span,
+                });
+                let expr = Expression::new(ExpressionKind::Error, location);
                 self.elaborate_expression(expr)
             }
         }

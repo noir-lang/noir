@@ -311,7 +311,7 @@ impl Value {
             }
         };
 
-        Ok(Expression::new(kind, location.span))
+        Ok(Expression::new(kind, location))
     }
 
     pub(crate) fn into_hir_expression(

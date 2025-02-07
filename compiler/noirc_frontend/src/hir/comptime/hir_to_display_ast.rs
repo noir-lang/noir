@@ -228,14 +228,14 @@ impl HirExpression {
                     PathSegment { ident: variant.name.clone(), location, generics: None };
                 let path =
                     Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
-                let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
+                let func = Box::new(Expression::new(ExpressionKind::Variable(path), location));
                 let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
                 let call = CallExpression { func, arguments, is_macro_call: false };
                 ExpressionKind::Call(Box::new(call))
             }
         };
 
-        Expression::new(kind, span)
+        Expression::new(kind, location)
     }
 }
 
@@ -434,6 +434,7 @@ impl HirLValue {
 impl HirArrayLiteral {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner, span: Span) -> ArrayLiteral {
+        let location = Location::new(span, FileId::dummy()); // TODO: fix this
         match self {
             HirArrayLiteral::Standard(elements) => {
                 ArrayLiteral::Standard(vecmap(elements, |element| element.to_display_ast(interner)))
@@ -444,7 +445,7 @@ impl HirArrayLiteral {
                     Type::Constant(length, _kind) => {
                         let literal = Literal::Integer(*length, false);
                         let expr_kind = ExpressionKind::Literal(literal);
-                        Box::new(Expression::new(expr_kind, span))
+                        Box::new(Expression::new(expr_kind, location))
                     }
                     other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
                 };

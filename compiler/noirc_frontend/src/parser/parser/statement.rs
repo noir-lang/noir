@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
                 };
                 let expression = Expression::new(
                     ExpressionKind::Infix(Box::new(infix)),
-                    self.location_since(start_location).span,
+                    self.location_since(start_location),
                 );
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {

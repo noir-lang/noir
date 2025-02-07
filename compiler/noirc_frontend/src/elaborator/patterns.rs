@@ -852,11 +852,12 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
-        let span = path.item.span();
+        let location = path.item.location();
         let typ = self.resolve_type(path.typ);
 
-        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, span, false) else {
-            let error = Expression::new(ExpressionKind::Error, span);
+        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, location.span, false)
+        else {
+            let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);
         };
 
@@ -864,17 +865,17 @@ impl<'context> Elaborator<'context> {
             .func_id(self.interner)
             .expect("Expected trait function to be a DefinitionKind::Function");
 
-        let generics =
-            path.turbofish.map(|turbofish| self.resolve_type_args(turbofish, func_id, span).0);
+        let generics = path
+            .turbofish
+            .map(|turbofish| self.resolve_type_args(turbofish, func_id, location.span).0);
 
-        let location = Location::new(span, self.file);
         let id = self.interner.function_definition_id(func_id);
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
             HirMethodReference::TraitMethodId(method_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(span);
+                    self.interner.get_trait(method_id.trait_id).as_constraint(location.span);
                 constraint.trait_bound.trait_generics = generics;
                 ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
             }

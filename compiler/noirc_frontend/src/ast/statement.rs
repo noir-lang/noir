@@ -155,30 +155,6 @@ impl StatementKind {
             attributes,
         })
     }
-
-    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
-    pub fn assign(
-        lvalue: LValue,
-        operator: Token,
-        mut expression: Expression,
-        span: Span,
-    ) -> StatementKind {
-        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of LValues.
-        if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression();
-            let error_msg = "Token passed to Statement::assign is not a binary operator";
-
-            let infix = crate::ast::InfixExpression {
-                lhs: lvalue_expr,
-                operator: operator.try_into_binary_op(span).expect(error_msg),
-                rhs: expression,
-            };
-            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
-        }
-
-        StatementKind::Assign(AssignStatement { lvalue, expression })
-    }
 }
 
 #[derive(Eq, Debug, Clone, Default)]
@@ -683,8 +659,7 @@ impl LValue {
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
         };
-        let span = self.span();
-        Expression::new(kind, span)
+        Expression::new(kind, self.location())
     }
 
     pub fn from_expression(expr: Expression) -> Option<LValue> {
@@ -752,13 +727,16 @@ impl ForBounds {
     /// Returns the `start` and `end` expressions.
     pub(crate) fn into_half_open(self) -> (Expression, Expression) {
         let end = if self.inclusive {
-            let end_span = self.end.location.span;
+            let end_location = self.end.location;
             let end = ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: self.end,
-                operator: Spanned::from(end_span, BinaryOpKind::Add),
-                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+                operator: Spanned::from(end_location.span, BinaryOpKind::Add),
+                rhs: Expression::new(
+                    ExpressionKind::integer(FieldElement::from(1u32)),
+                    end_location,
+                ),
             }));
-            Expression::new(end, end_span)
+            Expression::new(end, end_location)
         } else {
             self.end
         };
@@ -814,9 +792,9 @@ impl ForRange {
                 unreachable!()
             }
             ForRange::Array(array) => {
-                let array_span = array.location.span;
+                let array_location = array.location;
                 let start_range = ExpressionKind::integer(FieldElement::zero());
-                let start_range = Expression::new(start_range, array_span);
+                let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;
                 unique_name_counter += 1;
@@ -845,13 +823,13 @@ impl ForRange {
                 });
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: Expression::new(array_ident.clone(), array_span),
+                    object: Expression::new(array_ident.clone(), array_location),
                     method_name: Ident::new("len".to_string(), array_span),
                     generics: None,
                     is_macro_call: false,
                     arguments: vec![],
                 }));
-                let end_range = Expression::new(end_range, array_span);
+                let end_range = Expression::new(end_range, array_location);
 
                 let next_unique_id = unique_name_counter;
                 let index_name = format!("$i{next_unique_id}");
@@ -866,8 +844,8 @@ impl ForRange {
                 });
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
-                    collection: Expression::new(array_ident, array_span),
-                    index: Expression::new(index_ident, array_span),
+                    collection: Expression::new(array_ident, array_location),
+                    index: Expression::new(index_ident, array_location),
                 }));
 
                 // let elem = array[i];
@@ -875,14 +853,13 @@ impl ForRange {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
                         UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        Expression::new(loop_element, array_span),
+                        Expression::new(loop_element, array_location),
                         vec![],
                     ),
                     location: array_location,
                 };
 
                 let block_location = block.location;
-                let block_span = block_location.span;
                 let new_block = BlockExpression {
                     statements: vec![
                         let_elem,
@@ -892,7 +869,7 @@ impl ForRange {
                         },
                     ],
                 };
-                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_location);
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
@@ -907,7 +884,7 @@ impl ForRange {
                     statements: vec![let_array, for_loop],
                 });
                 Statement {
-                    kind: StatementKind::Expression(Expression::new(block, for_loop_location.span)),
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_location)),
                     location: for_loop_location,
                 }
             }
