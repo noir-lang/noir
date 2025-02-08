@@ -279,7 +279,6 @@ impl<'a> ModCollector<'a> {
                 &mut context.usage_tracker,
                 &function.item,
                 module,
-                self.file_id,
                 function.doc_comments,
                 &mut errors,
             ) else {
@@ -974,7 +973,6 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    file: FileId,
     doc_comments: Vec<String>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<crate::node_interner::FuncId> {
@@ -997,7 +995,7 @@ pub fn collect_function(
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
     let visibility = function.def.visibility;
-    let location = Location::new(function.span(), file);
+    let location = function.location();
     interner.push_function(func_id, &function.def, module, location);
     if interner.is_in_lsp_mode() && !function.def.is_test() {
         interner.register_function(func_id, &function.def);
@@ -1013,6 +1011,7 @@ pub fn collect_function(
     // Add function to scope/ns of the module
     let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
     if let Err((first_def, second_def)) = result {
+        let file = second_def.location().file;
         let error = DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::Function,
             first_def,

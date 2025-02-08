@@ -380,7 +380,6 @@ impl<'context> Elaborator<'context> {
                     self.usage_tracker,
                     &function,
                     module_id,
-                    self.file,
                     item.doc_comments,
                     &mut self.errors,
                 ) {
