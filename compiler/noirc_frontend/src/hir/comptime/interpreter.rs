@@ -673,7 +673,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 FmtStrFragment::String(string) => {
                     result.push_str(&string);
                 }
-                FmtStrFragment::Interpolation(_, span) => {
+                FmtStrFragment::Interpolation(_, span, _) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.

@@ -310,9 +310,8 @@ impl<'context> Elaborator<'context> {
         let mut capture_types = Vec::new();
 
         for fragment in &fragments {
-            if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
-                // TODO: fix this (don't use `self.file`)
-                let string_location = Location::new(*string_span, self.file);
+            if let FmtStrFragment::Interpolation(ident_name, string_span, file) = fragment {
+                let string_location = Location::new(*string_span, *file);
 
                 let scope_tree = self.scopes.current_scope_tree();
                 let variable = scope_tree.find(ident_name);
@@ -323,24 +322,21 @@ impl<'context> Elaborator<'context> {
                 } else if let Ok((definition_id, _)) =
                     self.lookup_global(Path::from_single(ident_name.to_string(), string_location))
                 {
-                    HirIdent::non_trait_method(
-                        definition_id,
-                        Location::new(*string_span, self.file),
-                    )
+                    HirIdent::non_trait_method(definition_id, Location::new(*string_span, *file))
                 } else {
                     self.push_err(
                         ResolverError::VariableNotDeclared {
                             name: ident_name.to_owned(),
                             span: *string_span,
                         },
-                        self.file,
+                        *file,
                     );
                     continue;
                 };
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(expr_id, *string_span, self.file);
+                self.interner.push_expr_location(expr_id, *string_span, *file);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
                 capture_types.push(typ);
