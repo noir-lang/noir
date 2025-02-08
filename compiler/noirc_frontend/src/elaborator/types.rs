@@ -1824,7 +1824,7 @@ impl<'context> Elaborator<'context> {
         let span = location.span;
         let file = location.file;
 
-        self.run_lint(|elaborator| {
+        self.run_lint(file, |elaborator| {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
 
@@ -1852,7 +1852,7 @@ impl<'context> Elaborator<'context> {
             }
 
             if let Some(called_func_id) = self.interner.lookup_function_from_expr(&call.func) {
-                self.run_lint(|elaborator| {
+                self.run_lint(file, |elaborator| {
                     lints::oracle_called_from_constrained_function(
                         elaborator.interner,
                         &called_func_id,
@@ -1872,7 +1872,7 @@ impl<'context> Elaborator<'context> {
         let return_type = self.bind_function_type(func_type, args, location);
 
         if crossing_runtime_boundary {
-            self.run_lint(|_| {
+            self.run_lint(file, |_| {
                 lints::unconstrained_function_return(&return_type, span).map(Into::into)
             });
         }

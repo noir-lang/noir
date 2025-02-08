@@ -530,7 +530,7 @@ impl<'context> Elaborator<'context> {
 
         // Check that the body can return without calling the function.
         if let FunctionKind::Normal = kind {
-            self.run_lint(|elaborator| {
+            self.run_lint(func_meta.name.location.file, |elaborator| {
                 lints::unbounded_recursion(
                     elaborator.interner,
                     id,
@@ -721,9 +721,9 @@ impl<'context> Elaborator<'context> {
         self.errors.push((error.into(), file));
     }
 
-    fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
+    fn run_lint(&mut self, file: FileId, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
-            self.push_err(error, self.file); // TODO: fix this
+            self.push_err(error, file);
         }
     }
 
@@ -930,8 +930,8 @@ impl<'context> Elaborator<'context> {
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
 
-        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
-            self.run_lint(|_| {
+        for Param { visibility, pattern, typ, location } in func.parameters().iter().cloned() {
+            self.run_lint(location.file, |_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
@@ -1088,14 +1088,17 @@ impl<'context> Elaborator<'context> {
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
-        self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
-        self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
-        self.run_lint(|_| {
+        let file = func.location.file;
+        self.run_lint(file, |_| lints::inlining_attributes(func, modifiers).map(Into::into));
+        self.run_lint(file, |_| lints::missing_pub(func, modifiers).map(Into::into));
+        self.run_lint(file, |_| {
             let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
-        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
-        self.run_lint(|elaborator| {
+        self.run_lint(file, |_| {
+            lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into)
+        });
+        self.run_lint(file, |elaborator| {
             lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
                 .map(Into::into)
         });
