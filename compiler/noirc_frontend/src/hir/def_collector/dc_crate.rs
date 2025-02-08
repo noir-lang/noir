@@ -503,15 +503,15 @@ impl DefCollector {
         let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
 
-        errors.extend(unused_imports.flat_map(|(module_id, usage_tracker)| {
-            let module = &context.def_maps[&crate_id].modules()[module_id.local_id.0];
+        errors.extend(unused_imports.flat_map(|(_, usage_tracker)| {
             usage_tracker.iter().map(|(ident, unused_item)| {
                 let ident = ident.clone();
+                let file = ident.location().file;
                 let error = CompilationError::ResolverError(ResolverError::UnusedItem {
                     ident,
                     item: *unused_item,
                 });
-                (error, module.location.file)
+                (error, file)
             })
         }));
     }
