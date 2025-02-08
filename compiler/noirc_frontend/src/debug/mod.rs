@@ -57,7 +57,7 @@ impl Default for DebugInstrumenter {
 }
 
 impl DebugInstrumenter {
-    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
         module.items.iter_mut().for_each(|item| {
             if let Item { kind: ItemKind::Function(f), .. } = item {
                 self.walk_fn(&mut f.def);
@@ -65,7 +65,7 @@ impl DebugInstrumenter {
         });
         // this part absolutely must happen after ast traversal above
         // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, 8);
+        self.insert_state_set_oracle(module, 8, file);
     }
 
     fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
@@ -499,7 +499,7 @@ impl DebugInstrumenter {
         }
     }
 
-    fn insert_state_set_oracle(&self, module: &mut ParsedModule, n: u32) {
+    fn insert_state_set_oracle(&self, module: &mut ParsedModule, n: u32, file: FileId) {
         let member_assigns = (1..=n)
             .map(|i| format!["__debug_member_assign_{i}"])
             .collect::<Vec<String>>()
@@ -516,7 +516,7 @@ impl DebugInstrumenter {
                 {member_assigns},
             }};"#
             ),
-            FileId::dummy(), // TODO: check this
+            file,
         );
         if !errors.is_empty() {
             panic!("errors parsing internal oracle definitions: {errors:?}")
