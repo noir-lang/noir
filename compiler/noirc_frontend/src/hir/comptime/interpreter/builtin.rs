@@ -570,7 +570,6 @@ fn struct_def_fields(
 
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type) in struct_fields {
-            // TODO: check this
             let token = LocatedToken::new(Token::Ident(field_name), location);
             let name = Value::Quoted(Rc::new(vec![token]));
             fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
@@ -602,7 +601,6 @@ fn struct_def_fields_as_written(
 
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
-            // TODO: check this
             let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
             let name = Value::Quoted(Rc::new(vec![token]));
             let typ = Value::Type(field.typ);
@@ -640,7 +638,6 @@ fn struct_def_name(
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
-    // TODO: check this
     let token = LocatedToken::new(name, location);
     Ok(Value::Quoted(Rc::new(vec![token])))
 }
@@ -1801,7 +1798,6 @@ fn expr_as_for(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.0.contents);
-                // TODO: check this
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
@@ -1828,7 +1824,6 @@ fn expr_as_for_range(
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.0.contents);
-                // TODO: check this
                 let token = LocatedToken::new(token, location);
                 let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
@@ -2511,7 +2506,6 @@ fn function_def_name(
     let func_id = get_function_def(self_argument)?;
     let name = interner.function_name(&func_id).to_string();
     let token = Token::Ident(name);
-    // TODO: check this
     let token = LocatedToken::new(token, location);
     let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))
@@ -2532,7 +2526,6 @@ fn function_def_parameters(
         .iter()
         .map(|(hir_pattern, typ, _visibility)| {
             let tokens = hir_pattern_to_tokens(interner, hir_pattern);
-            // TODO: check this
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
             let name = Value::Quoted(Rc::new(tokens));
             let typ = Value::Type(typ.clone());
@@ -2862,7 +2855,6 @@ fn module_name(
     let module_id = get_module(self_argument)?;
     let name = &interner.module_attributes(&module_id).name;
     let token = Token::Ident(name.clone());
-    // TODO: check this
     let token = LocatedToken::new(token, location);
     let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))

@@ -590,7 +590,6 @@ pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
 
 fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
     let token = Token::Ident(ident.0.contents.clone());
-    // TODO: check this
     let token = LocatedToken::new(token, location);
     Rc::new(vec![token])
 }

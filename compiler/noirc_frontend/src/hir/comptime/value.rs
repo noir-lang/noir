@@ -530,7 +530,6 @@ impl Value {
             Value::Field(value) => vec![Token::Int(value)],
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
-        // TODO: check this
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
         Ok(tokens)
     }
