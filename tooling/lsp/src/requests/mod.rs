@@ -127,7 +127,9 @@ fn default_enable_code_lens() -> bool {
 }
 
 fn default_enable_parsing_cache() -> bool {
-    true
+    // TODO: disabled until the FileID from cached AST nodes is replaced
+    // after getting them from the cache
+    false
 }
 
 fn default_inlay_hints() -> InlayHintsOptions {
