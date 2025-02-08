@@ -55,7 +55,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location.span)
+                return self.elaborate_member_access(*access, expr.location)
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
@@ -683,7 +683,7 @@ impl<'context> Elaborator<'context> {
             expr_span,
         });
 
-        (HirExpression::Constrain(HirConstrainExpression(expr_id, self.file, msg)), Type::Unit)
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
     }
 
     /// Elaborates an expression knowing that it has to match a given type.
@@ -696,12 +696,13 @@ impl<'context> Elaborator<'context> {
             return self.elaborate_expression(arg);
         };
 
-        let span = arg.location.span;
+        let location = arg.location;
+        let span = location.span;
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
         let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, span, self.file);
+        self.interner.push_expr_location(id, span, location.file);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -950,22 +951,22 @@ impl<'context> Elaborator<'context> {
     fn elaborate_member_access(
         &mut self,
         access: MemberAccessExpression,
-        span: Span,
+        location: Location,
     ) -> (ExprId, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
         let rhs = access.rhs;
         let rhs_location = rhs.location();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset: false };
-        let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), span);
+        let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
         let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
-    pub fn intern_expr(&mut self, expr: HirExpression, span: Span) -> ExprId {
+    pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
         let id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(id, span, self.file);
+        self.interner.push_expr_location(id, location.span, location.file);
         id
     }
 

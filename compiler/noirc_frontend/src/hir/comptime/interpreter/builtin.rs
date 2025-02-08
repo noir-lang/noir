@@ -2597,7 +2597,7 @@ fn function_def_set_body(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
-    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location.span);
+    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location);
 
     Ok(Value::Unit)
 }

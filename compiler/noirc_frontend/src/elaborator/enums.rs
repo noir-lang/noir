@@ -72,7 +72,7 @@ impl Elaborator<'_> {
             name.clone(),
             type_id.local_module_id(),
             type_id.krate(),
-            self.file,
+            name.location().file,
             Vec::new(),
             false,
             false,
@@ -167,7 +167,7 @@ impl Elaborator<'_> {
             function_body: FunctionBody::Resolved,
             source_crate: self.crate_id,
             source_module: type_id.local_module_id(),
-            source_file: self.file,
+            source_file: variant.name.location().file,
             self_type: None,
         };
 

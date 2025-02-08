@@ -427,8 +427,8 @@ impl<'context> Elaborator<'context> {
         let func_meta =
             func_meta.expect("FuncMetas should be declared before a function is elaborated");
 
-        let (kind, body, body_span) = match func_meta.take_body() {
-            FunctionBody::Unresolved(kind, body, span) => (kind, body, span),
+        let (kind, body, body_location) = match func_meta.take_body() {
+            FunctionBody::Unresolved(kind, body, location) => (kind, body, location),
             FunctionBody::Resolved => return,
             // Do not error for the still-resolving case. If there is a dependency cycle,
             // the dependency cycle check will find it later on.
@@ -502,7 +502,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
-                let expr_id = self.intern_expr(block, body_span);
+                let expr_id = self.intern_expr(block, body_location);
                 self.interner.push_expr_type(expr_id, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
@@ -1020,9 +1020,9 @@ impl<'context> Elaborator<'context> {
             has_inline_attribute,
             source_crate: self.crate_id,
             source_module: self.local_module,
-            function_body: FunctionBody::Unresolved(func.kind, body, func.def.location.span),
+            function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
-            source_file: self.file,
+            source_file: location.file,
         };
 
         self.interner.push_fn_meta(meta, func_id);
