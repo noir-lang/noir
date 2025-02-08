@@ -446,7 +446,6 @@ impl<'context> Elaborator<'context> {
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
-                    self.file,
                     self.local_module,
                     self.crate_id,
                     &mut self.errors,

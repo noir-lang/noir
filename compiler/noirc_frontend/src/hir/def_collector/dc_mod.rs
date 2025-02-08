@@ -315,7 +315,6 @@ impl<'a> ModCollector<'a> {
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
                 struct_definition,
-                self.file_id,
                 self.module_id,
                 krate,
                 &mut definition_errors,
@@ -1030,15 +1029,15 @@ pub fn collect_struct(
     def_map: &mut CrateDefMap,
     usage_tracker: &mut UsageTracker,
     struct_definition: Documented<NoirStruct>,
-    file_id: FileId,
     module_id: LocalModuleId,
     krate: CrateId,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<(TypeId, UnresolvedStruct)> {
     let doc_comments = struct_definition.doc_comments;
     let struct_definition = struct_definition.item;
+    let file_id = struct_definition.location.file;
 
-    check_duplicate_field_names(&struct_definition, file_id, definition_errors);
+    check_duplicate_field_names(&struct_definition, definition_errors);
 
     let name = struct_definition.name.clone();
 
@@ -1442,7 +1441,6 @@ pub(crate) fn collect_global(
 
 fn check_duplicate_field_names(
     struct_definition: &NoirStruct,
-    file: FileId,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let mut seen_field_names = std::collections::HashSet::new();
@@ -1459,7 +1457,7 @@ fn check_duplicate_field_names(
             first_def: previous_field_name.clone(),
             second_def: field_name.clone(),
         };
-        definition_errors.push((error.into(), file));
+        definition_errors.push((error.into(), field_name.location().file));
     }
 }
 
