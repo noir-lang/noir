@@ -361,15 +361,13 @@ impl DefCollector {
         for collected_import in std::mem::take(&mut def_collector.imports) {
             let local_module_id = collected_import.module_id;
             let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
-            let current_def_map = context.def_maps.get(&crate_id).unwrap();
-            let file_id = current_def_map.file_id(local_module_id);
 
             let resolved_import = resolve_import(
                 collected_import.path.clone(),
                 module_id,
                 &context.def_maps,
                 &mut context.usage_tracker,
-                Some(ReferencesTracker::new(&mut context.def_interner, file_id)),
+                Some(ReferencesTracker::new(&mut context.def_interner)),
             );
 
             match resolved_import {

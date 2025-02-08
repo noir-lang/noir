@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Span};
+use noirc_errors::{CustomDiagnostic, Location, Span};
 use thiserror::Error;
 
 use crate::graph::CrateId;
@@ -214,8 +214,8 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         if let Some(references_tracker) = &mut self.references_tracker {
-            let span = crate_name.span();
-            references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), span, false);
+            let location = crate_name.location();
+            references_tracker.add_reference(ModuleDefId::ModuleId(*dep_module), location, false);
         }
 
         // Now the path can be solved starting from the second segment as a plain path
@@ -297,11 +297,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            self.add_reference(
-                typ,
-                last_segment.location.span,
-                last_segment.ident.is_self_type_name(),
-            );
+            self.add_reference(typ, last_segment.location, last_segment.ident.is_self_type_name());
 
             // In the type namespace, only Mod can be used in a path.
             current_module_id = match typ {
@@ -343,7 +339,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         let (module_def_id, visibility, _) =
             current_ns.values.or(current_ns.types).expect("Found empty namespace");
 
-        self.add_reference(module_def_id, path.segments.last().unwrap().ident.span(), false);
+        self.add_reference(module_def_id, path.segments.last().unwrap().ident.location(), false);
 
         if !self.item_in_module_is_visible(current_module_id, visibility) {
             errors.push(PathResolutionError::Private(path.last_ident()));
@@ -352,9 +348,14 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
         Ok(ResolvedImport { namespace: current_ns, errors })
     }
 
-    fn add_reference(&mut self, reference_id: ModuleDefId, span: Span, is_self_type_name: bool) {
+    fn add_reference(
+        &mut self,
+        reference_id: ModuleDefId,
+        location: Location,
+        is_self_type_name: bool,
+    ) {
         if let Some(references_tracker) = &mut self.references_tracker {
-            references_tracker.add_reference(reference_id, span, is_self_type_name);
+            references_tracker.add_reference(reference_id, location, is_self_type_name);
         }
     }
 

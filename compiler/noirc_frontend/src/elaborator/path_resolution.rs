@@ -150,7 +150,7 @@ impl<'context> Elaborator<'context> {
         importing_module: ModuleId,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
-            Some(ReferencesTracker::new(self.interner, self.file))
+            Some(ReferencesTracker::new(self.interner))
         } else {
             None
         };

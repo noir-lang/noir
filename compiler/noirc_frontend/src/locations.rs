@@ -1,5 +1,5 @@
 use fm::FileId;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -36,22 +36,19 @@ impl LocationIndices {
 
 pub struct ReferencesTracker<'a> {
     interner: &'a mut NodeInterner,
-    file_id: FileId,
 }
 
 impl<'a> ReferencesTracker<'a> {
-    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
-        Self { interner, file_id }
+    pub fn new(interner: &'a mut NodeInterner) -> Self {
+        Self { interner }
     }
 
     pub(crate) fn add_reference(
         &mut self,
         module_def_id: ModuleDefId,
-        span: Span,
+        location: Location,
         is_self_type: bool,
     ) {
-        // TODO: fix this (receive a location here)
-        let location = Location::new(span, self.file_id);
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
     }
 }
