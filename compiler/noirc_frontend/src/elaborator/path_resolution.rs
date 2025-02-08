@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
@@ -73,7 +73,7 @@ impl PathResolutionItem {
 #[derive(Debug, Clone)]
 pub struct Turbofish {
     pub generics: Vec<UnresolvedType>,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Any item that can appear before the last segment in a path.
@@ -107,10 +107,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
+        let file = path.location.file;
         let path_resolution = self.resolve_path(path)?;
 
         for error in path_resolution.errors {
-            self.push_err(error);
+            self.push_err(error, file);
         }
 
         Ok(path_resolution.item)

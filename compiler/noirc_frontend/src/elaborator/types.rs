@@ -1,5 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
+use fm::FileId;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -50,10 +51,11 @@ pub(super) struct TraitPathResolution {
 impl<'context> Elaborator<'context> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        let span = typ.location.span;
+        let location = typ.location;
+        let span = location.span;
         let resolved_type = self.resolve_type_inner(typ, &Kind::Normal);
         if resolved_type.is_nested_slice() {
-            self.push_err(ResolverError::NestedSlices { span });
+            self.push_err(ResolverError::NestedSlices { span }, location.file);
         }
         resolved_type
     }
@@ -80,38 +82,43 @@ impl<'context> Elaborator<'context> {
             FieldElement => Type::FieldElement,
             Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
-                let size = self.convert_expression_type(size, &Kind::u32(), span);
+                let size = self.convert_expression_type(size, &Kind::u32(), location);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, kind));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr, kind, span),
+            Expression(expr) => self.convert_expression_type(expr, kind, location),
             Integer(sign, bits) => Type::Integer(sign, bits),
             Bool => Type::Bool,
             String(size) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
                 Type::String(Box::new(resolved_size))
             }
             FormatString(size, fields) => {
-                let resolved_size = self.convert_expression_type(size, &Kind::u32(), span);
+                let resolved_size = self.convert_expression_type(size, &Kind::u32(), location);
                 let fields = self.resolve_type_inner(*fields, kind);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             Quoted(quoted) => {
                 let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
                 if in_function && !self.in_comptime_context() {
-                    let span = typ.location.span;
+                    let location = typ.location;
+                    let span = location.span;
                     let typ = quoted.to_string();
-                    self.push_err(ResolverError::ComptimeTypeInRuntimeCode { span, typ });
+                    self.push_err(
+                        ResolverError::ComptimeTypeInRuntimeCode { span, typ },
+                        location.file,
+                    );
                 }
                 Type::Quoted(quoted)
             }
             Unit => Type::Unit,
             Unspecified => {
-                let span = typ.location.span;
-                self.push_err(TypeCheckError::UnspecifiedType { span });
+                let location = typ.location;
+                let span = location.span;
+                self.push_err(TypeCheckError::UnspecifiedType { span }, location.file);
                 Type::Error
             }
             Error => Type::Error,
@@ -124,7 +131,7 @@ impl<'context> Elaborator<'context> {
             Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, kind));
                 let ret = Box::new(self.resolve_type_inner(*ret, kind));
-                let env_span = env.location.span;
+                let env_location = env.location;
 
                 let env = Box::new(self.resolve_type_inner(*env, kind));
 
@@ -133,10 +140,13 @@ impl<'context> Elaborator<'context> {
                         Type::Function(args, ret, env, unconstrained)
                     }
                     _ => {
-                        self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
-                            span: env_span,
-                        });
+                        self.push_err(
+                            ResolverError::InvalidClosureEnvironment {
+                                typ: *env,
+                                span: env_location.span,
+                            },
+                            env_location.file,
+                        );
                         Type::Error
                     }
                 }
@@ -224,7 +234,10 @@ impl<'context> Elaborator<'context> {
             if name == SELF_TYPE_NAME {
                 if let Some(self_type) = self.self_type.clone() {
                     if !args.is_empty() {
-                        self.push_err(ResolverError::GenericsOnSelfType { span: path.span() });
+                        self.push_err(
+                            ResolverError::GenericsOnSelfType { span: path.span() },
+                            path.location.file,
+                        );
                     }
                     return self_type;
                 }
@@ -233,7 +246,10 @@ impl<'context> Elaborator<'context> {
             }
         } else if let Some(typ) = self.lookup_associated_type_on_self(&path) {
             if !args.is_empty() {
-                self.push_err(ResolverError::GenericsOnAssociatedType { span: path.span() });
+                self.push_err(
+                    ResolverError::GenericsOnAssociatedType { span: path.span() },
+                    path.location.file,
+                );
             }
             return typ;
         }
@@ -263,9 +279,10 @@ impl<'context> Elaborator<'context> {
         match self.lookup_datatype_or_error(path) {
             Some(data_type) => {
                 if self.resolving_ids.contains(&data_type.borrow().id) {
-                    self.push_err(ResolverError::SelfReferentialType {
-                        span: data_type.borrow().name.span(),
-                    });
+                    self.push_err(
+                        ResolverError::SelfReferentialType { span: data_type.borrow().name.span() },
+                        data_type.borrow().name.location().file,
+                    );
 
                     return Type::Error;
                 }
@@ -277,9 +294,12 @@ impl<'context> Elaborator<'context> {
                         .iter()
                         .any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
                 {
-                    self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        span: data_type.borrow().name.span(),
-                    });
+                    self.push_err(
+                        ResolverError::AbiAttributeOutsideContract {
+                            span: data_type.borrow().name.span(),
+                        },
+                        data_type.borrow().name.location().file,
+                    );
                 }
 
                 let (args, _) = self.resolve_type_args(args, data_type.borrow(), location);
@@ -341,12 +361,15 @@ impl<'context> Elaborator<'context> {
         let expected_kinds = item.generics(self.interner);
 
         if args.ordered_args.len() != expected_kinds.len() {
-            self.push_err(TypeCheckError::GenericCountMismatch {
-                item: item.item_name(self.interner),
-                expected: expected_kinds.len(),
-                found: args.ordered_args.len(),
-                span: location.span,
-            });
+            self.push_err(
+                TypeCheckError::GenericCountMismatch {
+                    item: item.item_name(self.interner),
+                    expected: expected_kinds.len(),
+                    found: args.ordered_args.len(),
+                    span: location.span,
+                },
+                location.file,
+            );
             let error_type = UnresolvedTypeData::Error.with_location(location);
             args.ordered_args.resize(expected_kinds.len(), error_type);
         }
@@ -366,7 +389,10 @@ impl<'context> Elaborator<'context> {
             );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
-            self.push_err(ResolverError::NamedTypeArgs { span: location.span, item_kind });
+            self.push_err(
+                ResolverError::NamedTypeArgs { span: location.span, item_kind },
+                location.file,
+            );
         }
 
         (ordered, associated)
@@ -390,11 +416,12 @@ impl<'context> Elaborator<'context> {
                 required_args.iter().position(|item| item.name.as_ref() == &name.0.contents);
 
             let Some(index) = index else {
+                let file = name.location().file;
                 if let Some(prev_span) = seen_args.get(&name.0.contents).copied() {
-                    self.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_span });
+                    self.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_span }, file);
                 } else {
                     let item = item.item_name(self.interner);
-                    self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                    self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item }, file);
                 }
                 continue;
             };
@@ -418,11 +445,10 @@ impl<'context> Elaborator<'context> {
                 resolved.push(NamedType { name, typ });
             } else {
                 let item = item.item_name(self.interner);
-                self.push_err(TypeCheckError::MissingNamedTypeArg {
-                    item,
-                    span: location.span,
-                    name,
-                });
+                self.push_err(
+                    TypeCheckError::MissingNamedTypeArg { item, span: location.span, name },
+                    location.file,
+                );
             }
         }
 
@@ -460,32 +486,43 @@ impl<'context> Elaborator<'context> {
                         return self.lookup_generic_or_global_type(path);
                     } else {
                         let path = path.clone();
-                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
+                        let file = path.location.file;
+                        self.push_err(ResolverError::NoSuchNumericTypeVariable { path }, file);
                         return None;
                     }
                 };
 
                 let rhs = stmt.expression;
-                let span = self.interner.expr_span(&rhs);
+                let location = self.interner.expr_location(&rhs);
+                let span = location.span;
 
                 let GlobalValue::Resolved(global_value) = &self.interner.get_global(id).value
                 else {
-                    self.push_err(ResolverError::UnevaluatedGlobalType { span });
+                    self.push_err(ResolverError::UnevaluatedGlobalType { span }, location.file);
                     return None;
                 };
 
                 let Some(global_value) = global_value.to_field_element() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
-                        self.push_err(ResolverError::NegativeGlobalType { span, global_value });
+                        self.push_err(
+                            ResolverError::NegativeGlobalType { span, global_value },
+                            location.file,
+                        );
                     } else {
-                        self.push_err(ResolverError::NonIntegralGlobalType { span, global_value });
+                        self.push_err(
+                            ResolverError::NonIntegralGlobalType { span, global_value },
+                            location.file,
+                        );
                     }
                     return None;
                 };
 
                 let Ok(global_value) = kind.ensure_value_fits(global_value, span) else {
-                    self.push_err(ResolverError::GlobalLargerThanKind { span, global_value, kind });
+                    self.push_err(
+                        ResolverError::GlobalLargerThanKind { span, global_value, kind },
+                        location.file,
+                    );
                     return None;
                 };
 
@@ -499,42 +536,48 @@ impl<'context> Elaborator<'context> {
         &mut self,
         length: UnresolvedTypeExpression,
         expected_kind: &Kind,
-        span: Span,
+        location: Location,
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default());
-                self.check_kind(typ, expected_kind, span)
+                self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, _span) => {
                 Type::Constant(int, expected_kind.clone())
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
-                let (lhs_span, rhs_span) = (lhs.span(), rhs.span());
-                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_span);
-                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_span);
+                let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
+                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_location);
+                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_location);
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
                         if !lhs_kind.unifies(&rhs_kind) {
-                            self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: lhs_kind.to_string(),
-                                expr_kind: rhs_kind.to_string(),
-                                expr_span: location.span,
-                            });
+                            self.push_err(
+                                TypeCheckError::TypeKindMismatch {
+                                    expected_kind: lhs_kind.to_string(),
+                                    expr_kind: rhs_kind.to_string(),
+                                    expr_span: location.span,
+                                },
+                                location.file,
+                            );
                             return Type::Error;
                         }
                         match op.function(lhs, rhs, &lhs_kind, location.span) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
-                                self.push_err(ResolverError::BinaryOpError {
-                                    lhs,
-                                    op,
-                                    rhs,
-                                    err,
-                                    span: location.span,
-                                });
+                                self.push_err(
+                                    ResolverError::BinaryOpError {
+                                        lhs,
+                                        op,
+                                        rhs,
+                                        err,
+                                        span: location.span,
+                                    },
+                                    location.file,
+                                );
                                 Type::Error
                             }
                         }
@@ -548,18 +591,21 @@ impl<'context> Elaborator<'context> {
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 let typ = self.resolve_as_trait_path(*path);
-                self.check_kind(typ, expected_kind, span)
+                self.check_kind(typ, expected_kind, location)
             }
         }
     }
 
-    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, span: Span) -> Type {
+    fn check_kind(&mut self, typ: Type, expected_kind: &Kind, location: Location) -> Type {
         if !typ.kind().unifies(expected_kind) {
-            self.push_err(TypeCheckError::TypeKindMismatch {
-                expected_kind: expected_kind.to_string(),
-                expr_kind: typ.kind().to_string(),
-                expr_span: span,
-            });
+            self.push_err(
+                TypeCheckError::TypeKindMismatch {
+                    expected_kind: expected_kind.to_string(),
+                    expr_kind: typ.kind().to_string(),
+                    expr_span: location.span,
+                },
+                location.file,
+            );
             return Type::Error;
         }
         typ
@@ -579,7 +625,7 @@ impl<'context> Elaborator<'context> {
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok(impl_kind) => self.get_associated_type_from_trait_impl(path, impl_kind),
             Err(constraints) => {
-                self.push_trait_constraint_error(&object_type, constraints, location.span);
+                self.push_trait_constraint_error(&object_type, constraints, location);
                 Type::Error
             }
         }
@@ -601,8 +647,9 @@ impl<'context> Elaborator<'context> {
             Some(generic) => generic.typ.clone(),
             None => {
                 let name = path.impl_item.clone();
+                let file = name.location().file;
                 let item = format!("<{} as {}>", path.typ, path.trait_path);
-                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item });
+                self.push_err(TypeCheckError::NoSuchNamedTypeArg { name, item }, file);
                 Type::Error
             }
         }
@@ -791,19 +838,19 @@ impl<'context> Elaborator<'context> {
         actual: &Type,
         expected: &Type,
         expression: ExprId,
-        span: Span,
+        location: Location,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         let mut errors = Vec::new();
         actual.unify_with_coercions(
             expected,
             expression,
-            span,
+            location.span,
             self.interner,
             &mut errors,
             make_error,
         );
-        self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+        self.errors.extend(errors.into_iter().map(|error| (error.into(), location.file)));
     }
 
     /// Return a fresh integer or field type variable and log it
@@ -891,24 +938,27 @@ impl<'context> Elaborator<'context> {
         &mut self,
         fn_params: &[Type],
         fn_ret: &Type,
-        callsite_args: &[(Type, ExprId, Span)],
-        span: Span,
+        callsite_args: &[(Type, ExprId, Location)],
+        location: Location,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
-            self.push_err(TypeCheckError::ParameterCountMismatch {
-                expected: fn_params.len(),
-                found: callsite_args.len(),
-                span,
-            });
+            self.push_err(
+                TypeCheckError::ParameterCountMismatch {
+                    expected: fn_params.len(),
+                    found: callsite_args.len(),
+                    span: location.span,
+                },
+                location.file,
+            );
             return Type::Error;
         }
 
-        for (param, (arg, arg_expr_id, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_span, || {
+        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
+            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
                     expr_typ: arg.to_string(),
-                    expr_span: *arg_span,
+                    expr_span: arg_location.span,
                 }
             });
         }
@@ -919,15 +969,15 @@ impl<'context> Elaborator<'context> {
     pub(super) fn bind_function_type(
         &mut self,
         function: Type,
-        args: Vec<(Type, ExprId, Span)>,
-        span: Span,
+        args: Vec<(Type, ExprId, Location)>,
+        location: Location,
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
             Type::TypeVariable(binding) if binding.kind() == Kind::Normal => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
-                    return self.bind_function_type(typ.clone(), args, span);
+                    return self.bind_function_type(typ.clone(), args, location);
                 }
 
                 let ret = self.interner.next_type_variable();
@@ -937,19 +987,22 @@ impl<'context> Elaborator<'context> {
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
                 let expected_kind = expected.kind();
-                if let Err(error) = binding.try_bind(expected, &expected_kind, span) {
-                    self.push_err(error);
+                if let Err(error) = binding.try_bind(expected, &expected_kind, location.span) {
+                    self.push_err(error, location.file);
                 }
                 ret
             }
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
             Type::Function(parameters, ret, _env, _unconstrained) => {
-                self.bind_function_type_impl(&parameters, &ret, &args, span)
+                self.bind_function_type_impl(&parameters, &ret, &args, location)
             }
             Type::Error => Type::Error,
             found => {
-                self.push_err(TypeCheckError::ExpectedFunction { found, span });
+                self.push_err(
+                    TypeCheckError::ExpectedFunction { found, span: location.span },
+                    location.file,
+                );
                 Type::Error
             }
         }
@@ -960,8 +1013,10 @@ impl<'context> Elaborator<'context> {
         from_expr_id: &ExprId,
         from: &Type,
         to: &Type,
-        span: Span,
+        location: Location,
     ) -> Type {
+        let span = location.span;
+        let file = location.file;
         let from_follow_bindings = from.follow_bindings();
 
         let from_value_opt = match self.interner.expression(from_expr_id) {
@@ -982,7 +1037,7 @@ impl<'context> Elaborator<'context> {
                 let expected = self.polymorphic_integer_or_field();
                 self.unify(from, &expected, || TypeCheckError::InvalidCast {
                     from: from.clone(),
-                    span,
+                    span: location.span,
                     reason: "casting from a non-integral type is unsupported".into(),
                 });
                 true
@@ -990,7 +1045,7 @@ impl<'context> Elaborator<'context> {
             Type::Error => return Type::Error,
             from => {
                 let reason = "casting from this type is unsupported".into();
-                self.push_err(TypeCheckError::InvalidCast { from, span, reason });
+                self.push_err(TypeCheckError::InvalidCast { from, span, reason }, file);
                 return Type::Error;
             }
         };
@@ -1007,7 +1062,7 @@ impl<'context> Elaborator<'context> {
                 let to = to.clone();
                 let reason = format!("casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it");
                 // we warn that the 'to' type is too small for the value
-                self.push_err(TypeCheckError::DownsizingCast { from, to, span, reason });
+                self.push_err(TypeCheckError::DownsizingCast { from, to, span, reason }, file);
             }
         }
 
@@ -1017,7 +1072,7 @@ impl<'context> Elaborator<'context> {
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
             _ => {
-                self.push_err(TypeCheckError::UnsupportedCast { span });
+                self.push_err(TypeCheckError::UnsupportedCast { span }, file);
                 Type::Error
             }
         }
@@ -1415,19 +1470,24 @@ impl<'context> Elaborator<'context> {
         location: Location,
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
+        let span = location.span;
+        let file = location.file;
         match object_type.follow_bindings() {
             // TODO: We should allow method calls on `impl Trait`s eventually.
             //       For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span: location.span,
-                });
+                self.push_err(
+                    TypeCheckError::UnresolvedMethodCall {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
+                        span,
+                    },
+                    file,
+                );
                 None
             }
             Type::NamedGeneric(_, _) => {
-                self.lookup_method_in_trait_constraints(object_type, method_name, location.span)
+                self.lookup_method_in_trait_constraints(object_type, method_name, location)
             }
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
@@ -1441,9 +1501,7 @@ impl<'context> Elaborator<'context> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(var) if var.kind() == Kind::Normal => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
-                    span: location.span,
-                });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span }, file);
                 None
             }
 
@@ -1460,6 +1518,9 @@ impl<'context> Elaborator<'context> {
         location: Location,
         has_self_arg: bool,
     ) -> Option<HirMethodReference> {
+        let span = location.span;
+        let file = location.file;
+
         // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
             self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
@@ -1495,24 +1556,30 @@ impl<'context> Elaborator<'context> {
             }
 
             if has_field_with_function_type {
-                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span: location.span,
-                });
+                self.push_err(
+                    TypeCheckError::CannotInvokeStructFieldFunctionType {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
+                        span,
+                    },
+                    file,
+                );
             } else {
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    span: location.span,
-                });
+                self.push_err(
+                    TypeCheckError::UnresolvedMethodCall {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
+                        span,
+                    },
+                    file,
+                );
             }
             None
         } else {
             // It could be that this type is a composite type that is bound to a trait,
             // for example `x: (T, U) ... where (T, U): SomeTrait`
             // (so this case is a generalization of the NamedGeneric case)
-            self.lookup_method_in_trait_constraints(object_type, method_name, location.span)
+            self.lookup_method_in_trait_constraints(object_type, method_name, location)
         }
     }
 
@@ -1526,7 +1593,7 @@ impl<'context> Elaborator<'context> {
     ) -> Option<HirMethodReference> {
         let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, location);
         if let Some(error) = error {
-            self.push_err(error);
+            self.push_err(error, location.file);
         }
         method
     }
@@ -1635,8 +1702,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         object_type: &Type,
         method_name: &str,
-        span: Span,
+        location: Location,
     ) -> Option<HirMethodReference> {
+        let span = location.span;
+        let file = location.file;
+
         let func_id = match self.current_item {
             Some(DependencyId::Function(id)) => id,
             _ => panic!("unexpected method outside a function: {method_name}"),
@@ -1679,11 +1749,14 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        self.push_err(TypeCheckError::UnresolvedMethodCall {
-            method_name: method_name.to_string(),
-            object_type: object_type.clone(),
-            span,
-        });
+        self.push_err(
+            TypeCheckError::UnresolvedMethodCall {
+                method_name: method_name.to_string(),
+                object_type: object_type.clone(),
+                span,
+            },
+            file,
+        );
 
         None
     }
@@ -1731,9 +1804,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         call: &HirCallExpression,
         func_type: Type,
-        args: Vec<(Type, ExprId, Span)>,
-        span: Span,
+        args: Vec<(Type, ExprId, Location)>,
+        location: Location,
     ) -> Type {
+        let span = location.span;
+        let file = location.file;
+
         self.run_lint(|elaborator| {
             lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
         });
@@ -1753,7 +1829,7 @@ impl<'context> Elaborator<'context> {
         if crossing_runtime_boundary {
             match self.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
-                    self.push_err(TypeCheckError::Unsafe { span });
+                    self.push_err(TypeCheckError::Unsafe { span }, file);
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
                     self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithConstrainedCalls;
@@ -1775,11 +1851,11 @@ impl<'context> Elaborator<'context> {
 
             let errors = lints::unconstrained_function_args(&args);
             for error in errors {
-                self.push_err(error);
+                self.push_err(error, file);
             }
         }
 
-        let return_type = self.bind_function_type(func_type, args, span);
+        let return_type = self.bind_function_type(func_type, args, location);
 
         if crossing_runtime_boundary {
             self.run_lint(|_| {
@@ -1829,8 +1905,8 @@ impl<'context> Elaborator<'context> {
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
-                    if let Err(error) = verify_mutable_reference(self.interner, *object) {
-                        self.push_err(TypeCheckError::ResolverError(error));
+                    if let Err((error, file)) = verify_mutable_reference(self.interner, *object) {
+                        self.push_err(TypeCheckError::ResolverError(error), file);
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
@@ -1869,7 +1945,8 @@ impl<'context> Elaborator<'context> {
         let (expr_span, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
 
-        let func_span = self.interner.expr_span(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_location = self.interner.expr_location(&body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        let func_span = func_location.span;
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             if self
                 .interner
@@ -1881,29 +1958,38 @@ impl<'context> Elaborator<'context> {
                 )
                 .is_err()
             {
-                self.push_err(TypeCheckError::TypeMismatchWithSource {
-                    expected: declared_return_type.clone(),
-                    actual: body_type,
-                    span: func_span,
-                    source: Source::Return(meta.return_type.clone(), expr_span),
-                });
+                self.push_err(
+                    TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: body_type,
+                        span: func_span,
+                        source: Source::Return(meta.return_type.clone(), expr_span),
+                    },
+                    func_location.file,
+                );
             }
         } else {
-            self.unify_with_coercions(&body_type, declared_return_type, body_id, func_span, || {
-                let mut error = TypeCheckError::TypeMismatchWithSource {
-                    expected: declared_return_type.clone(),
-                    actual: body_type.clone(),
-                    span: func_span,
-                    source: Source::Return(meta.return_type.clone(), expr_span),
-                };
+            self.unify_with_coercions(
+                &body_type,
+                declared_return_type,
+                body_id,
+                func_location,
+                || {
+                    let mut error = TypeCheckError::TypeMismatchWithSource {
+                        expected: declared_return_type.clone(),
+                        actual: body_type.clone(),
+                        span: func_span,
+                        source: Source::Return(meta.return_type.clone(), expr_span),
+                    };
 
-                if empty_function {
-                    error = error.add_context(
+                    if empty_function {
+                        error = error.add_context(
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
-                }
-                error
-            });
+                    }
+                    error
+                },
+            );
         }
     }
 
@@ -1935,7 +2021,7 @@ impl<'context> Elaborator<'context> {
         associated_types: &[NamedType],
         function_ident_id: ExprId,
         select_impl: bool,
-        span: Span,
+        location: Location,
     ) {
         match self.interner.lookup_trait_implementation(
             object_type,
@@ -1948,7 +2034,7 @@ impl<'context> Elaborator<'context> {
                     self.interner.select_impl_for_expression(function_ident_id, impl_kind);
                 }
             }
-            Err(error) => self.push_trait_constraint_error(object_type, error, span),
+            Err(error) => self.push_trait_constraint_error(object_type, error, location),
         }
     }
 
@@ -1956,25 +2042,24 @@ impl<'context> Elaborator<'context> {
         &mut self,
         object_type: &Type,
         error: ImplSearchErrorKind,
-        span: Span,
+        location: Location,
     ) {
+        let span = location.span;
+        let file = location.file;
         match error {
             ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { span }, file);
             }
             ImplSearchErrorKind::Nested(constraints) => {
                 if let Some(error) = NoMatchingImplFoundError::new(self.interner, constraints, span)
                 {
-                    self.push_err(TypeCheckError::NoMatchingImplFound(error));
+                    self.push_err(TypeCheckError::NoMatchingImplFound(error), file);
                 }
             }
             ImplSearchErrorKind::MultipleMatching(candidates) => {
                 let object_type = object_type.clone();
-                self.push_err(TypeCheckError::MultipleMatchingImpls {
-                    object_type,
-                    span,
-                    candidates,
-                });
+                let err = TypeCheckError::MultipleMatchingImpls { object_type, span, candidates };
+                self.push_err(err, file);
             }
         }
     }
@@ -1987,24 +2072,29 @@ impl<'context> Elaborator<'context> {
         assert_eq!(unresolved_generics.len(), generics.len());
 
         for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
-            self.add_existing_generic(unresolved_generic, unresolved_generic.span(), generic);
+            self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
         }
     }
 
     pub fn add_existing_generic(
         &mut self,
         unresolved_generic: &UnresolvedGeneric,
-        span: Span,
+        location: Location,
         resolved_generic: &ResolvedGeneric,
     ) {
         let name = &unresolved_generic.ident().0.contents;
 
         if let Some(generic) = self.find_generic(name) {
-            self.push_err(ResolverError::DuplicateDefinition {
-                name: name.clone(),
-                first_span: generic.location.span,
-                second_span: span,
-            });
+            let span = location.span;
+            let file = location.file;
+            self.push_err(
+                ResolverError::DuplicateDefinition {
+                    name: name.clone(),
+                    first_span: generic.location.span,
+                    second_span: span,
+                },
+                file,
+            );
         } else {
             self.generics.push(resolved_generic.clone());
         }
@@ -2124,22 +2214,31 @@ fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings
 
 /// Gives an error if a user tries to create a mutable reference
 /// to an immutable variable.
-fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+fn verify_mutable_reference(
+    interner: &NodeInterner,
+    rhs: ExprId,
+) -> Result<(), (ResolverError, FileId)> {
     match interner.expression(&rhs) {
         HirExpression::MemberAccess(member_access) => {
             verify_mutable_reference(interner, member_access.lhs)
         }
         HirExpression::Index(_) => {
-            let span = interner.expr_span(&rhs);
-            Err(ResolverError::MutableReferenceToArrayElement { span })
+            let location = interner.expr_location(&rhs);
+            let span = location.span;
+            let file = location.file;
+            Err((ResolverError::MutableReferenceToArrayElement { span }, file))
         }
         HirExpression::Ident(ident, _) => {
             if let Some(definition) = interner.try_definition(ident.id) {
                 if !definition.mutable {
-                    return Err(ResolverError::MutableReferenceToImmutableVariable {
-                        span: interner.expr_span(&rhs),
+                    let location = interner.expr_location(&rhs);
+                    let span = location.span;
+                    let file = location.file;
+                    let err = ResolverError::MutableReferenceToImmutableVariable {
+                        span,
                         variable: definition.name.clone(),
-                    });
+                    };
+                    return Err((err, file));
                 }
             }
             Ok(())

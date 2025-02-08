@@ -36,9 +36,9 @@ impl<'context> Elaborator<'context> {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Loop(block, location) => self.elaborate_loop(block, location.span),
-            StatementKind::Break => self.elaborate_jump(true, statement.location.span),
-            StatementKind::Continue => self.elaborate_jump(false, statement.location.span),
+            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::Break => self.elaborate_jump(true, statement.location),
+            StatementKind::Continue => self.elaborate_jump(false, statement.location),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
                 let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
@@ -90,16 +90,16 @@ impl<'context> Elaborator<'context> {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
-        let expr_span = let_stmt.expression.location.span;
+        let expr_location = let_stmt.expression.location;
         let (expression, expr_type) =
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
-            let span = expr_span;
+            let span = expr_location.span;
             let expected_type = annotated_type.clone();
             let error = ResolverError::UnspecifiedGlobalType { span, expected_type };
-            self.push_err(error);
+            self.push_err(error, expr_location.file);
         }
 
         let definition = match global_id {
@@ -109,18 +109,18 @@ impl<'context> Elaborator<'context> {
 
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
-        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_span, || {
+        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
             TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
-                expr_span,
+                expr_span: expr_location.span,
             }
         });
 
         if annotated_type.is_integer() {
             let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
             for error in errors {
-                self.push_err(error);
+                self.push_err(error, expr_location.file);
             }
         }
 
@@ -145,20 +145,20 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
-        let expr_span = assign.expression.location.span;
+        let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
             let (name, span) = self.get_lvalue_name_and_span(&lvalue);
-            self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
+            self.push_err(TypeCheckError::VariableMustBeMutable { name, span }, expr_location.file);
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_span, || {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
             TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
-                span: expr_span,
+                span: expr_location.span,
                 source: Source::Assignment,
             }
         });
@@ -232,11 +232,14 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_loop(
         &mut self,
         block: Expression,
-        span: noirc_errors::Span,
+        location: Location,
     ) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
-            self.push_err(ResolverError::LoopInConstrainedFn { span });
+            self.push_err(
+                ResolverError::LoopInConstrainedFn { span: location.span },
+                location.file,
+            );
         }
 
         let old_loop = std::mem::take(&mut self.current_loop);
@@ -250,7 +253,7 @@ impl<'context> Elaborator<'context> {
         let last_loop =
             std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
         if !last_loop.has_break {
-            self.push_err(ResolverError::LoopWithoutBreak { span });
+            self.push_err(ResolverError::LoopWithoutBreak { span: location.span }, location.file);
         }
 
         let statement = HirStatement::Loop(block);
@@ -258,11 +261,14 @@ impl<'context> Elaborator<'context> {
         (statement, Type::Unit)
     }
 
-    fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
+    fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
         if in_constrained_function {
-            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
+            self.push_err(
+                ResolverError::JumpInConstrainedFn { is_break, span: location.span },
+                location.file,
+            );
         }
 
         if let Some(current_loop) = &mut self.current_loop {
@@ -270,7 +276,10 @@ impl<'context> Elaborator<'context> {
                 current_loop.has_break = true;
             }
         } else {
-            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+            self.push_err(
+                ResolverError::JumpOutsideLoop { is_break, span: location.span },
+                location.file,
+            );
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
@@ -311,10 +320,13 @@ impl<'context> Elaborator<'context> {
                         mutable = definition.mutable;
 
                         if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name: definition.name.clone(),
-                                span: ident.location.span,
-                            });
+                            self.push_err(
+                                ResolverError::MutatingComptimeInNonComptimeContext {
+                                    name: definition.name.clone(),
+                                    span: ident.location.span,
+                                },
+                                ident.location.file,
+                            );
                         }
                     }
 
@@ -393,21 +405,28 @@ impl<'context> Elaborator<'context> {
                     Type::Error => Type::Error,
                     Type::String(_) => {
                         let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
-                        self.push_err(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        self.push_err(
+                            TypeCheckError::StringIndexAssign { span: lvalue_span },
+                            location.file,
+                        );
                         Type::Error
                     }
                     Type::TypeVariable(_) => {
-                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex {
-                            span: location.span,
-                        });
+                        self.push_err(
+                            TypeCheckError::TypeAnnotationsNeededForIndex { span: location.span },
+                            location.file,
+                        );
                         Type::Error
                     }
                     other => {
-                        self.push_err(TypeCheckError::TypeMismatch {
-                            expected_typ: "array".to_string(),
-                            expr_typ: other.to_string(),
-                            expr_span: location.span,
-                        });
+                        self.push_err(
+                            TypeCheckError::TypeMismatch {
+                                expected_typ: "array".to_string(),
+                                expr_typ: other.to_string(),
+                                expr_span: location.span,
+                            },
+                            location.file,
+                        );
                         Type::Error
                     }
                 };
@@ -468,12 +487,15 @@ impl<'context> Elaborator<'context> {
                     if index < length {
                         return Some((elements[index].clone(), index));
                     } else {
-                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
-                            index,
-                            lhs_type,
-                            length,
-                            span: location.span,
-                        });
+                        self.push_err(
+                            TypeCheckError::TupleIndexOutOfBounds {
+                                index,
+                                lhs_type,
+                                length,
+                                span: location.span,
+                            },
+                            location.file,
+                        );
                         return None;
                     }
                 }
@@ -501,15 +523,19 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess {
-                span: location.span,
-            });
+            self.push_err(
+                TypeCheckError::TypeAnnotationsNeededForFieldAccess { span: location.span },
+                location.file,
+            );
         } else if lhs_type != Type::Error {
-            self.push_err(TypeCheckError::AccessUnknownMember {
-                lhs_type,
-                field_name: field_name.to_string(),
-                span: location.span,
-            });
+            self.push_err(
+                TypeCheckError::AccessUnknownMember {
+                    lhs_type,
+                    field_name: field_name.to_string(),
+                    span: location.span,
+                },
+                location.file,
+            );
         }
 
         None
@@ -527,9 +553,13 @@ impl<'context> Elaborator<'context> {
         }
 
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
-            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), location),
-            )));
+            self.push_err(
+                ResolverError::PathResolutionError(PathResolutionError::Private(Ident::new(
+                    field_name.to_string(),
+                    location,
+                ))),
+                location.file,
+            );
         }
     }
 

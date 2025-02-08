@@ -71,11 +71,14 @@ impl<'context> Elaborator<'context> {
                         *default_impl_clone,
                     ));
                 } else {
-                    self.push_err(DefCollectorErrorKind::TraitMissingMethod {
-                        trait_name: self.interner.get_trait(trait_id).name.clone(),
-                        method_name: method.name.clone(),
-                        trait_impl_span: trait_impl.object_type.location.span,
-                    });
+                    self.push_err(
+                        DefCollectorErrorKind::TraitMissingMethod {
+                            trait_name: self.interner.get_trait(trait_id).name.clone(),
+                            method_name: method.name.clone(),
+                            trait_impl_span: trait_impl.object_type.location.span,
+                        },
+                        trait_impl.object_type.location.file,
+                    );
                 }
             } else {
                 for (_, func_id, _) in &overrides {
@@ -92,11 +95,14 @@ impl<'context> Elaborator<'context> {
                 }
 
                 if overrides.len() > 1 {
-                    self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
-                        first_def: overrides[0].2.name_ident().clone(),
-                        second_def: overrides[1].2.name_ident().clone(),
-                    });
+                    self.push_err(
+                        DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::TraitAssociatedFunction,
+                            first_def: overrides[0].2.name_ident().clone(),
+                            second_def: overrides[1].2.name_ident().clone(),
+                        },
+                        overrides[1].2.name_ident().location().file,
+                    );
                 }
 
                 ordered_methods.push(overrides[0].clone());
@@ -198,14 +204,17 @@ impl<'context> Elaborator<'context> {
             )) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
-                self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
-                    constraint_typ: override_trait_constraint.typ,
-                    constraint_name: the_trait.name.0.contents.clone(),
-                    constraint_generics: override_trait_constraint.trait_bound.trait_generics,
-                    constraint_span: override_trait_constraint.trait_bound.span,
-                    trait_method_name: method.name.0.contents.clone(),
-                    trait_method_span: method.location.span,
-                });
+                self.push_err(
+                    DefCollectorErrorKind::ImplIsStricterThanTrait {
+                        constraint_typ: override_trait_constraint.typ,
+                        constraint_name: the_trait.name.0.contents.clone(),
+                        constraint_generics: override_trait_constraint.trait_bound.trait_generics,
+                        constraint_span: override_trait_constraint.trait_bound.span,
+                        trait_method_name: method.name.0.contents.clone(),
+                        trait_method_span: method.location.span,
+                    },
+                    method.location.file,
+                );
             }
         }
     }
@@ -225,9 +234,12 @@ impl<'context> Elaborator<'context> {
 
         let the_trait = self.interner.get_trait(trait_id);
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
-            self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                span: trait_impl.object_type.location.span,
-            });
+            self.push_err(
+                DefCollectorErrorKind::TraitImplOrphaned {
+                    span: trait_impl.object_type.location.span,
+                },
+                trait_impl.object_type.location.file,
+            );
         }
     }
 
@@ -241,7 +253,7 @@ impl<'context> Elaborator<'context> {
             let typ = match UnresolvedTypeExpression::from_expr(expr, location.span) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
                 Err(error) => {
-                    self.push_err(error);
+                    self.push_err(error, location.file);
                     UnresolvedTypeData::Error.with_location(location)
                 }
             };

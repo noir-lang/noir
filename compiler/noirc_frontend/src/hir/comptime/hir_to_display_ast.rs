@@ -241,7 +241,7 @@ impl ExprId {
     pub fn to_display_ast(self, interner: &NodeInterner) -> Expression {
         let expression = interner.expression(&self);
         // TODO: empty 0 span
-        let location = interner.try_id_location(&self).unwrap_or_else(|| Location::dummy());
+        let location = interner.try_id_location(self).unwrap_or_else(Location::dummy);
         expression.to_display_ast(interner, location)
     }
 }

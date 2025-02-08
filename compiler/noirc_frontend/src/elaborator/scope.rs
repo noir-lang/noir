@@ -122,7 +122,10 @@ impl<'context> Elaborator<'context> {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
                     let ident = Ident(Located::from(unused_var.location, name.to_owned()));
-                    self.push_err(ResolverError::UnusedVariable { ident });
+                    self.push_err(
+                        ResolverError::UnusedVariable { ident },
+                        unused_var.location.file,
+                    );
                 }
             }
         }
@@ -138,22 +141,25 @@ impl<'context> Elaborator<'context> {
 
     /// Lookup a given trait by name/path.
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
-        let span = path.span();
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
                 } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "trait",
-                        got: item.description(),
-                        span,
-                    });
+                    self.push_err(
+                        ResolverError::Expected {
+                            expected: "trait",
+                            got: item.description(),
+                            span: location.span,
+                        },
+                        location.file,
+                    );
                     None
                 }
             }
             Err(err) => {
-                self.push_err(err);
+                self.push_err(err, location.file);
                 None
             }
         }
@@ -161,22 +167,25 @@ impl<'context> Elaborator<'context> {
 
     /// Lookup a given struct type by name.
     pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
-        let span = path.span();
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
                 } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        span,
-                    });
+                    self.push_err(
+                        ResolverError::Expected {
+                            expected: "type",
+                            got: item.description(),
+                            span: location.span,
+                        },
+                        location.file,
+                    );
                     None
                 }
             }
             Err(err) => {
-                self.push_err(err);
+                self.push_err(err, location.file);
                 None
             }
         }
@@ -192,7 +201,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        let span = path.location.span;
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
@@ -205,15 +214,18 @@ impl<'context> Elaborator<'context> {
                 Some(alias.instantiate(self.interner))
             }
             Ok(other) => {
-                self.push_err(ResolverError::Expected {
-                    expected: "type",
-                    got: other.description(),
-                    span,
-                });
+                self.push_err(
+                    ResolverError::Expected {
+                        expected: "type",
+                        got: other.description(),
+                        span: location.span,
+                    },
+                    location.file,
+                );
                 None
             }
             Err(error) => {
-                self.push_err(error);
+                self.push_err(error, location.file);
                 None
             }
         }

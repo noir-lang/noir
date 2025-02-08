@@ -177,8 +177,10 @@ impl CollectedItems {
 /// Note that because these are keyed by unresolved types, the impl map is one of the few instances
 /// of HashMap rather than BTreeMap. For this reason, we should be careful not to iterate over it
 /// since it would be non-deterministic.
-pub(crate) type ImplMap =
-    HashMap<(UnresolvedType, LocalModuleId), Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>>;
+pub(crate) type ImplMap = HashMap<
+    (UnresolvedType, LocalModuleId),
+    Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
+>;
 
 #[derive(Debug, Clone)]
 pub enum CompilationError {

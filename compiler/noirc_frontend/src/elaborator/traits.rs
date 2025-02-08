@@ -121,7 +121,7 @@ impl<'context> Elaborator<'context> {
 
                     this.add_existing_generic(
                         &UnresolvedGeneric::Variable(Ident::from("Self")),
-                        name_location.span,
+                        name_location,
                         &ResolvedGeneric {
                             name: Rc::new("Self".to_owned()),
                             type_var: self_typevar,

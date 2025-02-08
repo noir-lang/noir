@@ -487,10 +487,15 @@ impl PathSegment {
         Span::from(self.ident.span().end()..self.location.span.end())
     }
 
+    pub fn turbofish_location(&self) -> Location {
+        Location::new(self.turbofish_span(), self.location.file)
+    }
+
     pub fn turbofish(&self) -> Option<Turbofish> {
-        self.generics
-            .as_ref()
-            .map(|generics| Turbofish { span: self.turbofish_span(), generics: generics.clone() })
+        self.generics.as_ref().map(|generics| Turbofish {
+            location: self.turbofish_location(),
+            generics: generics.clone(),
+        })
     }
 }
 

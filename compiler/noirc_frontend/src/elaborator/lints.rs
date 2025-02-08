@@ -16,7 +16,7 @@ use crate::{
     Type,
 };
 
-use noirc_errors::{Located, Span};
+use noirc_errors::{Located, Location, Span};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -127,13 +127,14 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
 
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
-    function_args: &[(Type, ExprId, Span)],
+    function_args: &[(Type, ExprId, Location)],
 ) -> Vec<TypeCheckError> {
     function_args
         .iter()
-        .filter_map(|(typ, _, span)| {
+        .filter_map(|(typ, _, location)| {
             if !typ.is_valid_for_unconstrained_boundary() {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
+                let span = location.span;
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span })
             } else {
                 None
             }

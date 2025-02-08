@@ -61,7 +61,7 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
@@ -468,14 +468,14 @@ impl<'context> Elaborator<'context> {
                     &name,
                     modifiers.visibility,
                     typ,
-                    name.span(),
+                    name.location(),
                 );
             }
             self.check_type_is_not_more_private_then_item(
                 &name,
                 modifiers.visibility,
                 func_meta.return_type(),
-                name.span(),
+                name.location(),
             );
         }
 
@@ -492,7 +492,7 @@ impl<'context> Elaborator<'context> {
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
-        self.add_trait_constraints_to_scope(&func_meta.trait_constraints, func_meta.location.span);
+        self.add_trait_constraints_to_scope(&func_meta.trait_constraints, func_meta.location);
 
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
@@ -568,7 +568,7 @@ impl<'context> Elaborator<'context> {
         }
 
         for (mut constraint, expr_id, select_impl) in context.trait_constraints {
-            let span = self.interner.expr_span(&expr_id);
+            let location = self.interner.expr_location(&expr_id);
 
             if matches!(&constraint.typ, Type::MutableReference(_)) {
                 let (_, dereferenced_typ) =
@@ -583,7 +583,7 @@ impl<'context> Elaborator<'context> {
                 &constraint.trait_bound.trait_generics.named,
                 expr_id,
                 select_impl,
-                span,
+                location,
             );
         }
     }
@@ -626,7 +626,7 @@ impl<'context> Elaborator<'context> {
             let (type_var, name) = match self.resolve_generic(generic) {
                 Ok(values) => values,
                 Err(error) => {
-                    self.push_err(error);
+                    self.push_err(error, generic.location().file);
                     is_error = true;
                     let id = self.interner.next_type_variable_id();
                     let kind = self.resolve_generic_kind(generic);
@@ -644,11 +644,14 @@ impl<'context> Elaborator<'context> {
             // are all given the same default name "(error)".
             if !is_error {
                 if let Some(generic) = self.find_generic(&name_owned) {
-                    self.push_err(ResolverError::DuplicateDefinition {
-                        name: name_owned,
-                        first_span: generic.location.span,
-                        second_span: location.span,
-                    });
+                    self.push_err(
+                        ResolverError::DuplicateDefinition {
+                            name: name_owned,
+                            first_span: generic.location.span,
+                            second_span: location.span,
+                        },
+                        location.file,
+                    );
                 } else {
                     self.generics.push(resolved_generic.clone());
                 }
@@ -706,7 +709,7 @@ impl<'context> Elaborator<'context> {
                         ident: ident.clone(),
                         typ: unresolved_typ.typ.clone(),
                     });
-                self.push_err(unsupported_typ_err);
+                self.push_err(unsupported_typ_err, generic.location().file);
             }
             Kind::numeric(typ)
         } else {
@@ -714,13 +717,13 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn push_err(&mut self, error: impl Into<CompilationError>) {
-        self.errors.push((error.into(), self.file));
+    fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
+        self.errors.push((error.into(), file));
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
-            self.push_err(error);
+            self.push_err(error, self.file); // TODO: fix this
         }
     }
 
@@ -738,17 +741,18 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
+        let file = path.location.file;
         let error = match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
-                    self.push_err(error);
+                    self.push_err(error, file);
                 }
                 return Some(trait_id);
             }
             Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
             Err(_) => DefCollectorErrorKind::TraitNotFound { trait_path: path },
         };
-        self.push_err(error);
+        self.push_err(error, file);
         None
     }
 
@@ -859,7 +863,7 @@ impl<'context> Elaborator<'context> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
 
         self.add_trait_bound_to_scope(
-            constraint.trait_bound.trait_path.location.span,
+            constraint.trait_bound.trait_path.location,
             &typ,
             &trait_bound,
             trait_bound.trait_id,
@@ -944,7 +948,7 @@ impl<'context> Elaborator<'context> {
                 &typ,
                 is_entry_point,
                 has_inline_attribute,
-                type_location.span,
+                type_location,
             );
 
             if is_entry_point {
@@ -1105,12 +1109,15 @@ impl<'context> Elaborator<'context> {
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
-        span: Span,
+        location: Location,
     ) {
         if (is_entry_point && !typ.is_valid_for_program_input())
             || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
         {
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { span });
+            self.push_err(
+                TypeCheckError::InvalidTypeForEntryPoint { span: location.span },
+                location.file,
+            );
         }
     }
 
@@ -1143,10 +1150,14 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn add_trait_constraints_to_scope(&mut self, constraints: &[TraitConstraint], span: Span) {
+    fn add_trait_constraints_to_scope(
+        &mut self,
+        constraints: &[TraitConstraint],
+        location: Location,
+    ) {
         for constraint in constraints {
             self.add_trait_bound_to_scope(
-                span,
+                location,
                 &constraint.typ,
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
@@ -1160,7 +1171,7 @@ impl<'context> Elaborator<'context> {
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
             self.add_trait_bound_to_scope(
-                span,
+                location,
                 &self_type,
                 &constraint.trait_bound,
                 constraint.trait_bound.trait_id,
@@ -1182,7 +1193,7 @@ impl<'context> Elaborator<'context> {
 
     fn add_trait_bound_to_scope(
         &mut self,
-        span: Span,
+        location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
@@ -1194,7 +1205,14 @@ impl<'context> Elaborator<'context> {
             if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = object.clone();
-                self.push_err(TypeCheckError::UnneededTraitConstraint { trait_name, typ, span });
+                self.push_err(
+                    TypeCheckError::UnneededTraitConstraint {
+                        trait_name,
+                        typ,
+                        span: location.span,
+                    },
+                    location.file,
+                );
             }
         }
 
@@ -1210,12 +1228,17 @@ impl<'context> Elaborator<'context> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope(span, object, &parent_trait_bound, starting_trait_id);
+                self.add_trait_bound_to_scope(
+                    location,
+                    object,
+                    &parent_trait_bound,
+                    starting_trait_id,
+                );
             }
         }
     }
 
-    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Span, UnresolvedFunctions)>) {
+    fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
             self.file = functions.file_id;
             self.recover_generics(|this| this.elaborate_functions(functions));
@@ -1325,13 +1348,16 @@ impl<'context> Elaborator<'context> {
             {
                 let missing_trait =
                     format!("{}{}", trait_constraint_trait.name, trait_bound.trait_generics);
-                self.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_constraint_type.to_string(),
-                    span: trait_impl.object_type.location.span,
-                    missing_trait_location: Location::new(trait_bound.span, the_trait_file),
-                });
+                self.push_err(
+                    ResolverError::TraitNotImplemented {
+                        impl_trait: impl_trait.clone(),
+                        missing_trait,
+                        type_missing_trait: trait_constraint_type.to_string(),
+                        span: trait_impl.object_type.location.span,
+                        missing_trait_location: Location::new(trait_bound.span, the_trait_file),
+                    },
+                    trait_impl.object_type.location.file,
+                );
             }
         }
     }
@@ -1392,13 +1418,19 @@ impl<'context> Elaborator<'context> {
             {
                 let missing_trait =
                     format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
-                self.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_impl.object_type.to_string(),
-                    span: trait_impl.object_type.location.span,
-                    missing_trait_location: Location::new(parent_trait_bound.span, the_trait_file),
-                });
+                self.push_err(
+                    ResolverError::TraitNotImplemented {
+                        impl_trait: impl_trait.clone(),
+                        missing_trait,
+                        type_missing_trait: trait_impl.object_type.to_string(),
+                        span: trait_impl.object_type.location.span,
+                        missing_trait_location: Location::new(
+                            parent_trait_bound.span,
+                            the_trait_file,
+                        ),
+                    },
+                    trait_impl.object_type.location.file,
+                );
             }
         }
     }
@@ -1406,15 +1438,15 @@ impl<'context> Elaborator<'context> {
     fn collect_impls(
         &mut self,
         module: LocalModuleId,
-        impls: &mut [(UnresolvedGenerics, Span, UnresolvedFunctions)],
+        impls: &mut [(UnresolvedGenerics, Location, UnresolvedFunctions)],
     ) {
         self.local_module = module;
 
-        for (generics, span, unresolved) in impls {
+        for (generics, location, unresolved) in impls {
             self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
-            self.declare_methods_on_struct(None, unresolved, *span);
+            self.declare_methods_on_struct(None, unresolved, *location);
             self.generics.truncate(old_generic_count);
         }
     }
@@ -1433,7 +1465,10 @@ impl<'context> Elaborator<'context> {
 
         if matches!(self_type, Type::MutableReference(_)) {
             let span = self_type_location.span;
-            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl { span });
+            self.push_err(
+                DefCollectorErrorKind::MutableReferenceInTraitImpl { span },
+                self_type_location.file,
+            );
         }
 
         if let Some(trait_id) = trait_impl.trait_id {
@@ -1445,7 +1480,7 @@ impl<'context> Elaborator<'context> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let location = trait_impl.object_type.location;
-            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, location.span);
+            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, location);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
@@ -1472,22 +1507,28 @@ impl<'context> Elaborator<'context> {
 
             let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-            if let Err((prev_span, prev_file)) = self.interner.add_trait_implementation(
+            if let Err((prev_location, prev_file)) = self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
                 trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
                 generics,
                 resolved_trait_impl,
             ) {
-                self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                    typ: self_type.clone(),
-                    span: self_type_location.span,
-                });
+                self.push_err(
+                    DefCollectorErrorKind::OverlappingImpl {
+                        typ: self_type.clone(),
+                        span: self_type_location.span,
+                    },
+                    self_type_location.file,
+                );
 
                 // The 'previous impl defined here' note must be a separate error currently
                 // since it may be in a different file and all errors have the same file id.
                 self.file = prev_file;
-                self.push_err(DefCollectorErrorKind::OverlappingImplNote { span: prev_span });
+                self.push_err(
+                    DefCollectorErrorKind::OverlappingImplNote { span: prev_location.span },
+                    prev_location.file,
+                );
                 self.file = trait_impl.file_id;
             }
         }
@@ -1512,7 +1553,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         trait_id: Option<TraitId>,
         functions: &mut UnresolvedFunctions,
-        span: Span,
+        location: Location,
     ) {
         let self_type = functions.self_type.as_ref();
         let self_type =
@@ -1526,7 +1567,10 @@ impl<'context> Elaborator<'context> {
             // `impl`s are only allowed on types defined within the current crate
             if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
-                self.push_err(DefCollectorErrorKind::ForeignImpl { span, type_name });
+                self.push_err(
+                    DefCollectorErrorKind::ForeignImpl { span: location.span, type_name },
+                    location.file,
+                );
                 return;
             }
 
@@ -1572,7 +1616,10 @@ impl<'context> Elaborator<'context> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span });
+                self.push_err(
+                    DefCollectorErrorKind::NonStructTypeInImpl { span: location.span },
+                    location.file,
+                );
             }
         }
     }
@@ -1584,12 +1631,14 @@ impl<'context> Elaborator<'context> {
             if let Some(first_fn) =
                 self.interner.add_method(self_type, method_name.clone(), *method_id, None)
             {
+                let first_location = self.interner.function_ident(&first_fn).location();
+                let second_location = self.interner.function_ident(method_id).location();
                 let error = ResolverError::DuplicateDefinition {
                     name: method_name,
-                    first_span: self.interner.function_ident(&first_fn).span(),
-                    second_span: self.interner.function_ident(method_id).span(),
+                    first_span: first_location.span,
+                    second_span: second_location.span,
                 };
-                self.push_err(error);
+                self.push_err(error, second_location.file);
             }
         }
     }
@@ -1607,7 +1656,7 @@ impl<'context> Elaborator<'context> {
         let typ = self.resolve_type(alias.type_alias_def.typ);
 
         if visibility != ItemVisibility::Private {
-            self.check_type_is_not_more_private_then_item(name, visibility, &typ, location.span);
+            self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
 
         self.interner.set_type_alias(alias_id, typ, generics);
@@ -1654,7 +1703,7 @@ impl<'context> Elaborator<'context> {
         name: &Ident,
         visibility: ItemVisibility,
         typ: &Type,
-        span: Span,
+        location: Location,
     ) {
         match typ {
             Type::DataType(struct_type, generics) => {
@@ -1667,22 +1716,27 @@ impl<'context> Elaborator<'context> {
                 if struct_module_id.krate == self.crate_id {
                     if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
                         if aliased_visibility < visibility {
-                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
-                                typ: struct_type.name.to_string(),
-                                item: name.to_string(),
-                                span,
-                            });
+                            self.push_err(
+                                ResolverError::TypeIsMorePrivateThenItem {
+                                    typ: struct_type.name.to_string(),
+                                    item: name.to_string(),
+                                    span: location.span,
+                                },
+                                location.file,
+                            );
                         }
                     }
                 }
 
                 for generic in generics {
-                    self.check_type_is_not_more_private_then_item(name, visibility, generic, span);
+                    self.check_type_is_not_more_private_then_item(
+                        name, visibility, generic, location,
+                    );
                 }
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
                 }
             }
             Type::Alias(alias_type, generics) => {
@@ -1690,26 +1744,31 @@ impl<'context> Elaborator<'context> {
                     name,
                     visibility,
                     &alias_type.borrow().get_type(generics),
-                    span,
+                    location,
                 );
             }
             Type::CheckedCast { from, to } => {
-                self.check_type_is_not_more_private_then_item(name, visibility, from, span);
-                self.check_type_is_not_more_private_then_item(name, visibility, to, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, from, location);
+                self.check_type_is_not_more_private_then_item(name, visibility, to, location);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {
-                    self.check_type_is_not_more_private_then_item(name, visibility, arg, span);
+                    self.check_type_is_not_more_private_then_item(name, visibility, arg, location);
                 }
-                self.check_type_is_not_more_private_then_item(name, visibility, return_type, span);
-                self.check_type_is_not_more_private_then_item(name, visibility, env, span);
+                self.check_type_is_not_more_private_then_item(
+                    name,
+                    visibility,
+                    return_type,
+                    location,
+                );
+                self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
             Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
-                self.check_type_is_not_more_private_then_item(name, visibility, typ, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.check_type_is_not_more_private_then_item(name, visibility, left, span);
-                self.check_type_is_not_more_private_then_item(name, visibility, right, span);
+                self.check_type_is_not_more_private_then_item(name, visibility, left, location);
+                self.check_type_is_not_more_private_then_item(name, visibility, right, location);
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -1757,7 +1816,7 @@ impl<'context> Elaborator<'context> {
                         &ident,
                         field.visibility,
                         &field.typ,
-                        field.name.span(),
+                        field.name.location(),
                     );
                 }
             }
@@ -1789,7 +1848,10 @@ impl<'context> Elaborator<'context> {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
                         self.file = location.file;
-                        self.push_err(ResolverError::NestedSlices { span: location.span });
+                        self.push_err(
+                            ResolverError::NestedSlices { span: location.span },
+                            location.file,
+                        );
                     }
                 }
             }
@@ -1884,16 +1946,17 @@ impl<'context> Elaborator<'context> {
             None
         };
 
-        let span = let_stmt.pattern.span();
+        let location = let_stmt.pattern.location();
+        let span = location.span;
 
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { span });
+            self.push_err(ResolverError::AbiAttributeOutsideContract { span }, location.file);
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-            self.push_err(ResolverError::MutableGlobal { span });
+            self.push_err(ResolverError::MutableGlobal { span }, location.file);
         }
 
         let (let_statement, _typ) = self

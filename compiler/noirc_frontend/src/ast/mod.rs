@@ -479,15 +479,19 @@ impl UnresolvedTypeExpression {
         })
     }
 
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            UnresolvedTypeExpression::Variable(path) => path.span(),
-            UnresolvedTypeExpression::Constant(_, location) => location.span,
-            UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => location.span,
+            UnresolvedTypeExpression::Variable(path) => path.location,
+            UnresolvedTypeExpression::Constant(_, location) => *location,
+            UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                path.trait_path.location.merge(path.impl_item.location()).span
+                path.trait_path.location.merge(path.impl_item.location())
             }
         }
+    }
+
+    pub fn span(&self) -> Span {
+        self.location().span
     }
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {

@@ -1690,7 +1690,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), (Span, FileId)> {
+    ) -> Result<(), (Location, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
@@ -1742,7 +1742,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err((existing_impl.ident.span(), existing_impl.file));
+            return Err((existing_impl.ident.location(), existing_impl.file));
         }
 
         for method in &trait_impl.borrow().methods {
