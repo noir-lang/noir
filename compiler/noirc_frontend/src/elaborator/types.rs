@@ -67,6 +67,7 @@ impl<'context> Elaborator<'context> {
 
         let location = typ.location;
         let span = location.span;
+        let file = location.file;
         let (named_path_span, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
                 (
@@ -188,7 +189,7 @@ impl<'context> Elaborator<'context> {
                 expr_kind: resolved_type.kind().to_string(),
                 expr_span: span,
             });
-            self.errors.push((expected_typ_err, self.file));
+            self.errors.push((expected_typ_err, file));
             return Type::Error;
         }
 
