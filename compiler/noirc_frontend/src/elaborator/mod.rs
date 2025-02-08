@@ -905,7 +905,7 @@ impl<'context> Elaborator<'context> {
         self.scopes.start_function();
         self.current_item = Some(DependencyId::Function(func_id));
 
-        let location = Location::new(func.name_ident().span(), self.file);
+        let location = func.name_ident().location();
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent::non_trait_method(id, location);
 
@@ -1257,10 +1257,11 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        for (module, function, _) in &trait_impl.methods.functions {
+        for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = *module;
+            let file = noir_function.location().file;
             let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
-            self.errors.extend(errors.into_iter().map(|error| (error.into(), self.file)));
+            self.errors.extend(errors.into_iter().map(|error| (error.into(), file)));
         }
 
         self.elaborate_functions(trait_impl.methods);
@@ -1823,7 +1824,7 @@ impl<'context> Elaborator<'context> {
 
             if self.interner.is_in_lsp_mode() {
                 for (field_index, field) in fields.iter().enumerate() {
-                    let location = Location::new(field.name.span(), self.file);
+                    let location = field.name.location();
                     let reference_id = ReferenceId::StructMember(*type_id, field_index);
                     self.interner.add_definition_location(reference_id, location, None);
                 }
@@ -1925,7 +1926,7 @@ impl<'context> Elaborator<'context> {
                 );
 
                 let reference_id = ReferenceId::EnumVariant(*type_id, i);
-                let location = Location::new(variant.item.name.span(), self.file);
+                let location = variant.item.name.location();
                 self.interner.add_definition_location(reference_id, location, Some(module_id));
             }
         }
@@ -1968,7 +1969,6 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            let location = Location::new(span, self.file);
             self.interner.register_global(
                 global_id,
                 name,

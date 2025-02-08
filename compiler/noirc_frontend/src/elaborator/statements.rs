@@ -70,7 +70,7 @@ impl<'context> Elaborator<'context> {
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location.span, self.file);
+        self.interner.push_stmt_location(id, location.span, location.file);
         (id, typ)
     }
 
@@ -577,7 +577,7 @@ impl<'context> Elaborator<'context> {
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, location.span);
+        let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

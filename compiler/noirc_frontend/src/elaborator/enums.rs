@@ -66,7 +66,7 @@ impl Elaborator<'_> {
         self_type: &Type,
     ) {
         let name = &variant.name;
-        let location = Location::new(variant.name.span(), self.file);
+        let location = variant.name.location();
 
         let global_id = self.interner.push_empty_global(
             name.clone(),
@@ -118,7 +118,7 @@ impl Elaborator<'_> {
     ) {
         let name_string = variant.name.to_string();
         let datatype_ref = datatype.borrow();
-        let location = Location::new(variant.name.span(), self.file);
+        let location = variant.name.location();
 
         let id = self.interner.push_empty_fn();
 

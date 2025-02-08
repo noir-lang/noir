@@ -68,10 +68,10 @@ impl<'context> Elaborator<'context> {
         let location = typ.location;
         let span = location.span;
         let file = location.file;
-        let (named_path_span, is_self_type_name, is_synthetic) =
+        let (named_path_location, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
                 (
-                    Some(named_path.last_ident().span()),
+                    Some(named_path.last_ident().location()),
                     named_path.last_ident().is_self_type_name(),
                     synthetic,
                 )
@@ -164,7 +164,7 @@ impl<'context> Elaborator<'context> {
             }
         };
 
-        let location = Location::new(named_path_span.unwrap_or(typ.location.span), self.file);
+        let location = named_path_location.unwrap_or(typ.location);
         match resolved_type {
             Type::DataType(ref data_type, _) => {
                 // Record the location of the type reference
@@ -474,7 +474,7 @@ impl<'context> Elaborator<'context> {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
-                let reference_location = Location::new(path.span(), self.file);
+                let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
                 let kind = self
                     .interner

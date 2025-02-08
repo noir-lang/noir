@@ -71,7 +71,7 @@ impl<'context> Elaborator<'context> {
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location.span, target_type)
+                return self.elaborate_comptime_block(comptime, expr.location, target_type)
             }
             ExpressionKind::Unsafe(block_expression, location) => {
                 self.elaborate_unsafe_block(block_expression, location, target_type)
@@ -103,7 +103,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.location.span, self.file);
+        self.interner.push_expr_location(id, expr.location.span, expr.location.file);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -311,6 +311,7 @@ impl<'context> Elaborator<'context> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, string_span) = fragment {
+                // TODO: fix this (don't use `self.file`)
                 let string_location = Location::new(*string_span, self.file);
 
                 let scope_tree = self.scopes.current_scope_tree();
@@ -512,11 +513,10 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) -> (HirExpression, Type) {
         let object_location = method_call.object.location;
-        let object_span = object_location.span;
         let (mut object, mut object_type) = self.elaborate_expression(method_call.object);
         object_type = object_type.follow_bindings();
 
-        let method_name_span = method_call.method_name.span();
+        let method_name_location = method_call.method_name.location();
         let method_name = method_call.method_name.0.contents.as_str();
         match self.lookup_method(&object_type, method_name, location, true) {
             Some(method_ref) => {
@@ -543,8 +543,7 @@ impl<'context> Elaborator<'context> {
                     None
                 };
 
-                let call_span = Span::from(object_span.start()..method_name_span.end());
-                let location = Location::new(call_span, self.file);
+                let location = object_location.merge(method_name_location);
 
                 let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
                     object_type.clone(),
@@ -605,8 +604,7 @@ impl<'context> Elaborator<'context> {
                 let function_call =
                     method_call.into_function_call(function_id, is_macro_call, location);
 
-                self.interner
-                    .add_function_reference(func_id, Location::new(method_name_span, self.file));
+                self.interner.add_function_reference(func_id, method_name_location);
 
                 // Type check the new call now that it has been changed from a method call
                 // to a function call. This way we avoid duplicating code.
@@ -988,7 +986,8 @@ impl<'context> Elaborator<'context> {
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
         let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
 
-        let operator = HirBinaryOp::new(infix.operator, self.file);
+        let file = infix.operator.location().file;
+        let operator = HirBinaryOp::new(infix.operator, file);
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
             operator,
@@ -1214,7 +1213,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_comptime_block(
         &mut self,
         block: BlockExpression,
-        span: Span,
+        location: Location,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
         let (block, _typ) = self.elaborate_in_comptime_context(|this| {
@@ -1223,7 +1222,7 @@ impl<'context> Elaborator<'context> {
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        let (id, typ) = self.inline_comptime_value(value, span);
+        let (id, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(id);
         self.debug_comptime(location, |interner| {
@@ -1236,12 +1235,15 @@ impl<'context> Elaborator<'context> {
     pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
-        span: Span,
+        location: Location,
     ) -> (ExprId, Type) {
+        let span = location.span;
+        let file = location.file;
+
         let make_error = |this: &mut Self, error: InterpreterError| {
             this.errors.push(error.into_compilation_error_pair());
             let error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, span, this.file);
+            this.interner.push_expr_location(error, span, file);
             (error, Type::Error)
         };
 
@@ -1250,7 +1252,6 @@ impl<'context> Elaborator<'context> {
             Err(error) => return make_error(self, error),
         };
 
-        let location = Location::new(span, self.file);
         match value.into_expression(self, location) {
             Ok(new_expr) => {
                 // At this point the Expression was already elaborated and we got a Value.
@@ -1338,7 +1339,7 @@ impl<'context> Elaborator<'context> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location.span);
+        let (expr_id, typ) = self.inline_comptime_value(result, location);
         Some((self.interner.expression(&expr_id), typ))
     }
 }

@@ -202,7 +202,7 @@ impl<'context> Elaborator<'context> {
                     function: function_string,
                     span: location.span,
                 };
-                return Err((error.into(), self.file));
+                return Err((error.into(), location.file));
             }
         };
 
@@ -211,7 +211,7 @@ impl<'context> Elaborator<'context> {
                 name: function_string,
                 span: location.span,
             };
-            return Err((error.into(), self.file));
+            return Err((error.into(), location.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {

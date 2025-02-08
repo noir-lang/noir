@@ -325,7 +325,7 @@ impl<'context> Elaborator<'context> {
 
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
-        let location = Location::new(name.span(), self.file);
+        let location = name.location();
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
 
         let item = merge_intermediate_path_resolution_item_with_module_def_id(

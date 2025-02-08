@@ -81,7 +81,7 @@ impl<'context> Elaborator<'context> {
                 let ident = if let DefinitionKind::Global(global_id) = definition {
                     // Globals don't need to be added to scope, they're already in the def_maps
                     let id = self.interner.get_global(global_id).definition_id;
-                    let location = Location::new(name.span(), self.file);
+                    let location = name.location();
                     HirIdent::non_trait_method(id, location)
                 } else {
                     self.add_variable_decl(
@@ -183,7 +183,7 @@ impl<'context> Elaborator<'context> {
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
         let last_segment = name.last_segment();
-        let name_span = last_segment.ident.span();
+        let name_location = last_segment.ident.location();
         let is_self_type = last_segment.ident.is_self_type_name();
 
         let error_identifier = |this: &mut Self| {
@@ -245,11 +245,10 @@ impl<'context> Elaborator<'context> {
 
         let struct_id = struct_type.borrow().id;
 
-        let reference_location = Location::new(name_span, self.file);
-        self.interner.add_type_reference(struct_id, reference_location, is_self_type);
+        self.interner.add_type_reference(struct_id, name_location, is_self_type);
 
         for (field_index, field) in fields.iter().enumerate() {
-            let reference_location = Location::new(field.0.span(), self.file);
+            let reference_location = field.0.location();
             self.interner.add_struct_member_reference(struct_id, field_index, reference_location);
         }
 
@@ -349,7 +348,7 @@ impl<'context> Elaborator<'context> {
             return self.add_global_variable_decl(name, global_id);
         }
 
-        let location = Location::new(name.span(), self.file);
+        let location = name.location();
         let name = name.0.contents;
         let comptime = self.in_comptime_context();
         let id =
@@ -433,7 +432,7 @@ impl<'context> Elaborator<'context> {
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
-        let location = Location::new(name.span(), self.file);
+        let location = name.location();
         if let Some((variable_found, scope)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
@@ -688,7 +687,7 @@ impl<'context> Elaborator<'context> {
             // Otherwise, then it is referring to an Identifier
             // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
             // If the expression is a singular indent, we search the resolver's current scope as normal.
-            let span = path.span();
+            let location = path.location;
             let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
 
             if hir_ident.id != DefinitionId::dummy_id() {
@@ -723,8 +722,7 @@ impl<'context> Elaborator<'context> {
                         // only local variables can be captured by closures.
                         self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
-                        let reference_location = Location::new(span, self.file);
-                        self.interner.add_local_reference(hir_ident.id, reference_location);
+                        self.interner.add_local_reference(hir_ident.id, location);
                     }
                 }
             }

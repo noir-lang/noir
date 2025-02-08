@@ -50,6 +50,7 @@ impl<'a> ReferencesTracker<'a> {
         span: Span,
         is_self_type: bool,
     ) {
+        // TODO: fix this (receive a location here)
         let location = Location::new(span, self.file_id);
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
     }
