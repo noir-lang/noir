@@ -118,9 +118,10 @@ impl<'context> Elaborator<'context> {
         for (_, func_id, func) in &trait_impl.methods.functions {
             if !func_ids_in_trait.contains(func_id) {
                 let trait_name = the_trait.name.clone();
+                let trait_name_file = trait_name.location().file;
                 let impl_method = func.name_ident().clone();
                 let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                self.errors.push((error.into(), self.file));
+                self.errors.push((error.into(), trait_name_file));
             }
         }
 

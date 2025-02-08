@@ -3,7 +3,7 @@ use std::{borrow::Cow, rc::Rc};
 use fm::FileId;
 use im::HashSet;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -809,10 +809,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         actual: &Type,
         expected: &Type,
+        file: FileId,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
-            self.errors.push((make_error().into(), self.file));
+            self.errors.push((make_error().into(), file));
         }
     }
 
@@ -1035,7 +1036,7 @@ impl<'context> Elaborator<'context> {
                 // NOTE: in reality the expected type can also include bool, but for the compiler's simplicity
                 // we only allow integer types. If a bool is in `from` it will need an explicit type annotation.
                 let expected = self.polymorphic_integer_or_field();
-                self.unify(from, &expected, || TypeCheckError::InvalidCast {
+                self.unify(from, &expected, location.file, || TypeCheckError::InvalidCast {
                     from: from.clone(),
                     span: location.span,
                     reason: "casting from a non-integral type is unsupported".into(),
@@ -1087,26 +1088,28 @@ impl<'context> Elaborator<'context> {
         lhs_type: &Type,
         rhs_type: &Type,
         op: &HirBinaryOp,
-        span: Span,
+        location: Location,
     ) -> Result<(Type, bool), TypeCheckError> {
         use Type::*;
+
+        let span = location.span;
 
         match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok((Bool, false)),
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
-                self.comparator_operand_type_rules(&alias, other, op, span)
+                self.comparator_operand_type_rules(&alias, other, op, location)
             }
 
             // Matches on TypeVariable must be first to follow any type
             // bindings.
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
                 if let TypeBinding::Bound(ref binding) = &*var.borrow() {
-                    return self.comparator_operand_type_rules(other, binding, op, span);
+                    return self.comparator_operand_type_rules(other, binding, op, location);
                 }
 
-                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((Bool, use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
@@ -1138,7 +1141,7 @@ impl<'context> Elaborator<'context> {
             (Bool, Bool) => Ok((Bool, false)),
 
             (lhs, rhs) => {
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                self.unify(lhs, rhs, op.location.file, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
                     span: op.location.span,
@@ -1157,9 +1160,11 @@ impl<'context> Elaborator<'context> {
         lhs_type: &Type,
         op: &HirBinaryOp,
         rhs_type: &Type,
-        span: Span,
+        location: Location,
     ) -> bool {
-        self.unify(lhs_type, rhs_type, || TypeCheckError::TypeMismatchWithSource {
+        let span = location.span;
+
+        self.unify(lhs_type, rhs_type, location.file, || TypeCheckError::TypeMismatchWithSource {
             expected: lhs_type.clone(),
             actual: rhs_type.clone(),
             source: Source::Binary,
@@ -1177,7 +1182,7 @@ impl<'context> Elaborator<'context> {
 
             use crate::ast::BinaryOpKind::*;
             use TypeCheckError::*;
-            self.unify(lhs_type, &target, || match op.kind {
+            self.unify(lhs_type, &target, location.file, || match op.kind {
                 Less | LessEqual | Greater | GreaterEqual => FieldComparison { span },
                 And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { span },
                 Modulo => FieldModulo { span },
@@ -1197,10 +1202,12 @@ impl<'context> Elaborator<'context> {
         lhs_type: &Type,
         op: &HirBinaryOp,
         rhs_type: &Type,
-        span: Span,
+        location: Location,
     ) -> Result<(Type, bool), TypeCheckError> {
+        let span = location.span;
+
         if op.kind.is_comparator() {
-            return self.comparator_operand_type_rules(lhs_type, rhs_type, op, span);
+            return self.comparator_operand_type_rules(lhs_type, rhs_type, op, location);
         }
 
         use Type::*;
@@ -1209,7 +1216,7 @@ impl<'context> Elaborator<'context> {
             (Error, _) | (_, Error) => Ok((Error, false)),
             (Alias(alias, args), other) | (other, Alias(alias, args)) => {
                 let alias = alias.borrow().get_type(args);
-                self.infix_operand_type_rules(&alias, op, other, span)
+                self.infix_operand_type_rules(&alias, op, other, location)
             }
 
             // Matches on TypeVariable must be first so that we follow any type
@@ -1219,20 +1226,21 @@ impl<'context> Elaborator<'context> {
                     self.unify(
                         rhs_type,
                         &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
+                        location.file,
                         || TypeCheckError::InvalidShiftSize { span },
                     );
                     let use_impl = if lhs_type.is_numeric_value() {
                         let integer_type = self.polymorphic_integer();
-                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, span)
+                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, location)
                     } else {
                         true
                     };
                     return Ok((lhs_type.clone(), use_impl));
                 }
                 if let TypeBinding::Bound(ref binding) = &*int.borrow() {
-                    return self.infix_operand_type_rules(binding, op, other, span);
+                    return self.infix_operand_type_rules(binding, op, other, location);
                 }
-                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, span);
+                let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
@@ -1279,7 +1287,7 @@ impl<'context> Elaborator<'context> {
                     }
                     return Err(TypeCheckError::InvalidShiftSize { span });
                 }
-                self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
+                self.unify(lhs, rhs, op.location.file, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
                     span: op.location.span,
@@ -1298,9 +1306,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         op: &UnaryOp,
         rhs_type: &Type,
-        span: Span,
+        location: Location,
     ) -> Result<(Type, bool), TypeCheckError> {
         use Type::*;
+
+        let span = location.span;
 
         match op {
             crate::ast::UnaryOp::Minus | crate::ast::UnaryOp::Not => {
@@ -1309,21 +1319,21 @@ impl<'context> Elaborator<'context> {
                     Error => Ok((Error, false)),
                     Alias(alias, args) => {
                         let alias = alias.borrow().get_type(args);
-                        self.prefix_operand_type_rules(op, &alias, span)
+                        self.prefix_operand_type_rules(op, &alias, location)
                     }
 
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
                     TypeVariable(int) => {
                         if let TypeBinding::Bound(ref binding) = &*int.borrow() {
-                            return self.prefix_operand_type_rules(op, binding, span);
+                            return self.prefix_operand_type_rules(op, binding, location);
                         }
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
                         if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
-                            self.unify(rhs_type, &integer_type, || {
+                            self.unify(rhs_type, &integer_type, location.file, || {
                                 TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
                             });
                         }
@@ -1358,7 +1368,7 @@ impl<'context> Elaborator<'context> {
             crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
                 let expected = Type::MutableReference(Box::new(element_type.clone()));
-                self.unify(rhs_type, &expected, || TypeCheckError::TypeMismatch {
+                self.unify(rhs_type, &expected, location.file, || TypeCheckError::TypeMismatch {
                     expr_typ: rhs_type.to_string(),
                     expected_typ: expected.to_string(),
                     expr_span: span,
@@ -1379,8 +1389,9 @@ impl<'context> Elaborator<'context> {
         expr_id: ExprId,
         trait_method_id: TraitMethodId,
         object_type: &Type,
-        span: Span,
+        location: Location,
     ) {
+        let span = location.span;
         let the_trait = self.interner.get_trait(trait_method_id.trait_id);
 
         let method = &the_trait.methods[trait_method_id.method_index];
@@ -1391,10 +1402,12 @@ impl<'context> Elaborator<'context> {
                 // We can cheat a bit and match against only the object type here since no operator
                 // overload uses other generic parameters or return types aside from the object type.
                 let expected_object_type = &args[0];
-                self.unify(object_type, expected_object_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected_object_type.to_string(),
-                    expr_typ: object_type.to_string(),
-                    expr_span: span,
+                self.unify(object_type, expected_object_type, location.file, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: expected_object_type.to_string(),
+                        expr_typ: object_type.to_string(),
+                        expr_span: span,
+                    }
                 });
             }
             other => {

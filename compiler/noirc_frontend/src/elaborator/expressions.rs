@@ -164,11 +164,14 @@ impl<'context> Elaborator<'context> {
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
                 let inner_expr_type = self.interner.id_type(expr);
-                let span = self.interner.expr_span(&expr);
+                let location = self.interner.expr_location(&expr);
+                let span = location.span;
 
-                self.unify(&inner_expr_type, &Type::Unit, || TypeCheckError::UnusedResultError {
-                    expr_type: inner_expr_type.clone(),
-                    expr_span: span,
+                self.unify(&inner_expr_type, &Type::Unit, location.file, || {
+                    TypeCheckError::UnusedResultError {
+                        expr_type: inner_expr_type.clone(),
+                        expr_span: span,
+                    }
                 });
             }
 
@@ -253,9 +256,10 @@ impl<'context> Elaborator<'context> {
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let span = elem.location.span;
+                    let file = elem.location.file;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
-                    self.unify(&elem_type, &first_elem_type, || {
+                    self.unify(&elem_type, &first_elem_type, file, || {
                         TypeCheckError::NonHomogeneousArray {
                             first_span,
                             first_type: first_elem_type.to_string(),
@@ -365,7 +369,7 @@ impl<'context> Elaborator<'context> {
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location.span, location.file);
 
-        let result = self.prefix_operand_type_rules(&operator, &rhs_type, location.span);
+        let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
         let typ =
             self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, location);
 
@@ -398,10 +402,12 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
         let span = index_expr.index.location.span;
+        let file = index_expr.index.location.file;
+
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
         let expected = self.polymorphic_integer_or_field();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
+        self.unify(&index_type, &expected, file, || TypeCheckError::TypeMismatch {
             expected_typ: "an integer".to_owned(),
             expr_typ: index_type.to_string(),
             expr_span: span,
@@ -667,12 +673,13 @@ impl<'context> Elaborator<'context> {
         };
 
         let expr_span = expr.location.span;
+        let expr_file = expr.location.file;
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
         // Must type check the assertion message expression so that we instantiate bindings
         let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
 
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+        self.unify(&expr_type, &Type::Bool, expr_file, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
             expected_typ: Type::Bool.to_string(),
             expr_span,
@@ -992,7 +999,7 @@ impl<'context> Elaborator<'context> {
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location.span, location.file);
 
-        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location.span);
+        let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,
             &lhs_type,
@@ -1034,7 +1041,7 @@ impl<'context> Elaborator<'context> {
                         constraint, expr_id,
                         true, // this constraint should lead to choosing a trait impl
                     );
-                    self.type_check_operator_method(expr_id, trait_id, operand_type, location.span);
+                    self.type_check_operator_method(expr_id, trait_id, operand_type, location);
                 }
                 typ
             }
@@ -1050,31 +1057,32 @@ impl<'context> Elaborator<'context> {
         if_expr: IfExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let expr_span = if_expr.condition.location.span;
-        let consequence_span = if_expr.consequence.location.span;
+        let expr_location = if_expr.condition.location;
+        let consequence_location = if_expr.consequence.location;
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
 
-        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+        self.unify(&cond_type, &Type::Bool, expr_location.file, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
-            expr_span,
+            expr_span: expr_location.span,
         });
 
-        let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
-            let (else_, else_type) =
-                self.elaborate_expression_with_target_type(alternative, target_type);
-            (Some(else_), else_type, expr_span)
-        } else {
-            (None, Type::Unit, consequence_span)
-        };
+        let (alternative, else_type, error_location) =
+            if let Some(alternative) = if_expr.alternative {
+                let (else_, else_type) =
+                    self.elaborate_expression_with_target_type(alternative, target_type);
+                (Some(else_), else_type, expr_location)
+            } else {
+                (None, Type::Unit, consequence_location)
+            };
 
-        self.unify(&ret_type, &else_type, || {
+        self.unify(&ret_type, &else_type, error_location.file, || {
             let err = TypeCheckError::TypeMismatch {
                 expected_typ: ret_type.to_string(),
                 expr_typ: else_type.to_string(),
-                expr_span: error_span,
+                expr_span: error_location.span,
             };
 
             let context = if ret_type == Type::Unit {
@@ -1168,16 +1176,16 @@ impl<'context> Elaborator<'context> {
             });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);
-        let body_span = lambda.body.location.span;
+        let body_location = lambda.body.location;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
         let lambda_context = self.lambda_stack.pop().unwrap();
         self.pop_scope();
 
-        self.unify(&body_type, &return_type, || TypeCheckError::TypeMismatch {
+        self.unify(&body_type, &return_type, body_location.file, || TypeCheckError::TypeMismatch {
             expected_typ: return_type.to_string(),
             expr_typ: body_type.to_string(),
-            expr_span: body_span,
+            expr_span: body_location.span,
         });
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
@@ -1295,7 +1303,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
+        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), location.file, || {
             TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), span: location.span }
         });
 

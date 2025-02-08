@@ -201,19 +201,23 @@ impl<'context> Elaborator<'context> {
         );
 
         // Check that start range and end range have the same types
-        let range_span = start_location.merge(end_location).span;
-        self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
-            expected_typ: start_range_type.to_string(),
-            expr_typ: end_range_type.to_string(),
-            expr_span: range_span,
+        let range_location = start_location.merge(end_location);
+        self.unify(&start_range_type, &end_range_type, range_location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: start_range_type.to_string(),
+                expr_typ: end_range_type.to_string(),
+                expr_span: range_location.span,
+            }
         });
 
         let expected_type = self.polymorphic_integer();
 
-        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
-            typ: start_range_type.clone(),
-            place: "for loop",
-            span: range_span,
+        self.unify(&start_range_type, &expected_type, range_location.file, || {
+            TypeCheckError::TypeCannotBeUsed {
+                typ: start_range_type.clone(),
+                place: "for loop",
+                span: range_location.span,
+            }
         });
 
         self.interner.push_definition_type(identifier.id, start_range_type);
@@ -376,14 +380,16 @@ impl<'context> Elaborator<'context> {
                 (lvalue, object_type, mutable)
             }
             LValue::Index { array, index, location } => {
-                let expr_span = index.location.span;
+                let expr_location = index.location;
                 let (index, index_type) = self.elaborate_expression(index);
 
                 let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: "an integer".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_span,
+                self.unify(&index_type, &expected, expr_location.file, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: "an integer".to_owned(),
+                        expr_typ: index_type.to_string(),
+                        expr_span: expr_location.span,
+                    }
                 });
 
                 let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
@@ -442,10 +448,12 @@ impl<'context> Elaborator<'context> {
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
 
-                self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: reference_type.to_string(),
-                    expr_span: location.span,
+                self.unify(&reference_type, &expected_type, location.file, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: expected_type.to_string(),
+                        expr_typ: reference_type.to_string(),
+                        expr_span: location.span,
+                    }
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
