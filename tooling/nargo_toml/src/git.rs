@@ -28,6 +28,7 @@ fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
 }
 
 pub(crate) fn lock_git_deps() -> std::io::Result<File> {
+    std::fs::create_dir_all(nargo_crates())?;
     let file_path = nargo_crates().join(".package-cache");
     let file = OpenOptions::new().create(true).truncate(true).write(true).open(file_path)?;
     if file.try_lock_exclusive().is_err() {
