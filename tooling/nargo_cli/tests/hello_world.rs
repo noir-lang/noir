@@ -29,9 +29,7 @@ fn hello_world_example() {
     // `nargo check`
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("check");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Constraint system successfully built!"));
+    cmd.assert().success().stdout(predicate::str::is_empty());
 
     project_dir.child("Prover.toml").assert(predicate::path::is_file());
 
