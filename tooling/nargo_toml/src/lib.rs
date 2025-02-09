@@ -10,6 +10,7 @@ use std::{
 
 use errors::SemverError;
 use fm::{NormalizePath, FILE_EXTENSION};
+use fs2::FileExt;
 use nargo::{
     package::{Dependency, Package, PackageType},
     workspace::Workspace,
@@ -23,7 +24,7 @@ mod git;
 mod semver;
 
 pub use errors::ManifestError;
-use git::clone_git_repo;
+use git::{clone_git_repo, lock_git_deps};
 
 /// Searches for a `Nargo.toml` file in the current directory and all parent directories.
 /// For example, if the current directory is `/workspace/package/src`, then this function
@@ -518,7 +519,10 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
+    let lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+    lock.unlock().expect("Failed to unlock git dependencies cache");
+
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }

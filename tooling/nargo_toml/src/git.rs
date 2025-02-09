@@ -1,4 +1,8 @@
-use std::path::PathBuf;
+use fs2::FileExt;
+use std::{
+    fs::{File, OpenOptions},
+    path::PathBuf,
+};
 
 /// Creates a unique folder name for a GitHub repo
 /// by using its URL and tag
@@ -21,6 +25,18 @@ fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = resolve_folder_name(base, tag);
 
     nargo_crates().join(folder_name)
+}
+
+pub(crate) fn lock_git_deps() -> std::io::Result<File> {
+    let file_path = nargo_crates().join(".package-cache");
+    let file = OpenOptions::new().create(true).truncate(true).write(true).open(file_path)?;
+    if file.try_lock_exclusive().is_err() {
+        eprintln!("Waiting for lock on git dependencies cache...");
+    }
+
+    file.lock_exclusive()?;
+
+    Ok(file)
 }
 
 /// XXX: I'd prefer to use a GitHub library however, there
