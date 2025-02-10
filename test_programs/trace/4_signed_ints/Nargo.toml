@@ -1,0 +1,7 @@
+[package]
+name = "4_signed_ints"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]
