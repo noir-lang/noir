@@ -154,30 +154,6 @@ impl StatementKind {
             attributes,
         })
     }
-
-    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
-    pub fn assign(
-        lvalue: LValue,
-        operator: Token,
-        mut expression: Expression,
-        span: Span,
-    ) -> StatementKind {
-        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of LValues.
-        if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression();
-            let error_msg = "Token passed to Statement::assign is not a binary operator";
-
-            let infix = crate::ast::InfixExpression {
-                lhs: lvalue_expr,
-                operator: operator.try_into_binary_op(span).expect(error_msg),
-                rhs: expression,
-            };
-            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
-        }
-
-        StatementKind::Assign(AssignStatement { lvalue, expression })
-    }
 }
 
 #[derive(Eq, Debug, Clone, Default)]
