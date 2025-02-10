@@ -15,7 +15,9 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
+        instruction::{
+            binary::eval_constant_binary_op, Binary, BinaryOp, Instruction, InstructionId,
+        },
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -87,7 +89,8 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
-    // Maps induction variable -> fixed upper loop bound
+    current_induction_variables: HashMap<ValueId, FieldElement>,
+    // Maps outer loop induction variable -> fixed upper loop bound
     outer_induction_variables: HashMap<ValueId, FieldElement>,
 }
 
@@ -97,12 +100,20 @@ impl<'f> LoopInvariantContext<'f> {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
             loop_invariants: HashSet::default(),
+            current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
         }
     }
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
         self.set_values_defined_in_loop(loop_);
+
+        let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
+        if let Some(upper_bound) = upper_bound {
+            let induction_variable = loop_.get_induction_variable(self.inserter.function);
+            let induction_variable = self.inserter.resolve(induction_variable);
+            self.current_induction_variables.insert(induction_variable, upper_bound);
+        }
 
         for block in loop_.blocks.iter() {
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
@@ -132,10 +143,36 @@ impl<'f> LoopInvariantContext<'f> {
                             .dfg
                             .insert_instruction_and_results(inc_rc, *block, None, call_stack);
                     }
+                } else if let Instruction::Binary(binary) =
+                    &self.inserter.function.dfg[instruction_id]
+                {
+                    let new_instruction = match binary.operator {
+                        BinaryOp::Add { unchecked: false } | BinaryOp::Mul { unchecked: false } => {
+                            if self.eval_binary_op_with_induction_vars(
+                                binary,
+                                &self.current_induction_variables,
+                            ) {
+                                let binary = Binary {
+                                    lhs: binary.lhs,
+                                    rhs: binary.rhs,
+                                    operator: binary.operator.into_unchecked(),
+                                };
+                                Some(Instruction::Binary(binary))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(new_instruction) = new_instruction {
+                        self.inserter.function.dfg[instruction_id] = new_instruction;
+                    }
+
+                    self.inserter.push_instruction(instruction_id, *block);
                 } else {
                     self.inserter.push_instruction(instruction_id, *block);
                 }
-
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
         }
@@ -158,6 +195,8 @@ impl<'f> LoopInvariantContext<'f> {
         // These are safe to keep per function, but we want to be clear that these values
         // are used per loop.
         self.loop_invariants.clear();
+
+        self.current_induction_variables.clear();
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -236,32 +275,33 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
-                if !matches!(binary.operator, BinaryOp::Add { .. } | BinaryOp::Mul { .. }) {
-                    return false;
-                }
-
-                let operand_type =
-                    self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-
-                let lhs_const =
-                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
-                let rhs_const =
-                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
-                let (lhs, rhs) = match (
-                    lhs_const,
-                    rhs_const,
-                    self.outer_induction_variables.get(&binary.lhs),
-                    self.outer_induction_variables.get(&binary.rhs),
-                ) {
-                    (Some((lhs, _)), None, None, Some(upper_bound)) => (lhs, *upper_bound),
-                    (None, Some((rhs, _)), Some(upper_bound), None) => (*upper_bound, rhs),
-                    _ => return false,
-                };
-
-                eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
+                self.eval_binary_op_with_induction_vars(binary, &self.outer_induction_variables)
             }
             _ => false,
         }
+    }
+
+    fn eval_binary_op_with_induction_vars(
+        &self,
+        binary: &Binary,
+        induction_vars: &HashMap<ValueId, FieldElement>,
+    ) -> bool {
+        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+
+        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
+        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
+        let (lhs, rhs) = match (
+            lhs_const,
+            rhs_const,
+            induction_vars.get(&binary.lhs),
+            induction_vars.get(&binary.rhs),
+        ) {
+            (Some((lhs, _)), None, None, Some(upper_bound)) => (lhs, *upper_bound),
+            (None, Some((rhs, _)), Some(upper_bound), None) => (*upper_bound, rhs),
+            _ => return false,
+        };
+
+        eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
     }
 
     /// Loop invariant hoisting only operates over loop instructions.
