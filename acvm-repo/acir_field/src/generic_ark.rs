@@ -75,6 +75,9 @@ pub trait AcirField:
     /// Converts bytes into a FieldElement and applies a reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
 
+    /// Converts bytes in little-endian order into a FieldElement and applies a reduction if needed.
+    fn from_le_bytes_reduce(bytes: &[u8]) -> Self;
+
     /// Converts the field element to a vector of bytes in little-endian order
     fn to_le_bytes(self) -> Vec<u8>;
 
