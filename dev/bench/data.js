@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739197858529,
+  "lastUpdate": 1739197861996,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4838,100 +4838,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c44b62615f1c8ee657eedd82f2b80e2ec76c9078",
-          "message": "chore: let `add_definition_location` take a Location (#7185)",
-          "timestamp": "2025-01-24T19:57:23Z",
-          "tree_id": "5361a8f3c68767d911a766002dda45a9f79eb3de",
-          "url": "https://github.com/noir-lang/noir/commit/c44b62615f1c8ee657eedd82f2b80e2ec76c9078"
-        },
-        "date": 1737749807264,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.11,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.814,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.532,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.106,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 81.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 84.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.546,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 35.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 12.98,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.038,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.746,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.148,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -9741,6 +9647,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.734,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8502b8d2f63a1c4b78a3a196eec684672c40461e",
+          "message": "fix: lock git dependencies folder when resolving workspace (#7327)",
+          "timestamp": "2025-02-10T14:11:39Z",
+          "tree_id": "d34ce3966758e6766151a91c1fdeab402139a318",
+          "url": "https://github.com/noir-lang/noir/commit/8502b8d2f63a1c4b78a3a196eec684672c40461e"
+        },
+        "date": 1739197857565,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.972,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.805,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.7,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.988,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.408,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.987,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.054,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.518,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 78.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.086,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.594,
             "unit": "s"
           }
         ]
