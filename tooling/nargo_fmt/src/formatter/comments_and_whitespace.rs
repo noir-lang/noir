@@ -114,6 +114,8 @@ impl<'a> Formatter<'a> {
                     last_was_block_comment = false;
                 }
                 Token::LineComment(comment, None) => {
+                    let comment = comment.to_string();
+
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
                     }
@@ -134,7 +136,7 @@ impl<'a> Formatter<'a> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
-                    self.write_current_token_trimming_end();
+                    self.write_line_comment(comment);
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
                     self.bump();
@@ -178,6 +180,29 @@ impl<'a> Formatter<'a> {
         }
 
         self.ignore_next = ignore_next;
+    }
+
+    fn write_line_comment(&mut self, comment: String) {
+        if !self.config.wrap_comments
+            || self.current_line_width() + comment.chars().count() + 2 < self.max_width
+        {
+            // +2 for "//"
+            self.write("//");
+            self.write(comment.trim_end());
+            return;
+        }
+
+        self.write("//");
+        for word in comment.split_inclusive([' ', '\n', '\t']) {
+            if self.current_line_width() + word.trim().chars().count() >= self.max_width {
+                self.trim_spaces();
+                self.write_line_without_skipping_whitespace_and_comments();
+                self.write_indentation();
+                self.write("// ");
+            }
+
+            self.write(word);
+        }
     }
 
     /// Returns the number of newlines that come next, if we are at a whitespace
@@ -861,17 +886,35 @@ global x = 1;
     }
 
     #[test]
-    fn wraps_comments() {
+    fn wraps_line_comments() {
         let src = "
         // This is a long comment that's going to be wrapped.
-        global x : Field = 1;
+        global x: Field = 1;
         ";
-        let expected = "
-        // This is a long comment
-        // that's going to be 
-        // wrapped.
-        global x : Field = 1;
+        let expected = "// This is a long comment
+// that's going to be
+// wrapped.
+global x: Field = 1;
+";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn wraps_line_comments_with_indentation() {
+        let src = "
+        mod moo {
+            // This is a long comment that's going to be wrapped.
+            global x: Field = 1;
+        }
         ";
+        let expected = "mod moo {
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    global x: Field = 1;
+}
+";
         let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
