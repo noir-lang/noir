@@ -383,6 +383,7 @@ fn toml_to_workspace(
     package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let mut resolved = Vec::new();
+    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
@@ -519,7 +520,6 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
 
     if let Some(current_compiler_version) = current_compiler_version {
