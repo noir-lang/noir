@@ -3092,6 +3092,7 @@ dependencies = [
  "test-case",
  "thiserror",
  "toml",
+ "tracing",
  "url",
 ]
 
