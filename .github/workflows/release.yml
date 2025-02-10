@@ -145,34 +145,24 @@ jobs:
     name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Dispatch to publish workflow
-        uses: noir-lang/noir/.github/workflows/publish-nargo.yml@master
-        with:
-          tag: ${{ needs.release-please.outputs.tag-name }}
-          publish: true
+    uses: noir-lang/noir/.github/workflows/publish-nargo.yml@master
+    with:
+      tag: ${{ needs.release-please.outputs.tag-name }}
+      publish: true
 
   publish-es-packages:
     name: Publish ES packages
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Dispatch to publish-es-packages
-        uses: noir-lang/noir/.github/workflows/publish-es-packages.yml@master
-        with:
-          noir-ref: ${{ needs.release-please.outputs.tag-name }}
-          npm-tag: "latest"
+    uses: noir-lang/noir/.github/workflows/publish-es-packages.yml@master
+    with:
+      noir-ref: ${{ needs.release-please.outputs.tag-name }}
+      npm-tag: "latest"
 
   publish-acvm:
     name: Publish acvm
     needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-22.04
-    
-    steps:
-      - name: Dispatch to publish-acvm
-        uses: noir-lang/noir/.github/workflows/publish-acvm.yml@master
-        with:
-          noir-ref: ${{ needs.release-please.outputs.tag-name }}
+    if: ${{ needs.release-please.outputs.tag-name }}    
+    uses: noir-lang/noir/.github/workflows/publish-acvm.yml@master
+    with:
+      noir-ref: ${{ needs.release-please.outputs.tag-name }}

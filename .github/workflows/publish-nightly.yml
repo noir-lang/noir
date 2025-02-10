@@ -6,17 +6,16 @@ on:
     - cron: "0 2 * * *"
 
 jobs:
-  dispatch-publish-es:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Dispatch to publish-nargo
-        uses: ./.github/workflows/publish-nargo.yml
-        with:
-          # Omitting a tag results in a nightly 
-          publish: true
+  public-nargo:
+    name: Publish Nargo binary
+    uses: ./.github/workflows/publish-nargo.yml
+    with:
+      # Omitting a tag results in a nightly 
+      publish: true
 
-      - name: Dispatch to publish-es-packages
-        uses: ./.github/workflows/publish-es-packages.yml
-        with:
-          noir-ref: ${{ env.GITHUB_REF }}
-          npm-tag: nightly
+  public-js-packages:
+    name: Publish JS packages
+    uses: ./.github/workflows/publish-es-packages.yml
+    with:
+      noir-ref: ${{ env.GITHUB_REF }}
+      npm-tag: nightly
