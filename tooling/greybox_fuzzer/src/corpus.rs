@@ -123,6 +123,16 @@ impl CorpusFileManager {
     }
     /// Save testcase to the corpus directory and add it to the file manager
     pub fn save_testcase_to_disk(&mut self, contents: &str) -> Result<(), String> {
+        let mut builder = DirBuilder::new();
+        match builder.recursive(true).create(&self.corpus_path) {
+            Ok(_) => (),
+            Err(_) => {
+                return Err(format!(
+                    "Couldn't create directory {:?}",
+                    self.corpus_path.as_os_str()
+                ));
+            }
+        }
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
         let full_file_path = self.corpus_path.join(file_name);
         let mut file = File::create(&full_file_path)
@@ -362,5 +372,10 @@ impl Corpus {
     /// Get the number of active testcases in the corpus
     pub fn get_testcase_count(&self) -> usize {
         self.discovered_testcases.len()
+    }
+
+    /// Get current discovered testcases
+    pub fn get_current_discovered_testcases(&self) -> Vec<TestCase> {
+        self.discovered_testcases.iter().map(|(&id, value)| TestCase::with_id(id, value)).collect()
     }
 }

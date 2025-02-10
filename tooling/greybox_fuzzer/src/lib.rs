@@ -890,6 +890,23 @@ impl<
                 self.metrics.refresh_round();
                 time_tracker = Instant::now();
             }
+
+            if self.minimize_corpus {
+                let mut minimized_corpus = minimized_corpus.unwrap();
+                // Insert all unique testcases from the main corpus into the minimized corpus
+                for testcase in corpus.get_current_discovered_testcases() {
+                    match minimized_corpus.insert(
+                        testcase.id(),
+                        testcase.value().clone(),
+                        /*save_to_disk= */ true,
+                    ) {
+                        Ok(_) => {}
+
+                        Err(error) => return FuzzTestResult::CorpusFailure(error),
+                    }
+                }
+                return FuzzTestResult::MinimizationSuccess;
+            }
             // We have now definitely processed the starting corpus
             processed_starting_corpus = true;
         };
