@@ -1,5 +1,9 @@
 use core::panic;
-use std::{cmp::max, path::PathBuf, time::Instant};
+use std::{
+    cmp::max,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 use acvm::{
     acir::{
@@ -23,8 +27,10 @@ use corpus::{Corpus, TestCase, TestCaseId, DEFAULT_CORPUS_FOLDER};
 use mutation::InputMutator;
 use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
+pub use types::FuzzTestResult;
 use types::{
-    CounterExampleOutcome, DiscrepancyOutcome, FuzzOutcome, FuzzTestResult, SuccessfulCaseOutcome,
+    CounterExampleOutcome, DiscrepancyOutcome, HarnessExecutionOutcome, ProgramFailureResult,
+    SuccessfulCaseOutcome,
 };
 
 use noirc_artifacts::program::ProgramArtifact;
@@ -95,7 +101,7 @@ impl FuzzTask {
 #[derive(Debug)]
 struct FastParallelFuzzResult {
     /// Contains the result of executing the testcase and the testcase itself
-    outcome: FuzzOutcome,
+    outcome: HarnessExecutionOutcome,
     /// If new coverage has been detected when executing the testcase
     new_coverage_detected: bool,
     /// If the fuzzer has detected a condition that will not allow it to continue (a discrepancy, an unexpected execution failure or a failed foreign call)
@@ -110,7 +116,7 @@ struct FastParallelFuzzResult {
 
 impl FastParallelFuzzResult {
     pub fn new(
-        outcome: FuzzOutcome,
+        outcome: HarnessExecutionOutcome,
         new_coverage_detected: bool,
         failure_detected: bool,
         mutation_time: u128,
@@ -138,7 +144,7 @@ impl FastParallelFuzzResult {
     }
 
     /// Get the outcome of the execution
-    pub fn outcome(&self) -> &FuzzOutcome {
+    pub fn outcome(&self) -> &HarnessExecutionOutcome {
         &self.outcome
     }
 
@@ -429,12 +435,7 @@ impl<
         match corpus.attempt_to_load_corpus_from_disk() {
             Ok(_) => (),
             Err(error_string) => {
-                return FuzzTestResult {
-                    success: false,
-                    reason: Some(error_string),
-                    counterexample: None,
-                    foreign_call_failure: false,
-                };
+                return FuzzTestResult::CorpusFailure(error_string);
             }
         }
 
@@ -447,15 +448,36 @@ impl<
             corpus.get_full_stored_corpus().iter().map(|x| x.id()).collect();
 
         if self.minimize_corpus && starting_corpus_ids.is_empty() {
-            return FuzzTestResult {
-                success: false,
-                reason: Some("No initial corpus found to minimize".to_string()),
-                counterexample: None,
-                foreign_call_failure: false,
-            };
+            return FuzzTestResult::MinimizationFailure(
+                "No initial corpus found to minimize".to_string(),
+            );
         }
 
-        display_starting_info(seed, starting_corpus_ids.len(), self.num_threads);
+        let minimized_corpus = if self.minimize_corpus {
+            Some(Corpus::new(
+                &self.minimized_corpus_folder,
+                &self.package_name,
+                &self.function_name,
+                &self.acir_program.abi,
+            ))
+        } else {
+            None
+        };
+        let mut minimized_corpus_path = PathBuf::new();
+        if self.minimize_corpus {
+            minimized_corpus_path =
+                minimized_corpus.as_ref().unwrap().get_corpus_storage_path().to_path_buf();
+        }
+        display_starting_info(
+            self.minimize_corpus,
+            seed,
+            starting_corpus_ids.len(),
+            self.num_threads,
+            &self.package_name,
+            &self.function_name,
+            corpus.get_corpus_storage_path(),
+            &minimized_corpus_path,
+        );
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
@@ -468,12 +490,7 @@ impl<
             ) {
                 Ok(_) => (),
                 Err(error_string) => {
-                    return FuzzTestResult {
-                        success: false,
-                        reason: Some(error_string),
-                        counterexample: None,
-                        foreign_call_failure: false,
-                    }
+                    return FuzzTestResult::CorpusFailure(error_string);
                 }
             }
             starting_corpus_ids.push(default_testcase.id());
@@ -577,7 +594,7 @@ impl<
                             self.single_fuzz_brillig(&testcase)
                         };
 
-                        if let FuzzOutcome::Case(SuccessfulCaseOutcome {
+                        if let HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                             case_id,
                             case,
                             witness,
@@ -595,7 +612,7 @@ impl<
                                 );
 
                             FastParallelFuzzResult::new(
-                                FuzzOutcome::Case(SuccessfulCaseOutcome {
+                                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                                     case_id,
                                     case,
                                     witness,
@@ -669,7 +686,7 @@ impl<
             for index in analysis_queue.into_iter() {
                 let fuzzing_outcome = all_fuzzing_results[index].outcome().clone();
                 let (case_id, case, witness, brillig_coverage) = match fuzzing_outcome {
-                    FuzzOutcome::Case(SuccessfulCaseOutcome {
+                    HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id,
                         case,
                         witness,
@@ -736,12 +753,7 @@ impl<
                     match corpus.insert(case_id, case, true) {
                         Ok(_) => (),
                         Err(error_string) => {
-                            return FuzzTestResult {
-                                success: false,
-                                reason: Some(error_string),
-                                counterexample: None,
-                                foreign_call_failure: false,
-                            }
+                            return FuzzTestResult::CorpusFailure(error_string);
                         }
                     }
                     self.metrics.increment_acir_brillig_discoveries();
@@ -751,21 +763,21 @@ impl<
             let updating_time = updating_time_tracker.elapsed().as_micros();
 
             // Execute interesting testcases in ACIR to collect witness if they have been executed just in brillig
-            let all_fuzzing_results: Vec<FuzzOutcome> = pool.install(|| {
+            let all_fuzzing_results: Vec<HarnessExecutionOutcome> = pool.install(|| {
                 acir_cases_to_execute
                     .into_par_iter()
                     .map(|(case_id, input, brillig_coverage )| {
                         let testcase = TestCase::with_id(case_id, &input);
                         let fuzz_res = self.single_fuzz_acir(&testcase);
                         match fuzz_res {
-                            FuzzOutcome::Case(SuccessfulCaseOutcome {
+                            HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                                 case_id,
                                 case,
                                 witness,
                                 brillig_coverage: _,
                                 acir_time,
                                 brillig_time: _,
-                            }) => FuzzOutcome::Case(SuccessfulCaseOutcome {
+                            }) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                                 case_id,
                                 case,
                                 witness,
@@ -773,32 +785,32 @@ impl<
                                 acir_time,
                                 brillig_time:0,// we've already used this brillig time in calculations, so it doesn't matter
                             }),
-                            FuzzOutcome::Discrepancy(..) => {
+                            HarnessExecutionOutcome::Discrepancy(..) => {
                                 panic!("Can't get a discrepancy just from acir")
                             }
-                            FuzzOutcome::CounterExample(CounterExampleOutcome {
+                            HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                                 case_id,
                                 counterexample,
                                 exit_reason,
-                            }) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+                            }) => HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                                 case_id,
                                 counterexample,
                                 acir_failed: true,
                                 exit_reason,
                             }),
-                            FuzzOutcome::ForeignCallFailure(..) => {
+                            HarnessExecutionOutcome::ForeignCallFailure(..) => {
                                 panic!("Can't get a foreign call problem in ACIR while having none in brillig")
                             }
                         }
                     })
-                    .collect::<Vec<FuzzOutcome>>()
+                    .collect::<Vec<HarnessExecutionOutcome>>()
             });
 
             // Parse results and if there is an unsuccessful case break out of the loop
             for acir_fuzzing_result in all_fuzzing_results.into_iter() {
                 let (case_id, case, witness, brillig_coverage, acir_time) =
                     match acir_fuzzing_result {
-                        FuzzOutcome::Case(SuccessfulCaseOutcome {
+                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                             case_id,
                             case,
                             witness,
@@ -857,12 +869,7 @@ impl<
                     match corpus.insert(case_id, case, true) {
                         Ok(_) => (),
                         Err(error_string) => {
-                            return FuzzTestResult {
-                                success: false,
-                                reason: Some(error_string),
-                                counterexample: None,
-                                foreign_call_failure: false,
-                            }
+                            return FuzzTestResult::CorpusFailure(error_string);
                         }
                     }
 
@@ -889,13 +896,8 @@ impl<
 
         // Parse the execution result and convert it to the FuzzTestResult
         match fuzz_res {
-            FuzzOutcome::Case(_) => FuzzTestResult {
-                success: true,
-                reason: None,
-                counterexample: None,
-                foreign_call_failure: false,
-            },
-            FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+            HarnessExecutionOutcome::Case(_) => FuzzTestResult::Success,
+            HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: _,
                 exit_reason: status,
                 acir_failed,
@@ -909,41 +911,33 @@ impl<
                         format!("brillig failed while ACIR executed with no issues: {}", status)
                     }
                 };
-                let reason = if reason.is_empty() { None } else { Some(reason) };
 
-                FuzzTestResult {
-                    success: false,
-                    reason,
-                    counterexample: Some(counterexample.clone()),
-                    foreign_call_failure: false,
-                }
+                FuzzTestResult::ProgramFailure(ProgramFailureResult {
+                    failure_reason: reason,
+                    counterexample: counterexample.clone(),
+                })
             }
-            FuzzOutcome::CounterExample(CounterExampleOutcome {
+            HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                 case_id: _,
                 exit_reason: status,
                 counterexample,
             }) => {
                 let reason = status.to_string();
-                let reason = if reason.is_empty() { None } else { Some(reason) };
-
-                FuzzTestResult {
-                    success: false,
-                    reason,
-                    counterexample: Some(counterexample.clone()),
-                    foreign_call_failure: false,
-                }
+                FuzzTestResult::ProgramFailure(ProgramFailureResult {
+                    failure_reason: reason,
+                    counterexample: counterexample.clone(),
+                })
             }
-            FuzzOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => FuzzTestResult {
-                success: false,
-                foreign_call_failure: true,
-                reason: Some(foreign_call_error_in_fuzzing.exit_reason.to_string()),
-                counterexample: None,
-            },
+            HarnessExecutionOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => {
+                FuzzTestResult::ForeignCallFailure(
+                    foreign_call_error_in_fuzzing.exit_reason.to_string(),
+                )
+            }
         }
     }
 
     /// Execute acir and brillig programs with the following Testcase
-    pub fn single_fuzz_acir_and_brillig(&self, testcase: &TestCase) -> FuzzOutcome {
+    pub fn single_fuzz_acir_and_brillig(&self, testcase: &TestCase) -> HarnessExecutionOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let initial_witness2 = self.acir_program.abi.encode(testcase.value(), None).unwrap();
 
@@ -964,7 +958,7 @@ impl<
         match (result_acir, result_brillig) {
             (Ok(witnesses), Ok((_map, brillig_coverage))) => {
                 // If both were OK, collect coverage and ACIR witnesses along with timings and return
-                FuzzOutcome::Case(SuccessfulCaseOutcome {
+                HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                     case_id: testcase.id(),
                     case: testcase.value().clone(),
                     witness: Some(witnesses),
@@ -974,13 +968,13 @@ impl<
                 })
             }
             // If results diverge, it's a discrepancy
-            (Err(err), Ok(_)) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+            (Err(err), Ok(_)) => HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
                 acir_failed: true,
                 counterexample: testcase.value().clone(),
             }),
-            (Ok(_), Err((err, _))) => FuzzOutcome::Discrepancy(DiscrepancyOutcome {
+            (Ok(_), Err((err, _))) => HarnessExecutionOutcome::Discrepancy(DiscrepancyOutcome {
                 case_id: testcase.id(),
                 exit_reason: err,
                 acir_failed: false,
@@ -990,9 +984,9 @@ impl<
             (Err(..), Err((err, coverage))) => {
                 // If this is a foreign call failure, we need to inform the user
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
-                        exit_reason: err,
-                    });
+                    return HarnessExecutionOutcome::ForeignCallFailure(
+                        types::ForeignCallErrorInFuzzing { exit_reason: err },
+                    );
                 }
                 // If failures are expected and this is not the failure that we are looking for, then don't treat as failure
                 if self.failure_configuration.fail_on_specific_asserts
@@ -1003,7 +997,7 @@ impl<
                             .expect("Failure reason should be provided"),
                     )
                 {
-                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
                         witness: None,
@@ -1014,7 +1008,7 @@ impl<
                 }
 
                 // This is a bug, inform the user
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
+                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
                     counterexample: testcase.value().clone(),
@@ -1025,14 +1019,14 @@ impl<
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz_acir(&self, testcase: &TestCase) -> FuzzOutcome {
+    pub fn single_fuzz_acir(&self, testcase: &TestCase) -> HarnessExecutionOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let acir_start = Instant::now();
         let result_acir = (self.acir_executor)(&self.acir_program.bytecode, initial_witness);
         let acir_elapsed = acir_start.elapsed();
 
         match result_acir {
-            Ok(witnesses) => FuzzOutcome::Case(SuccessfulCaseOutcome {
+            Ok(witnesses) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                 case_id: testcase.id(),
                 case: testcase.value().clone(),
                 witness: Some(witnesses),
@@ -1042,9 +1036,9 @@ impl<
             }),
             Err(err) => {
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
-                        exit_reason: err,
-                    });
+                    return HarnessExecutionOutcome::ForeignCallFailure(
+                        types::ForeignCallErrorInFuzzing { exit_reason: err },
+                    );
                 }
                 if self.failure_configuration.fail_on_specific_asserts
                     && !err.contains(
@@ -1055,7 +1049,7 @@ impl<
                     )
                 {
                     // TODO: in the future we can add partial witness propagation from ACIR
-                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
                         witness: None,
@@ -1064,7 +1058,7 @@ impl<
                         brillig_time: 0,
                     });
                 }
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
+                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
                     counterexample: testcase.value().clone(),
@@ -1075,7 +1069,7 @@ impl<
 
     /// Granular and single-step function that runs only one fuzz and returns either a `CaseOutcome`
     /// or a `CounterExampleOutcome`
-    pub fn single_fuzz_brillig(&self, testcase: &TestCase) -> FuzzOutcome {
+    pub fn single_fuzz_brillig(&self, testcase: &TestCase) -> HarnessExecutionOutcome {
         let initial_witness = self.acir_program.abi.encode(testcase.value(), None).unwrap();
         let brillig_start = Instant::now();
         let result_brillig = (self.brillig_executor)(
@@ -1086,7 +1080,7 @@ impl<
         let brillig_elapsed = brillig_start.elapsed();
 
         match result_brillig {
-            Ok((_, brillig_coverage)) => FuzzOutcome::Case(SuccessfulCaseOutcome {
+            Ok((_, brillig_coverage)) => HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                 case_id: testcase.id(),
                 case: testcase.value().clone(),
                 witness: None,
@@ -1096,9 +1090,9 @@ impl<
             }),
             Err((err, coverage)) => {
                 if err.contains(FOREIGN_CALL_FAILURE_SUBSTRING) {
-                    return FuzzOutcome::ForeignCallFailure(types::ForeignCallErrorInFuzzing {
-                        exit_reason: err,
-                    });
+                    return HarnessExecutionOutcome::ForeignCallFailure(
+                        types::ForeignCallErrorInFuzzing { exit_reason: err },
+                    );
                 }
                 if self.failure_configuration.fail_on_specific_asserts
                     && !err.contains(
@@ -1108,7 +1102,7 @@ impl<
                             .expect("Failure reason should be provided"),
                     )
                 {
-                    return FuzzOutcome::Case(SuccessfulCaseOutcome {
+                    return HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
                         case_id: testcase.id(),
                         case: testcase.value().clone(),
                         witness: None,
@@ -1117,7 +1111,7 @@ impl<
                         brillig_time: brillig_elapsed.as_micros(),
                     });
                 }
-                FuzzOutcome::CounterExample(CounterExampleOutcome {
+                HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                     case_id: testcase.id(),
                     exit_reason: err,
                     counterexample: testcase.value().clone(),
@@ -1128,9 +1122,55 @@ impl<
 }
 
 // A method for pretty display starting information
-fn display_starting_info(seed: u64, starting_corpus_size: usize, num_threads: usize) {
+fn display_starting_info(
+    minimize_corpus: bool,
+    seed: u64,
+    starting_corpus_size: usize,
+    num_threads: usize,
+    package_name: &str,
+    fuzzing_harness_name: &str,
+    corpus_path: &Path,
+    minimized_corpus_path: &Path,
+) {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
+    if minimize_corpus {
+        write!(writer, "Attempting to minimize corpus for fuzzing harness ")
+            .expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{}", fuzzing_harness_name).expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, " of package ").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        writeln!(writer, "{}", package_name).expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, "Corpus path: \"").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{}", corpus_path.to_str().expect("There can't be no path"))
+            .expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, "\"\nMinimized corpus path: \"").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{}", minimized_corpus_path.to_str().expect("There can't be no path"))
+            .expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        writeln!(writer, "\"").expect("Failed to write to stderr");
+    } else {
+        write!(writer, "Starting fuzzing with harness ").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{}", fuzzing_harness_name).expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, " of package ").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        writeln!(writer, "{}", package_name).expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, "Corpus path: \"").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{}", corpus_path.to_str().expect("There can't be no path"))
+            .expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        writeln!(writer, "\"").expect("Failed to write to stderr");
+    }
     write!(writer, "seed: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{:#016x}", seed).expect("Failed to write to stderr");
@@ -1141,7 +1181,7 @@ fn display_starting_info(seed: u64, starting_corpus_size: usize, num_threads: us
     write!(writer, "{}", starting_corpus_size).expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", num_threads:: ").expect("Failed to write to stderr");
+    write!(writer, ", num_threads: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     writeln!(writer, "{}", num_threads).expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");

@@ -5,24 +5,33 @@ use crate::corpus::TestCaseId;
 
 type CounterExample = InputMap;
 
-/// The outcome of a fuzz test
 #[derive(Debug)]
-pub struct FuzzTestResult {
-    /// Whether the test case was successful. This means that the program executed
-    /// properly, or that there was a constraint failure and that the test was expected to fail
-    /// (has the `should_fail` attribute)
-    pub success: bool,
+/// Returned to the fuzz op in case the fuzzer found a failure case
+pub struct ProgramFailureResult {
+    /// Failure message
+    pub failure_reason: String,
+    /// Failing testcase
+    pub counterexample: CounterExample,
+}
+#[derive(Debug)]
+/// The outcome of a fuzz test
+pub enum FuzzTestResult {
+    /// If the program has been executed properly and no failures have been found
+    Success,
+    /// If we've discovered a failing testcase
+    ProgramFailure(ProgramFailureResult),
 
-    /// Set if the PUT failed because of a foreign call
-    pub foreign_call_failure: bool,
+    /// Failed to load corpus or insert a file, etc (mb no write privileges for target folder)
+    CorpusFailure(String),
 
-    /// If there was a constraint failure, this field will be populated. Note that the test can
-    /// still be successful (i.e self.success == true) when it's expected to fail.
-    /// It will also contain the foreign call failure string if there was a foreign call failure
-    pub reason: Option<String>,
+    /// Will contain the foreign call failure string if there was a foreign call failure
+    ForeignCallFailure(String),
 
-    /// Minimal reproduction test case for failing fuzz tests
-    pub counterexample: Option<CounterExample>,
+    /// Will contain the reason for minimization failure (except in cases when a program failure was detected)
+    MinimizationFailure(String),
+
+    /// Successfully minimized corpus
+    MinimizationSuccess,
 }
 
 /// Returned by a single fuzz in the case of a successful run
@@ -80,9 +89,9 @@ pub struct ForeignCallErrorInFuzzing {
     pub exit_reason: String,
 }
 
-/// Outcome of a single fuzz
+/// Outcome of a single execution (Brillig or Acir and Brillig)
 #[derive(Clone, Debug)]
-pub enum FuzzOutcome {
+pub enum HarnessExecutionOutcome {
     Case(SuccessfulCaseOutcome),
     Discrepancy(DiscrepancyOutcome),
     CounterExample(CounterExampleOutcome),

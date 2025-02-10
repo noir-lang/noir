@@ -77,7 +77,6 @@ impl CorpusFileManager {
                 ));
             }
         }
-        println!("Path of corpus {:?}", self.corpus_path);
         // Go through all files
         for entry in WalkDir::new(&self.corpus_path) {
             let Ok(entry) = entry else {
@@ -118,6 +117,10 @@ impl CorpusFileManager {
         full_corpus
     }
 
+    /// Get corpus path
+    pub fn get_corpus_path(&self) -> &Path {
+        &self.corpus_path
+    }
     /// Save testcase to the corpus directory and add it to the file manager
     pub fn save_testcase_to_disk(&mut self, contents: &str) -> Result<(), String> {
         let file_name = Path::new(&digest(contents)).with_extension(CORPUS_FILE_EXTENSION);
@@ -302,6 +305,10 @@ impl Corpus {
             .collect()
     }
 
+    /// Get the path to the folder where the corpus is stored
+    pub fn get_corpus_storage_path(&self) -> &Path {
+        self.corpus_file_manager.get_corpus_path()
+    }
     /// Add a new testcase into cache
     pub fn insert_into_cache(&mut self, testcase_id: TestCaseId, new_testcase_value: InputMap) {
         self.cached_testcases.insert(testcase_id, new_testcase_value);

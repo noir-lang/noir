@@ -6,7 +6,7 @@ use acvm::{
     BlackBoxFunctionSolver, FieldElement,
 };
 use noir_greybox_fuzzer::{
-    AcirAndBrilligPrograms, ErrorAndCoverage, FuzzedExecutorFailureConfiguration,
+    AcirAndBrilligPrograms, ErrorAndCoverage, FuzzTestResult, FuzzedExecutorFailureConfiguration,
     FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
 };
 use noirc_abi::{Abi, InputMap};
@@ -30,18 +30,31 @@ pub struct FuzzFolderConfig {
 }
 
 pub enum FuzzingRunStatus {
-    Pass,
-    Fail {
+    ExecutionPass,
+    MinimizationPass,
+    CorpusFailure {
+        message: String,
+    },
+    ExecutionFailure {
         message: String,
         counterexample: Option<(InputMap, Abi)>,
         error_diagnostic: Option<FileDiagnostic>,
+    },
+    MinimizationFailure {
+        message: String,
+    },
+    ForeignCallFailure {
+        message: String,
     },
     CompileError(FileDiagnostic),
 }
 
 impl FuzzingRunStatus {
     pub fn failed(&self) -> bool {
-        !matches!(self, FuzzingRunStatus::Pass)
+        !matches!(
+            self,
+            FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationFailure { .. }
+        )
     }
 }
 
@@ -65,7 +78,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
         .is_empty();
 
     if fuzzing_harness_has_no_arguments {
-        return FuzzingRunStatus::Fail {
+        return FuzzingRunStatus::ExecutionFailure {
             message: ("Fuzzing harness has no arguments".to_owned()),
             counterexample: (None),
             error_diagnostic: (None),
@@ -84,13 +97,18 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     };
     let brillig_program =
         compile_no_check(context, &brillig_config, fuzzing_harness.get_id(), None, false);
+    let brillig_program_copy = if let Ok(brillig_progam_internal) = &brillig_program {
+        Some(brillig_progam_internal.clone())
+    } else {
+        None
+    };
     match (acir_program, brillig_program) {
         // Good for us, run fuzzer
         (Ok(acir_program), Ok(brillig_program)) => {
             #[cfg(target_arch = "wasm32")]
             {
                 // We currently don't support fuzz testing on wasm32 as the u128 strategies do not exist on this platform.
-                FuzzingRunStatus::Fail {
+                FuzzingRunStatus::ExecutionFailure {
                     message: "Fuzz tests are not supported on wasm32".to_string(),
                     error_diagnostic: None,
                 }
@@ -176,50 +194,81 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 );
 
                 let result = fuzzer.fuzz();
-                if result.success {
-                    FuzzingRunStatus::Pass
-                } else if result.counterexample.is_some() {
-                    let unwrapped_acir_program = acir_program_copy.unwrap();
-                    let initial_witness = unwrapped_acir_program
-                        .abi
-                        .encode(
-                            &result
-                                .counterexample
-                                .clone()
-                                .expect("There should be a failing witness"),
-                            None,
-                        )
-                        .unwrap();
-                    let execution_failure = execute_program(
-                        &unwrapped_acir_program.program,
-                        initial_witness,
-                        &B::default(),
-                        &mut DefaultForeignCallExecutor::new(
-                            PrintOutput::None,
-                            foreign_call_resolver_url,
-                            root_path.clone(),
-                            package_name.clone(),
-                        ),
-                    );
-                    let execution_error = match execution_failure {
-                        Err(err) => err,
-                        Ok(..) => panic!("Program is flakey"),
-                    };
-                    FuzzingRunStatus::Fail {
-                        message: result.reason.unwrap_or_default(),
-                        counterexample: Some((result.counterexample.expect("huh"), abi)),
-                        error_diagnostic: try_to_diagnose_runtime_error(
-                            &execution_error,
-                            &unwrapped_acir_program.abi,
-                            &unwrapped_acir_program.debug,
-                        ),
+                match result {
+                    FuzzTestResult::Success => FuzzingRunStatus::ExecutionPass,
+                    FuzzTestResult::ProgramFailure(program_failure_result) => {
+                        // Collect failing callstack
+                        let unwrapped_acir_program = acir_program_copy.unwrap();
+                        let initial_witness = unwrapped_acir_program
+                            .abi
+                            .encode(&program_failure_result.counterexample.clone(), None)
+                            .unwrap();
+
+                        // Execute the program with the failing witness
+                        let execution_failure = execute_program(
+                            &unwrapped_acir_program.program,
+                            initial_witness,
+                            &B::default(),
+                            &mut DefaultForeignCallExecutor::new(
+                                PrintOutput::None,
+                                foreign_call_resolver_url,
+                                root_path.clone(),
+                                package_name.clone(),
+                            ),
+                        );
+                        let error_diagnostic = match execution_failure {
+                            Err(err) => try_to_diagnose_runtime_error(
+                                &err,
+                                &unwrapped_acir_program.abi,
+                                &unwrapped_acir_program.debug,
+                            ),
+                            // Maybe it was the brillig version that failed and we hade a discrepancy?
+                            Ok(..) => {
+                                // Collect failing callstack from brillig
+                                let unwrapped_brillig_program = brillig_program_copy.unwrap();
+                                let initial_witness = unwrapped_acir_program
+                                    .abi
+                                    .encode(&program_failure_result.counterexample.clone(), None)
+                                    .unwrap();
+
+                                // Execute the program with the failing witness
+                                let execution_failure = execute_program(
+                                    &unwrapped_brillig_program.program,
+                                    initial_witness,
+                                    &B::default(),
+                                    &mut DefaultForeignCallExecutor::new(
+                                        PrintOutput::None,
+                                        foreign_call_resolver_url,
+                                        root_path.clone(),
+                                        package_name.clone(),
+                                    ),
+                                );
+                                match execution_failure{
+                                    Err(err) => try_to_diagnose_runtime_error(
+                                &err,
+                                &unwrapped_brillig_program.abi,
+                                &unwrapped_brillig_program.debug,
+                            ),
+                                    Ok(..) => panic!("The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution")
+                                }
+                            }
+                        };
+                        FuzzingRunStatus::ExecutionFailure {
+                            message: program_failure_result.failure_reason,
+                            counterexample: Some((program_failure_result.counterexample, abi)),
+                            error_diagnostic,
+                        }
                     }
-                } else {
-                    FuzzingRunStatus::Fail {
-                        message: result.reason.expect("Should be a failure message"),
-                        counterexample: None,
-                        error_diagnostic: None,
+                    FuzzTestResult::CorpusFailure(error) => {
+                        FuzzingRunStatus::CorpusFailure { message: error }
                     }
+                    FuzzTestResult::ForeignCallFailure(error) => {
+                        FuzzingRunStatus::ForeignCallFailure { message: error }
+                    }
+                    FuzzTestResult::MinimizationFailure(error) => {
+                        FuzzingRunStatus::MinimizationFailure { message: error }
+                    }
+                    FuzzTestResult::MinimizationSuccess => FuzzingRunStatus::MinimizationPass,
                 }
             }
         }

@@ -216,14 +216,6 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         compile_options,
     )?;
 
-    let count_all = fuzzing_harnesses.len();
-
-    let plural = if count_all == 1 { "" } else { "es" };
-    println!("[{}] Running {count_all} fuzzing harness{plural}", package.name);
-    for fuzzing_harness_name in fuzzing_harnesses.iter() {
-        println!("{}", fuzzing_harness_name);
-    }
-
     let fuzzing_report: Vec<(String, FuzzingRunStatus)> = fuzzing_harnesses
         .into_iter()
         .map(|fuzzing_harness_name| {
@@ -273,7 +265,6 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     // We then need to construct a separate copy for each test.
 
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    println!("Package name {:?}", package_name);
     check_crate(&mut context, crate_id, compile_options)
         .expect("Any errors should have occurred when collecting fuzzing harnesses");
 
@@ -323,31 +314,86 @@ fn display_fuzzing_report_and_store(
     let mut writer = writer.lock();
 
     for (fuzzing_harness_name, test_status) in fuzzing_report {
-        write!(writer, "[{}] Testing {fuzzing_harness_name}... ", package.name)
-            .expect("Failed to write to stderr");
+        write!(writer, "[").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+
+        write!(writer, "{}", package.name).expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, "] Executed fuzzing task on ").expect("Failed to write to stderr");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+        write!(writer, "{fuzzing_harness_name}").expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+        write!(writer, "...").expect("Failed to write to stderr");
         writer.flush().expect("Failed to flush writer");
 
         match &test_status {
-            FuzzingRunStatus::Pass { .. } => {
+            FuzzingRunStatus::ExecutionPass { .. } => {
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
                     .expect("Failed to set color");
                 writeln!(writer, "ok").expect("Failed to write to stderr");
             }
-            FuzzingRunStatus::Fail { message, counterexample, error_diagnostic } => {
+            FuzzingRunStatus::MinimizationPass { .. } => {
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                    .expect("Failed to set color");
+                writeln!(writer, "successfully minimized corpus")
+                    .expect("Failed to write to stderr");
+            }
+            FuzzingRunStatus::CorpusFailure { message } => {
+                writeln!(writer, "issue with corpus: ").expect("Failed to write to stderr");
                 writer
                     .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
                     .expect("Failed to set color");
 
-                writeln!(writer, "FAIL\n{message}\n").expect("Failed to write to stderr");
+                writeln!(writer, "{message}").expect("Failed to write to stderr");
+                writer.reset().expect("Failed to reset writer");
+            }
+            FuzzingRunStatus::MinimizationFailure { message } => {
+                writeln!(writer, "couldn't minimize corpus: ").expect("Failed to write to stderr");
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                    .expect("Failed to set color");
+
+                writeln!(writer, "{message}").expect("Failed to write to stderr");
+                writer.reset().expect("Failed to reset writer");
+            }
+            FuzzingRunStatus::ForeignCallFailure { message } => {
+                writeln!(writer, "issue with a foreign call: ").expect("Failed to write to stderr");
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                    .expect("Failed to set color");
+
+                writeln!(writer, "{message}").expect("Failed to write to stderr");
+                writer.reset().expect("Failed to reset writer");
+            }
+            FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } => {
+                write!(writer, "execution ").expect("Failed to write to stderr");
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                    .expect("Failed to set color");
+                write!(writer, "failed").expect("Failed to write to stderr");
+                writer.reset().expect("Failed to reset writer");
+                writeln!(writer, " with message:").expect("Failed to write to stderr");
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
+                    .expect("Failed to set color");
+
+                writeln!(writer, "{message}").expect("Failed to write to stderr");
+                writer.reset().expect("Failed to reset writer");
                 if let Some((input_map, abi)) = counterexample {
+                    writeln!(writer, "Failing input: ",).expect("Failed to write to stderr");
+                    writer
+                        .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
+                        .expect("Failed to set color");
                     writeln!(
                         writer,
-                        "failing input: {}",
+                        "{}",
                         serialize_to_json(input_map, abi)
                             .expect("Input map should be correctly serialized with this Abi")
                     )
                     .expect("Failed to write to stderr");
+                    writer.reset().expect("Failed to reset writer");
                     let file_name = "Prover-failing-".to_owned()
                         + &package.name.to_string()
                         + "-"
@@ -360,11 +406,16 @@ fn display_fuzzing_report_and_store(
                         input_map,
                     )
                     .expect("Couldn't write toml file");
+                    writeln!(writer, "saved input to:").expect("Failed to write to stderr");
                     writer
                         .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                         .expect("Failed to set color");
-                    writeln!(writer, "saved input to: {}", file_name)
+                    let mut full_path_of_example =
+                        PathBuf::from(root_path.clone().unwrap_or_default()).join(file_name);
+                    full_path_of_example.set_extension(PathBuf::from("toml"));
+                    writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
                         .expect("Failed to write to stderr");
+                    writer.reset().expect("Failed to reset writer");
                 }
                 if let Some(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
@@ -385,6 +436,7 @@ fn display_fuzzing_report_and_store(
             }
         }
         writer.reset().expect("Failed to reset writer");
+        writer.flush().expect("Failed to flush writer");
     }
 
     write!(writer, "[{}] ", package.name).expect("Failed to write to stderr");
