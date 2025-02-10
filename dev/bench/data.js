@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739190989208,
+  "lastUpdate": 1739192279142,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4878,100 +4878,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "60076d56938b9ed90f9d66300bd9b9fa8396e191",
-          "message": "chore(experimental): Prevent enum panics by returning Options where possible instead of panicking (#7180)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-01-24T17:54:54Z",
-          "tree_id": "aa280e7529a1a0fb07ab42b619b35f105a3541b4",
-          "url": "https://github.com/noir-lang/noir/commit/60076d56938b9ed90f9d66300bd9b9fa8396e191"
-        },
-        "date": 1737742469207,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.13,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.836,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.528,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 84.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 85.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.654,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 36.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 13.6,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.134,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.506,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.256,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9771,6 +9677,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.512,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0eeda5831648d4bf517c3f26cd4446f14761d779",
+          "message": "chore: remove misleading output from `nargo check` (#7329)",
+          "timestamp": "2025-02-10T12:40:22Z",
+          "tree_id": "88f8c184240e2b9e598643ec4226e6bebf625c49",
+          "url": "https://github.com/noir-lang/noir/commit/0eeda5831648d4bf517c3f26cd4446f14761d779"
+        },
+        "date": 1739192277816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.907,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.687,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.972,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.414,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.864,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.772,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.052,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 66.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 68.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.008,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.616,
             "unit": "s"
           }
         ]
