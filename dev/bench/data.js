@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739196852074,
+  "lastUpdate": 1739196856431,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13877,95 +13877,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "e33895248ccfbfaf728fe12b8c430420b7bf7468",
-          "message": "feat(experimental): Construct enum variants in expressions (#7174)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-01-24T16:02:09Z",
-          "tree_id": "2cdd606b4c8b5ca72f5b14dd2b1c32c447849efa",
-          "url": "https://github.com/noir-lang/noir/commit/e33895248ccfbfaf728fe12b8c430420b7bf7468"
-        },
-        "date": 1737735922318,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.43,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 517.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 492.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 517.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 750.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 610.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.5,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 210.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "60076d56938b9ed90f9d66300bd9b9fa8396e191",
           "message": "chore(experimental): Prevent enum panics by returning Options where possible instead of panicking (#7180)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-01-24T17:54:54Z",
@@ -18165,6 +18076,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0eeda5831648d4bf517c3f26cd4446f14761d779"
         },
         "date": 1739192534031,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 728.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 554.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 528.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 554.74,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9ad0be869598f8e78010ebbcce00fcfaa23da5d",
+          "message": "fix: perform SSA constraints check on final SSA (#7334)",
+          "timestamp": "2025-02-10T13:50:33Z",
+          "tree_id": "747e4b23cc8bbce00305c3ef3cf8d4d9719ce6cc",
+          "url": "https://github.com/noir-lang/noir/commit/d9ad0be869598f8e78010ebbcce00fcfaa23da5d"
+        },
+        "date": 1739196855155,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
