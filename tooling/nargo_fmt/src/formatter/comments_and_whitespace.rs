@@ -162,7 +162,8 @@ impl<'a> Formatter<'a> {
                         // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
-                    self.write_current_token_and_bump();
+                    self.write_current_token();
+                    self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = true;
                     self.written_comments_count += 1;
@@ -237,7 +238,7 @@ impl<'a> Formatter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_max_width};
+    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
 
     #[test]
     fn format_array_in_global_with_line_comments() {
@@ -857,5 +858,21 @@ global x = 1;
 global x = 1;
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn wraps_comments() {
+        let src = "
+        // This is a long comment that's going to be wrapped.
+        global x : Field = 1;
+        ";
+        let expected = "
+        // This is a long comment
+        // that's going to be 
+        // wrapped.
+        global x : Field = 1;
+        ";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
     }
 }

@@ -53,6 +53,7 @@ config! {
     single_line_if_else_max_width: usize, 50, "Maximum line length for single line if-else expressions";
     imports_granularity: ImportsGranularity, ImportsGranularity::Preserve, "How imports should be grouped into use statements.";
     reorder_imports: bool, true, "Reorder imports alphabetically";
+    wrap_comments: bool, false, "Break comments to fit on the line";
 }
 
 impl Config {
