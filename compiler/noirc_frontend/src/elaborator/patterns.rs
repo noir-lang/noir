@@ -600,7 +600,7 @@ impl<'context> Elaborator<'context> {
 
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
-        self.interner.push_expr_location(id, location.span, location.file);
+        self.interner.push_expr_location(id, location);
         let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
         self.interner.push_expr_type(id, typ.clone());
 
@@ -912,7 +912,7 @@ impl<'context> Elaborator<'context> {
 
         let ident = HirIdent { location, id, impl_kind };
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        self.interner.push_expr_location(id, location.span, location.file);
+        self.interner.push_expr_location(id, location);
 
         let typ = self.type_check_variable(ident, id, generics);
         self.interner.push_expr_type(id, typ.clone());

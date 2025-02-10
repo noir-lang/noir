@@ -238,12 +238,10 @@ impl<'context> Elaborator<'context> {
         block: Expression,
         location: Location,
     ) -> (HirStatement, Type) {
+        let span = location.span;
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
-            self.push_err(
-                ResolverError::LoopInConstrainedFn { span: location.span },
-                location.file,
-            );
+            self.push_err(ResolverError::LoopInConstrainedFn { span }, location.file);
         }
 
         let old_loop = std::mem::take(&mut self.current_loop);
@@ -257,7 +255,7 @@ impl<'context> Elaborator<'context> {
         let last_loop =
             std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
         if !last_loop.has_break {
-            self.push_err(ResolverError::LoopWithoutBreak { span: location.span }, location.file);
+            self.push_err(ResolverError::LoopWithoutBreak { span }, location.file);
         }
 
         let statement = HirStatement::Loop(block);
@@ -476,6 +474,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
+        let span = location.span;
         let lhs_type = lhs_type.follow_bindings();
 
         match &lhs_type {
@@ -496,12 +495,7 @@ impl<'context> Elaborator<'context> {
                         return Some((elements[index].clone(), index));
                     } else {
                         self.push_err(
-                            TypeCheckError::TupleIndexOutOfBounds {
-                                index,
-                                lhs_type,
-                                length,
-                                span: location.span,
-                            },
+                            TypeCheckError::TupleIndexOutOfBounds { index, lhs_type, length, span },
                             location.file,
                         );
                         return None;
@@ -532,7 +526,7 @@ impl<'context> Elaborator<'context> {
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
             self.push_err(
-                TypeCheckError::TypeAnnotationsNeededForFieldAccess { span: location.span },
+                TypeCheckError::TypeAnnotationsNeededForFieldAccess { span },
                 location.file,
             );
         } else if lhs_type != Type::Error {
@@ -540,7 +534,7 @@ impl<'context> Elaborator<'context> {
                 TypeCheckError::AccessUnknownMember {
                     lhs_type,
                     field_name: field_name.to_string(),
-                    span: location.span,
+                    span,
                 },
                 location.file,
             );

@@ -103,7 +103,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
         let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.location.span, expr.location.file);
+        self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -322,7 +322,7 @@ impl<'context> Elaborator<'context> {
                 } else if let Ok((definition_id, _)) =
                     self.lookup_global(Path::from_single(ident_name.to_string(), string_location))
                 {
-                    HirIdent::non_trait_method(definition_id, Location::new(*string_span, *file))
+                    HirIdent::non_trait_method(definition_id, string_location)
                 } else {
                     self.push_err(
                         ResolverError::VariableNotDeclared {
@@ -336,7 +336,7 @@ impl<'context> Elaborator<'context> {
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(expr_id, *string_span, *file);
+                self.interner.push_expr_location(expr_id, string_location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
                 capture_types.push(typ);
@@ -364,7 +364,7 @@ impl<'context> Elaborator<'context> {
         let expr =
             HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
         let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location.span, location.file);
+        self.interner.push_expr_location(expr_id, location);
 
         let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
         let typ =
@@ -693,12 +693,11 @@ impl<'context> Elaborator<'context> {
         };
 
         let location = arg.location;
-        let span = location.span;
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
         let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, span, location.file);
+        self.interner.push_expr_location(id, location);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
@@ -962,7 +961,7 @@ impl<'context> Elaborator<'context> {
 
     pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
         let id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(id, location.span, location.file);
+        self.interner.push_expr_location(id, location);
         id
     }
 
@@ -993,7 +992,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let expr_id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(expr_id, location.span, location.file);
+        self.interner.push_expr_location(expr_id, location);
 
         let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
@@ -1234,13 +1233,10 @@ impl<'context> Elaborator<'context> {
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
     ) -> (ExprId, Type) {
-        let span = location.span;
-        let file = location.file;
-
         let make_error = |this: &mut Self, error: InterpreterError| {
             this.errors.push(error.into_compilation_error_pair());
             let error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, span, file);
+            this.interner.push_expr_location(error, location);
             (error, Type::Error)
         };
 

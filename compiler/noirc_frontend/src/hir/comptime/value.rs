@@ -216,7 +216,7 @@ impl Value {
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
                 let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
-                elaborator.interner.push_expr_location(expr_id, location.span, location.file);
+                elaborator.interner.push_expr_location(expr_id, location);
                 elaborator.interner.push_expr_type(expr_id, typ);
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
@@ -376,7 +376,7 @@ impl Value {
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
                 let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location.span, location.file);
+                interner.push_expr_location(expr_id, location);
                 interner.push_expr_type(expr_id, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
@@ -460,7 +460,7 @@ impl Value {
         };
 
         let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location.span, location.file);
+        interner.push_expr_location(id, location);
         interner.push_expr_type(id, typ);
         Ok(id)
     }

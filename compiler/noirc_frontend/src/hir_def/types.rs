@@ -2749,14 +2749,14 @@ fn convert_array_expression_to_slice(
     let argument = interner.expression(&expression);
     let argument = interner.push_expr(argument);
     interner.push_expr_type(argument, array_type.clone());
-    interner.push_expr_location(argument, location.span, location.file);
+    interner.push_expr_location(argument, location);
 
     let arguments = vec![argument];
     let is_macro_call = false;
     let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
 
-    interner.push_expr_location(func, location.span, location.file);
+    interner.push_expr_location(func, location);
     interner.push_expr_type(expression, target_type.clone());
 
     let func_type =

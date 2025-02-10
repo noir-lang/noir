@@ -198,14 +198,11 @@ impl Trait {
     /// Returns a TraitConstraint for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
+        let span = location.span;
         let trait_generics = self.get_trait_generics(location);
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_bound: ResolvedTraitBound {
-                trait_generics,
-                trait_id: self.id,
-                span: location.span,
-            },
+            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, span },
         }
     }
 }

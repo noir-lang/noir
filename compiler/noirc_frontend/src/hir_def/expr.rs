@@ -248,13 +248,11 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
+                let span = location.span;
+                let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id: method_id.trait_id,
-                        trait_generics,
-                        span: location.span,
-                    },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, span },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
@@ -262,7 +260,7 @@ impl HirMethodReference {
         };
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location.span, location.file);
+        interner.push_expr_location(func, location);
         (func, func_var)
     }
 }

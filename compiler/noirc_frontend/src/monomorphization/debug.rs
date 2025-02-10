@@ -156,11 +156,7 @@ impl<'interner> Monomorphizer<'interner> {
                         HirLiteral::Integer(field_index.into(), false),
                     ));
                     self.interner.push_expr_type(index_id, crate::Type::FieldElement);
-                    self.interner.push_expr_location(
-                        index_id,
-                        call.location.span,
-                        call.location.file,
-                    );
+                    self.interner.push_expr_location(index_id, call.location);
                     arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
@@ -185,7 +181,7 @@ impl<'interner> Monomorphizer<'interner> {
         let var_id_literal = HirLiteral::Integer((var_id.0 as u128).into(), false);
         let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
         self.interner.push_expr_type(expr_id, crate::Type::FieldElement);
-        self.interner.push_expr_location(expr_id, location.span, location.file);
+        self.interner.push_expr_location(expr_id, *location);
         expr_id
     }
 }

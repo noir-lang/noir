@@ -210,7 +210,7 @@ impl Elaborator<'_> {
             HirPattern::Identifier(ident) => {
                 let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
                 self.interner.push_expr_type(id, typ.clone());
-                self.interner.push_expr_location(id, location.span, location.file);
+                self.interner.push_expr_location(id, location);
                 id
             }
             _ => unreachable!(),
@@ -226,7 +226,7 @@ impl Elaborator<'_> {
         let enum_generics = self_type.borrow().generic_types();
         let typ = Type::DataType(self_type.clone(), enum_generics);
         self.interner.push_expr_type(body, typ);
-        self.interner.push_expr_location(body, location.span, location.file);
+        self.interner.push_expr_location(body, location);
         body
     }
 

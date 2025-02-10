@@ -705,8 +705,8 @@ impl NodeInterner {
     }
 
     /// Stores the span for an interned expression.
-    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
-        self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    pub fn push_expr_location(&mut self, expr_id: ExprId, location: Location) {
+        self.id_to_location.insert(expr_id.into(), location);
     }
 
     /// Interns a HIR Function.

@@ -184,6 +184,7 @@ impl<'context> Elaborator<'context> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
         let location = attribute.location;
+        let span = location.span;
 
         let function =
             Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
@@ -198,30 +199,22 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error = ResolverError::AttributeFunctionIsNotAPath {
-                    function: function_string,
-                    span: location.span,
-                };
+                let error =
+                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span };
                 return Err((error.into(), location.file));
             }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error = ResolverError::AttributeFunctionNotInScope {
-                name: function_string,
-                span: location.span,
-            };
+            let error = ResolverError::AttributeFunctionNotInScope { name: function_string, span };
             return Err((error.into(), location.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
-            return Err((
-                ResolverError::NonFunctionInAnnotation { span: location.span }.into(),
-                location.file,
-            ));
+            return Err((ResolverError::NonFunctionInAnnotation { span }.into(), location.file));
         };
 
-        attributes_to_run.push((function, item, arguments, attribute_context, location.span));
+        attributes_to_run.push((function, item, arguments, attribute_context, span));
         Ok(())
     }
 

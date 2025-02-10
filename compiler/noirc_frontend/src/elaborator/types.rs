@@ -359,6 +359,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         allow_implicit_named_args: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
+        let span = location.span;
         let expected_kinds = item.generics(self.interner);
 
         if args.ordered_args.len() != expected_kinds.len() {
@@ -367,7 +368,7 @@ impl<'context> Elaborator<'context> {
                     item: item.item_name(self.interner),
                     expected: expected_kinds.len(),
                     found: args.ordered_args.len(),
-                    span: location.span,
+                    span,
                 },
                 location.file,
             );
@@ -390,10 +391,7 @@ impl<'context> Elaborator<'context> {
             );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
-            self.push_err(
-                ResolverError::NamedTypeArgs { span: location.span, item_kind },
-                location.file,
-            );
+            self.push_err(ResolverError::NamedTypeArgs { span, item_kind }, location.file);
         }
 
         (ordered, associated)
@@ -406,6 +404,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         allow_implicit_named_args: bool,
     ) -> Vec<NamedType> {
+        let span = location.span;
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
         let mut resolved = Vec::with_capacity(required_args.len());
@@ -447,7 +446,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 let item = item.item_name(self.interner);
                 self.push_err(
-                    TypeCheckError::MissingNamedTypeArg { item, span: location.span, name },
+                    TypeCheckError::MissingNamedTypeArg { item, span, name },
                     location.file,
                 );
             }
@@ -539,6 +538,7 @@ impl<'context> Elaborator<'context> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
+        let span = location.span;
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default());
@@ -559,24 +559,18 @@ impl<'context> Elaborator<'context> {
                                 TypeCheckError::TypeKindMismatch {
                                     expected_kind: lhs_kind.to_string(),
                                     expr_kind: rhs_kind.to_string(),
-                                    expr_span: location.span,
+                                    expr_span: span,
                                 },
                                 location.file,
                             );
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location.span) {
+                        match op.function(lhs, rhs, &lhs_kind, span) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
                                 self.push_err(
-                                    ResolverError::BinaryOpError {
-                                        lhs,
-                                        op,
-                                        rhs,
-                                        err,
-                                        span: location.span,
-                                    },
+                                    ResolverError::BinaryOpError { lhs, op, rhs, err, span },
                                     location.file,
                                 );
                                 Type::Error
@@ -902,7 +896,7 @@ impl<'context> Elaborator<'context> {
                 trait_method_id: None,
             }));
             self.interner.push_expr_type(object, element.as_ref().clone());
-            self.interner.push_expr_location(object, location.span, location.file);
+            self.interner.push_expr_location(object, location);
 
             // Recursively dereference to allow for converting &mut &mut T to T
             self.insert_auto_dereferences(object, *element)
@@ -944,11 +938,12 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) -> Type {
         if fn_params.len() != callsite_args.len() {
+            let span = location.span;
             self.push_err(
                 TypeCheckError::ParameterCountMismatch {
                     expected: fn_params.len(),
                     found: callsite_args.len(),
-                    span: location.span,
+                    span,
                 },
                 location.file,
             );
@@ -1001,10 +996,8 @@ impl<'context> Elaborator<'context> {
             }
             Type::Error => Type::Error,
             found => {
-                self.push_err(
-                    TypeCheckError::ExpectedFunction { found, span: location.span },
-                    location.file,
-                );
+                let span = location.span;
+                self.push_err(TypeCheckError::ExpectedFunction { found, span }, location.file);
                 Type::Error
             }
         }
@@ -1459,7 +1452,8 @@ impl<'context> Elaborator<'context> {
             this.interner.push_expr_type(*access_lhs, element);
 
             let old_location = this.interner.id_location(old_lhs);
-            this.interner.push_expr_location(*access_lhs, location.span, old_location.file);
+            let location = Location::new(location.span, old_location.file);
+            this.interner.push_expr_location(*access_lhs, location);
         };
 
         // If this access is just a field offset, we want to avoid dereferencing
@@ -1941,7 +1935,7 @@ impl<'context> Elaborator<'context> {
                                 trait_method_id: None,
                             }));
                         self.interner.push_expr_type(new_object, new_type);
-                        self.interner.push_expr_location(new_object, location.span, location.file);
+                        self.interner.push_expr_location(new_object, location);
                         new_object
                     });
                 }

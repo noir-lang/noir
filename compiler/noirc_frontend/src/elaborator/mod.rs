@@ -1117,10 +1117,8 @@ impl<'context> Elaborator<'context> {
         if (is_entry_point && !typ.is_valid_for_program_input())
             || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
         {
-            self.push_err(
-                TypeCheckError::InvalidTypeForEntryPoint { span: location.span },
-                location.file,
-            );
+            let span = location.span;
+            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { span }, location.file);
         }
     }
 
@@ -1201,6 +1199,7 @@ impl<'context> Elaborator<'context> {
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) {
+        let span = location.span;
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
@@ -1209,11 +1208,7 @@ impl<'context> Elaborator<'context> {
                 let trait_name = the_trait.name.to_string();
                 let typ = object.clone();
                 self.push_err(
-                    TypeCheckError::UnneededTraitConstraint {
-                        trait_name,
-                        typ,
-                        span: location.span,
-                    },
+                    TypeCheckError::UnneededTraitConstraint { trait_name, typ, span },
                     location.file,
                 );
             }
@@ -1559,6 +1554,7 @@ impl<'context> Elaborator<'context> {
         functions: &mut UnresolvedFunctions,
         location: Location,
     ) {
+        let span = location.span;
         let self_type = functions.self_type.as_ref();
         let self_type =
             self_type.expect("Expected struct type to be set before declare_methods_on_struct");
@@ -1572,7 +1568,7 @@ impl<'context> Elaborator<'context> {
             if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
                 self.push_err(
-                    DefCollectorErrorKind::ForeignImpl { span: location.span, type_name },
+                    DefCollectorErrorKind::ForeignImpl { span, type_name },
                     location.file,
                 );
                 return;
@@ -1620,10 +1616,7 @@ impl<'context> Elaborator<'context> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(
-                    DefCollectorErrorKind::NonStructTypeInImpl { span: location.span },
-                    location.file,
-                );
+                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span }, location.file);
             }
         }
     }
@@ -1851,11 +1844,9 @@ impl<'context> Elaborator<'context> {
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
+                        let span = location.span;
                         self.file = location.file;
-                        self.push_err(
-                            ResolverError::NestedSlices { span: location.span },
-                            location.file,
-                        );
+                        self.push_err(ResolverError::NestedSlices { span }, location.file);
                     }
                 }
             }
