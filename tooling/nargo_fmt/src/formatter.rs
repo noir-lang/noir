@@ -71,7 +71,7 @@ pub(crate) struct Formatter<'a> {
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
