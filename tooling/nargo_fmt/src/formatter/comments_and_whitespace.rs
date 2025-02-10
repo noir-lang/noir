@@ -136,7 +136,7 @@ impl<'a> Formatter<'a> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
-                    self.write_line_comment(comment);
+                    self.write_line_comment(&comment);
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
                     self.bump();
@@ -182,10 +182,11 @@ impl<'a> Formatter<'a> {
         self.ignore_next = ignore_next;
     }
 
-    fn write_line_comment(&mut self, comment: String) {
+    pub(crate) fn write_line_comment(&mut self, comment: &str) {
         // We don't wrap lines that start with '#' because these might be
         // markdown headers and wrapping those would actually break them.
         if !self.config.wrap_comments
+            || self.in_chunk
             || comment.trim_start().starts_with('#')
             || self.current_line_width() + comment.chars().count() + 2 < self.max_width
         {
@@ -930,6 +931,40 @@ global x: Field = 1;
         ";
         let expected = "// # This is a long comment that's not going to be wrapped.
 global x: Field = 1;
+";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn wraps_line_comments_in_statement() {
+        let src = "fn foo() {
+        // This is a long comment that's going to be wrapped.
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    let x = 1;
+}
+";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn wraps_line_comments_in_statement_trailing_position() {
+        let src = "fn foo() {
+        let x = 1; // This is a long comment that's going to be wrapped.
+    }
+        ";
+        let expected = "fn foo() {
+    let x = 1; // This is a
+    // long comment that's
+    // going to be wrapped.
+}
 ";
         let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
         assert_format_with_config(src, expected, config);

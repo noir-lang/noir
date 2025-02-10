@@ -76,6 +76,9 @@ pub(crate) struct Formatter<'a> {
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
 }
 
 impl<'a> Formatter<'a> {
@@ -94,6 +97,7 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
         };
         formatter.bump();
         formatter

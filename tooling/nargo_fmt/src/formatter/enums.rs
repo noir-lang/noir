@@ -77,7 +77,7 @@ impl<'a> Formatter<'a> {
                 self.chunk_formatter().skip_comments_and_whitespace_chunk();
             comments_and_whitespace_chunk.string =
                 comments_and_whitespace_chunk.string.trim_end().to_string();
-            group.text(comments_and_whitespace_chunk);
+            group.trailing_comment_without_final_indentation(comments_and_whitespace_chunk);
 
             if self.is_at(Token::Comma) {
                 self.bump();

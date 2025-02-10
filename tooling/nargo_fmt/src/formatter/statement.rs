@@ -21,19 +21,24 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         }));
 
         // Now write any leading comment respecting multiple newlines after them
+
+        if self.token.kind() == TokenKind::OuterDocComment {
+            group.leading_comment(self.chunk(|formatter| {
+                // Doc comments for a let statement could come before a potential non-doc comment
+                formatter.format_outer_doc_comments();
+            }));
+        }
+
         group.leading_comment(self.chunk(|formatter| {
-            // Doc comments for a let statement could come before a potential non-doc comment
-            if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
-            }
-
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
-
-            // Or doc comments could come after a potential non-doc comment
-            if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
-            }
         }));
+
+        // Or doc comments could come after a potential non-doc comment
+        if self.token.kind() == TokenKind::OuterDocComment {
+            group.leading_comment(self.chunk(|formatter| {
+                formatter.format_outer_doc_comments();
+            }));
+        }
 
         ignore_next |= self.ignore_next;
 

@@ -1269,7 +1269,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         }
 
         // Finally format the comment, if any
-        group.text(self.chunk(|formatter| {
+        group.trailing_comment_without_final_indentation(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
