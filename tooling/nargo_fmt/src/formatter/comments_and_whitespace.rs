@@ -183,7 +183,10 @@ impl<'a> Formatter<'a> {
     }
 
     fn write_line_comment(&mut self, comment: String) {
+        // We don't wrap lines that start with '#' because these might be
+        // markdown headers and wrapping those would actually break them.
         if !self.config.wrap_comments
+            || comment.trim_start().starts_with('#')
             || self.current_line_width() + comment.chars().count() + 2 < self.max_width
         {
             // +2 for "//"
@@ -914,6 +917,19 @@ global x: Field = 1;
     // to be wrapped.
     global x: Field = 1;
 }
+";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
+    #[test]
+    fn does_not_wrap_line_comment_if_it_starts_with_pound() {
+        let src = "
+        // # This is a long comment that's not going to be wrapped.
+        global x: Field = 1;
+        ";
+        let expected = "// # This is a long comment that's not going to be wrapped.
+global x: Field = 1;
 ";
         let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
         assert_format_with_config(src, expected, config);
