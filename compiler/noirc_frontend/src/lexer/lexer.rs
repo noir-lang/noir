@@ -103,11 +103,28 @@ impl<'a> Lexer<'a> {
     }
 
     fn next_token(&mut self) -> SpannedTokenResult {
+        if !self.skip_comments {
+            return self.next_token_without_checking_comments();
+        }
+
+        // Read tokens and skip comments. This is done like this to avoid recursion
+        // and hitting stack overflow when there are many comments in a row.
+        loop {
+            let token = self.next_token_without_checking_comments()?;
+            if matches!(token.token(), Token::LineComment(_, None) | Token::BlockComment(_, None)) {
+                continue;
+            }
+            return Ok(token);
+        }
+    }
+
+    /// Reads the next token, which might be a comment token (these aren't skipped in this method)
+    fn next_token_without_checking_comments(&mut self) -> SpannedTokenResult {
         match self.next_char() {
             Some(x) if Self::is_code_whitespace(x) => {
                 let spanned = self.eat_whitespace(x);
                 if self.skip_whitespaces {
-                    self.next_token()
+                    self.next_token_without_checking_comments()
                 } else {
                     Ok(spanned)
                 }
@@ -755,10 +772,6 @@ impl<'a> Lexer<'a> {
             return Err(LexerErrorKind::NonAsciiComment { span });
         }
 
-        if doc_style.is_none() && self.skip_comments {
-            return self.next_token();
-        }
-
         Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
     }
 
@@ -804,9 +817,6 @@ impl<'a> Lexer<'a> {
                 return Err(LexerErrorKind::NonAsciiComment { span });
             }
 
-            if doc_style.is_none() && self.skip_comments {
-                return self.next_token();
-            }
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
