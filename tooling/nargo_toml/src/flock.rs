@@ -13,7 +13,7 @@ pub(crate) struct FileLock {
 impl FileLock {
     pub(crate) fn new(file_path: &Path, lock_name: &str) -> std::io::Result<Self> {
         std::fs::create_dir_all(file_path.parent().expect("can't create lock on filesystem root"))?;
-        let file = OpenOptions::new().create(true).truncate(true).write(true).open(file_path)?;
+        let file = OpenOptions::new().create(true).truncate(false).write(true).open(file_path)?;
         if file.try_lock_exclusive().is_err() {
             eprintln!("Waiting for lock on {lock_name}...");
         }
