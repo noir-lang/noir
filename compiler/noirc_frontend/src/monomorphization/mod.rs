@@ -30,6 +30,7 @@ use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use std::collections::BTreeSet;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -91,6 +92,8 @@ struct Monomorphizer<'interner> {
     /// stored here along with its FuncId.
     finished_functions: BTreeMap<FuncId, Function>,
 
+    oracles: BTreeSet<Oracle>,
+
     /// Used to reference existing definitions in the HIR
     interner: &'interner mut NodeInterner,
 
@@ -114,6 +117,13 @@ type Functions = HashMap<
     (node_interner::FuncId, /*is_unconstrained:*/ bool),
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
 >;
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+pub struct Oracle {
+    pub name: String,
+    pub parameters: Vec<crate::monomorphization::ast::Type>,
+    pub return_type: crate::monomorphization::ast::Type,
+}
 
 type HirType = crate::Type;
 
@@ -187,6 +197,8 @@ pub fn monomorphize_debug(
     let (debug_variables, debug_functions, debug_types) =
         monomorphizer.debug_type_tracker.extract_vars_and_types();
 
+    let oracles = monomorphizer.oracles;
+
     let program = Program::new(
         functions,
         func_sigs,
@@ -197,6 +209,7 @@ pub fn monomorphize_debug(
         debug_variables,
         debug_functions,
         debug_types,
+        oracles,
     );
     Ok(program)
 }
@@ -210,6 +223,7 @@ impl<'interner> Monomorphizer<'interner> {
             finished_globals: HashMap::default(),
             queue: VecDeque::new(),
             finished_functions: BTreeMap::new(),
+            oracles: BTreeSet::new(),
             next_local_id: 0,
             next_global_id: 0,
             next_function_id: 0,
@@ -1481,20 +1495,36 @@ impl<'interner> Monomorphizer<'interner> {
 
         let location = call.location;
 
+        let mut oracle_name = None;
         if let ast::Expression::Ident(ident) = original_func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                if name.as_str() == "print" {
-                    // Oracle calls are required to be wrapped in an unconstrained function
-                    // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
-                    // The second argument is expected to always be an ident
-                    self.append_printable_type_info(&hir_arguments[1], &mut arguments);
-                }
+                oracle_name = Some(name.as_str());
             }
+        }
+
+        if let Some("print") = oracle_name {
+            // Oracle calls are required to be wrapped in an unconstrained function
+            // The first argument to the `print` oracle is a bool, indicating a newline to be inserted at the end of the input
+            // The second argument is expected to always be an ident
+            self.append_printable_type_info(&hir_arguments[1], &mut arguments);
         }
 
         let mut block_expressions = vec![];
         let func_type = self.interner.id_type(call.func);
         let func_type = Self::convert_type(&func_type, location)?;
+
+        if let Some(oracle_name) = oracle_name {
+            if let crate::monomorphization::ast::Type::Function(args, return_type, _, _) =
+                &func_type
+            {
+                self.oracles.insert(Oracle {
+                    name: oracle_name.to_string(),
+                    parameters: args.clone(),
+                    return_type: return_type.as_ref().clone(),
+                });
+            }
+        }
+
         let is_closure = self.is_function_closure(func_type);
 
         let func = if is_closure {

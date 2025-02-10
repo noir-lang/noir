@@ -175,7 +175,6 @@ pub struct AbiReturnType {
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct OracleParameter {
-    pub name: String,
     #[cfg_attr(test, proptest(strategy = "arbitrary::arb_abi_type()"))]
     pub typ: AbiType,
 }

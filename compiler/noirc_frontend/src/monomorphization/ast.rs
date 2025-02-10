@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Display,
+};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -14,7 +17,7 @@ use crate::{
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
 use serde::{Deserialize, Serialize};
 
-use super::HirType;
+use super::{HirType, Oracle};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -301,7 +304,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
     Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
@@ -341,6 +344,7 @@ pub struct Program {
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
+    pub oracles: BTreeSet<Oracle>,
 }
 
 impl Program {
@@ -355,6 +359,7 @@ impl Program {
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
+        oracles: BTreeSet<Oracle>,
     ) -> Program {
         Program {
             functions,
@@ -366,6 +371,7 @@ impl Program {
             debug_variables,
             debug_functions,
             debug_types,
+            oracles,
         }
     }
 
