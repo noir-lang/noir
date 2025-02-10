@@ -293,6 +293,14 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         FieldElement(F::from_be_bytes_mod_order(bytes))
     }
 
+    /// Converts bytes in little-endian order into a FieldElement and applies a
+    /// reduction if needed.
+    fn from_le_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
+        let mut le_bytes = bytes.to_vec();
+        le_bytes.reverse();
+        FieldElement(F::from_be_bytes_mod_order(&le_bytes))
+    }
+
     /// Returns the closest number of bytes to the bits specified
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
@@ -421,10 +429,16 @@ mod tests {
         assert_eq!(be_bytes, reversed_le);
 
         // Verify we can reconstruct the same field element from either byte order
-        let from_le = FieldElement::from_be_bytes_reduce(&reversed_le);
+        let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
         let from_be = FieldElement::from_be_bytes_reduce(&be_bytes);
         assert_eq!(from_le, from_be);
         assert_eq!(from_le, field);
+
+        // Additional test with a larger number to ensure proper byte handling
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_le = large_field.to_le_bytes();
+        let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
+        assert_eq!(reconstructed, large_field);
     }
 
     proptest! {
