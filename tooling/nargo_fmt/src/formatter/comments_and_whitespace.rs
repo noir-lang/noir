@@ -269,6 +269,11 @@ impl<'a> Formatter<'a> {
 mod tests {
     use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
 
+    fn assert_format_wrapping_comments(src: &str, expected: &str, max_width: usize) {
+        let config = Config { wrap_comments: true, max_width, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
+
     #[test]
     fn format_array_in_global_with_line_comments() {
         let src = "global x = [ // hello
@@ -900,8 +905,7 @@ global x = 1;
 // wrapped.
 global x: Field = 1;
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
@@ -919,8 +923,7 @@ global x: Field = 1;
     global x: Field = 1;
 }
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
@@ -932,8 +935,7 @@ global x: Field = 1;
         let expected = "// # This is a long comment that's not going to be wrapped.
 global x: Field = 1;
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
@@ -950,8 +952,7 @@ global x: Field = 1;
     let x = 1;
 }
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
@@ -966,8 +967,7 @@ global x: Field = 1;
     // going to be wrapped.
 }
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 
     #[test]
@@ -986,7 +986,6 @@ global x: Field = 1;
     )
 }
 ";
-        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
-        assert_format_with_config(src, expected, config);
+        assert_format_wrapping_comments(src, expected, 29);
     }
 }
