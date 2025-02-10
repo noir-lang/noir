@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739186728674,
+  "lastUpdate": 1739190709065,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4908,100 +4908,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "e33895248ccfbfaf728fe12b8c430420b7bf7468",
-          "message": "feat(experimental): Construct enum variants in expressions (#7174)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-01-24T16:02:09Z",
-          "tree_id": "2cdd606b4c8b5ca72f5b14dd2b1c32c447849efa",
-          "url": "https://github.com/noir-lang/noir/commit/e33895248ccfbfaf728fe12b8c430420b7bf7468"
-        },
-        "date": 1737735697891,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.792,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 18.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.926,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.066,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 82.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 84.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.624,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 34.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 13.08,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.013,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.04,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.328,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "60076d56938b9ed90f9d66300bd9b9fa8396e191",
           "message": "chore(experimental): Prevent enum panics by returning Options where possible instead of panicking (#7180)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-01-24T17:54:54Z",
@@ -9786,6 +9692,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.522,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b8420a89b240f82b535c9323a90c77e4106166d",
+          "message": "chore: fix warnings (#7330)",
+          "timestamp": "2025-02-10T12:14:08Z",
+          "tree_id": "0be262a815c00162d5f9d3716189f6a0d85c7808",
+          "url": "https://github.com/noir-lang/noir/commit/8b8420a89b240f82b535c9323a90c77e4106166d"
+        },
+        "date": 1739190708069,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.972,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.863,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.681,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.978,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.462,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.882,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.516,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.072,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 68.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.512,
             "unit": "s"
           }
         ]
