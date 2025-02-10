@@ -20,7 +20,7 @@ use noirc_frontend::{
 use super::NargoConfig;
 use super::{fs::write_to_file, PackageOptions};
 
-/// Checks the constraint system for errors
+/// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
@@ -34,7 +34,7 @@ pub(crate) struct CheckCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 
-    /// Just show the hash of each paackages, without actually performing the check.
+    /// Just show the hash of each packages, without actually performing the check.
     #[clap(long, hide = true)]
     show_program_hash: bool,
 }
