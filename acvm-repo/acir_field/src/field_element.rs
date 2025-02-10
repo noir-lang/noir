@@ -417,6 +417,27 @@ mod tests {
         assert_eq!(max_num_bits_bn254, 254);
     }
 
+    proptest! {
+        #[test]
+        fn test_endianness_prop(value in any::<u64>()) {
+            let field = FieldElement::<ark_bn254::Fr>::from(value);
+            
+            // Test serialization consistency
+            let le_bytes = field.to_le_bytes();
+            let be_bytes = field.to_be_bytes();
+            
+            let mut reversed_le = le_bytes.clone();
+            reversed_le.reverse();
+            prop_assert_eq!(be_bytes, reversed_le, "BE bytes should be reverse of LE bytes");
+
+            // Test deserialization consistency
+            let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
+            let from_be = FieldElement::from_be_bytes_reduce(&be_bytes);
+            prop_assert_eq!(from_le, from_be, "Deserialization should be consistent between LE and BE");
+            prop_assert_eq!(from_le, field, "Deserialized value should match original");
+        }
+    }
+
     #[test]
     fn test_endianness() {
         let field = FieldElement::<ark_bn254::Fr>::from(0x1234_5678_u32);
