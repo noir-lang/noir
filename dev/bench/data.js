@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739186699015,
+  "lastUpdate": 1739186714163,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18147,6 +18147,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fd40b81b649f4ae958248607d068335860c338d1"
         },
         "date": 1739184772859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 652.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 793.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 555.91,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 555.89,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6a4fb6257f514550a5d37b09efc7679aa2da5394",
+          "message": "chore: normalize path displayed by `nargo new` (#7328)",
+          "timestamp": "2025-02-10T11:02:22Z",
+          "tree_id": "a1a0ff6e8e37001d87142ad805c8e219cf07382f",
+          "url": "https://github.com/noir-lang/noir/commit/6a4fb6257f514550a5d37b09efc7679aa2da5394"
+        },
+        "date": 1739186713177,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
