@@ -2692,7 +2692,8 @@ impl Type {
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
-                Some(((1u128 << max_bit_size) - 1).into())
+                let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
+                Some(max.into())
             }
             Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
