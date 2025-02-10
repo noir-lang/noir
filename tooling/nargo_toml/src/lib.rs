@@ -19,11 +19,12 @@ use noirc_frontend::graph::CrateName;
 use serde::Deserialize;
 
 mod errors;
+mod flock;
 mod git;
 mod semver;
 
 pub use errors::ManifestError;
-use git::clone_git_repo;
+use git::{clone_git_repo, lock_git_deps};
 
 /// Searches for a `Nargo.toml` file in the current directory and all parent directories.
 /// For example, if the current directory is `/workspace/package/src`, then this function
@@ -382,6 +383,7 @@ fn toml_to_workspace(
     package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let mut resolved = Vec::new();
+    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
@@ -519,6 +521,7 @@ pub fn resolve_workspace_from_toml(
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }
