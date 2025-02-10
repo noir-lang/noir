@@ -20,7 +20,7 @@ use noirc_frontend::{
 use super::NargoConfig;
 use super::{fs::write_to_file, PackageOptions};
 
-/// Checks the constraint system for errors
+/// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
@@ -34,7 +34,7 @@ pub(crate) struct CheckCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 
-    /// Just show the hash of each paackages, without actually performing the check.
+    /// Just show the hash of each packages, without actually performing the check.
     #[clap(long, hide = true)]
     show_program_hash: bool,
 }
@@ -66,16 +66,13 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
             continue;
         }
 
-        let any_file_written = check_package(
+        check_package(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             args.allow_overwrite,
         )?;
-        if any_file_written {
-            println!("[{}] Constraint system successfully built!", package.name);
-        }
     }
     Ok(())
 }
@@ -88,13 +85,13 @@ fn check_package(
     package: &Package,
     compile_options: &CompileOptions,
     allow_overwrite: bool,
-) -> Result<bool, CompileError> {
+) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(false)
+        Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
         if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
@@ -110,9 +107,7 @@ fn check_package(
                 eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
 
-            let any_file_written = should_write_prover;
-
-            Ok(any_file_written)
+            Ok(())
         } else {
             Err(CompileError::MissingMainFunction(package.name.clone()))
         }

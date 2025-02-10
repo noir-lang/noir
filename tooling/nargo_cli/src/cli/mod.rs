@@ -120,6 +120,7 @@ enum NargoCommand {
 pub(crate) fn start_cli() -> eyre::Result<()> {
     use std::fs::File;
 
+    use fm::NormalizePath;
     use fs2::FileExt as _;
     use nargo_toml::get_package_manifest;
 
@@ -127,7 +128,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
     if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
+        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir).normalize();
     }
 
     // Search through parent directories to find package root if necessary.
