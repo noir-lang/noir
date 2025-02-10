@@ -1,6 +1,7 @@
 use crate::cmp::Eq;
 use crate::collections::bounded_vec::BoundedVec;
 use crate::default::Default;
+use crate::for_loop;
 use crate::hash::{BuildHasher, Hash, Hasher};
 use crate::option::Option;
 
@@ -311,14 +312,17 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         // docs:end:iter_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
+        let new_map_ref = &mut new_map;
 
-        for i in 0..N {
-            if i < self._len {
+        for_loop::<N, _>(
+            0,
+            self._len,
+            |i| {
                 let entry = entries.get_unchecked(i);
                 let (key, value) = f(entry.0, entry.1);
-                new_map.insert(key, value);
-            }
-        }
+                new_map_ref.insert(key, value);
+            },
+        );
 
         self._table = new_map._table;
     }
@@ -349,14 +353,17 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         // docs:end:iter_keys_mut
         let mut entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
+        let new_map_ref = &mut new_map;
 
-        for i in 0..N {
-            if i < self._len {
+        for_loop::<N, _>(
+            0,
+            self._len,
+            |i| {
                 let entry = entries.get_unchecked(i);
                 let (key, value) = (f(entry.0), entry.1);
-                new_map.insert(key, value);
-            }
-        }
+                new_map_ref.insert(key, value);
+            },
+        );
 
         self._table = new_map._table;
     }
