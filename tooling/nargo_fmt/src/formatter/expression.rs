@@ -545,7 +545,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             group.trailing_comma();
         }
 
-        group.text(chunk);
+        group.trailing_comment_without_final_indentation(chunk);
 
         if force_trailing_comma {
             group.text(TextChunk::new(",".to_string()));

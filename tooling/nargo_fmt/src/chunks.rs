@@ -863,7 +863,10 @@ impl<'a> Formatter<'a> {
                 Chunk::Text(text_chunk) | Chunk::Verbatim(text_chunk) => {
                     self.write(&text_chunk.string);
                 }
-                Chunk::TrailingComment(text_chunk, _) | Chunk::LeadingComment(text_chunk) => {
+                Chunk::TrailingComment(text_chunk, _) => {
+                    self.write(&text_chunk.string);
+                }
+                Chunk::LeadingComment(text_chunk) => {
                     self.write(&text_chunk.string);
                     self.write_space_without_skipping_whitespace_and_comments();
                 }

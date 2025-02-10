@@ -969,4 +969,24 @@ global x: Field = 1;
         let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
+
+    #[test]
+    fn wraps_line_comments_in_argument_trailing_position() {
+        let src = "fn foo() {
+        bar(
+        1, // This is a long comment that's going to be wrapped.
+    )}
+        ";
+        let expected = "fn foo() {
+    bar(
+        1, // This is a long
+        // comment that's
+        // going to be
+        // wrapped.
+    )
+}
+";
+        let config = Config { wrap_comments: true, max_width: 29, ..Config::default() };
+        assert_format_with_config(src, expected, config);
+    }
 }
