@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739219195409,
+  "lastUpdate": 1739219199220,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13767,95 +13767,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25",
-          "message": "feat(experimental): Support enums in comptime code (#7194)",
-          "timestamp": "2025-01-27T17:56:37Z",
-          "tree_id": "051660cfc1e47e1bf7febf96047b20ae4174a1c6",
-          "url": "https://github.com/noir-lang/noir/commit/4fe4cc68c2a45e09f0ec103ad11bd4224f1d9b25"
-        },
-        "date": 1738002367662,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.05,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.51,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.28,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 517.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 492.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1250,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 517.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 750.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 610.93,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 181.93,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.6,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 210.12,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -17985,6 +17896,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/40bb2014d34a2ad71b35765fe534b4f488e90760"
         },
         "date": 1739202669474,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 728.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 554.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 528.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 554.74,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e15ef9e61f7e697ffde00b642bc9bb18371fe96",
+          "message": "chore(ci): Add Vecs and vecs to cspell (#7342)",
+          "timestamp": "2025-02-10T20:04:12Z",
+          "tree_id": "9c2a480a40d53a0d36a918172d6de6dd9bbe0e2b",
+          "url": "https://github.com/noir-lang/noir/commit/3e15ef9e61f7e697ffde00b642bc9bb18371fe96"
+        },
+        "date": 1739219198037,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
