@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739200677564,
+  "lastUpdate": 1739202428251,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9720,90 +9720,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "faa1794b651134473fb9a8edca2334ae19efa8ef",
-          "message": "chore: exclude dependency fetching time from benchmarks (#7210)",
-          "timestamp": "2025-01-28T17:33:44Z",
-          "tree_id": "e4bfe9eecaa4ce23ed4d35ffc610ce3ca7e906d8",
-          "url": "https://github.com/noir-lang/noir/commit/faa1794b651134473fb9a8edca2334ae19efa8ef"
-        },
-        "date": 1738086806411,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.602,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.107,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 41.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.103,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.194,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.449,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.309,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -13788,6 +13704,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 35.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.101,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "40bb2014d34a2ad71b35765fe534b4f488e90760",
+          "message": "chore: redo typo PR by osrm (#7238)",
+          "timestamp": "2025-02-10T15:10:09Z",
+          "tree_id": "94f0e0ff998c2489441e6b0201d5f4f4fd66200d",
+          "url": "https://github.com/noir-lang/noir/commit/40bb2014d34a2ad71b35765fe534b4f488e90760"
+        },
+        "date": 1739202427040,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.067,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.313,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.456,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.558,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.3,
             "unit": "s"
           },
           {
