@@ -262,7 +262,6 @@ pub trait Shl {
 }
 // docs:end:shl-trait
 
-
 impl Shl for u128 {
     fn shl(self, other: u8) -> u128 {
         self << other

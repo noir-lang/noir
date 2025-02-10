@@ -237,7 +237,6 @@ comptime fn derive_ord(s: StructDefinition) -> Quoted {
 
 // Note: Field deliberately does not implement Ord
 
-
 impl Ord for u128 {
     fn cmp(self, other: u128) -> Ordering {
         if self < other {
