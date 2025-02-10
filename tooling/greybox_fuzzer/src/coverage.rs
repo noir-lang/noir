@@ -408,7 +408,6 @@ impl AccumulatedFuzzerCoverage {
                     // If we've hit the equality case, tracking comparisons makes no sense
                     if least_different_bits == 0 {
                         cmp_approach.enabled = false;
-                        println!("Disabled one comparison tracing;");
                     }
                 }
                 std::cmp::Ordering::Equal => {

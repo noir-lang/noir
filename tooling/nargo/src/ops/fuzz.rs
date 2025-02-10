@@ -7,7 +7,7 @@ use acvm::{
 };
 use noir_greybox_fuzzer::{
     AcirAndBrilligPrograms, ErrorAndCoverage, FuzzedExecutorFailureConfiguration,
-    WitnessAndCoverage,
+    FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
 };
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
@@ -20,6 +20,14 @@ use crate::{
 use crate::{foreign_calls::DefaultForeignCallExecutor, PrintOutput};
 
 use super::execute_program;
+
+/// Folder configuration for fuzzing
+pub struct FuzzFolderConfig {
+    /// Corpus folder
+    pub corpus_folder: Option<String>,
+    /// Minimized corpus folder
+    pub minimized_corpus_folder: Option<String>,
+}
 
 pub enum FuzzingRunStatus {
     Pass,
@@ -45,7 +53,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     foreign_call_resolver_url: Option<&str>,
     root_path: Option<PathBuf>,
     package_name: Option<String>,
-    config: &CompileOptions,
+    compile_config: &CompileOptions,
+    fuzz_folder_config: &FuzzFolderConfig,
     num_threads: usize,
 ) -> FuzzingRunStatus {
     let fuzzing_harness_has_no_arguments = context
@@ -63,8 +72,8 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
         };
     }
     // Disable forced brillig
-    let acir_config = CompileOptions { force_brillig: false, ..config.clone() };
-    let brillig_config = CompileOptions { force_brillig: true, ..config.clone() };
+    let acir_config = CompileOptions { force_brillig: false, ..compile_config.clone() };
+    let brillig_config = CompileOptions { force_brillig: true, ..compile_config.clone() };
 
     let acir_program =
         compile_no_check(context, &acir_config, fuzzing_harness.get_id(), None, false);
@@ -159,6 +168,10 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                     FuzzedExecutorFailureConfiguration {
                         fail_on_specific_asserts: fuzzing_harness.only_fail_enabled(),
                         failure_reason: fuzzing_harness.failure_reason(),
+                    },
+                    FuzzedExecutorFolderConfiguration {
+                        corpus_folder: fuzz_folder_config.corpus_folder.clone(),
+                        minimized_corpus_folder: fuzz_folder_config.minimized_corpus_folder.clone(),
                     },
                 );
 

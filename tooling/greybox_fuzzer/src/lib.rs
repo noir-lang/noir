@@ -1,5 +1,5 @@
 use core::panic;
-use std::{cmp::max, time::Instant};
+use std::{cmp::max, path::PathBuf, time::Instant};
 
 use acvm::{
     acir::{
@@ -19,7 +19,7 @@ mod coverage;
 mod mutation;
 mod types;
 
-use corpus::{Corpus, TestCase, TestCaseId};
+use corpus::{Corpus, TestCase, TestCaseId, DEFAULT_CORPUS_FOLDER};
 use mutation::InputMutator;
 use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
@@ -168,6 +168,8 @@ struct Metrics {
     processed_testcase_count: usize,
     /// Number of testcases removed from the corpus
     removed_testcase_count: usize,
+    /// Purged a testcase last round
+    removed_testcase_last_round: bool,
     /// The size of the corpus being used in mutation schedule
     active_corpus_size: usize,
     /// Last round size
@@ -178,6 +180,14 @@ struct Metrics {
     last_round_update_time: u128,
     /// Number of threads involved in fuzzing
     num_threads: usize,
+    /// Number of testcases discovered with ACIR/Brillig tandem
+    acir_brillig_discoveries: usize,
+    /// Discovered something with ACIR/Brillig tandem last round
+    found_new_with_acir_brillig: bool,
+    /// Number of testcases discovered with Brillig
+    brillig_discoveries: usize,
+    /// Discovered something with Brillig last round
+    found_new_with_brillig: bool,
 }
 
 impl Metrics {
@@ -200,6 +210,7 @@ impl Metrics {
     }
     pub fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
+        self.removed_testcase_last_round = true;
     }
     pub fn set_active_corpus_size(&mut self, new_size: usize) {
         self.active_corpus_size = new_size;
@@ -216,6 +227,20 @@ impl Metrics {
     pub fn set_num_threads(&mut self, count: usize) {
         self.num_threads = count;
     }
+
+    pub fn increment_acir_brillig_discoveries(&mut self) {
+        self.acir_brillig_discoveries += 1;
+        self.found_new_with_acir_brillig = true;
+    }
+    pub fn increment_brillig_discoveries(&mut self) {
+        self.brillig_discoveries += 1;
+        self.found_new_with_brillig = true;
+    }
+    pub fn refresh_round(&mut self) {
+        self.found_new_with_acir_brillig = false;
+        self.found_new_with_brillig = false;
+        self.removed_testcase_last_round = false;
+    }
 }
 
 pub struct FuzzedExecutorFailureConfiguration {
@@ -224,6 +249,13 @@ pub struct FuzzedExecutorFailureConfiguration {
 
     /// Failure reason
     pub failure_reason: Option<String>,
+}
+
+pub struct FuzzedExecutorFolderConfiguration {
+    /// Corpus folder. If given, the corpus is stored here
+    pub corpus_folder: Option<String>,
+    /// Minimized corpus folder. If given, fuzzed executor performs minimization of the corpus instead of fuzzing and tries to save the results into this folder
+    pub minimized_corpus_folder: Option<String>,
 }
 /// An executor for Noir programs which which provides fuzzing support
 ///
@@ -264,6 +296,15 @@ pub struct FuzzedExecutor<E, F> {
     /// Determines what is considered a failure during execution
     failure_configuration: FuzzedExecutorFailureConfiguration,
 
+    /// Corpus folder
+    corpus_folder: PathBuf,
+
+    /// If this is set, perform minimization of the corpus
+    minimize_corpus: bool,
+
+    /// Corpus with the minimized
+    minimized_corpus_folder: PathBuf,
+
     /// Execution metric
     metrics: Metrics,
 }
@@ -294,6 +335,7 @@ impl<
         function_name: &str,
         num_threads: usize,
         failure_configuration: FuzzedExecutorFailureConfiguration,
+        folder_configuration: FuzzedExecutorFolderConfiguration,
     ) -> Self {
         // Analyze brillig program for branches and comparisons
         let (location_to_feature_map, brillig_coverage_ranges) =
@@ -319,6 +361,14 @@ impl<
             function_name: function_name.to_string(),
             num_threads,
             failure_configuration,
+            corpus_folder: PathBuf::from(
+                folder_configuration.corpus_folder.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
+            ),
+            minimize_corpus: folder_configuration.minimized_corpus_folder.is_some(),
+            minimized_corpus_folder: PathBuf::from(
+                folder_configuration.minimized_corpus_folder.unwrap_or_default(),
+            ),
+
             metrics: Metrics::default(),
         }
     }
@@ -363,15 +413,17 @@ impl<
         self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
         let seed = thread_rng().gen::<u64>();
-        println!("Fuzzing seed for this campaign: {}", seed);
 
         // Init a fast PRNG used throughout the campain
         let mut prng = XorShiftRng::seed_from_u64(seed);
 
         // Initialize the starting corpus
-        // TODO: allow setting the base directory
-        let mut corpus =
-            Corpus::new(&self.package_name, &self.function_name, &self.acir_program.abi);
+        let mut corpus = Corpus::new(
+            &self.corpus_folder,
+            &self.package_name,
+            &self.function_name,
+            &self.acir_program.abi,
+        );
 
         // Try loading the corpus from previous campaigns
         match corpus.attempt_to_load_corpus_from_disk() {
@@ -394,7 +446,16 @@ impl<
         let mut starting_corpus_ids: Vec<_> =
             corpus.get_full_stored_corpus().iter().map(|x| x.id()).collect();
 
-        println!("Starting corpus size: {}", starting_corpus_ids.len());
+        if self.minimize_corpus && starting_corpus_ids.is_empty() {
+            return FuzzTestResult {
+                success: false,
+                reason: Some("No initial corpus found to minimize".to_string()),
+                counterexample: None,
+                foreign_call_failure: false,
+            };
+        }
+
+        display_starting_info(seed, starting_corpus_ids.len(), self.num_threads);
 
         // Generate the default input (it is needed if the corpus is empty)
         let default_map = self.mutator.generate_default_input_map();
@@ -668,9 +729,6 @@ impl<
                         corpus.remove(testcase_for_removal);
                     }
 
-                    // TODO: create flag to show inputs with new coverage
-                    println!("Input: {:?}", case);
-
                     // Add values from the interesting testcase to the dictionary
                     self.mutator.update_dictionary(&case);
 
@@ -686,13 +744,7 @@ impl<
                             }
                         }
                     }
-                    // TODO: FLAG
-                    print!("Found new feature with ACIR and Brillig");
-                    if processed_starting_corpus {
-                        println!("!");
-                    } else {
-                        println!(" in starting corpus!")
-                    }
+                    self.metrics.increment_acir_brillig_discoveries();
                 }
             }
 
@@ -801,7 +853,6 @@ impl<
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
                     }
-                    println!("Input: {:?}", case);
                     self.mutator.update_dictionary(&case);
                     match corpus.insert(case_id, case, true) {
                         Ok(_) => (),
@@ -814,7 +865,8 @@ impl<
                             }
                         }
                     }
-                    println!("Found new feature just with brillig!");
+
+                    self.metrics.increment_brillig_discoveries();
                 }
             }
             // If we've found something, return
@@ -828,6 +880,7 @@ impl<
                 self.metrics.set_last_round_update_time(updating_time);
                 self.metrics.set_last_round_execution_time(fuzz_time_micros);
                 display_metrics(&self.metrics);
+                self.metrics.refresh_round();
                 time_tracker = Instant::now();
             }
             // We have now definitely processed the starting corpus
@@ -1074,6 +1127,26 @@ impl<
     }
 }
 
+// A method for pretty display starting information
+fn display_starting_info(seed: u64, starting_corpus_size: usize, num_threads: usize) {
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let mut writer = writer.lock();
+    write!(writer, "seed: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{:#016x}", seed).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", starting_corpus_size: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    write!(writer, "{}", starting_corpus_size).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", num_threads:: ").expect("Failed to write to stderr");
+    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
+    writeln!(writer, "{}", num_threads).expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+    writer.flush().expect("Failed to flush writer");
+}
 // A method for pretty display of fuzzing metrics
 fn display_metrics(metrics: &Metrics) {
     let writer = StandardStream::stderr(ColorChoice::Always);
@@ -1110,56 +1183,98 @@ fn display_metrics(metrics: &Metrics) {
             format!("{}", x)
         }
     };
-    write!(writer, "iterations: ").expect("Failed to write to stderr");
+    if metrics.found_new_with_acir_brillig || metrics.found_new_with_brillig {
+        writer
+            .set_color(ColorSpec::new().set_fg(Some(Color::Magenta)))
+            .expect("Failed to set color");
+        write!(writer, "NEW:  ").expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+    } else {
+        write!(writer, "LOOP: ").expect("Failed to write to stderr");
+        writer.reset().expect("Failed to reset writer");
+    }
+    write!(writer, "CNT: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_count(metrics.processed_testcase_count))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", corpus_size: ").expect("Failed to write to stderr");
+    write!(writer, ", CRPS: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_count(metrics.active_corpus_size))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", acir_time: ").expect("Failed to write to stderr");
+    write!(writer, ", AB_NEW: ").expect("Failed to write to stderr");
+    writer
+        .set_color(ColorSpec::new().set_fg(if metrics.found_new_with_acir_brillig {
+            Some(Color::Magenta)
+        } else {
+            Some(Color::Blue)
+        }))
+        .expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.acir_brillig_discoveries))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", B_NEW: ").expect("Failed to write to stderr");
+    writer
+        .set_color(ColorSpec::new().set_fg(if metrics.found_new_with_brillig {
+            Some(Color::Magenta)
+        } else {
+            Some(Color::Blue)
+        }))
+        .expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.brillig_discoveries))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", RMVD: ").expect("Failed to write to stderr");
+    writer
+        .set_color(ColorSpec::new().set_fg(if metrics.removed_testcase_last_round {
+            Some(Color::Magenta)
+        } else {
+            Some(Color::Blue)
+        }))
+        .expect("Failed to set color");
+    write!(writer, "{}", format_count(metrics.removed_testcase_count))
+        .expect("Failed to write to stderr");
+    writer.reset().expect("Failed to reset writer");
+
+    write!(writer, ", A_TIME: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_time(metrics.total_acir_execution_time))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", brlg_time: ").expect("Failed to write to stderr");
+    write!(writer, ", B_TIME: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_time(metrics.total_brillig_execution_time))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", mut_time: ").expect("Failed to write to stderr");
+    write!(writer, ", M_TIME: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_time(metrics.total_mutation_time))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", rnd_count: ").expect("Failed to write to stderr");
+    write!(writer, ", RND_SIZE: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_count(metrics.last_round_size)).expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", r_exec_time: ").expect("Failed to write to stderr");
+    write!(writer, ", RND_EX_TIME: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
     write!(writer, "{}", format_time(metrics.last_round_execution_time))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", upd_time: ").expect("Failed to write to stderr");
+    write!(writer, ", UPD_TIME: ").expect("Failed to write to stderr");
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
-    write!(writer, "{}", format_time(metrics.last_round_update_time))
+    writeln!(writer, "{}", format_time(metrics.last_round_update_time))
         .expect("Failed to write to stderr");
     writer.reset().expect("Failed to reset writer");
 
-    write!(writer, ", threads: ").expect("Failed to write to stderr");
-    writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue))).expect("Failed to set color");
-    writeln!(writer, "{}", metrics.num_threads).expect("Failed to write to stderr");
-    writer.reset().expect("Failed to reset writer");
     writer.flush().expect("Failed to flush writer");
 }

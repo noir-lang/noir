@@ -8,7 +8,7 @@ use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::FuzzingRunStatus,
     package::{CrateName, Package},
-    parse_all, prepare_package,
+    parse_all, prepare_package, FuzzFolderConfig,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{json::serialize_to_json, Format};
@@ -30,8 +30,11 @@ pub(crate) struct FuzzCommand {
 
     /// If given, load/store fuzzer corpus from this folder
     #[arg(long)]
-    corpus_folder_name: Option<String>,
+    corpus_folder: Option<String>,
 
+    /// If given, perform corpus minimization instead of fuzzing and store results in the given folder
+    #[arg(long)]
+    minimized_corpus_folder: Option<String>,
     /// List all available harnesses that match the name
     #[clap(long)]
     list_all: bool,
@@ -117,6 +120,11 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
         }
         return Ok(());
     }
+
+    let fuzz_folder_config = FuzzFolderConfig {
+        corpus_folder: args.corpus_folder,
+        minimized_corpus_folder: args.minimized_corpus_folder,
+    };
     // // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
     // // Default is 2MB.
     // let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
@@ -133,6 +141,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
                 Some(workspace.root_dir.clone()),
                 Some(package.name.to_string()),
                 &args.compile_options,
+                &fuzz_folder_config,
                 args.num_threads,
             )
             .unwrap_or_else(|_| Vec::new())
@@ -196,6 +205,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     compile_options: &CompileOptions,
+    fuzz_folder_config: &FuzzFolderConfig,
     num_threads: usize,
 ) -> Result<Vec<(String, FuzzingRunStatus)>, CliError> {
     let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
@@ -227,6 +237,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
                 root_path.clone(),
                 package_name.clone(),
                 compile_options,
+                fuzz_folder_config,
                 num_threads,
             );
 
@@ -255,6 +266,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     root_path: Option<PathBuf>,
     package_name: Option<String>,
     compile_options: &CompileOptions,
+    fuzz_folder_config: &FuzzFolderConfig,
     num_threads: usize,
 ) -> FuzzingRunStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
@@ -278,6 +290,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         root_path,
         package_name,
         compile_options,
+        &fuzz_folder_config,
         num_threads,
     )
 }

@@ -20,6 +20,7 @@ use walkdir::WalkDir;
 
 use std::sync::atomic::Ordering;
 const CORPUS_FILE_EXTENSION: &str = "json";
+pub const DEFAULT_CORPUS_FOLDER: &str = "corpus";
 
 static NEXT_TESTCASE_ID: AtomicU64 = AtomicU64::new(0xdead);
 
@@ -266,14 +267,14 @@ pub struct Corpus {
 
 impl Corpus {
     /// Create a new object for tracking information about discovered testcases
-    pub fn new(package_name: &str, function_name: &str, abi: &Abi) -> Self {
+    pub fn new(base_folder: &Path, package_name: &str, function_name: &str, abi: &Abi) -> Self {
         Self {
             discovered_testcases: HashMap::new(),
             cached_testcases: HashMap::new(),
             brillig_orchestrator: TestCaseOrchestrator::new(),
             acir_orchestrator: TestCaseOrchestrator::new(),
             corpus_file_manager: CorpusFileManager::new(
-                Path::new("corpus"),
+                base_folder,
                 package_name,
                 function_name,
                 abi.clone(),
