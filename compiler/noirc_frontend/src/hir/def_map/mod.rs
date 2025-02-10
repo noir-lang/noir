@@ -1,14 +1,14 @@
-use crate::graph::CrateId;
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -78,7 +78,7 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         debug_comptime_in_file: Option<&str>,
-        error_on_unused_imports: bool,
+        pedantic_solving: bool,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -121,7 +121,7 @@ impl CrateDefMap {
             ast,
             root_file_id,
             debug_comptime_in_file,
-            error_on_unused_imports,
+            pedantic_solving,
         ));
 
         errors.extend(
@@ -159,6 +159,10 @@ impl CrateDefMap {
         self.modules[module_id.0].location.file
     }
 
+    pub fn file_ids(&self) -> HashSet<FileId> {
+        self.modules.iter().map(|(_, module_data)| module_data.location.file).collect()
+    }
+
     /// Go through all modules in this crate, and find all functions in
     /// each module with the #[test] attribute
     pub fn get_all_test_functions<'a>(
@@ -169,7 +173,7 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    match &attributes.function {
+                    match attributes.function() {
                         Some(FunctionAttribute::Test(scope)) => {
                             let location = interner.function_meta(&func_id).name.location;
                             Some(TestFunction::new(func_id, scope.clone(), location))
@@ -193,11 +197,7 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     let attributes = interner.function_attributes(&func_id);
-                    if attributes.secondary.contains(&SecondaryAttribute::Export) {
-                        Some(func_id)
-                    } else {
-                        None
-                    }
+                    attributes.has_export().then_some(func_id)
                 } else {
                     None
                 }
@@ -241,7 +241,7 @@ impl CrateDefMap {
 
                     module.type_definitions().for_each(|id| {
                         if let ModuleDefId::TypeId(struct_id) = id {
-                            interner.struct_attributes(&struct_id).iter().for_each(|attr| {
+                            interner.type_attributes(&struct_id).iter().for_each(|attr| {
                                 if let SecondaryAttribute::Abi(tag) = attr {
                                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                                         tagged.push(struct_id);
@@ -293,6 +293,54 @@ impl CrateDefMap {
             String::new()
         }
     }
+
+    /// Return a topological ordering of each module such that any child modules
+    /// are before their parent modules. Sibling modules will respect the ordering
+    /// declared from their parent module (the `mod foo; mod bar;` declarations).
+    pub fn get_module_topological_order(&self) -> HashMap<LocalModuleId, usize> {
+        let mut ordering = HashMap::default();
+        self.topologically_sort_modules(self.root, &mut 0, &mut ordering);
+        ordering
+    }
+
+    fn topologically_sort_modules(
+        &self,
+        current: LocalModuleId,
+        index: &mut usize,
+        ordering: &mut HashMap<LocalModuleId, usize>,
+    ) {
+        for child in &self.modules[current.0].child_declaration_order {
+            self.topologically_sort_modules(*child, index, ordering);
+        }
+
+        ordering.insert(current, *index);
+        *index += 1;
+    }
+}
+
+pub fn fully_qualified_module_path(
+    def_maps: &DefMaps,
+    crate_graph: &CrateGraph,
+    crate_id: &CrateId,
+    module_id: ModuleId,
+) -> String {
+    let child_id = module_id.local_id.0;
+
+    let def_map =
+        def_maps.get(&module_id.krate).expect("The local crate should be analyzed already");
+
+    let module = &def_map.modules()[module_id.local_id.0];
+
+    let module_path = def_map.get_module_path_with_separator(child_id, module.parent, "::");
+
+    if &module_id.krate == crate_id {
+        module_path
+    } else {
+        let crates = crate_graph
+            .find_dependencies(crate_id, &module_id.krate)
+            .expect("The module was supposed to be defined in a dependency");
+        crates.join("::") + "::" + &module_path
+    }
 }
 
 /// Specifies a contract function and extra metadata that
@@ -308,7 +356,7 @@ pub struct ContractFunctionMeta {
 }
 
 pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<StructId>>,
+    pub structs: HashMap<String, Vec<TypeId>>,
     pub globals: HashMap<String, Vec<GlobalId>>,
 }
 

@@ -1,8 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::BTreeMap,
-    fmt::{self, Display},
-};
+use std::{cmp::Ordering, collections::BTreeMap, fmt::Display};
 
 use noirc_frontend::ast::{ItemVisibility, PathKind, UseTree, UseTreeKind};
 
@@ -157,7 +153,7 @@ impl Segment {
 }
 
 impl Display for Segment {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),
@@ -183,7 +179,12 @@ impl Ord for Segment {
 
         if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
             // Case-insensitive comparison for plain segments
-            self_string.to_lowercase().cmp(&other_string.to_lowercase())
+            let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
+            if ordering == Ordering::Equal {
+                self_string.cmp(other_string)
+            } else {
+                ordering
+            }
         } else {
             order_number_ordering
         }
@@ -623,5 +624,11 @@ use std::merkle::compute_merkle_root;
         let src = "use std::{as_witness, merkle::compute_merkle_root};";
         let expected = "use std::{as_witness, merkle::compute_merkle_root};\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn does_not_merge_same_identifiers_if_equal_case_insensitive() {
+        let src = "use bigint::{BigNum, bignum::BigNumTrait};\n";
+        assert_format(src, src);
     }
 }

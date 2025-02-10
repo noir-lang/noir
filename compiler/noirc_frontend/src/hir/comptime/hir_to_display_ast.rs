@@ -5,10 +5,10 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal,
-    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
 };
-use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
+use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
 };
@@ -32,20 +32,6 @@ impl HirStatement {
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
-            HirStatement::Constrain(constrain) => {
-                let expr = constrain.0.to_display_ast(interner);
-                let mut arguments = vec![expr];
-                if let Some(message) = constrain.2 {
-                    arguments.push(message.to_display_ast(interner));
-                }
-
-                // TODO: Find difference in usage between Assert & AssertEq
-                StatementKind::Constrain(ConstrainStatement {
-                    kind: ConstrainKind::Assert,
-                    arguments,
-                    span,
-                })
-            }
             HirStatement::Assign(assign) => StatementKind::Assign(AssignStatement {
                 lvalue: assign.lvalue.to_display_ast(interner),
                 expression: assign.expression.to_display_ast(interner),
@@ -59,6 +45,7 @@ impl HirStatement {
                 block: for_stmt.block.to_display_ast(interner),
                 span,
             }),
+            HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner), span),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {
@@ -121,9 +108,9 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
             }
-            HirExpression::Literal(HirLiteral::FmtStr(string, _exprs)) => {
+            HirExpression::Literal(HirLiteral::FmtStr(fragments, _exprs, length)) => {
                 // TODO: Is throwing away the exprs here valid?
-                ExpressionKind::Literal(Literal::FmtStr(string.clone()))
+                ExpressionKind::Literal(Literal::FmtStr(fragments.clone(), *length))
             }
             HirExpression::Literal(HirLiteral::Unit) => ExpressionKind::Literal(Literal::Unit),
             HirExpression::Block(expr) => ExpressionKind::Block(expr.to_display_ast(interner)),
@@ -179,6 +166,20 @@ impl HirExpression {
                     is_macro_call: false,
                 }))
             }
+            HirExpression::Constrain(constrain) => {
+                let expr = constrain.0.to_display_ast(interner);
+                let mut arguments = vec![expr];
+                if let Some(message) = constrain.2 {
+                    arguments.push(message.to_display_ast(interner));
+                }
+
+                // TODO: Find difference in usage between Assert & AssertEq
+                ExpressionKind::Constrain(ConstrainExpression {
+                    kind: ConstrainKind::Assert,
+                    arguments,
+                    span,
+                })
+            }
             HirExpression::Cast(cast) => {
                 let lhs = cast.lhs.to_display_ast(interner);
                 let r#type = cast.r#type.to_display_ast();
@@ -211,6 +212,19 @@ impl HirExpression {
 
             // A macro was evaluated here: return the quoted result
             HirExpression::Unquote(block) => ExpressionKind::Quote(block.clone()),
+
+            // Convert this back into a function call `Enum::Foo(args)`
+            HirExpression::EnumConstructor(constructor) => {
+                let typ = constructor.r#type.borrow();
+                let variant = &typ.variant_at(constructor.variant_index);
+                let segment1 = PathSegment { ident: typ.name.clone(), span, generics: None };
+                let segment2 = PathSegment { ident: variant.name.clone(), span, generics: None };
+                let path = Path { segments: vec![segment1, segment2], kind: PathKind::Plain, span };
+                let func = Box::new(Expression::new(ExpressionKind::Variable(path), span));
+                let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
+                let call = CallExpression { func, arguments, is_macro_call: false };
+                ExpressionKind::Call(Box::new(call))
+            }
         };
 
         Expression::new(kind, span)
@@ -245,7 +259,7 @@ impl HirPattern {
                     (name.clone(), pattern.to_display_ast(interner))
                 });
                 let name = match typ.follow_bindings() {
-                    Type::Struct(struct_def, _) => {
+                    Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
                         struct_def.name.0.contents.clone()
                     }
@@ -300,7 +314,7 @@ impl Type {
                 let fields = vecmap(fields, |field| field.to_display_ast());
                 UnresolvedTypeData::Tuple(fields)
             }
-            Type::Struct(def, generics) => {
+            Type::DataType(def, generics) => {
                 let struct_def = def.borrow();
                 let ordered_args = vecmap(generics, |generic| generic.to_display_ast());
                 let generics =
@@ -340,6 +354,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Span::default());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
+            Type::CheckedCast { to, .. } => to.to_display_ast().typ,
             Type::Function(args, ret, env, unconstrained) => {
                 let args = vecmap(args, |arg| arg.to_display_ast());
                 let ret = Box::new(ret.to_display_ast());
@@ -358,7 +373,7 @@ impl Type {
             Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
             Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
             Type::Error => UnresolvedTypeData::Error,
-            Type::InfixExpr(lhs, op, rhs) => {
+            Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
                 let rhs = Box::new(rhs.to_type_expression());
                 let span = Span::default();

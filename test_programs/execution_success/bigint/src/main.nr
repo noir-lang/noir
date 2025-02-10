@@ -17,6 +17,7 @@ fn main(mut x: [u8; 5], y: [u8; 5]) {
     let c = if x[0] != 0 {
         test_unconstrained1(a, b)
     } else {
+        /// Safety: testing context
         unsafe {
             test_unconstrained2(a, b)
         }

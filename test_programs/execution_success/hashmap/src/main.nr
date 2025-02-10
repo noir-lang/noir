@@ -16,15 +16,15 @@ struct Entry {
 }
 
 global HASHMAP_CAP: u32 = 8;
-global HASHMAP_LEN = 6;
+global HASHMAP_LEN: u32 = 6;
 
-global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global FIELD_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| a.lt(b);
 
-global K_CMP = FIELD_CMP;
-global V_CMP = FIELD_CMP;
-global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
+global K_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global V_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP =
+global ALLOCATE_HASHMAP: fn() -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> =
     || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> HashMap::default();
 
 fn main(input: [Entry; HASHMAP_LEN]) {
@@ -104,10 +104,11 @@ fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
         hashmap.insert(entry.key, entry.value);
     }
 
-    assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input lenght.");
+    assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input length.");
 
     for entry in input {
-        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry.key}.");
+        let entry_key = entry.key;
+        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry_key}.");
     }
 
     hashmap.clear();

@@ -6,9 +6,7 @@ use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 mod embedded_curve_ops;
 mod generator;
-mod pedersen;
 mod poseidon2;
-mod schnorr;
 
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
@@ -22,25 +20,12 @@ pub use poseidon2::{
 type FieldElement = acir::acir_field::GenericFieldElement<ark_bn254::Fr>;
 
 #[derive(Default)]
-pub struct Bn254BlackBoxSolver;
+// pedantic_solving: bool
+pub struct Bn254BlackBoxSolver(pub bool);
 
 impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &FieldElement,
-        public_key_y: &FieldElement,
-        signature: &[u8; 64],
-        message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        let sig_s: [u8; 32] = signature[0..32].try_into().unwrap();
-        let sig_e: [u8; 32] = signature[32..64].try_into().unwrap();
-        Ok(schnorr::verify_signature(
-            public_key_x.into_repr(),
-            public_key_y.into_repr(),
-            sig_s,
-            sig_e,
-            message,
-        ))
+    fn pedantic_solving(&self) -> bool {
+        self.0
     }
 
     fn multi_scalar_mul(
@@ -49,7 +34,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         scalars_lo: &[FieldElement],
         scalars_hi: &[FieldElement],
     ) -> Result<(FieldElement, FieldElement, FieldElement), BlackBoxResolutionError> {
-        multi_scalar_mul(points, scalars_lo, scalars_hi)
+        multi_scalar_mul(points, scalars_lo, scalars_hi, self.pedantic_solving())
     }
 
     fn ec_add(
@@ -64,6 +49,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
         embedded_curve_add(
             [*input1_x, *input1_y, *input1_infinite],
             [*input2_x, *input2_y, *input2_infinite],
+            self.pedantic_solving(),
         )
     }
 

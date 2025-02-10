@@ -8,7 +8,7 @@ use lsp_types::{
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstrainKind, ConstrainStatement, Expression, FunctionReturnType,
+        CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
@@ -122,10 +122,22 @@ impl<'a> SignatureFinder<'a> {
         active_parameter: Option<u32>,
         has_self: bool,
     ) -> SignatureInformation {
+        let enum_type_id = match (func_meta.type_id, func_meta.enum_variant_index) {
+            (Some(type_id), Some(_)) => Some(type_id),
+            _ => None,
+        };
+
         let mut label = String::new();
         let mut parameters = Vec::new();
 
-        label.push_str("fn ");
+        if let Some(enum_type_id) = enum_type_id {
+            label.push_str("enum ");
+            label.push_str(&self.interner.get_type(enum_type_id).borrow().name.0.contents);
+            label.push_str("::");
+        } else {
+            label.push_str("fn ");
+        }
+
         label.push_str(name);
         label.push('(');
         for (index, (pattern, typ, _)) in func_meta.parameters.0.iter().enumerate() {
@@ -142,8 +154,10 @@ impl<'a> SignatureFinder<'a> {
             } else {
                 let parameter_start = label.chars().count();
 
-                self.hir_pattern_to_argument(pattern, &mut label);
-                label.push_str(": ");
+                if enum_type_id.is_none() {
+                    self.hir_pattern_to_argument(pattern, &mut label);
+                    label.push_str(": ");
+                }
                 label.push_str(&typ.to_string());
 
                 let parameter_end = label.chars().count();
@@ -159,11 +173,13 @@ impl<'a> SignatureFinder<'a> {
         }
         label.push(')');
 
-        match &func_meta.return_type {
-            FunctionReturnType::Default(_) => (),
-            FunctionReturnType::Ty(typ) => {
-                label.push_str(" -> ");
-                label.push_str(&typ.to_string());
+        if enum_type_id.is_none() {
+            match &func_meta.return_type {
+                FunctionReturnType::Default(_) => (),
+                FunctionReturnType::Ty(typ) => {
+                    label.push_str(" -> ");
+                    label.push_str(&typ.to_string());
+                }
             }
         }
 
@@ -224,7 +240,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert",
-            &["predicate: bool", "[failure_message: str<N>]"],
+            &["predicate: bool", "[failure_message: T]"],
         )
     }
 
@@ -235,7 +251,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert_eq",
-            &["lhs: T", "rhs: T", "[failure_message: str<N>]"],
+            &["lhs: T", "rhs: T", "[failure_message: U]"],
         )
     }
 
@@ -367,7 +383,7 @@ impl<'a> Visitor for SignatureFinder<'a> {
         false
     }
 
-    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) -> bool {
+    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainExpression) -> bool {
         constrain_statement.accept_children(self);
 
         if self.signature_help.is_some() {

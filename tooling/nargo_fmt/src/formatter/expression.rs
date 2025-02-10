@@ -1,9 +1,10 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
-        ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
-        InfixExpression, Lambda, Literal, MemberAccessExpression, MethodCallExpression,
-        PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
+        UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -39,6 +40,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             ExpressionKind::MethodCall(method_call) => {
                 group.group(self.format_method_call(*method_call));
             }
+            ExpressionKind::Constrain(constrain) => {
+                group.group(self.format_constrain(constrain));
+            }
             ExpressionKind::Constructor(constructor) => {
                 group.group(self.format_constructor(*constructor));
             }
@@ -56,6 +60,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     *if_expression,
                     false, // force multiple lines
                 ));
+            }
+            ExpressionKind::Match(match_expression) => {
+                group.group(self.format_match_expression(*match_expression));
             }
             ExpressionKind::Variable(path) => {
                 group.text(self.chunk(|formatter| {
@@ -104,11 +111,12 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 formatter.write_left_paren();
                 formatter.write_right_paren();
             })),
-            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_) | Literal::RawStr(..) => group
-                .text(self.chunk(|formatter| {
+            Literal::Bool(_) | Literal::Str(_) | Literal::FmtStr(_, _) | Literal::RawStr(..) => {
+                group.text(self.chunk(|formatter| {
                     formatter.write_current_token_as_in_source();
                     formatter.bump();
-                })),
+                }));
+            }
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
                 if formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);
@@ -369,6 +377,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
+            formatter.format_outer_doc_comments();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
@@ -893,6 +902,68 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group
     }
 
+    pub(super) fn format_match_expression(
+        &mut self,
+        match_expression: MatchExpression,
+    ) -> ChunkGroup {
+        let group_tag = self.new_group_tag();
+        let mut group = self.format_match_expression_with_group_tag(match_expression, group_tag);
+        force_if_chunks_to_multiple_lines(&mut group, group_tag);
+        group
+    }
+
+    pub(super) fn format_match_expression_with_group_tag(
+        &mut self,
+        match_expression: MatchExpression,
+        group_tag: GroupTag,
+    ) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+        group.tag = Some(group_tag);
+        group.force_multiple_lines = true;
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::Match);
+            formatter.write_space();
+        }));
+
+        self.format_expression(match_expression.expression, &mut group);
+        group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+        group.space(self);
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_left_brace();
+        }));
+
+        group.increase_indentation();
+        for (pattern, branch) in match_expression.rules {
+            group.line();
+            self.format_expression(pattern, &mut group);
+            group.text(self.chunk(|formatter| {
+                formatter.write_space();
+                formatter.write_token(Token::FatArrow);
+                formatter.write_space();
+            }));
+            self.format_expression(branch, &mut group);
+
+            // Add a trailing comma regardless of whether the user specified one or not
+            group.text(self.chunk(|formatter| {
+                if formatter.token == Token::Comma {
+                    formatter.write_current_token_and_bump();
+                } else {
+                    formatter.write(",");
+                }
+            }));
+        }
+        group.decrease_indentation();
+        group.line();
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_brace();
+        }));
+
+        group
+    }
+
     fn format_index_expression(&mut self, index: IndexExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         self.format_expression(index.collection, &mut group);
@@ -1078,6 +1149,40 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group
     }
 
+    fn format_constrain(&mut self, constrain_statement: ConstrainExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        let keyword = match constrain_statement.kind {
+            ConstrainKind::Assert => Keyword::Assert,
+            ConstrainKind::AssertEq => Keyword::AssertEq,
+            ConstrainKind::Constrain => {
+                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+            }
+        };
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(keyword);
+            formatter.write_left_paren();
+        }));
+
+        group.kind = GroupKind::ExpressionList {
+            prefix_width: group.width(),
+            expressions_count: constrain_statement.arguments.len(),
+        };
+
+        self.format_expressions_separated_by_comma(
+            constrain_statement.arguments,
+            false, // force trailing comma
+            &mut group,
+        );
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+        }));
+
+        group
+    }
+
     pub(super) fn format_block_expression(
         &mut self,
         block: BlockExpression,
@@ -1133,11 +1238,15 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 if count > 0 {
                     // If newlines follow, we first add a line, then add the comment chunk
                     group.lines(count > 1);
-                    group.leading_comment(self.skip_comments_and_whitespace_chunk());
+                    group.leading_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                 } else {
                     // Otherwise, add the comment first as it's a trailing comment
-                    group.trailing_comment(self.skip_comments_and_whitespace_chunk());
+                    group.trailing_comment(self.chunk(|formatter| {
+                        formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
+                    }));
                     ignore_next = self.ignore_next;
                     group.line();
                 }
@@ -1146,8 +1255,22 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             self.format_statement(statement, group, ignore_next);
         }
 
+        // See how many newlines follow the last statement
+        let count = self.following_newlines_count();
+
         group.text(self.chunk(|formatter| {
-            formatter.skip_comments_and_whitespace();
+            formatter.skip_whitespace();
+        }));
+
+        // After skipping whitespace we check if there's a comment. If so, we respect
+        // how many lines were before that comment.
+        if count > 0 && matches!(self.token, Token::LineComment(..) | Token::BlockComment(..)) {
+            group.lines(count > 1);
+        }
+
+        // Finally format the comment, if any
+        group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
         group.decrease_indentation();
@@ -1891,18 +2014,35 @@ global y = 1;
 
     #[test]
     fn format_unsafe_one_expression() {
-        let src = "global x = unsafe { 1  } ;";
+        let src = "global x = unsafe { 
+        1  } ;";
         let expected = "global x = unsafe { 1 };\n";
         assert_format(src, expected);
     }
 
     #[test]
     fn format_unsafe_two_expressions() {
-        let src = "global x = unsafe { 1; 2  } ;";
+        let src = "global x = unsafe { 
+        1; 2  } ;";
         let expected = "global x = unsafe {
     1;
     2
 };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_with_doc_comment() {
+        let src = "fn foo() {
+        /// Comment 
+        unsafe { 1  } }";
+        let expected = "fn foo() {
+    /// Comment
+    unsafe {
+        1
+    }
+}
 ";
         assert_format(src, expected);
     }
@@ -2288,5 +2428,20 @@ global y = 1;
 }
 ";
         assert_format_with_max_width(src, expected, "            Foo { a: 1 },".len() - 1);
+    }
+
+    #[test]
+    fn format_match() {
+        let src = "fn main() {  match  x  {  A=>B,C  =>  {D}E=>(),  } }";
+        // We should remove the block on D for single expressions in the future,
+        // unless D is an if or match.
+        let expected = "fn main() {
+    match x {
+        A => B,
+        C => { D },
+        E => (),
+    }
+}\n";
+        assert_format(src, expected);
     }
 }

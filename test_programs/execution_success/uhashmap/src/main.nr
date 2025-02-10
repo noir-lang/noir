@@ -11,15 +11,15 @@ struct Entry {
     value: Field,
 }
 
-global HASHMAP_LEN = 6;
+global HASHMAP_LEN: u32 = 6;
 
-global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global FIELD_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| a.lt(b);
 
-global K_CMP = FIELD_CMP;
-global V_CMP = FIELD_CMP;
-global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
+global K_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global V_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP =
+global ALLOCATE_HASHMAP: fn() -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> =
     || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> UHashMap::default();
 
 unconstrained fn main(input: [Entry; HASHMAP_LEN]) {
@@ -104,7 +104,8 @@ unconstrained fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
     assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input length.");
 
     for entry in input {
-        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry.key}.");
+        let entry_key = entry.key;
+        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry_key}.");
     }
 
     hashmap.clear();
@@ -292,6 +293,7 @@ unconstrained fn doc_tests() {
 
 // docs:start:get_example
 fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+    /// Safety: testing context
     let x = unsafe { map.get(12) };
 
     if x.is_some() {
@@ -317,6 +319,7 @@ fn entries_examples(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hash
     let keys = map.keys();
 
     for key in keys {
+        /// Safety: testing context
         let value = unsafe { map.get(key) }.unwrap_unchecked();
         println(f"{key} -> {value}");
     }

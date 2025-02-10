@@ -3,7 +3,6 @@ use std::{collections::BTreeMap, io::BufWriter};
 
 use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::OpcodeLocation;
-use acir::AcirField;
 use color_eyre::eyre::{self};
 use fm::codespan_files::Files;
 use fxhash::FxHashMap as HashMap;
@@ -11,17 +10,66 @@ use inferno::flamegraph::{from_lines, Options, TextTruncateDirection};
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_errors::Location;
+use noirc_evaluator::brillig::ProcedureId;
 
-use crate::opcode_formatter::AcirOrBrilligOpcode;
+pub(crate) trait Sample {
+    fn count(&self) -> usize;
 
-use super::opcode_formatter::format_opcode;
+    fn brillig_function_id(&self) -> Option<BrilligFunctionId>;
+
+    fn call_stack(&self) -> &[OpcodeLocation];
+
+    fn opcode(self) -> Option<String>;
+}
 
 #[derive(Debug)]
-pub(crate) struct Sample<F: AcirField> {
-    pub(crate) opcode: Option<AcirOrBrilligOpcode<F>>,
+pub(crate) struct CompilationSample {
+    pub(crate) opcode: Option<String>,
     pub(crate) call_stack: Vec<OpcodeLocation>,
     pub(crate) count: usize,
     pub(crate) brillig_function_id: Option<BrilligFunctionId>,
+}
+
+impl Sample for CompilationSample {
+    fn count(&self) -> usize {
+        self.count
+    }
+
+    fn brillig_function_id(&self) -> Option<BrilligFunctionId> {
+        self.brillig_function_id
+    }
+
+    fn call_stack(&self) -> &[OpcodeLocation] {
+        &self.call_stack
+    }
+
+    fn opcode(self) -> Option<String> {
+        self.opcode
+    }
+}
+
+pub(crate) struct BrilligExecutionSample {
+    pub(crate) opcode: Option<String>,
+    pub(crate) call_stack: Vec<OpcodeLocation>,
+    pub(crate) brillig_function_id: Option<BrilligFunctionId>,
+}
+
+impl Sample for BrilligExecutionSample {
+    fn count(&self) -> usize {
+        1
+    }
+
+    fn brillig_function_id(&self) -> Option<BrilligFunctionId> {
+        self.brillig_function_id
+    }
+
+    fn call_stack(&self) -> &[OpcodeLocation] {
+        &self.call_stack
+    }
+
+    fn opcode(self) -> Option<String> {
+        self.opcode
+    }
 }
 
 #[derive(Debug, Default)]
@@ -32,9 +80,9 @@ pub(crate) struct FoldedStackItem {
 
 pub(crate) trait FlamegraphGenerator {
     #[allow(clippy::too_many_arguments)]
-    fn generate_flamegraph<'files, F: AcirField>(
+    fn generate_flamegraph<'files, S: Sample>(
         &self,
-        samples: Vec<Sample<F>>,
+        samples: Vec<S>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
@@ -48,9 +96,9 @@ pub(crate) struct InfernoFlamegraphGenerator {
 }
 
 impl FlamegraphGenerator for InfernoFlamegraphGenerator {
-    fn generate_flamegraph<'files, F: AcirField>(
+    fn generate_flamegraph<'files, S: Sample>(
         &self,
-        samples: Vec<Sample<F>>,
+        samples: Vec<S>,
         debug_symbols: &DebugInfo,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         artifact_name: &str,
@@ -81,8 +129,8 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
     }
 }
 
-fn generate_folded_sorted_lines<'files, F: AcirField>(
-    samples: Vec<Sample<F>>,
+fn generate_folded_sorted_lines<'files, S: Sample>(
+    samples: Vec<S>,
     debug_symbols: &DebugInfo,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
@@ -91,15 +139,15 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
 
     let mut resolution_cache: HashMap<OpcodeLocation, Vec<String>> = HashMap::default();
     for sample in samples {
-        let mut location_names = Vec::with_capacity(sample.call_stack.len());
-        for opcode_location in sample.call_stack {
+        let mut location_names = Vec::with_capacity(sample.call_stack().len());
+        for opcode_location in sample.call_stack() {
             let callsite_labels = resolution_cache
-                .entry(opcode_location)
+                .entry(*opcode_location)
                 .or_insert_with(|| {
                     find_callsite_labels(
                         debug_symbols,
-                        &opcode_location,
-                        sample.brillig_function_id,
+                        opcode_location,
+                        sample.brillig_function_id(),
                         files,
                     )
                 })
@@ -108,10 +156,14 @@ fn generate_folded_sorted_lines<'files, F: AcirField>(
             location_names.extend(callsite_labels);
         }
 
-        if let Some(opcode) = &sample.opcode {
-            location_names.push(format_opcode(opcode));
+        // We move `sample` by calling `sample.opcode()` so we want to fetch the sample count here.
+        let count = sample.count();
+
+        if let Some(opcode) = sample.opcode() {
+            location_names.push(opcode);
         }
-        add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, sample.count);
+
+        add_locations_to_folded_stack_items(&mut folded_stack_items, location_names, count);
     }
 
     to_folded_sorted_lines(&folded_stack_items, Default::default())
@@ -123,10 +175,20 @@ fn find_callsite_labels<'files>(
     brillig_function_id: Option<BrilligFunctionId>,
     files: &'files impl Files<'files, FileId = fm::FileId>,
 ) -> Vec<String> {
+    let mut procedure_id = None;
     let source_locations = debug_symbols.opcode_location(opcode_location).unwrap_or_else(|| {
         if let (Some(brillig_function_id), Some(brillig_location)) =
             (brillig_function_id, opcode_location.to_brillig_location())
         {
+            let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
+            if let Some(procedure_locs) = procedure_locs {
+                for (procedure, range) in procedure_locs.iter() {
+                    if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
+                        procedure_id = Some(*procedure);
+                        break;
+                    }
+                }
+            }
             let brillig_locations = debug_symbols.brillig_locations.get(&brillig_function_id);
             if let Some(brillig_locations) = brillig_locations {
                 brillig_locations.get(&brillig_location).cloned().unwrap_or_default()
@@ -137,10 +199,16 @@ fn find_callsite_labels<'files>(
             vec![]
         }
     });
-    let callsite_labels: Vec<_> = source_locations
+
+    let mut callsite_labels: Vec<_> = source_locations
         .into_iter()
         .map(|location| location_to_callsite_label(location, files))
         .collect();
+
+    if let Some(procedure_id) = procedure_id {
+        callsite_labels.push(format!("procedure::{}", ProcedureId::from_debug_id(procedure_id)));
+    }
+
     callsite_labels
 }
 
@@ -233,7 +301,7 @@ mod tests {
     use noirc_errors::{debug_info::DebugInfo, Location, Span};
     use std::{collections::BTreeMap, path::Path};
 
-    use crate::{flamegraph::Sample, opcode_formatter::AcirOrBrilligOpcode};
+    use crate::{flamegraph::CompilationSample, opcode_formatter::format_acir_opcode};
 
     use super::generate_folded_sorted_lines;
 
@@ -317,27 +385,28 @@ mod tests {
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),
+            BTreeMap::default(),
         );
 
-        let samples: Vec<Sample<FieldElement>> = vec![
-            Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+        let samples: Vec<CompilationSample> = vec![
+            CompilationSample {
+                opcode: Some(format_acir_opcode(&AcirOpcode::AssertZero::<FieldElement>(
                     Expression::default(),
                 ))),
                 call_stack: vec![OpcodeLocation::Acir(0)],
                 count: 10,
                 brillig_function_id: None,
             },
-            Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::AssertZero(
+            CompilationSample {
+                opcode: Some(format_acir_opcode(&AcirOpcode::AssertZero::<FieldElement>(
                     Expression::default(),
                 ))),
                 call_stack: vec![OpcodeLocation::Acir(1)],
                 count: 20,
                 brillig_function_id: None,
             },
-            Sample {
-                opcode: Some(AcirOrBrilligOpcode::Acir(AcirOpcode::MemoryInit {
+            CompilationSample {
+                opcode: Some(format_acir_opcode(&AcirOpcode::MemoryInit::<FieldElement> {
                     block_id: BlockId(0),
                     init: vec![],
                     block_type: acir::circuit::opcodes::BlockType::Memory,

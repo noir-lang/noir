@@ -6,8 +6,15 @@ use noirc_frontend::{
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    node_interner::{FuncId, GlobalId, ReferenceId, StructId, TraitId, TypeAliasId},
+    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
     QuotedType, Type,
+};
+
+use crate::{
+    modules::{relative_module_full_path, relative_module_id_path},
+    use_segment_positions::{
+        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+    },
 };
 
 use super::{
@@ -15,7 +22,7 @@ use super::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems,
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
 impl<'a> NodeFinder<'a> {
@@ -56,6 +63,7 @@ impl<'a> NodeFinder<'a> {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
                     AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
+                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::EnumDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                     AttributeTarget::Let => {
@@ -75,9 +83,17 @@ impl<'a> NodeFinder<'a> {
                 function_completion_kind,
                 function_kind,
                 attribute_first_type.as_ref(),
+                None,  // trait_id
                 false, // self_prefix
             ),
-            ModuleDefId::TypeId(struct_id) => vec![self.struct_completion_item(name, struct_id)],
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                if data_type.borrow().is_struct() {
+                    vec![self.struct_completion_item(name, type_id)]
+                } else {
+                    vec![self.enum_completion_item(name, type_id)]
+                }
+            }
             ModuleDefId::TypeAliasId(id) => vec![self.type_alias_completion_item(name, id)],
             ModuleDefId::TraitId(trait_id) => vec![self.trait_completion_item(name, trait_id)],
             ModuleDefId::GlobalId(global_id) => vec![self.global_completion_item(name, global_id)],
@@ -97,53 +113,67 @@ impl<'a> NodeFinder<'a> {
         name: impl Into<String>,
         id: ModuleId,
     ) -> CompletionItem {
-        let completion_item = module_completion_item(name);
-        self.completion_item_with_doc_comments(ReferenceId::Module(id), completion_item)
+        let item = module_completion_item(name);
+        self.completion_item_with_doc_comments(ReferenceId::Module(id), item)
     }
 
-    fn struct_completion_item(&self, name: String, struct_id: StructId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Struct(struct_id), completion_item)
+    fn struct_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
+        let items = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), items)
+    }
+
+    fn enum_completion_item(&self, name: String, type_id: TypeId) -> CompletionItem {
+        let item = simple_completion_item(name.clone(), CompletionItemKind::ENUM, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Type(type_id), item)
     }
 
     pub(super) fn struct_field_completion_item(
         &self,
         field: &str,
         typ: &Type,
-        struct_id: StructId,
+        struct_id: TypeId,
         field_index: usize,
         self_type: bool,
     ) -> CompletionItem {
-        let completion_item = struct_field_completion_item(field, typ, self_type);
-        self.completion_item_with_doc_comments(
-            ReferenceId::StructMember(struct_id, field_index),
-            completion_item,
-        )
+        let item = struct_field_completion_item(field, typ, self_type);
+        let reference_id = ReferenceId::StructMember(struct_id, field_index);
+        self.completion_item_with_doc_comments(reference_id, item)
     }
 
     fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Alias(id), completion_item)
+        let item = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Alias(id), item)
     }
 
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {
-        let completion_item =
-            simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
-        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), completion_item)
+        let item = simple_completion_item(name.clone(), CompletionItemKind::INTERFACE, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::Trait(trait_id), item)
     }
 
     fn global_completion_item(&self, name: String, global_id: GlobalId) -> CompletionItem {
         let global = self.interner.get_global(global_id);
         let typ = self.interner.definition_type(global.definition_id);
         let description = typ.to_string();
-
-        let completion_item =
-            simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
-        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), completion_item)
+        let item = simple_completion_item(name, CompletionItemKind::CONSTANT, Some(description));
+        self.completion_item_with_doc_comments(ReferenceId::Global(global_id), item)
     }
 
+    pub(super) fn enum_variant_completion_item(
+        &self,
+        name: String,
+        type_id: TypeId,
+        variant_index: usize,
+    ) -> CompletionItem {
+        let kind = CompletionItemKind::ENUM_MEMBER;
+        let item = simple_completion_item(name.clone(), kind, Some(name.clone()));
+        let item = completion_item_with_detail(item, name);
+        self.completion_item_with_doc_comments(
+            ReferenceId::EnumVariant(type_id, variant_index),
+            item,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn function_completion_items(
         &self,
         name: &String,
@@ -151,6 +181,7 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         function_kind: FunctionKind,
         attribute_first_type: Option<&Type>,
+        trait_info: Option<(TraitId, Option<&TraitReexport>)>,
         self_prefix: bool,
     ) -> Vec<CompletionItem> {
         let func_meta = self.interner.function_meta(&func_id);
@@ -223,6 +254,7 @@ impl<'a> NodeFinder<'a> {
                 function_completion_kind,
                 function_kind,
                 attribute_first_type,
+                trait_info,
                 self_prefix,
                 is_macro_call,
             )
@@ -265,6 +297,7 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         function_kind: FunctionKind,
         attribute_first_type: Option<&Type>,
+        trait_info: Option<(TraitId, Option<&TraitReexport>)>,
         self_prefix: bool,
         is_macro_call: bool,
     ) -> CompletionItem {
@@ -275,10 +308,10 @@ impl<'a> NodeFinder<'a> {
         } else {
             false
         };
+        let description = func_meta_type_to_string(func_meta, name, func_self_type.is_some());
         let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
         let name = if is_macro_call { format!("{}!", name) } else { name };
         let name = &name;
-        let description = func_meta_type_to_string(func_meta, func_self_type.is_some());
         let mut has_arguments = false;
 
         let completion_item = match function_completion_kind {
@@ -325,7 +358,7 @@ impl<'a> NodeFinder<'a> {
             completion_item
         };
 
-        let completion_item = match function_completion_kind {
+        let mut completion_item = match function_completion_kind {
             FunctionCompletionKind::Name => completion_item,
             FunctionCompletionKind::NameAndParameters => {
                 if has_arguments {
@@ -336,7 +369,78 @@ impl<'a> NodeFinder<'a> {
             }
         };
 
-        self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item)
+        self.auto_import_trait_if_trait_method(func_id, trait_info, &mut completion_item);
+
+        if let (Some(type_id), Some(variant_index)) =
+            (func_meta.type_id, func_meta.enum_variant_index)
+        {
+            completion_item.kind = Some(CompletionItemKind::ENUM_MEMBER);
+
+            self.completion_item_with_doc_comments(
+                ReferenceId::EnumVariant(type_id, variant_index),
+                completion_item,
+            )
+        } else {
+            self.completion_item_with_doc_comments(ReferenceId::Function(func_id), completion_item)
+        }
+    }
+
+    fn auto_import_trait_if_trait_method(
+        &self,
+        func_id: FuncId,
+        trait_info: Option<(TraitId, Option<&TraitReexport>)>,
+        completion_item: &mut CompletionItem,
+    ) -> Option<()> {
+        // If this is a trait method, check if the trait is in scope
+        let (trait_id, trait_reexport) = trait_info?;
+
+        let trait_name = if let Some(trait_reexport) = trait_reexport {
+            trait_reexport.name
+        } else {
+            let trait_ = self.interner.get_trait(trait_id);
+            &trait_.name
+        };
+
+        let module_data =
+            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        if !module_data.scope().find_name(trait_name).is_none() {
+            return None;
+        }
+
+        // If not, automatically import it
+        let current_module_parent_id = self.module_id.parent(self.def_maps);
+        let module_full_path = if let Some(reexport_data) = trait_reexport {
+            relative_module_id_path(
+                *reexport_data.module_id,
+                &self.module_id,
+                current_module_parent_id,
+                self.interner,
+            )
+        } else {
+            relative_module_full_path(
+                ModuleDefId::FunctionId(func_id),
+                self.module_id,
+                current_module_parent_id,
+                self.interner,
+            )?
+        };
+        let full_path = format!("{}::{}", module_full_path, trait_name);
+        let mut label_details = completion_item.label_details.clone().unwrap();
+        label_details.detail = Some(format!("(use {})", full_path));
+        completion_item.label_details = Some(label_details);
+        completion_item.additional_text_edits = Some(use_completion_item_additional_text_edits(
+            UseCompletionItemAdditionTextEditsRequest {
+                full_path: &full_path,
+                files: self.files,
+                file: self.file,
+                lines: &self.lines,
+                nesting: self.nesting,
+                auto_import_line: self.auto_import_line,
+            },
+            &self.use_segment_positions,
+        ));
+
+        None
     }
 
     fn compute_function_insert_text(
@@ -346,6 +450,8 @@ impl<'a> NodeFinder<'a> {
         function_kind: FunctionKind,
         skip_first_argument: bool,
     ) -> String {
+        let is_enum_variant = func_meta.enum_variant_index.is_some();
+
         let mut text = String::new();
         text.push_str(name);
         text.push('(');
@@ -375,7 +481,11 @@ impl<'a> NodeFinder<'a> {
             text.push_str("${");
             text.push_str(&index.to_string());
             text.push(':');
-            self.hir_pattern_to_argument(pattern, &mut text);
+            if is_enum_variant {
+                text.push_str("()");
+            } else {
+                self.hir_pattern_to_argument(pattern, &mut text);
+            }
             text.push('}');
 
             index += 1;
@@ -439,18 +549,25 @@ pub(super) fn trait_impl_method_completion_item(
     snippet_completion_item(label, CompletionItemKind::METHOD, insert_text, None)
 }
 
-fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String {
+fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: bool) -> String {
     let mut typ = &func_meta.typ;
     if let Type::Forall(_, typ_) = typ {
         typ = typ_;
     }
 
+    let is_enum_variant = func_meta.enum_variant_index.is_some();
+
     if let Type::Function(args, ret, _env, unconstrained) = typ {
         let mut string = String::new();
-        if *unconstrained {
-            string.push_str("unconstrained ");
+        if is_enum_variant {
+            string.push_str(name);
+            string.push('(');
+        } else {
+            if *unconstrained {
+                string.push_str("unconstrained ");
+            }
+            string.push_str("fn(");
         }
-        string.push_str("fn(");
         for (index, arg) in args.iter().enumerate() {
             if index > 0 {
                 string.push_str(", ");
@@ -463,13 +580,16 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, has_self_type: bool) -> String
         }
         string.push(')');
 
-        let ret: &Type = ret;
-        if let Type::Unit = ret {
-            // Nothing
-        } else {
-            string.push_str(" -> ");
-            string.push_str(&ret.to_string());
+        if !is_enum_variant {
+            let ret: &Type = ret;
+            if let Type::Unit = ret {
+                // Nothing
+            } else {
+                string.push_str(" -> ");
+                string.push_str(&ret.to_string());
+            }
         }
+
         string
     } else {
         typ.to_string()

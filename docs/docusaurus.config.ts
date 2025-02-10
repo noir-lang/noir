@@ -57,8 +57,8 @@ export default {
     navbar: {
       logo: {
         alt: 'Noir Logo',
-        src: 'img/logo.svg',
-        srcDark: 'img/logoDark.svg',
+        src: 'img/logoDark.svg',
+        srcDark: 'img/logo.svg',
         href: '/',
       },
       items: [

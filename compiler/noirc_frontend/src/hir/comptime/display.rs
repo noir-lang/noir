@@ -6,11 +6,11 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
-        InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression,
-        MethodCallExpression, Pattern, PrefixExpression, Statement, StatementKind, UnresolvedType,
-        UnresolvedTypeData,
+        InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
+        StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -241,6 +241,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::GreaterEqual
             | Token::Equal
             | Token::NotEqual
+            | Token::FatArrow
             | Token::Arrow => write!(f, " {token} "),
             Token::Assign => {
                 if last_was_op {
@@ -281,8 +282,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Whitespace(_)
             | Token::LineComment(..)
             | Token::BlockComment(..)
-            | Token::Attribute(..)
-            | Token::InnerAttribute(..)
+            | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
@@ -358,13 +358,29 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Struct(fields, typ) => {
                 let typename = match typ.follow_bindings() {
-                    Type::Struct(def, _) => def.borrow().name.to_string(),
+                    Type::DataType(def, _) => def.borrow().name.to_string(),
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
                     format!("{}: {}", name, value.display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
+            }
+            Value::Enum(tag, args, typ) => {
+                let args = vecmap(args, |arg| arg.display(self.interner).to_string()).join(", ");
+
+                match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(def, _) => {
+                        let def = def.borrow();
+                        let variant = def.variant_at(*tag);
+                        if variant.is_function {
+                            write!(f, "{}::{}({args})", def.name, variant.name)
+                        } else {
+                            write!(f, "{}::{}", def.name, variant.name)
+                        }
+                    }
+                    other => write!(f, "{other}(args)"),
+                }
             }
             Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
             Value::Array(values, _) => {
@@ -377,7 +393,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::StructDefinition(id) => {
-                let def = self.interner.get_struct(*id);
+                let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)
             }
@@ -557,6 +573,12 @@ fn remove_interned_in_expression_kind(
                 ..*call
             }))
         }
+        ExpressionKind::Constrain(constrain) => ExpressionKind::Constrain(ConstrainExpression {
+            arguments: vecmap(constrain.arguments, |expr| {
+                remove_interned_in_expression(interner, expr)
+            }),
+            ..constrain
+        }),
         ExpressionKind::Constructor(constructor) => {
             ExpressionKind::Constructor(Box::new(ConstructorExpression {
                 fields: vecmap(constructor.fields, |(name, expr)| {
@@ -586,6 +608,14 @@ fn remove_interned_in_expression_kind(
             alternative: if_expr
                 .alternative
                 .map(|alternative| remove_interned_in_expression(interner, alternative)),
+        })),
+        ExpressionKind::Match(match_expr) => ExpressionKind::Match(Box::new(MatchExpression {
+            expression: remove_interned_in_expression(interner, match_expr.expression),
+            rules: vecmap(match_expr.rules, |(pattern, branch)| {
+                let pattern = remove_interned_in_expression(interner, pattern);
+                let branch = remove_interned_in_expression(interner, branch);
+                (pattern, branch)
+            }),
         })),
         ExpressionKind::Variable(_) => expr,
         ExpressionKind::Tuple(expressions) => ExpressionKind::Tuple(vecmap(expressions, |expr| {
@@ -662,7 +692,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
         | Literal::Integer(_, _)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
-        | Literal::FmtStr(_)
+        | Literal::FmtStr(_, _)
         | Literal::Unit => literal,
     }
 }
@@ -704,12 +734,6 @@ fn remove_interned_in_statement_kind(
             r#type: remove_interned_in_unresolved_type(interner, let_statement.r#type),
             ..let_statement
         }),
-        StatementKind::Constrain(constrain) => StatementKind::Constrain(ConstrainStatement {
-            arguments: vecmap(constrain.arguments, |expr| {
-                remove_interned_in_expression(interner, expr)
-            }),
-            ..constrain
-        }),
         StatementKind::Expression(expr) => {
             StatementKind::Expression(remove_interned_in_expression(interner, expr))
         }
@@ -733,6 +757,9 @@ fn remove_interned_in_statement_kind(
             block: remove_interned_in_expression(interner, for_loop.block),
             ..for_loop
         }),
+        StatementKind::Loop(block, span) => {
+            StatementKind::Loop(remove_interned_in_expression(interner, block), span)
+        }
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
         }

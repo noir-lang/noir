@@ -113,6 +113,7 @@ impl<'a> Parser<'a> {
         let object_type = self.parse_type_or_error();
         let where_clause = self.parse_where_clause();
         let items = self.parse_trait_impl_body();
+        let is_synthetic = false;
 
         NoirTraitImpl {
             impl_generics,
@@ -121,6 +122,7 @@ impl<'a> Parser<'a> {
             object_type,
             where_clause,
             items,
+            is_synthetic,
         }
     }
 
@@ -243,7 +245,7 @@ impl<'a> Parser<'a> {
 
         let noir_function = self.parse_function(
             attributes,
-            ItemVisibility::Public,
+            modifiers.visibility,
             modifiers.comptime.is_some(),
             modifiers.unconstrained.is_some(),
             true, // allow_self
@@ -480,7 +482,7 @@ mod tests {
             panic!("Expected function");
         };
         assert_eq!(function.def.name.to_string(), "foo");
-        assert_eq!(function.def.visibility, ItemVisibility::Public);
+        assert_eq!(function.def.visibility, ItemVisibility::Private);
     }
 
     #[test]

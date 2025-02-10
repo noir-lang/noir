@@ -7,6 +7,8 @@ use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Oracle,
     OracleParameter, Sign,
 };
+use noirc_errors::Span;
+use noirc_evaluator::ErrorType;
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::TypeBinding;
 use noirc_frontend::{
@@ -26,7 +28,7 @@ pub(super) fn gen_abi(
     context: &Context,
     func_id: &FuncId,
     return_visibility: Visibility,
-    error_types: BTreeMap<ErrorSelector, Type>,
+    error_types: BTreeMap<ErrorSelector, ErrorType>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
     let return_type = return_type.map(|typ| AbiReturnType {
@@ -35,24 +37,38 @@ pub(super) fn gen_abi(
     });
     let error_types = error_types
         .into_iter()
-        .map(|(selector, typ)| (selector, build_abi_error_type(context, &typ)))
+        .map(|(selector, typ)| (selector, build_abi_error_type(context, typ)))
         .collect();
     let oracles = compute_oracles(context);
     Abi { parameters, return_type, error_types, oracles }
 }
 
-fn build_abi_error_type(context: &Context, typ: &Type) -> AbiErrorType {
+// Get the Span of the root crate's main function, or else a dummy span if that fails
+fn get_main_function_span(context: &Context) -> Span {
+    if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
+        context.function_meta(&func_id).location.span
+    } else {
+        Span::default()
+    }
+}
+
+fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
     match typ {
-        Type::FmtString(len, item_types) => {
-            let length = len.evaluate_to_u32().expect("Cannot evaluate fmt length");
-            let Type::Tuple(item_types) = item_types.as_ref() else {
-                unreachable!("FmtString items must be a tuple")
-            };
-            let item_types =
-                item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
-            AbiErrorType::FmtString { length, item_types }
+        ErrorType::Dynamic(typ) => {
+            if let Type::FmtString(len, item_types) = typ {
+                let span = get_main_function_span(context);
+                let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
+                let Type::Tuple(item_types) = item_types.as_ref() else {
+                    unreachable!("FmtString items must be a tuple")
+                };
+                let item_types =
+                    item_types.iter().map(|typ| abi_type_from_hir_type(context, typ)).collect();
+                AbiErrorType::FmtString { length, item_types }
+            } else {
+                AbiErrorType::Custom(abi_type_from_hir_type(context, &typ))
+            }
         }
-        _ => AbiErrorType::Custom(abi_type_from_hir_type(context, typ)),
+        ErrorType::String(string) => AbiErrorType::String { string },
     }
 }
 
@@ -60,8 +76,9 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(size, typ) => {
+            let span = get_main_function_span(context);
             let length = size
-                .evaluate_to_u32()
+                .evaluate_to_u32(span)
                 .expect("Cannot have variable sized arrays as a parameter to main");
             let typ = typ.as_ref();
             AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
@@ -88,15 +105,16 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
+            let span = get_main_function_span(context);
             let size = size
-                .evaluate_to_u32()
+                .evaluate_to_u32(span)
                 .expect("Cannot have variable sized strings as a parameter to main");
             AbiType::String { length: size }
         }
 
-        Type::Struct(def, args) => {
+        Type::DataType(def, args) => {
             let struct_type = def.borrow();
-            let fields = struct_type.get_fields(args);
+            let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
                 vecmap(fields, |(name, typ)| (name, abi_type_from_hir_type(context, &typ)));
             // For the ABI, we always want to resolve the struct paths from the root crate
@@ -104,6 +122,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             AbiType::Struct { fields, path }
         }
         Type::Alias(def, args) => abi_type_from_hir_type(context, &def.borrow().get_type(args)),
+        Type::CheckedCast { to, .. } => abi_type_from_hir_type(context, to),
         Type::Tuple(fields) => {
             let fields = vecmap(fields, |typ| abi_type_from_hir_type(context, typ));
             AbiType::Tuple { fields }

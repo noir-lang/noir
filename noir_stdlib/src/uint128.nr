@@ -1,5 +1,7 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
+use crate::static_assert;
+use super::{convert::AsPrimitive, default::Default};
 
 global pow64: Field = 18446744073709551616; //2^64;
 global pow63: Field = 9223372036854775808; // 2^63;
@@ -66,11 +68,10 @@ impl U128 {
     }
 
     pub fn from_hex<let N: u32>(hex: str<N>) -> U128 {
-        let N = N as u32;
         let bytes = hex.as_bytes();
         // string must starts with "0x"
         assert((bytes[0] == 48) & (bytes[1] == 120), "Invalid hexadecimal string");
-        assert(N < 35, "Input does not fit into a U128");
+        static_assert(N < 35, "Input does not fit into a U128");
 
         let mut lo = 0;
         let mut hi = 0;
@@ -94,7 +95,7 @@ impl U128 {
         U128 { lo: lo as Field, hi: hi as Field }
     }
 
-    unconstrained fn uconstrained_check_is_upper_ascii(ascii: u8) -> bool {
+    unconstrained fn unconstrained_check_is_upper_ascii(ascii: u8) -> bool {
         ((ascii >= 65) & (ascii <= 90)) // Between 'A' and 'Z'
     }
 
@@ -103,8 +104,9 @@ impl U128 {
             if ascii < 58 {
                 ascii - 48
             } else {
+                /// Safety: optionally adds 32 and then check (below) the result is in 'a..f' range
                 let ascii =
-                    ascii + 32 * (unsafe { U128::uconstrained_check_is_upper_ascii(ascii) as u8 });
+                    ascii + 32 * (unsafe { U128::unconstrained_check_is_upper_ascii(ascii) as u8 });
                 assert(ascii >= 97); // enforce >= 'a'
                 assert(ascii <= 102); // enforce <= 'f'
                 ascii - 87
@@ -139,8 +141,11 @@ impl U128 {
         }
     }
 
-    pub fn from_integer<T>(i: T) -> U128 {
-        let f = crate::as_field(i);
+    pub fn from_integer<T>(i: T) -> U128
+    where
+        T: AsPrimitive<Field>,
+    {
+        let f = i.as_();
         // Reject values which would overflow a u128
         f.assert_max_bit_size::<128>();
         let lo = f as u64 as Field;
@@ -148,8 +153,11 @@ impl U128 {
         U128 { lo, hi }
     }
 
-    pub fn to_integer<T>(self) -> T {
-        crate::from_field(self.lo + self.hi * pow64)
+    pub fn to_integer<T>(self) -> T
+    where
+        Field: AsPrimitive<T>,
+    {
+        AsPrimitive::as_(self.lo + self.hi * pow64)
     }
 
     fn wrapping_mul(self: Self, b: U128) -> U128 {
@@ -205,6 +213,8 @@ impl Mul for U128 {
 
 impl Div for U128 {
     fn div(self: Self, b: U128) -> U128 {
+        /// Safety: euclidian division is asserted to be correct: assert(a == b * q + r); and assert(r < b);
+        /// Furthermore, U128 addition and multiplication ensures that b * q + r does not overflow
         unsafe {
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
@@ -217,6 +227,7 @@ impl Div for U128 {
 
 impl Rem for U128 {
     fn rem(self: Self, b: U128) -> U128 {
+        /// Safety: cf div() above
         unsafe {
             let (q, r) = self.unconstrained_div(b);
             let a = b * q + r;
@@ -312,7 +323,15 @@ impl Shr for U128 {
     }
 }
 
+impl Default for U128 {
+    fn default() -> Self {
+        U128::zero()
+    }
+}
+
 mod tests {
+    use crate::default::Default;
+    use crate::ops::Not;
     use crate::uint128::{pow63, pow64, U128};
 
     #[test]
@@ -436,6 +455,7 @@ mod tests {
         let b = U128::from_u64s_le(0x0, 0xfffffffffffffffe);
         let c = U128::one();
         let d = U128::from_u64s_le(0x0, 0x1);
+        /// Safety: testing context
         unsafe {
             let (q, r) = a.unconstrained_div(b);
             assert_eq(q, c);
@@ -445,12 +465,14 @@ mod tests {
         let a = U128::from_u64s_le(2, 0);
         let b = U128::one();
         // Check the case where a is a multiple of b
+        /// Safety: testing context
         unsafe {
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (a, U128::zero()));
         }
 
         // Check where b is a multiple of a
+        /// Safety: testing context
         unsafe {
             let (c, d) = b.unconstrained_div(a);
             assert_eq((c, d), (U128::zero(), b));
@@ -459,6 +481,7 @@ mod tests {
         // Dividing by zero returns 0,0
         let a = U128::from_u64s_le(0x1, 0x0);
         let b = U128::zero();
+        /// Safety: testing context
         unsafe {
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::zero(), U128::zero()));
@@ -466,6 +489,7 @@ mod tests {
         // Dividing 1<<127 by 1<<127 (special case)
         let a = U128::from_u64s_le(0x0, pow63 as u64);
         let b = U128::from_u64s_le(0x0, pow63 as u64);
+        /// Safety: testing context
         unsafe {
             let (c, d) = a.unconstrained_div(b);
             assert_eq((c, d), (U128::one(), U128::zero()));
@@ -539,5 +563,10 @@ mod tests {
                 U128::from_u64s_le(0xffffffffffffffff, 0xffffffffffffffff),
             ),
         );
+    }
+
+    #[test]
+    fn test_default() {
+        assert_eq(U128::default(), U128::zero());
     }
 }

@@ -7,6 +7,7 @@ fn main(x: u8, nest: bool) {
 
 #[no_predicates]
 pub fn unsafe_assert<let N: u32>(msg: [u8; N]) -> u8 {
+    /// Safety: testing context
     let block = unsafe { get_block(msg) };
     verify_block(msg, block);
     block[0]

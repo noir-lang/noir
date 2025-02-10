@@ -2,6 +2,7 @@
 //
 // The features being tested is basic conditonal on brillig
 fn main(x: Field) {
+    /// Safety: testing context
     unsafe {
         assert(4 == conditional(x == 1));
     }

@@ -4,47 +4,44 @@ use clap::Args;
 use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
-    errors::CompileError,
-    insert_all_files_for_workspace_into_file_manager,
-    ops::report_errors,
-    package::{CrateName, Package},
-    parse_all, prepare_package,
+    errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
+    package::Package, parse_all, prepare_package,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{
     check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
 };
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::{
+    hir::{Context, ParsedFiles},
+    monomorphization::monomorphize,
+};
 
-use super::fs::write_to_file;
 use super::NargoConfig;
+use super::{fs::write_to_file, PackageOptions};
 
-/// Checks the constraint system for errors
+/// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]
 #[clap(visible_alias = "c")]
 pub(crate) struct CheckCommand {
-    /// The name of the package to check
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Check all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     /// Force overwrite of existing files
     #[clap(long = "overwrite")]
-    allow_overwrite: bool,
+    pub(super) allow_overwrite: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    /// Just show the hash of each packages, without actually performing the check.
+    #[clap(long, hide = true)]
+    show_program_hash: bool,
 }
 
 pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
     let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let selection = args.package_options.package_selection();
     let workspace = resolve_workspace_from_toml(
         &toml_path,
         selection,
@@ -56,16 +53,26 @@ pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliErro
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
-        let any_file_written = check_package(
+        if args.show_program_hash {
+            let (mut context, crate_id) =
+                prepare_package(&workspace_file_manager, &parsed_files, package);
+            check_crate(&mut context, crate_id, &args.compile_options).unwrap();
+            let Some(main) = context.get_main_function(&crate_id) else {
+                continue;
+            };
+            let program = monomorphize(main, &mut context.def_interner, false).unwrap();
+            let hash = fxhash::hash64(&program);
+            println!("{}: {:x}", package.name, hash);
+            continue;
+        }
+
+        check_package(
             &workspace_file_manager,
             &parsed_files,
             package,
             &args.compile_options,
             args.allow_overwrite,
         )?;
-        if any_file_written {
-            println!("[{}] Constraint system successfully built!", package.name);
-        }
     }
     Ok(())
 }
@@ -78,13 +85,13 @@ fn check_package(
     package: &Package,
     compile_options: &CompileOptions,
     allow_overwrite: bool,
-) -> Result<bool, CompileError> {
+) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
-        Ok(false)
+        Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
         if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
@@ -100,9 +107,7 @@ fn check_package(
                 eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
 
-            let any_file_written = should_write_prover;
-
-            Ok(any_file_written)
+            Ok(())
         } else {
             Err(CompileError::MissingMainFunction(package.name.clone()))
         }

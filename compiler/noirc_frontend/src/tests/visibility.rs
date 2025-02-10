@@ -230,6 +230,29 @@ fn errors_if_pub_trait_returns_private_struct() {
 }
 
 #[test]
+fn does_not_error_if_trait_with_default_visibility_returns_struct_with_default_visibility() {
+    let src = r#"
+    struct Foo {}
+
+    trait Bar {
+        fn bar(self) -> Foo;
+    }
+
+    impl Bar for Foo {
+        fn bar(self) -> Foo {
+            self
+        }
+    }
+
+    fn main() {
+        let foo = Foo {};
+        let _ = foo.bar();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_trying_to_access_public_function_inside_private_module() {
     let src = r#"
     mod foo {
@@ -492,4 +515,109 @@ fn does_not_error_if_referring_to_top_level_private_module_via_crate() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn visibility_bug_inside_comptime() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            inner: Field,
+        }
+    
+        impl Foo {
+            pub fn new(inner: Field) -> Self {
+                Self { inner }
+            }
+        }
+    }
+    
+    use foo::Foo;
+    
+    fn main() {
+        let _ = Foo::new(5);
+        let _ = comptime { Foo::new(5) };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_accessing_private_struct_member_inside_comptime_context() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            inner: Field,
+        }
+    
+        impl Foo {
+            pub fn new(inner: Field) -> Self {
+                Self { inner }
+            }
+        }
+    }
+    
+    use foo::Foo;
+    
+    fn main() {
+        comptime { 
+            let foo = Foo::new(5);
+            let _ = foo.inner;
+        };
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "inner");
+}
+
+#[test]
+fn errors_if_accessing_private_struct_member_inside_function_generated_at_comptime() {
+    let src = r#"
+    mod foo {
+        pub struct Foo {
+            foo_inner: Field,
+        }
+    }
+
+    use foo::Foo;
+
+    #[generate_inner_accessor]
+    struct Bar {
+        bar_inner: Foo,
+    }
+
+    comptime fn generate_inner_accessor(_s: StructDefinition) -> Quoted {
+        quote {
+            fn bar_get_foo_inner(x: Bar) -> Field {
+                x.bar_inner.foo_inner
+            }
+        }
+    }
+
+    fn main(x: Bar) {
+        let _ = bar_get_foo_inner(x);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ResolverError(ResolverError::PathResolutionError(
+        PathResolutionError::Private(ident),
+    )) = &errors[0].0
+    else {
+        panic!("Expected a private error");
+    };
+
+    assert_eq!(ident.to_string(), "foo_inner");
 }

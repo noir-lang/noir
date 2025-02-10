@@ -27,10 +27,7 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 pub(crate) use range::solve_range_opcode;
-use signature::{
-    ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
-    schnorr::schnorr_verify,
-};
+use signature::ecdsa::{secp256k1_prehashed, secp256r1_prehashed};
 
 /// Check if all of the inputs to the function have assignments
 ///
@@ -79,9 +76,15 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
+        BlackBoxFuncCall::AND { lhs, rhs, output } => {
+            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::RANGE { input } => {
+            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
@@ -103,21 +106,6 @@ pub(crate) fn solve<F: AcirField>(
             }
             Ok(())
         }
-        BlackBoxFuncCall::SchnorrVerify {
-            public_key_x,
-            public_key_y,
-            signature,
-            message,
-            output,
-        } => schnorr_verify(
-            backend,
-            initial_witness,
-            *public_key_x,
-            *public_key_y,
-            signature.as_ref(),
-            message,
-            *output,
-        ),
         BlackBoxFuncCall::EcdsaSecp256k1 {
             public_key_x,
             public_key_y,

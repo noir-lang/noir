@@ -7,13 +7,7 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
 pub trait BlackBoxFunctionSolver<F> {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &F,
-        public_key_y: &F,
-        signature: &[u8; 64],
-        message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError>;
+    fn pedantic_solving(&self) -> bool;
     fn multi_scalar_mul(
         &self,
         points: &[F],
@@ -36,7 +30,16 @@ pub trait BlackBoxFunctionSolver<F> {
     ) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 
-pub struct StubbedBlackBoxSolver;
+// pedantic_solving: bool
+pub struct StubbedBlackBoxSolver(pub bool);
+
+// pedantic_solving enabled by default
+impl Default for StubbedBlackBoxSolver {
+    fn default() -> StubbedBlackBoxSolver {
+        let pedantic_solving = true;
+        StubbedBlackBoxSolver(pedantic_solving)
+    }
+}
 
 impl StubbedBlackBoxSolver {
     fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
@@ -48,14 +51,8 @@ impl StubbedBlackBoxSolver {
 }
 
 impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &F,
-        _public_key_y: &F,
-        _signature: &[u8; 64],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::SchnorrVerify))
+    fn pedantic_solving(&self) -> bool {
+        self.0
     }
     fn multi_scalar_mul(
         &self,

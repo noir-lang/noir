@@ -11,7 +11,7 @@ use crate::ast::{
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::Type;
+use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -34,12 +34,22 @@ pub enum Source {
     Return(FunctionReturnType, Span),
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
+    #[error("Division by zero: {lhs} / {rhs}")]
+    DivisionByZero { lhs: FieldElement, rhs: FieldElement, span: Span },
+    #[error("Modulo on Field elements: {lhs} % {rhs}")]
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, span: Span },
     #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
     OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
+    #[error(
+        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+    )]
+    OverflowingConstant { value: FieldElement, kind: Kind, maximum_size: FieldElement, span: Span },
+    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -48,9 +58,14 @@ pub enum TypeCheckError {
     TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: String, expr_kind: String, expr_span: Span },
-    // TODO(https://github.com/noir-lang/noir/issues/6238): implement handling for larger types
-    #[error("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)")]
-    EvaluatedGlobalIsntU32 { expected_kind: String, expr_kind: String, expr_span: Span },
+    #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
+    TypeCanonicalizationMismatch {
+        to: Type,
+        from: Type,
+        to_value: FieldElement,
+        from_value: FieldElement,
+        span: Span,
+    },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -81,6 +96,8 @@ pub enum TypeCheckError {
     CannotMutateImmutableVariable { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
+    #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
+    CannotInvokeStructFieldFunctionType { method_name: String, object_type: Type, span: Span },
     #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
@@ -158,6 +175,8 @@ pub enum TypeCheckError {
     Unsafe { span: Span },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
     UnsafeFn { span: Span },
+    #[error("Expected a constant, but found `{typ}`")]
+    NonConstantEvaluated { typ: Type, span: Span },
     #[error("Slices must have constant length")]
     NonConstantSliceLength { span: Span },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -174,8 +193,6 @@ pub enum TypeCheckError {
     StringIndexAssign { span: Span },
     #[error("Macro calls may only return `Quoted` values")]
     MacroReturningNonExpr { typ: Type, span: Span },
-    #[error("turbofish (`::<_>`) usage at this position isn't supported yet")]
-    UnsupportedTurbofishUsage { span: Span },
     #[error("`{name}` has already been specified")]
     DuplicateNamedTypeArg { name: Ident, prev_span: Span },
     #[error("`{item}` has no associated type named `{name}`")]
@@ -186,17 +203,27 @@ pub enum TypeCheckError {
     UnspecifiedType { span: Span },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, span: Span },
+    #[error("Type annotations required before indexing this array or slice")]
+    TypeAnnotationsNeededForIndex { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    UnnecessaryUnsafeBlock { span: Span },
+    #[error("Unnecessary `unsafe` block")]
+    NestedUnsafeBlock { span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoMatchingImplFoundError {
-    constraints: Vec<(Type, String)>,
+    pub(crate) constraints: Vec<(Type, String)>,
     pub span: Span,
 }
 
 impl TypeCheckError {
     pub fn add_context(self, ctx: &'static str) -> Self {
         TypeCheckError::Context { err: Box::new(self), ctx }
+    }
+
+    pub(crate) fn is_non_constant_evaluated(&self) -> bool {
+        matches!(self, TypeCheckError::NonConstantEvaluated { .. })
     }
 }
 
@@ -218,6 +245,16 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *span,
             ),
+            TypeCheckError::DivisionByZero { lhs, rhs, span } => Diagnostic::simple_error(
+                format!("Division by zero: {lhs} / {rhs}"),
+                String::new(),
+                *span,
+            ),
+            TypeCheckError::ModuloOnFields { lhs, rhs, span } => Diagnostic::simple_error(
+                format!("Modulo on Field elements: {lhs} % {rhs}"),
+                String::new(),
+                *span,
+            ),
             TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span } => {
                 Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
@@ -232,13 +269,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     *expr_span,
                 )
             }
-            // TODO(https://github.com/noir-lang/noir/issues/6238): implement
-            // handling for larger types
-            TypeCheckError::EvaluatedGlobalIsntU32 { expected_kind, expr_kind, expr_span } => {
-                Diagnostic::simple_warning(
-                    format!("Expected type {expected_kind} when evaluating globals, but found {expr_kind} (this warning may become an error in the future)"),
-                    String::new(),
-                    *expr_span,
+            TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, span } => {
+                Diagnostic::simple_error(
+                    format!("Evaluating {to} resulted in {to_value}, but {from_value} was expected"),
+                    format!("from evaluating {from} without simplifications"),
+                    *span,
                 )
             }
             TypeCheckError::TraitMethodParameterTypeMismatch { method_name, expected_typ, actual_typ, parameter_index, parameter_span } => {
@@ -322,11 +357,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::AmbiguousBitWidth { span, .. }
             | TypeCheckError::IntegerAndFieldBinaryOperation { span }
             | TypeCheckError::OverflowingAssignment { span, .. }
+            | TypeCheckError::OverflowingConstant { span, .. }
+            | TypeCheckError::FailingBinaryOp { span, .. }
             | TypeCheckError::FieldModulo { span }
             | TypeCheckError::FieldNot { span }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { span }
             | TypeCheckError::UnconstrainedReferenceToConstrained { span }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { span }
+            | TypeCheckError::NonConstantEvaluated { span, .. }
             | TypeCheckError::NonConstantSliceLength { span }
             | TypeCheckError::StringIndexAssign { span }
             | TypeCheckError::InvalidShiftSize { span } => {
@@ -443,10 +481,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error.add_secondary("Hint: remove the `!` from the end of the function name.".to_string(), *span);
                 error
             },
-            TypeCheckError::UnsupportedTurbofishUsage { span } => {
-                let msg = "turbofish (`::<_>`)  usage at this position isn't supported yet";
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
-            },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_span } => {
                 let msg = format!("`{name}` has already been specified");
                 let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.span());
@@ -462,10 +496,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg.to_string(), "".to_string(), *span)
             },
             TypeCheckError::Unsafe { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnsafeFn { span } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), *span)
+                Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::UnspecifiedType { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
@@ -473,6 +507,34 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::CyclicType { typ: _, span } => {
                 Diagnostic::simple_error(error.to_string(), "Cyclic types have unlimited size and are prohibited in Noir".into(), *span)
             }
+            TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, span } => {
+                Diagnostic::simple_error(
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
+                    format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
+                    *span,
+                )
+            },
+            TypeCheckError::TypeAnnotationsNeededForIndex { span } => {
+                Diagnostic::simple_error(
+                    "Type annotations required before indexing this array or slice".into(), 
+                    "Type annotations needed before this point, can't decide if this is an array or slice".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::UnnecessaryUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "".into(),
+                    *span,
+                )
+            },
+            TypeCheckError::NestedUnsafeBlock { span } => {
+                Diagnostic::simple_warning(
+                    "Unnecessary `unsafe` block".into(), 
+                    "Because it's nested inside another `unsafe` block".into(),
+                    *span,
+                )
+            },
         }
     }
 }

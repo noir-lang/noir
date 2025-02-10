@@ -7,7 +7,10 @@ use super::{
     registers::Stack,
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
-use acvm::acir::{brillig::MemoryAddress, AcirField};
+use acvm::acir::{
+    brillig::{HeapVector, MemoryAddress},
+    AcirField,
+};
 
 pub(crate) const MAX_STACK_SIZE: usize = 16 * MAX_STACK_FRAME_SIZE;
 pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
@@ -19,10 +22,18 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
         target_function: FunctionId,
+        globals_init: bool,
+        globals_memory_size: usize,
     ) -> BrilligArtifact<F> {
         let mut context = BrilligContext::new(false);
 
+        context.globals_memory_size = Some(globals_memory_size);
+
         context.codegen_entry_point(&arguments, &return_parameters);
+
+        if globals_init {
+            context.add_globals_init_instruction(target_function);
+        }
 
         context.add_external_call_instruction(target_function);
 
@@ -30,12 +41,15 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         context.artifact()
     }
 
-    fn calldata_start_offset() -> usize {
-        ReservedRegisters::len() + MAX_STACK_SIZE + MAX_SCRATCH_SPACE
+    fn calldata_start_offset(&self) -> usize {
+        ReservedRegisters::len()
+            + MAX_STACK_SIZE
+            + MAX_SCRATCH_SPACE
+            + self.globals_memory_size.expect("The memory size of globals should be set")
     }
 
-    fn return_data_start_offset(calldata_size: usize) -> usize {
-        Self::calldata_start_offset() + calldata_size
+    fn return_data_start_offset(&self, calldata_size: usize) -> usize {
+        self.calldata_start_offset() + calldata_size
     }
 
     /// Adds the instructions needed to handle entry point parameters
@@ -61,7 +75,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Set initial value of free memory pointer: calldata_start_offset + calldata_size + return_data_size
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (Self::calldata_start_offset() + calldata_size + return_data_size).into(),
+            (self.calldata_start_offset() + calldata_size + return_data_size).into(),
         );
 
         // Set initial value of stack pointer: ReservedRegisters.len()
@@ -73,7 +87,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Copy calldata
         self.copy_and_cast_calldata(arguments);
 
-        let mut current_calldata_pointer = Self::calldata_start_offset();
+        let mut current_calldata_pointer = self.calldata_start_offset();
 
         // Initialize the variables with the calldata
         for (argument_variable, argument) in argument_variables.iter_mut().zip(arguments) {
@@ -149,7 +163,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     fn copy_and_cast_calldata(&mut self, arguments: &[BrilligParameter]) {
         let calldata_size = Self::flattened_tuple_size(arguments);
         self.calldata_copy_instruction(
-            MemoryAddress::direct(Self::calldata_start_offset()),
+            MemoryAddress::direct(self.calldata_start_offset()),
             calldata_size,
             0,
         );
@@ -169,11 +183,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(
                     SingleAddrVariable::new(
-                        MemoryAddress::direct(Self::calldata_start_offset() + i),
+                        MemoryAddress::direct(self.calldata_start_offset() + i),
                         bit_size,
                     ),
                     SingleAddrVariable::new_field(MemoryAddress::direct(
-                        Self::calldata_start_offset() + i,
+                        self.calldata_start_offset() + i,
                     )),
                 );
             }
@@ -327,7 +341,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let return_data_size = Self::flattened_tuple_size(return_parameters);
 
         // Return data has a reserved space after calldata
-        let return_data_offset = Self::return_data_start_offset(calldata_size);
+        let return_data_offset = self.return_data_start_offset(calldata_size);
         let mut return_data_index = return_data_offset;
 
         for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
@@ -363,7 +377,12 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             }
         }
 
-        self.external_stop_instruction(return_data_offset, return_data_size);
+        let return_data = HeapVector {
+            pointer: self.make_usize_constant_instruction(return_data_offset.into()).address,
+            size: self.make_usize_constant_instruction(return_data_size.into()).address,
+        };
+
+        self.stop_instruction(return_data);
     }
 }
 

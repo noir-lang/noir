@@ -1,6 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{types::Type, value::ValueId};
+use crate::ssa::ir::{
+    function::RuntimeType,
+    types::{NumericType, Type},
+    value::ValueId,
+};
 use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::ast;
@@ -48,7 +52,7 @@ impl DataBusBuilder {
                 ast::Visibility::CallData(id) => DatabusVisibility::CallData(id),
                 ast::Visibility::ReturnData => DatabusVisibility::ReturnData,
             };
-            let len = param.1.field_count() as usize;
+            let len = param.1.field_count(&param.0.location()) as usize;
             params_is_databus.extend(vec![is_databus; len]);
         }
         params_is_databus
@@ -90,6 +94,20 @@ impl DataBus {
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
+    /// Updates the databus values in place with the provided function
+    pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
+        for cd in self.call_data.iter_mut() {
+            cd.array_id = f(cd.array_id);
+
+            // Can't mutate a hashmap's keys so we need to collect into a new one.
+            cd.index_map = cd.index_map.iter().map(|(k, v)| (f(*k), *v)).collect();
+        }
+
+        if let Some(data) = self.return_data.as_mut() {
+            *data = f(*data);
+        }
+    }
+
     pub(crate) fn call_data_array(&self) -> Vec<(u32, ValueId)> {
         self.call_data.iter().map(|cd| (cd.call_data_id, cd.array_id)).collect()
     }
@@ -100,7 +118,8 @@ impl DataBus {
     ) -> DataBus {
         let mut call_data_args = Vec::new();
         for call_data_item in call_data {
-            let array_id = call_data_item.databus.expect("Call data should have an array id");
+            // databus can be None if `main` is a brillig function
+            let Some(array_id) = call_data_item.databus else { continue };
             let call_data_id =
                 call_data_item.call_data_id.expect("Call data should have a user id");
             call_data_args.push(CallData { array_id, call_data_id, index_map: call_data_item.map });
@@ -114,7 +133,7 @@ impl FunctionBuilder {
     /// Insert a value into a data bus builder
     fn add_to_data_bus(&mut self, value: ValueId, databus: &mut DataBusBuilder) {
         assert!(databus.databus.is_none(), "initializing finalized call data");
-        let typ = self.current_function.dfg[value].get_type().clone();
+        let typ = self.current_function.dfg[value].get_type().into_owned();
         match typ {
             Type::Numeric(_) => {
                 databus.values.push_back(value);
@@ -127,10 +146,10 @@ impl FunctionBuilder {
                 for _i in 0..len {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
-                        let index_var = self
-                            .current_function
-                            .dfg
-                            .make_constant(FieldElement::from(index as i128), Type::length_type());
+                        let length_type = NumericType::length_type();
+                        let index_var = FieldElement::from(index as i128);
+                        let index_var =
+                            self.current_function.dfg.make_constant(index_var, length_type);
                         let element = self.insert_array_get(value, index_var, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
@@ -159,15 +178,13 @@ impl FunctionBuilder {
         for value in values {
             self.add_to_data_bus(*value, &mut databus);
         }
-        let len = databus.values.len();
+        let len = databus.values.len() as u32;
 
-        let array = if len > 0 {
-            let array = self
-                .array_constant(databus.values, Type::Array(Arc::new(vec![Type::field()]), len));
-            Some(array)
-        } else {
-            None
-        };
+        let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
+            .then(|| {
+                let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
+                self.insert_make_array(databus.values, array_type)
+            });
 
         DataBusBuilder {
             index: 0,
@@ -224,16 +241,18 @@ impl FunctionBuilder {
         ssa_params: &[ValueId],
         mut flattened_params_databus_visibility: Vec<DatabusVisibility>,
     ) -> Vec<DatabusVisibility> {
-        let ssa_param_sizes: Vec<_> = ssa_params
+        let ssa_param_sizes: Vec<usize> = ssa_params
             .iter()
-            .map(|ssa_param| self.current_function.dfg[*ssa_param].get_type().flattened_size())
+            .map(|ssa_param| {
+                self.current_function.dfg[*ssa_param].get_type().flattened_size() as usize
+            })
             .collect();
 
         let mut is_ssa_params_databus = Vec::with_capacity(ssa_params.len());
         for size in ssa_param_sizes {
             let visibilities: Vec<DatabusVisibility> =
                 flattened_params_databus_visibility.drain(0..size).collect();
-            let visibility = visibilities.get(0).copied().unwrap_or(DatabusVisibility::None);
+            let visibility = visibilities.first().copied().unwrap_or(DatabusVisibility::None);
             assert!(
                 visibilities.iter().all(|v| *v == visibility),
                 "inconsistent databus visibility for ssa param"

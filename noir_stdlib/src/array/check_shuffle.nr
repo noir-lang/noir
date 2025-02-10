@@ -42,6 +42,8 @@ pub(crate) fn check_shuffle<T, let N: u32>(lhs: [T; N], rhs: [T; N])
 where
     T: Eq,
 {
+    /// Safety: shuffle_indices is ensured to be a permutation of 0..N, and then
+    /// shuffle_indices is ensured to map lhs to rhs: assert(lhs[i] == rhs[shuffle_indices[i]]), for all i in 0..N
     unsafe {
         let shuffle_indices = __get_shuffle_indices(lhs, rhs);
 

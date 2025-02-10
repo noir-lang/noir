@@ -2,7 +2,7 @@ struct Bar {
     value: Field,
 }
 
-struct Foo{
+struct Foo {
     bar: &mut Bar,
 }
 
@@ -13,7 +13,6 @@ impl Foo {
 fn main() {
     let foo = Foo { bar: &mut Bar { value: 0 } };
 
-    unsafe {
-        foo.crash_fn()
-    };
+    /// Safety: testing context
+    unsafe { foo.crash_fn() };
 }

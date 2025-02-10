@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -13,6 +13,11 @@ use crate::token::SecondaryAttribute;
 pub struct ModuleData {
     pub parent: Option<LocalModuleId>,
     pub children: HashMap<Ident, LocalModuleId>,
+
+    /// Each child in the order they were declared in the parent module.
+    /// E.g. for a module containing `mod foo; mod bar; mod baz` this would
+    /// be `vec![foo, bar, baz]`.
+    pub child_declaration_order: Vec<LocalModuleId>,
 
     /// Contains all definitions visible to the current module. This includes
     /// all definitions in self.definitions as well as all imported definitions.
@@ -26,8 +31,8 @@ pub struct ModuleData {
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 
-    /// True if this module is actually a struct
-    pub is_struct: bool,
+    /// True if this module is actually a type
+    pub is_type: bool,
 
     pub attributes: Vec<SecondaryAttribute>,
 }
@@ -39,7 +44,7 @@ impl ModuleData {
         outer_attributes: Vec<SecondaryAttribute>,
         inner_attributes: Vec<SecondaryAttribute>,
         is_contract: bool,
-        is_struct: bool,
+        is_type: bool,
     ) -> ModuleData {
         let mut attributes = outer_attributes;
         attributes.extend(inner_attributes);
@@ -47,11 +52,12 @@ impl ModuleData {
         ModuleData {
             parent,
             children: HashMap::new(),
+            child_declaration_order: Vec::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
             location,
             is_contract,
-            is_struct,
+            is_type,
             attributes,
         }
     }
@@ -72,6 +78,10 @@ impl ModuleData {
         trait_id: Option<TraitId>,
     ) -> Result<(), (Ident, Ident)> {
         self.scope.add_definition(name.clone(), visibility, item_id, trait_id)?;
+
+        if let ModuleDefId::ModuleId(child) = item_id {
+            self.child_declaration_order.push(child.local_id);
+        }
 
         // definitions is a subset of self.scope so it is expected if self.scope.define_func_def
         // returns without error, so will self.definitions.define_func_def.
@@ -110,11 +120,11 @@ impl ModuleData {
         self.declare(name, visibility, id.into(), None)
     }
 
-    pub fn declare_struct(
+    pub fn declare_type(
         &mut self,
         name: Ident,
         visibility: ItemVisibility,
-        id: StructId,
+        id: TypeId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, visibility, ModuleDefId::TypeId(id), None)
     }

@@ -34,7 +34,7 @@ The current focus is to gather as much feedback as possible while in the alpha p
 
 ## Minimum Rust version
 
-This workspace's minimum supported rustc version is 1.74.1.
+This workspace's minimum supported rustc version is 1.75.0.
 
 ## License
 
@@ -43,7 +43,7 @@ Noir is free and open source. It is distributed under a dual license. (MIT/APACH
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this repository by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 [Noir]: https://www.noir-lang.org/
-[Getting Started]: https://noir-lang.org/docs/getting_started/installation/
+[Getting Started]: https://noir-lang.org/docs/getting_started/quick_start/
 [Forum]: https://forum.aztec.network/c/noir
 [Discord]: https://discord.gg/JtqzkdeQ6G
 [Documentation]: https://noir-lang.org/docs

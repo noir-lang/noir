@@ -1,7 +1,7 @@
 ---
 title: Is Unconstrained Function
 description:
-  The is_unconstrained function returns wether the context at that point of the program is unconstrained or not.
+  The is_unconstrained function returns whether the context at that point of the program is unconstrained or not.
 keywords:
   [
     unconstrained

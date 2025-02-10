@@ -13,6 +13,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  critical-library-list:
+    name: Load critical library list
+    runs-on: ubuntu-22.04
+    outputs:
+      libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build list of libraries
+        id: get_critical_libraries
+        run: |
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          echo "libraries=$LIBRARIES"
+          echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  yarn-lock:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Errors if installation would result in modifications to yarn.lock
+      - name: Install
+        run: yarn --immutable
+        shell: bash
+
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -22,7 +54,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -47,7 +79,7 @@ jobs:
           retention-days: 3
 
   build-noirc-abi:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -55,7 +87,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -78,9 +110,8 @@ jobs:
             ./tooling/noirc_abi_wasm/web
           retention-days: 10
 
-
   build-noir-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -88,7 +119,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -115,7 +146,7 @@ jobs:
           retention-days: 3
 
   build-acvm-js:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -123,7 +154,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -149,7 +180,7 @@ jobs:
   test-acvm_js-node:
     needs: [build-acvm-js]
     name: ACVM JS (Node.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -171,7 +202,7 @@ jobs:
   test-acvm_js-browser:
     needs: [build-acvm-js]
     name: ACVM JS (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -196,7 +227,7 @@ jobs:
   test-noirc-abi:
     needs: [build-noirc-abi]
     name: noirc_abi
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -224,7 +255,7 @@ jobs:
   test-noir-js:
     needs: [build-nargo, build-acvm-js, build-noirc-abi]
     name: Noir JS
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -232,10 +263,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -248,14 +276,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -271,7 +291,7 @@ jobs:
   test-noir-wasm:
     needs: [build-noir-wasm, build-nargo]
     name: noir_wasm
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -288,17 +308,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
+        uses: ./.github/actions/download-nargo
 
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
@@ -315,7 +325,7 @@ jobs:
   test-noir-codegen:
     needs: [build-acvm-js, build-noirc-abi, build-nargo]
     name: noir_codegen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -323,10 +333,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
@@ -339,14 +346,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -362,7 +361,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -376,10 +375,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
+        uses: ./.github/actions/download-nargo
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
@@ -399,14 +395,6 @@ jobs:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
 
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
-
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -423,7 +411,7 @@ jobs:
 
   test-integration-browser:
     name: Integration Tests (Browser)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
 
@@ -468,7 +456,7 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-nargo]
     timeout-minutes: 30
 
@@ -478,6 +466,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1.2.0
+        with:
+          version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
 
       - name: Install `bb`
         run: |
@@ -485,18 +475,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
@@ -507,23 +486,21 @@ jobs:
         run: ./test.sh
 
   external-repo-checks:
-    needs: [build-nargo]
-    runs-on: ubuntu-latest
-    # Only run when 'run-external-checks' label is present
-    if: contains(github.event.pull_request.labels.*.name, 'run-external-checks')
+    needs: [build-nargo, critical-library-list]
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        project:
-        # Disabled as these are currently failing with many visibility errors
-        - { repo: AztecProtocol/aztec-nr, path: ./ }
-        - { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-contracts }
-        # Disabled as aztec-packages requires a setup-step in order to generate a `Nargo.toml`
-        #- { repo: AztecProtocol/aztec-packages, path: ./noir-projects/noir-protocol-circuits }
-        - { repo: noir-lang/noir-edwards, path: ./, ref: 3188ea74fe3b059219a2ea87899589c266256d74  }
-    name: Check external repo - ${{ matrix.project.repo }}
+        project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
+         
+    name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: noir-repo
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -532,18 +509,7 @@ jobs:
           ref: ${{ matrix.project.ref }}
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./noir-repo/.github/actions/download-nargo
 
       - name: Remove requirements on compiler version
         working-directory: ./test-repo
@@ -551,18 +517,140 @@ jobs:
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
           sed -i '/^compiler_version/d' ./**/Nargo.toml
-      - name: Run nargo check
+
+      - name: Run nargo test
+        id: test_report
         working-directory: ./test-repo/${{ matrix.project.path }}
-        run: nargo check
+        run: |
+          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          BEFORE=$SECONDS
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
+          TIME=$(($SECONDS-$BEFORE))
+
+          NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
+          # Replace any slashes with underscores
+          NAME=${NAME//\//_}
+          TEST_REPORT_NAME=test_report_$NAME
+          echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
+
+          jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
+
+          if [ ! -s $output_file ]; then
+            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
+            rm -f $output_file
+          fi
+        env:
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+      
+      - name: Check test time limit
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json)
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.project.timeout }}"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to test suite exceeding timeout..."
+            echo "Timeout: ${{ matrix.project.timeout }}"
+            echo "Test suite took: $TIME".
+            exit 1
+          fi
+
+      - name: Compare test results
+        working-directory: ./noir-repo
+        run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+
+      - name: Upload test report
+        if: ${{ matrix.project.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.test_report.outputs.test_report_name }}
+          path: ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  compile-noir-contracts:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    name: Compile `noir-contracts` zero inliner aggressiveness
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: noir-repo
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: AztecProtocol/aztec-packages
+          path: test-repo
+
+      - name: Download nargo binary
+        uses: ./noir-repo/.github/actions/download-nargo
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo compile
+        working-directory: ./test-repo/noir-projects/noir-contracts
+        run: nargo compile --inliner-aggressiveness 0 
+
+  upload_critical_library_report:
+    name: Upload critical library report 
+    needs: [external-repo-checks]
+    # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge test reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee test_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Test Suite Duration"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./test_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: End
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - yarn-lock
       - test-acvm_js-node
       - test-acvm_js-browser
       - test-noirc-abi
@@ -572,6 +660,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
+      - compile-noir-contracts
 
     steps:
         - name: Report overall success

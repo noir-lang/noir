@@ -13,7 +13,8 @@ mod parser;
 
 use crate::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl, UseTree,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
+    UseTree,
 };
 use crate::token::SecondaryAttribute;
 
@@ -26,7 +27,8 @@ pub use parser::{parse_program, Parser, StatementOrExpressionOrLValue};
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<Documented<NoirFunction>>,
-    pub types: Vec<Documented<NoirStruct>>,
+    pub structs: Vec<Documented<NoirStruct>>,
+    pub enums: Vec<Documented<NoirEnumeration>>,
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
@@ -57,7 +59,7 @@ impl std::fmt::Display for SortedModule {
             write!(f, "{global_const}")?;
         }
 
-        for type_ in &self.types {
+        for type_ in &self.structs {
             write!(f, "{type_}")?;
         }
 
@@ -96,7 +98,8 @@ impl ParsedModule {
             match item.kind {
                 ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func, item.doc_comments),
-                ItemKind::Struct(typ) => module.push_type(typ, item.doc_comments),
+                ItemKind::Struct(typ) => module.push_struct(typ, item.doc_comments),
+                ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
@@ -134,6 +137,7 @@ pub enum ItemKind {
     Import(UseTree, ItemVisibility),
     Function(NoirFunction),
     Struct(NoirStruct),
+    Enum(NoirEnumeration),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
@@ -147,6 +151,7 @@ pub enum ItemKind {
 impl std::fmt::Display for ItemKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ItemKind::Enum(e) => e.fmt(f),
             ItemKind::Function(fun) => fun.fmt(f),
             ItemKind::ModuleDecl(m) => m.fmt(f),
             ItemKind::Import(tree, visibility) => {
@@ -222,8 +227,12 @@ impl SortedModule {
         self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_type(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
-        self.types.push(Documented::new(typ, doc_comments));
+    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+        self.structs.push(Documented::new(typ, doc_comments));
+    }
+
+    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<String>) {
+        self.enums.push(Documented::new(typ, doc_comments));
     }
 
     fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {

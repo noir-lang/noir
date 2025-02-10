@@ -1,7 +1,7 @@
 ---
 title: Using the VS Code Debugger
 description:
-  Step by step guide on how to debug your Noir circuits with the VS Code Debugger configuration and features.
+  Step-by-step guide on how to debug your Noir circuits with the VS Code Debugger configuration and features.
 keywords:
   [
     Nargo,
@@ -59,7 +59,7 @@ We can also inspect the values of variables by directly hovering on them on the 
 
 Let's set a break point at the `keccak256` function, so we can continue execution up to the point when it's first invoked without having to go one step at a time. 
 
-We just need to click the to the right of the line number 18. Once the breakpoint appears, we can click the `continue` button or use its corresponding keyboard shortcut (`F5` by default).
+We just need to click to the right of the line number 18. Once the breakpoint appears, we can click the `continue` button or use its corresponding keyboard shortcut (`F5` by default).
 
 ![Breakpoint](@site/static/img/debugger/7-break.png)
 

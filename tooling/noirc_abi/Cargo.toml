@@ -23,8 +23,8 @@ num-bigint = "0.4"
 num-traits = "0.2"
 
 [dev-dependencies]
-strum = "0.24"
-strum_macros = "0.24"
+strum.workspace = true
+strum_macros.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
 

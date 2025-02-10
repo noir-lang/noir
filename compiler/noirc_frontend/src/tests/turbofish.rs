@@ -269,3 +269,191 @@ fn turbofish_in_type_before_call_errors() {
     assert_eq!(expected_typ, "i32");
     assert_eq!(expr_typ, "bool");
 }
+
+#[test]
+fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
+    let src = r#"
+        pub struct Foo<T> {
+        }
+
+        impl<T> Foo<T> {
+            fn new() -> Self {
+                Foo {}
+            }
+        }
+
+        type Bar<T> = Foo<T>;
+
+        fn foo() -> Foo<i32> {
+            Bar::<i32>::new()
+        }
+
+        fn main() {
+            let _ = foo();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
+    let src = r#"
+        pub struct Foo<T> {
+            x: T,
+        }
+
+        impl<T> Foo<T> {
+            fn new(x: T) -> Self {
+                Foo { x }
+            }
+        }
+
+        type Bar<T> = Foo<T>;
+
+        fn main() {
+            let _ = Bar::<i32>::new(true);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "bool");
+}
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_does_not_error() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(true, 1);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_first_type() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(1, 1);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "bool");
+    assert_eq!(expr_typ, "Field");
+}
+
+#[test]
+fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type() {
+    let src = r#"
+        pub struct Foo<T, U> {
+            x: T,
+            y: U,
+        }
+
+        impl<T, U> Foo<T, U> {
+            fn new(x: T, y: U) -> Self {
+                Foo { x, y }
+            }
+        }
+
+        type Bar<T> = Foo<T, i32>;
+
+        fn main() {
+            let _ = Bar::<bool>::new(true, true);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "i32");
+    assert_eq!(expr_typ, "bool");
+}
+
+#[test]
+fn trait_function_with_turbofish_on_trait_gives_error() {
+    let src = r#"
+    trait Foo<T> {
+        fn foo(_x: T) -> Self;
+    }
+
+    impl<T> Foo<T> for i32 {
+        fn foo(_x: T) -> Self {
+            1
+        }
+    }
+
+    fn main() {
+        let _: i32 = Foo::<bool>::foo(1);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch {
+        expected_typ,
+        expr_typ,
+        expr_span: _,
+    }) = &errors[0].0
+    else {
+        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+    };
+
+    assert_eq!(expected_typ, "bool");
+    assert_eq!(expr_typ, "Field");
+}

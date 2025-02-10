@@ -1,0 +1,730 @@
+name: Reports
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-nargo:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.75.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  compare_gates_reports:
+    name: Circuit sizes
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install `bb`
+        run: |
+          ./scripts/install_bb.sh
+          echo "$HOME/.bb/" >> $GITHUB_PATH
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Generate gates report
+        working-directory: ./test_programs
+        run: |
+          ./rebuild.sh
+          ./gates_report.sh
+          mv gates_report.json ../gates_report.json
+
+      - name: Compare gates reports
+        id: gates_diff
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
+        with:
+          report: gates_report.json
+          summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
+
+      - name: Add gates diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          # delete the comment in case changes no longer impact circuit sizes
+          delete: ${{ !steps.gates_diff.outputs.markdown }}
+          message: ${{ steps.gates_diff.outputs.markdown }}
+
+  compare_brillig_bytecode_size_reports:
+    name: Brillig bytecode sizes
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Generate Brillig bytecode size report
+        working-directory: ./test_programs
+        run: |
+          mkdir ./reports
+
+          ./gates_report_brillig.sh 9223372036854775807
+          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_max.json
+          
+          ./gates_report_brillig.sh 0
+          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_zero.json
+          
+          ./gates_report_brillig.sh -9223372036854775808
+          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
+
+          # Merge all reports
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig.json
+
+      - name: Compare Brillig bytecode size reports
+        id: brillig_bytecode_diff
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
+        with:
+          report: gates_report_brillig.json
+          header: |
+            # Changes to Brillig bytecode sizes
+          brillig_report: true
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
+
+      - name: Add bytecode size diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: brillig
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_bytecode_diff.outputs.markdown }}
+          message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
+
+  compare_brillig_execution_reports:
+    name: Brillig execution trace sizes
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Generate Brillig execution report
+        working-directory: ./test_programs
+        run: |
+          mkdir ./reports 
+          
+          ./gates_report_brillig_execution.sh 9223372036854775807
+          jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_max.json
+
+          ./gates_report_brillig_execution.sh 0
+          jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_zero.json
+          
+          ./gates_report_brillig_execution.sh -9223372036854775808
+          jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_min.json
+
+          # Merge all reports
+          jq -s '{ programs: map(.programs) | add }' ./reports/* > ../gates_report_brillig_execution.json
+
+      - name: Compare Brillig execution reports
+        id: brillig_execution_diff
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
+        with:
+          report: gates_report_brillig_execution.json
+          header: |
+            # Changes to number of Brillig opcodes executed
+          brillig_report: true
+          summaryQuantile: 0.9 # only display the 10% most significant bytecode size diffs in the summary (defaults to 20%)
+
+      - name: Add bytecode size diff to sticky comment
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: brillig_execution
+          # delete the comment in case changes no longer impact brillig bytecode sizes
+          delete: ${{ !steps.brillig_execution_diff.outputs.markdown }}
+          message: ${{ steps.brillig_execution_diff.outputs.markdown }}
+
+  generate_memory_report:
+    name: Peak memory usage
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Generate Memory report
+        working-directory: ./test_programs
+        run: |
+          ./memory_report.sh
+          mv memory_report.json ../memory_report.json
+
+      - name: Upload compilation memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_mem_report
+          path: memory_report.json
+          retention-days: 3
+          overwrite: true
+
+      - name: Generate execution memory report
+        working-directory: ./test_programs
+        run: |
+          ./memory_report.sh 0 1
+          mv memory_report.json ../memory_report.json
+
+      - name: Upload execution memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_execution_mem_report
+          path: memory_report.json
+          retention-days: 3
+          overwrite: true
+
+  generate_compilation_and_execution_report:
+    name: Compilation and execution time
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download nargo binary
+        uses: ./.github/actions/download-nargo
+
+      - name: Generate Compilation report
+        working-directory: ./test_programs
+        run: |
+          ./compilation_report.sh 0 1
+          mv compilation_report.json ../compilation_report.json
+
+      - name: Generate Execution report
+        working-directory: ./test_programs
+        run: |
+          ./execution_report.sh 0 1
+          mv execution_report.json ../execution_report.json
+          
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: compilation_report.json
+          retention-days: 3
+          overwrite: true
+      
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: in_progress_execution_report
+          path: execution_report.json
+          retention-days: 3
+          overwrite: true
+
+  external_repo_compilation_and_execution_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts, cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail, num_runs: 5  }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty, num_runs: 5, cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check", cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root, num_runs: 1, flags: "--skip-brillig-constraints-check --skip-underconstrained-check" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-merge, num_runs: 5 }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root, num_runs: 5 }
+
+    name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            .github/actions/download-nargo/action.yml
+            test_programs/compilation_report.sh
+            test_programs/execution_report.sh
+            test_programs/parse_time.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download nargo binary
+        uses: ./scripts/.github/actions/download-nargo
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+      
+      - name: Fetch noir dependencies
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          # We run `nargo check` to pre-fetch any dependencies so we don't measure the time to download these
+          # when benchmarking.
+          nargo check
+
+      - name: Generate compilation report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/compilation_report.sh ./compilation_report.sh
+          touch parse_time.sh
+          chmod +x parse_time.sh
+          cp /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
+          ./compilation_report.sh 1 ${{ matrix.project.num_runs }}
+        env:
+          FLAGS: ${{ matrix.project.flags }}
+        
+      - name: Check compilation time limit
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_report.json)
+          TIME_LIMIT=80
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Compilation took: "$TIME"s".
+            exit 1
+          fi
+
+      - name: Generate execution report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
+          mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
+          ./execution_report.sh 1 ${{ matrix.project.num_runs }}
+    
+      - name: Check execution time limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/execution_report.json)
+          TIME_LIMIT=60
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Execution took: "$TIME"s".
+            exit 1
+          fi
+
+      - name: Move compilation report
+        id: compilation_report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_report.json ./compilation_report_$PACKAGE_NAME.json
+          echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Move execution report
+        id: execution_report
+        shell: bash
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/execution_report.json ./execution_report_$PACKAGE_NAME.json
+          echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}
+          path: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+      - name: Upload execution report
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution_report_${{ steps.execution_report.outputs.execution_report_name }}
+          path: execution_report_${{ steps.execution_report.outputs.execution_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  external_repo_memory_report:
+    needs: [build-nargo]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # TODO: Bring this report back under a flag. The `noir-contracts` report takes just under 30 minutes.
+          # - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-contracts }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail  }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-private }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-base-public }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-merge }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty, cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-single-tx, flags: "--skip-brillig-constraints-check --skip-underconstrained-check", cannot_execute: true }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-block-root, flags: "--skip-brillig-constraints-check --skip-underconstrained-check" }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-merge }
+          - project: { repo: AztecProtocol/aztec-packages, path: noir-projects/noir-protocol-circuits/crates/rollup-root }
+
+    name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: scripts
+          sparse-checkout: |
+            .github/actions/download-nargo/action.yml
+            test_programs/memory_report.sh
+            test_programs/parse_memory.sh
+          sparse-checkout-cone-mode: false
+      
+      - name: Download nargo binary
+        uses: ./scripts/.github/actions/download-nargo
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.project.repo }}
+          path: test-repo
+          ref: ${{ matrix.project.ref }}
+
+      - name: Generate compilation memory report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        run: |
+          mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
+          mv /home/runner/work/noir/noir/scripts/test_programs/parse_memory.sh ./parse_memory.sh
+          ./memory_report.sh 1
+          # Rename the memory report as the execution report is about to write to the same file
+          cp memory_report.json compilation_memory_report.json
+        env:
+          FLAGS: ${{ matrix.project.flags }}
+
+      - name: Check compilation memory limit
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
+          MEMORY_LIMIT=6000
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Compilation took: "$MEMORY"MB".
+            exit 1
+          fi
+
+      - name: Generate execution memory report
+        working-directory: ./test-repo/${{ matrix.project.path }}
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          ./memory_report.sh 1 1
+
+      - name: Check execution memory limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
+          MEMORY_LIMIT=1300
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Execution took: "$MEMORY"MB".
+            exit 1
+          fi
+
+      - name: Move compilation report
+        id: compilation_mem_report
+        shell: bash
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json ./memory_report_$PACKAGE_NAME.json
+          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload compilation memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_mem_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}
+          path: memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+      - name: Move execution report
+        id: execution_mem_report
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          mv ./test-repo/${{ matrix.project.path }}/memory_report.json ./memory_report_$PACKAGE_NAME.json
+          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload execution memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution_mem_report_${{ steps.execution_mem_report.outputs.memory_report_name }}
+          path: memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json
+          retention-days: 3
+          overwrite: true
+
+  upload_compilation_report:
+    name: Upload compilation report 
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial compilation report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_report
+          path: ./reports
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge compilation reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Compilation Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  upload_compilation_memory_report:
+    name: Upload compilation memory report 
+    needs: [generate_memory_report, external_repo_memory_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial memory report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_compilation_mem_report
+
+      - name: Download matrix memory reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compilation_mem_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge memory reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Compilation Memory"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./memory_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  upload_execution_memory_report:
+    name: Upload execution memory report 
+    needs: [generate_memory_report, external_repo_memory_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial memory report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_execution_mem_report
+
+      - name: Download matrix memory reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: execution_mem_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge memory reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Execution Memory"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./memory_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+
+  upload_execution_report:
+    name: Upload execution report 
+    needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
+    # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
+    if: always() 
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download initial execution report
+        uses: actions/download-artifact@v4
+        with:
+          name: in_progress_execution_report
+
+      - name: Download matrix execution reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: execution_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge execution reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Execution Time"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./time_bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "120%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
+  # This is a job which depends on all test jobs and reports the overall status.
+  # This allows us to add/remove test jobs without having to update the required workflows.
+  reports-end:
+    name: End
+    runs-on: ubuntu-22.04
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
+    needs:
+      - upload_compilation_report
+      - upload_compilation_memory_report
+      - upload_execution_report
+      - upload_execution_memory_report
+     
+    steps:
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

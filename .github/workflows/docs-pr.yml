@@ -2,10 +2,12 @@ name: Deploy preview for PR
 
 on:
   pull_request:
+  merge_group:
 
 jobs:
   add_label:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
     outputs:
       has_label: ${{ steps.check-labels.outputs.result }}
     steps:
@@ -49,13 +51,13 @@ jobs:
           }
 
   build_preview:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -93,7 +95,7 @@ jobs:
 
   deploy_preview:
     needs: [build_preview, add_label]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
     if: needs.add_label.outputs.has_label == 'true'
@@ -121,7 +123,7 @@ jobs:
 
   add_comment:
     needs: [deploy_preview]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
     steps:

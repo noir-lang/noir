@@ -66,6 +66,7 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
     use noirc_frontend::parser;
 
     let (parsed_module, errors) = parser::parse_program(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
         panic!("Expected no errors, got: {:?}", errors);
     }
@@ -78,6 +79,7 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
 
     let src = &result;
     let (parsed_module, errors) = parser::parse_program(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
         panic!("Expected no errors in idempotent check, got: {:?}", errors);
     }

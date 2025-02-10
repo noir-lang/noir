@@ -94,6 +94,17 @@ impl<'a> Parser<'a> {
         let generics = self.parse_generics();
         let parameters = self.parse_function_parameters(allow_self);
 
+        let parameters = match parameters {
+            Some(parameters) => parameters,
+            None => {
+                self.push_error(
+                    ParserErrorReason::MissingParametersForFunctionDefinition,
+                    name.span(),
+                );
+                Vec::new()
+            }
+        };
+
         let (return_type, return_visibility) = if self.eat(Token::Arrow) {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
@@ -131,14 +142,14 @@ impl<'a> Parser<'a> {
     /// FunctionParametersList = FunctionParameter ( ',' FunctionParameter )* ','?
     ///
     /// FunctionParameter = Visibility PatternOrSelf ':' Type
-    fn parse_function_parameters(&mut self, allow_self: bool) -> Vec<Param> {
+    fn parse_function_parameters(&mut self, allow_self: bool) -> Option<Vec<Param>> {
         if !self.eat_left_paren() {
-            return Vec::new();
+            return None;
         }
 
-        self.parse_many("parameters", separated_by_comma_until_right_paren(), |parser| {
+        Some(self.parse_many("parameters", separated_by_comma_until_right_paren(), |parser| {
             parser.parse_function_parameter(allow_self)
-        })
+        }))
     }
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
@@ -246,22 +257,23 @@ impl<'a> Parser<'a> {
     }
 
     fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
-        let mut primary = None;
+        let mut function = None;
         let mut secondary = Vec::new();
 
-        for (attribute, span) in attributes {
+        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
             match attribute {
                 Attribute::Function(attr) => {
-                    if primary.is_some() {
+                    if function.is_none() {
+                        function = Some((attr, index));
+                    } else {
                         self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
                     }
-                    primary = Some(attr);
                 }
                 Attribute::Secondary(attr) => secondary.push(attr),
             }
         }
 
-        Attributes { function: primary, secondary }
+        Attributes { function, secondary }
     }
 }
 
@@ -488,5 +500,17 @@ mod tests {
         assert_eq!("foo", noir_function.def.name.to_string());
         assert!(noir_function.def.is_unconstrained);
         assert_eq!(noir_function.def.visibility, ItemVisibility::Public);
+    }
+
+    #[test]
+    fn parse_function_without_parentheses() {
+        let src = "
+        fn foo {}
+           ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_, errors) = parse_program(&src);
+        let reason = get_single_error_reason(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
     }
 }

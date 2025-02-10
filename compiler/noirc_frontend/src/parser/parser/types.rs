@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            self.unspecified_type_at_previous_token_end()
+            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
         }
     }
 
@@ -208,6 +208,9 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::StructDefinition) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
         }
+        if self.eat_keyword(Keyword::EnumDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
         }
@@ -313,7 +316,7 @@ impl<'a> Parser<'a> {
         Some(UnresolvedTypeData::AsTraitPath(Box::new(as_trait_path)))
     }
 
-    fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
+    pub(super) fn parse_resolved_type(&mut self) -> Option<UnresolvedTypeData> {
         if let Some(token) = self.eat_kind(TokenKind::QuotedType) {
             match token.into_token() {
                 Token::QuotedType(id) => {
@@ -341,7 +344,10 @@ impl<'a> Parser<'a> {
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
         if self.eat(Token::Ampersand) {
-            self.eat_keyword_or_error(Keyword::Mut);
+            if !self.eat_keyword(Keyword::Mut) {
+                self.expected_mut_after_ampersand();
+            }
+
             return Some(UnresolvedTypeData::MutableReference(Box::new(
                 self.parse_type_or_error(),
             )));
@@ -495,10 +501,10 @@ mod tests {
         for quoted_type in QuotedType::iter() {
             let src = quoted_type.to_string();
             let typ = parse_type_no_errors(&src);
-            let UnresolvedTypeData::Quoted(parsed_qouted_type) = typ.typ else {
+            let UnresolvedTypeData::Quoted(parsed_quoted_type) = typ.typ else {
                 panic!("Expected a quoted type for {}", quoted_type)
             };
-            assert_eq!(parsed_qouted_type, quoted_type);
+            assert_eq!(parsed_quoted_type, quoted_type);
         }
     }
 
@@ -655,6 +661,14 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(unconstrained);
+    }
+
+    #[test]
+    fn parses_function_type_with_colon_in_parameter() {
+        let src = "fn(value: T) -> Field";
+        let mut parser = Parser::for_str(src);
+        let _ = parser.parse_type_or_error();
+        assert!(!parser.errors.is_empty());
     }
 
     #[test]

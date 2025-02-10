@@ -1,9 +1,8 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
 use acir::{AcirField, BlackBoxFunc};
-use acvm_blackbox_solver::BigIntSolver;
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
-    sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -39,11 +38,13 @@ fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
 
+pub(crate) type BrilligBigIntSolver = BigIntSolverWithId;
+
 pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>>(
     op: &BlackBoxOp,
     solver: &Solver,
     memory: &mut Memory<F>,
-    bigint_solver: &mut BrilligBigintSolver,
+    bigint_solver: &mut BrilligBigIntSolver,
 ) -> Result<(), BlackBoxResolutionError> {
     match op {
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
@@ -56,7 +57,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             })?;
             let key: [u8; 16] =
                 to_u8_vec(read_heap_array(memory, key)).try_into().map_err(|_| {
-                    BlackBoxResolutionError::Failed(bb_func, "Invalid ley length".to_string())
+                    BlackBoxResolutionError::Failed(bb_func, "Invalid key length".to_string())
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
 
@@ -138,17 +139,6 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             };
 
             memory.write(*result_address, result.into());
-            Ok(())
-        }
-        BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
-            let public_key_x = *memory.read(*public_key_x).extract_field().unwrap();
-            let public_key_y = *memory.read(*public_key_y).extract_field().unwrap();
-            let message: Vec<u8> = to_u8_vec(read_heap_vector(memory, message));
-            let signature: [u8; 64] =
-                to_u8_vec(read_heap_vector(memory, signature)).try_into().unwrap();
-            let verified =
-                solver.schnorr_verify(&public_key_x, &public_key_y, &signature, &message)?;
-            memory.write(*result, verified.into());
             Ok(())
         }
         BlackBoxOp::MultiScalarMul { points, scalars, outputs: result } => {
@@ -320,21 +310,45 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &state);
             Ok(())
         }
-        BlackBoxOp::ToRadix { input, radix, output, output_bits } => {
+        BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
             let radix = memory
                 .read(*radix)
                 .expect_integer_with_bit_size(IntegerBitSize::U32)
                 .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
+            let num_limbs = memory.read(*num_limbs).to_usize();
+            let output_bits = !memory
+                .read(*output_bits)
+                .expect_integer_with_bit_size(IntegerBitSize::U1)
+                .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
+                .is_zero();
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
-            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); output.size];
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
 
-            for i in (0..output.size).rev() {
+            assert!(
+                radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
+                "Radix out of the valid range [2,256]. Value: {}",
+                radix
+            );
+
+            assert!(
+                num_limbs >= 1 || input == BigUint::from(0u32),
+                "Input value {} is not zero but number of limbs is zero.",
+                input
+            );
+
+            assert!(
+                !output_bits || radix == BigUint::from(2u32),
+                "Radix {} is not equal to 2 and bit mode is activated.",
+                radix
+            );
+
+            for i in (0..num_limbs).rev() {
                 let limb = &input % &radix;
-                if *output_bits {
+                if output_bits {
                     limbs[i] = MemoryValue::new_integer(
                         if limb.is_zero() { 0 } else { 1 },
                         IntegerBitSize::U1,
@@ -346,58 +360,10 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 input /= &radix;
             }
 
-            memory.write_slice(memory.read_ref(output.pointer), &limbs);
+            memory.write_slice(memory.read_ref(*output_pointer), &limbs);
 
             Ok(())
         }
-    }
-}
-
-/// Wrapper over the generic bigint solver to automatically assign bigint ids in brillig
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub(crate) struct BrilligBigintSolver {
-    bigint_solver: BigIntSolver,
-    last_id: u32,
-}
-
-impl BrilligBigintSolver {
-    pub(crate) fn create_bigint_id(&mut self) -> u32 {
-        let output = self.last_id;
-        self.last_id += 1;
-        output
-    }
-
-    pub(crate) fn bigint_from_bytes(
-        &mut self,
-        inputs: &[u8],
-        modulus: &[u8],
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_from_bytes(inputs, modulus, id)?;
-        Ok(id)
-    }
-
-    pub(crate) fn bigint_to_bytes(&self, input: u32) -> Result<Vec<u8>, BlackBoxResolutionError> {
-        self.bigint_solver.bigint_to_bytes(input)
-    }
-
-    pub(crate) fn bigint_op(
-        &mut self,
-        lhs: u32,
-        rhs: u32,
-        func: BlackBoxFunc,
-    ) -> Result<u32, BlackBoxResolutionError> {
-        let modulus_lhs = self.bigint_solver.get_modulus(lhs, func)?;
-        let modulus_rhs = self.bigint_solver.get_modulus(rhs, func)?;
-        if modulus_lhs != modulus_rhs {
-            return Err(BlackBoxResolutionError::Failed(
-                func,
-                "moduli should be identical in BigInt operation".to_string(),
-            ));
-        }
-        let id = self.create_bigint_id();
-        self.bigint_solver.bigint_op(lhs, rhs, id, func)?;
-        Ok(id)
     }
 }
 
@@ -409,7 +375,6 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
         BlackBoxOp::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
-        BlackBoxOp::SchnorrVerify { .. } => BlackBoxFunc::SchnorrVerify,
         BlackBoxOp::MultiScalarMul { .. } => BlackBoxFunc::MultiScalarMul,
         BlackBoxOp::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
         BlackBoxOp::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,

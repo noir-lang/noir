@@ -21,21 +21,21 @@ pub enum DuplicateType {
     TraitAssociatedType,
     TraitAssociatedConst,
     TraitAssociatedFunction,
+    StructField,
+    EnumVariant,
 }
 
 #[derive(Error, Debug, Clone)]
 pub enum DefCollectorErrorKind {
-    #[error("duplicate {typ} found in namespace")]
+    #[error("Duplicate {typ}")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
-    #[error("duplicate struct field {first_def}")]
-    DuplicateField { first_def: Ident, second_def: Ident },
-    #[error("unresolved import")]
+    #[error("Unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident, expected_path: String, alternative_path: String },
-    #[error("overlapping imports")]
+    #[error("Overlapping imports")]
     OverlappingModuleDecls { mod_name: Ident, expected_path: String, alternative_path: String },
-    #[error("path resolution error")]
+    #[error("Path resolution error")]
     PathResolutionError(PathResolutionError),
-    #[error("cannot re-export {item_name} because it has less visibility than this use statement")]
+    #[error("Cannot re-export {item_name} because it has less visibility than this use statement")]
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
@@ -82,6 +82,10 @@ pub enum DefCollectorErrorKind {
     },
     #[error("{0}")]
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
+    #[error("The `#[test]` attribute may only be used on a non-associated function")]
+    TestOnAssociatedFunction { span: Span },
+    #[error("The `#[export]` attribute may only be used on a non-associated function")]
+    ExportOnAssociatedFunction { span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -116,6 +120,8 @@ impl fmt::Display for DuplicateType {
             DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
             DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
             DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
+            DuplicateType::StructField => write!(f, "struct field"),
+            DuplicateType::EnumVariant => write!(f, "enum variant"),
         }
     }
 }
@@ -137,23 +143,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                         first_span,
                     );
                     diag.add_secondary(format!("Second {} found here", &typ), second_span);
-                    diag
-                }
-            }
-            DefCollectorErrorKind::DuplicateField { first_def, second_def } => {
-                let primary_message = format!(
-                    "Duplicate definitions of struct field with name {} found",
-                    &first_def.0.contents
-                );
-                {
-                    let first_span = first_def.0.span();
-                    let second_span = second_def.0.span();
-                    let mut diag = Diagnostic::simple_error(
-                        primary_message,
-                    "First definition found here".to_string(),
-                        first_span,
-                    );
-                    diag.add_secondary("Second definition found here".to_string(), second_span);
                     diag
                 }
             }
@@ -179,9 +168,9 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
             }
             DefCollectorErrorKind::PathResolutionError(error) => error.into(),
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility{item_name, desired_visibility} => {
-                Diagnostic::simple_warning(
-                    format!("cannot re-export {item_name} because it has less visibility than this use statement"), 
-                    format!("consider marking {item_name} as {desired_visibility}"), 
+                Diagnostic::simple_error(
+                    format!("cannot re-export {item_name} because it has less visibility than this use statement"),
+                    format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.span())
             }
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
@@ -291,6 +280,16 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag
             }
             DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
+            DefCollectorErrorKind::TestOnAssociatedFunction { span } => Diagnostic::simple_error(
+                "The `#[test]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *span,
+            ),
+            DefCollectorErrorKind::ExportOnAssociatedFunction { span } => Diagnostic::simple_error(
+                "The `#[export]` attribute is disallowed on `impl` methods".into(),
+                String::new(),
+                *span,
+            ),
         }
     }
 }

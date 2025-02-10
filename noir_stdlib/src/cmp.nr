@@ -12,7 +12,7 @@ comptime fn derive_eq(s: StructDefinition) -> Quoted {
     let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
     let for_each_field = |name| quote { (_self.$name == _other.$name) };
     let body = |fields| {
-        if s.fields().len() == 0 {
+        if s.fields_as_written().len() == 0 {
             quote { true }
         } else {
             fields
@@ -360,13 +360,7 @@ where
         let mut result = Ordering::equal();
         for i in 0..self.len() {
             if result == Ordering::equal() {
-                let result_i = self[i].cmp(other[i]);
-
-                if result_i == Ordering::less() {
-                    result = result_i;
-                } else if result_i == Ordering::greater() {
-                    result = result_i;
-                }
+                result = self[i].cmp(other[i]);
             }
         }
         result
@@ -383,13 +377,7 @@ where
         let mut result = self.len().cmp(other.len());
         for i in 0..self.len() {
             if result == Ordering::equal() {
-                let result_i = self[i].cmp(other[i]);
-
-                if result_i == Ordering::less() {
-                    result = result_i;
-                } else if result_i == Ordering::greater() {
-                    result = result_i;
-                }
+                result = self[i].cmp(other[i]);
             }
         }
         result

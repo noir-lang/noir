@@ -25,16 +25,19 @@ mod entry_point;
 mod instructions;
 
 use artifact::Label;
+use brillig_variable::SingleAddrVariable;
 pub(crate) use instructions::BrilligBinaryOp;
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
-use crate::ssa::ir::dfg::CallStack;
+use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
     acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
 };
 use debug_show::DebugShow;
+
+use super::{FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -92,6 +95,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     /// Whether this context can call procedures or not.
     /// This is used to prevent a procedure from calling another procedure.
     can_call_procedures: bool,
+
+    globals_memory_size: Option<usize>,
 }
 
 /// Regular brillig context to codegen user defined functions
@@ -105,22 +110,136 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: true,
+            globals_memory_size: None,
         }
+    }
+}
+
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
+    /// Splits a two's complement signed integer in the sign bit and the absolute value.
+    /// For example, -6 i8 (11111010) is split to 00000110 (6, absolute value) and 1 (is_negative).
+    pub(crate) fn absolute_value(
+        &mut self,
+        num: SingleAddrVariable,
+        absolute_value: SingleAddrVariable,
+        result_is_negative: SingleAddrVariable,
+    ) {
+        let max_positive = self
+            .make_constant_instruction(((1_u128 << (num.bit_size - 1)) - 1).into(), num.bit_size);
+
+        // Compute if num is negative
+        self.binary_instruction(max_positive, num, result_is_negative, BrilligBinaryOp::LessThan);
+
+        // Two's complement of num
+        let zero = self.make_constant_instruction(0_usize.into(), num.bit_size);
+        let twos_complement = SingleAddrVariable::new(self.allocate_register(), num.bit_size);
+        self.binary_instruction(zero, num, twos_complement, BrilligBinaryOp::Sub);
+
+        // absolute_value = result_is_negative ? twos_complement : num
+        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                ctx.mov_instruction(absolute_value.address, twos_complement.address);
+            } else {
+                ctx.mov_instruction(absolute_value.address, num.address);
+            }
+        });
+
+        self.deallocate_single_addr(zero);
+        self.deallocate_single_addr(max_positive);
+        self.deallocate_single_addr(twos_complement);
+    }
+
+    pub(crate) fn convert_signed_division(
+        &mut self,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        result: SingleAddrVariable,
+    ) {
+        let left_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
+        let left_abs_value = SingleAddrVariable::new(self.allocate_register(), left.bit_size);
+
+        let right_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
+        let right_abs_value = SingleAddrVariable::new(self.allocate_register(), right.bit_size);
+
+        let result_is_negative = SingleAddrVariable::new(self.allocate_register(), 1);
+
+        // Compute both absolute values
+        self.absolute_value(left, left_abs_value, left_is_negative);
+        self.absolute_value(right, right_abs_value, right_is_negative);
+
+        // Perform the division on the absolute values
+        self.binary_instruction(
+            left_abs_value,
+            right_abs_value,
+            result,
+            BrilligBinaryOp::UnsignedDiv,
+        );
+
+        // Compute result sign
+        self.binary_instruction(
+            left_is_negative,
+            right_is_negative,
+            result_is_negative,
+            BrilligBinaryOp::Xor,
+        );
+
+        // If result has to be negative, perform two's complement
+        self.codegen_if(result_is_negative.address, |ctx| {
+            let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
+            ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
+            ctx.deallocate_single_addr(zero);
+        });
+
+        self.deallocate_single_addr(left_is_negative);
+        self.deallocate_single_addr(left_abs_value);
+        self.deallocate_single_addr(right_is_negative);
+        self.deallocate_single_addr(right_abs_value);
+        self.deallocate_single_addr(result_is_negative);
     }
 }
 
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
-    pub(crate) fn new_for_procedure(enable_debug_trace: bool) -> BrilligContext<F, ScratchSpace> {
+    pub(crate) fn new_for_procedure(
+        enable_debug_trace: bool,
+        procedure_id: ProcedureId,
+    ) -> BrilligContext<F, ScratchSpace> {
+        let mut obj = BrilligArtifact::default();
+        obj.procedure = Some(procedure_id);
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: ScratchSpace::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
             can_call_procedures: false,
+            globals_memory_size: None,
         }
+    }
+}
+
+/// Special brillig context to codegen global values initialization
+impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(
+        enable_debug_trace: bool,
+        entry_point: FunctionId,
+    ) -> BrilligContext<F, GlobalSpace> {
+        BrilligContext {
+            obj: BrilligArtifact::default(),
+            registers: GlobalSpace::new(),
+            context_label: Label::globals_init(entry_point),
+            current_section: 0,
+            next_section: 1,
+            debug_show: DebugShow::new(enable_debug_trace),
+            can_call_procedures: false,
+            globals_memory_size: None,
+        }
+    }
+
+    pub(crate) fn global_space_size(&self) -> usize {
+        // `GlobalSpace::start()` is inclusive so we must add one to get the accurate total global memory size
+        (self.registers.max_memory_address() + 1) - GlobalSpace::start()
     }
 }
 
@@ -164,15 +283,10 @@ pub(crate) mod tests {
     pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver<FieldElement> for DummyBlackBoxSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8; 64],
-            _message: &[u8],
-        ) -> Result<bool, BlackBoxResolutionError> {
-            Ok(true)
+        fn pedantic_solving(&self) -> bool {
+            true
         }
+
         fn multi_scalar_mul(
             &self,
             _points: &[FieldElement],
@@ -215,8 +329,13 @@ pub(crate) mod tests {
         returns: Vec<BrilligParameter>,
     ) -> GeneratedBrillig<FieldElement> {
         let artifact = context.artifact();
-        let mut entry_point_artifact =
-            BrilligContext::new_entry_point_artifact(arguments, returns, FunctionId::test_new(0));
+        let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
+            arguments,
+            returns,
+            FunctionId::test_new(0),
+            false,
+            0,
+        );
         entry_point_artifact.link_with(&artifact);
         while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()
         {
@@ -289,12 +408,12 @@ pub(crate) mod tests {
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
         context.push_opcode(BrilligOpcode::Const {
             destination: MemoryAddress::direct(0),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         });
+        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
         context.push_opcode(BrilligOpcode::Trap {
             revert_data: HeapVector {
                 pointer: MemoryAddress::direct(0),
@@ -302,7 +421,10 @@ pub(crate) mod tests {
             },
         });
 
-        context.stop_instruction();
+        context.stop_instruction(HeapVector {
+            pointer: MemoryAddress::direct(0),
+            size: MemoryAddress::direct(0),
+        });
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
         let number_sequence: Vec<FieldElement> =

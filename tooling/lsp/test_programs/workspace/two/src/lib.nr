@@ -84,3 +84,28 @@ fn bar_stuff() {
     foo.bar_stuff();
 }
 
+trait TraitWithDocs {
+    /// Some docs
+    fn foo();
+}
+
+impl TraitWithDocs for Field {
+    fn foo() {}
+}
+
+impl<U> Foo<U> {
+    fn mut_self(&mut self) {}
+}
+
+/// Red, blue, etc.
+enum EmptyColor {}
+
+/// Red, blue, etc.
+enum Color {
+    /// Like a tomato
+    Red(Field),
+}
+
+fn test_enum() -> Color {
+    Color::Red(1)
+}

@@ -18,6 +18,19 @@ impl<'a> Parser<'a> {
         self.parse_many_return_trailing_separator_if_any(items, separated_by, f).0
     }
 
+    /// parse_many, where the given function `f` may return multiple results
+    pub(super) fn parse_many_to_many<T, F>(
+        &mut self,
+        items: &'static str,
+        separated_by: SeparatedBy,
+        f: F,
+    ) -> Vec<T>
+    where
+        F: FnMut(&mut Parser<'a>) -> Vec<T>,
+    {
+        self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f).0
+    }
+
     /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
     pub(super) fn parse_many_return_trailing_separator_if_any<T, F>(
         &mut self,
@@ -27,6 +40,26 @@ impl<'a> Parser<'a> {
     ) -> (Vec<T>, bool)
     where
         F: FnMut(&mut Parser<'a>) -> Option<T>,
+    {
+        let f = |x: &mut Parser<'a>| {
+            if let Some(result) = f(x) {
+                vec![result]
+            } else {
+                vec![]
+            }
+        };
+        self.parse_many_to_many_return_trailing_separator_if_any(items, separated_by, f)
+    }
+
+    /// Same as parse_many, but returns a bool indicating whether a trailing separator was found.
+    fn parse_many_to_many_return_trailing_separator_if_any<T, F>(
+        &mut self,
+        items: &'static str,
+        separated_by: SeparatedBy,
+        mut f: F,
+    ) -> (Vec<T>, bool)
+    where
+        F: FnMut(&mut Parser<'a>) -> Vec<T>,
     {
         let mut elements: Vec<T> = Vec::new();
         let mut trailing_separator = false;
@@ -38,12 +71,13 @@ impl<'a> Parser<'a> {
             }
 
             let start_span = self.current_token_span;
-            let Some(element) = f(self) else {
+            let mut new_elements = f(self);
+            if new_elements.is_empty() {
                 if let Some(end) = &separated_by.until {
                     self.eat(end.clone());
                 }
                 break;
-            };
+            }
 
             if let Some(separator) = &separated_by.token {
                 if !trailing_separator && !elements.is_empty() {
@@ -51,7 +85,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            elements.push(element);
+            elements.append(&mut new_elements);
 
             trailing_separator = if let Some(separator) = &separated_by.token {
                 self.eat(separator.clone())

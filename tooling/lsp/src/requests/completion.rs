@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{self, Future},
+    ops::Deref,
 };
 
 use async_lsp::ResponseError;
@@ -18,31 +19,33 @@ use noirc_frontend::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
         IntegerBitSize, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
-        MethodCallExpression, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Signedness, Statement, TraitBound, TraitImplItemKind, TypeImpl,
+        TypePath, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression, UseTree, UseTreeKind, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-        resolution::visibility::{method_call_is_visible, struct_member_is_visible},
+        resolution::visibility::{
+            item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+        },
     },
     hir_def::traits::Trait,
-    node_interner::{NodeInterner, ReferenceId, StructId},
+    node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
-    token::{CustomAttribute, Token, Tokens},
-    Kind, ParsedModule, StructType, Type, TypeBinding,
+    token::{MetaAttribute, Token, Tokens},
+    DataType, Kind, ParsedModule, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
 use crate::{
     requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
-    use_segment_positions::UseSegmentPositions, utils, visibility::item_in_module_is_visible,
+    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
     LspState,
 };
 
-use super::process_request;
+use super::{process_request, TraitReexport};
 
 mod auto_import;
 mod builtins;
@@ -119,6 +122,8 @@ struct NodeFinder<'a> {
     use_segment_positions: UseSegmentPositions,
     self_type: Option<Type>,
     in_comptime: bool,
+    /// The function we are in, if any
+    func_id: Option<FuncId>,
 }
 
 impl<'a> NodeFinder<'a> {
@@ -164,6 +169,7 @@ impl<'a> NodeFinder<'a> {
             use_segment_positions: UseSegmentPositions::default(),
             self_type: None,
             in_comptime: false,
+            func_id: None,
         }
     }
 
@@ -194,16 +200,19 @@ impl<'a> NodeFinder<'a> {
         };
 
         let location = Location::new(span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
-        let struct_type = self.interner.get_struct(struct_id);
-        let struct_type = struct_type.borrow();
+        let data_type = self.interner.get_type(type_id);
+        let data_type = data_type.borrow();
 
         // First get all of the struct's fields
-        let mut fields: Vec<_> =
-            struct_type.get_fields_as_written().into_iter().enumerate().collect();
+        let Some(fields) = data_type.get_fields_as_written() else {
+            return;
+        };
+
+        let mut fields = fields.into_iter().enumerate().collect::<Vec<_>>();
 
         // Remove the ones that already exists in the constructor
         for (used_name, _) in &constructor_expression.fields {
@@ -215,7 +224,7 @@ impl<'a> NodeFinder<'a> {
             self.completion_items.push(self.struct_field_completion_item(
                 &field.name.0.contents,
                 &field.typ,
-                struct_type.id,
+                data_type.id,
                 *field_index,
                 self_prefix,
             ));
@@ -241,7 +250,7 @@ impl<'a> NodeFinder<'a> {
         let mut idents: Vec<Ident> = Vec::new();
 
         // Find in which ident we are in, and in which part of it
-        // (it could be that we are completting in the middle of an ident)
+        // (it could be that we are completing in the middle of an ident)
         for segment in &path.segments {
             let ident = &segment.ident;
 
@@ -312,10 +321,11 @@ impl<'a> NodeFinder<'a> {
 
             match module_def_id {
                 ModuleDefId::ModuleId(id) => module_id = id,
-                ModuleDefId::TypeId(struct_id) => {
-                    let struct_type = self.interner.get_struct(struct_id);
+                ModuleDefId::TypeId(type_id) => {
+                    let data_type = self.interner.get_type(type_id);
+                    self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::Struct(struct_type, vec![]),
+                        &Type::DataType(data_type, vec![]),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -563,7 +573,7 @@ impl<'a> NodeFinder<'a> {
     ) {
         let typ = &typ;
         match typ {
-            Type::Struct(struct_type, generics) => {
+            Type::DataType(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix, self_prefix);
             }
             Type::MutableReference(typ) => {
@@ -578,6 +588,14 @@ impl<'a> NodeFinder<'a> {
                 let type_alias = type_alias.borrow();
                 return self.complete_type_fields_and_methods(
                     &type_alias.typ,
+                    prefix,
+                    function_completion_kind,
+                    self_prefix,
+                );
+            }
+            Type::CheckedCast { to, .. } => {
+                return self.complete_type_fields_and_methods(
+                    to,
                     prefix,
                     function_completion_kind,
                     self_prefix,
@@ -609,7 +627,7 @@ impl<'a> NodeFinder<'a> {
             | Type::Forall(_, _)
             | Type::Constant(..)
             | Type::Quoted(_)
-            | Type::InfixExpr(_, _, _)
+            | Type::InfixExpr(..)
             | Type::Error => (),
         }
 
@@ -630,33 +648,72 @@ impl<'a> NodeFinder<'a> {
         function_completion_kind: FunctionCompletionKind,
         self_prefix: bool,
     ) {
+        self.complete_trait_constraints_methods(
+            typ,
+            prefix,
+            function_kind,
+            function_completion_kind,
+        );
+
         let Some(methods_by_name) = self.interner.get_type_methods(typ) else {
             return;
         };
 
-        let struct_id = get_type_struct_id(typ);
+        let type_id = get_type_type_id(typ);
         let is_primitive = typ.is_primitive();
+        let has_self_param = matches!(function_kind, FunctionKind::SelfType(..));
 
         for (name, methods) in methods_by_name {
-            for (func_id, method_type) in methods.iter() {
-                if function_kind == FunctionKind::Any {
-                    if let Some(method_type) = method_type {
-                        if method_type.unify(typ).is_err() {
-                            continue;
-                        }
+            if !name_matches(name, prefix) {
+                continue;
+            }
+
+            for (func_id, trait_id) in
+                methods.find_matching_methods(typ, has_self_param, self.interner)
+            {
+                if let Some(type_id) = type_id {
+                    let modifiers = self.interner.function_modifiers(&func_id);
+                    let visibility = modifiers.visibility;
+                    if !struct_member_is_visible(type_id, visibility, self.module_id, self.def_maps)
+                    {
+                        continue;
                     }
                 }
 
-                if let Some(struct_id) = struct_id {
+                let mut trait_reexport = None;
+
+                if let Some(trait_id) = trait_id {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
-                    if !struct_member_is_visible(
-                        struct_id,
-                        visibility,
+                    let module_def_id = ModuleDefId::TraitId(trait_id);
+                    if !module_def_id_is_visible(
+                        module_def_id,
                         self.module_id,
+                        visibility,
+                        None, // defining module
+                        self.interner,
                         self.def_maps,
                     ) {
-                        continue;
+                        // Try to find a visible reexport of the trait
+                        // that is visible from the current module
+                        let Some((visible_module_id, name, _)) =
+                            self.interner.get_trait_reexports(trait_id).iter().find(
+                                |(module_id, _, visibility)| {
+                                    module_def_id_is_visible(
+                                        module_def_id,
+                                        self.module_id,
+                                        *visibility,
+                                        Some(*module_id),
+                                        self.interner,
+                                        self.def_maps,
+                                    )
+                                },
+                            )
+                        else {
+                            continue;
+                        };
+
+                        trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
                     }
                 }
 
@@ -672,20 +729,44 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 }
 
-                if name_matches(name, prefix) {
-                    let completion_items = self.function_completion_items(
-                        name,
-                        func_id,
-                        function_completion_kind,
-                        function_kind,
-                        None, // attribute first type
-                        self_prefix,
-                    );
-                    if !completion_items.is_empty() {
-                        self.completion_items.extend(completion_items);
-                        self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
-                    }
+                let completion_items = self.function_completion_items(
+                    name,
+                    func_id,
+                    function_completion_kind,
+                    function_kind,
+                    None, // attribute first type
+                    trait_id.map(|id| (id, trait_reexport.as_ref())),
+                    self_prefix,
+                );
+                if !completion_items.is_empty() {
+                    self.completion_items.extend(completion_items);
+                    self.suggested_module_def_ids.insert(ModuleDefId::FunctionId(func_id));
                 }
+            }
+        }
+    }
+
+    fn complete_trait_constraints_methods(
+        &mut self,
+        typ: &Type,
+        prefix: &str,
+        function_kind: FunctionKind,
+        function_completion_kind: FunctionCompletionKind,
+    ) {
+        let Some(func_id) = self.func_id else {
+            return;
+        };
+
+        let func_meta = self.interner.function_meta(&func_id);
+        for constraint in &func_meta.trait_constraints {
+            if *typ == constraint.typ {
+                let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
+                self.complete_trait_methods(
+                    trait_,
+                    prefix,
+                    function_kind,
+                    function_completion_kind,
+                );
             }
         }
     }
@@ -707,6 +788,7 @@ impl<'a> NodeFinder<'a> {
                     function_completion_kind,
                     function_kind,
                     None, // attribute first type
+                    None, // trait_id (we are suggesting methods for `Trait::>|<` so no need to auto-import it)
                     self_prefix,
                 );
                 if !completion_items.is_empty() {
@@ -717,16 +799,35 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
+    fn complete_enum_variants_without_parameters(&mut self, data_type: &DataType, prefix: &str) {
+        let Some(variants) = data_type.get_variants_as_written() else {
+            return;
+        };
+
+        for (index, variant) in variants.iter().enumerate() {
+            // Variants with parameters are represented as functions and are suggested in `complete_type_methods`
+            if variant.is_function || !name_matches(&variant.name.0.contents, prefix) {
+                continue;
+            }
+
+            let item =
+                self.enum_variant_completion_item(variant.name.to_string(), data_type.id, index);
+            self.completion_items.push(item);
+        }
+    }
+
     fn complete_struct_fields(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         generics: &[Type],
         prefix: &str,
         self_prefix: bool,
     ) {
-        for (field_index, (name, visibility, typ)) in
-            struct_type.get_fields_with_visibility(generics).iter().enumerate()
-        {
+        let Some(fields) = struct_type.get_fields_with_visibility(generics) else {
+            return;
+        };
+
+        for (field_index, (name, visibility, typ)) in fields.iter().enumerate() {
             if !struct_member_is_visible(struct_type.id, *visibility, self.module_id, self.def_maps)
             {
                 continue;
@@ -799,10 +900,10 @@ impl<'a> NodeFinder<'a> {
                 let per_ns = module_data.find_name(ident);
                 if let Some((module_def_id, visibility, _)) = per_ns.types {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
@@ -820,10 +921,10 @@ impl<'a> NodeFinder<'a> {
 
                 if let Some((module_def_id, visibility, _)) = per_ns.values {
                     if item_in_module_is_visible(
-                        module_id,
-                        self.module_id,
-                        visibility,
                         self.def_maps,
+                        self.module_id,
+                        module_id,
+                        visibility,
                     ) {
                         let completion_items = self.module_def_id_completion_items(
                             module_def_id,
@@ -890,24 +991,6 @@ impl<'a> NodeFinder<'a> {
         }
 
         None
-    }
-
-    fn suggest_attributes(&mut self, prefix: &str, target: AttributeTarget) {
-        self.suggest_builtin_attributes(prefix, target);
-
-        let function_completion_kind = FunctionCompletionKind::NameAndParameters;
-        let requested_items = RequestedItems::OnlyAttributeFunctions(target);
-
-        self.complete_in_module(
-            self.module_id,
-            prefix,
-            PathKind::Plain,
-            true,
-            function_completion_kind,
-            requested_items,
-        );
-
-        self.complete_auto_imports(prefix, requested_items, function_completion_kind);
     }
 
     fn suggest_no_arguments_attributes(&mut self, prefix: &str, attributes: &[&str]) {
@@ -1048,7 +1131,55 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    /// Determine where each segment in a `use` statement is located.
+    /// Try to suggest the name of a module to declare based on which
+    /// files exist in the filesystem, excluding modules that are already declared.
+    fn complete_module_delcaration(&mut self, module: &ModuleDeclaration) -> Option<()> {
+        let filename = self.files.get_absolute_name(self.file).ok()?.into_path_buf();
+
+        let is_main_lib_or_mod = filename.ends_with("main.nr")
+            || filename.ends_with("lib.nr")
+            || filename.ends_with("mod.nr");
+
+        let paths = if is_main_lib_or_mod {
+            // For a "main" file we list sibling files
+            std::fs::read_dir(filename.parent()?)
+        } else {
+            // For a non-main files we list directory children
+            std::fs::read_dir(filename.with_extension(""))
+        };
+        let paths = paths.ok()?;
+
+        // See which modules are already defined via `mod ...;`
+        let module_data =
+            &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
+        let existing_children: HashSet<String> =
+            module_data.children.keys().map(|ident| ident.to_string()).collect();
+
+        for path in paths {
+            let Ok(path) = path else {
+                continue;
+            };
+            let file_name = path.file_name().to_string_lossy().to_string();
+            let Some(name) = file_name.strip_suffix(".nr") else {
+                continue;
+            };
+            if name == "main" || name == "mod" || name == "lib" {
+                continue;
+            }
+            if existing_children.contains(name) {
+                continue;
+            }
+
+            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            self.completion_items.push(simple_completion_item(
+                label,
+                CompletionItemKind::MODULE,
+                None,
+            ));
+        }
+
+        Some(())
+    }
 
     fn includes_span(&self, span: Span) -> bool {
         span.start() as usize <= self.byte_index && self.byte_index <= span.end() as usize
@@ -1136,7 +1267,16 @@ impl<'a> Visitor for NodeFinder<'a> {
         let old_in_comptime = self.in_comptime;
         self.in_comptime = noir_function.def.is_comptime;
 
+        if let Some(ReferenceId::Function(func_id)) = self
+            .interner
+            .reference_at_location(Location::new(noir_function.name_ident().span(), self.file))
+        {
+            self.func_id = Some(func_id);
+        }
+
         noir_function.def.body.accept(Some(span), self);
+
+        self.func_id = None;
 
         self.in_comptime = old_in_comptime;
         self.type_parameters = old_type_parameters;
@@ -1218,7 +1358,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
     fn visit_trait_item_function(
         &mut self,
-        _name: &Ident,
+        name: &Ident,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &noirc_frontend::ast::FunctionReturnType,
@@ -1243,7 +1383,16 @@ impl<'a> Visitor for NodeFinder<'a> {
             for (name, _) in parameters {
                 self.local_variables.insert(name.to_string(), name.span());
             }
+
+            if let Some(ReferenceId::Function(func_id)) =
+                self.interner.reference_at_location(Location::new(name.span(), self.file))
+            {
+                self.func_id = Some(func_id);
+            }
+
             body.accept(None, self);
+
+            self.func_id = None;
         };
 
         self.type_parameters = old_type_parameters;
@@ -1666,12 +1815,14 @@ impl<'a> Visitor for NodeFinder<'a> {
         false
     }
 
-    fn visit_custom_attribute(&mut self, attribute: &CustomAttribute, target: AttributeTarget) {
-        if self.byte_index != attribute.contents_span.end() as usize {
-            return;
+    fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
+        if self.byte_index == attribute.name.span.end() as usize {
+            self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
-        self.suggest_attributes(&attribute.contents, target);
+        self.find_in_path(&attribute.name, RequestedItems::OnlyAttributeFunctions(target));
+
+        true
     }
 
     fn visit_quote(&mut self, tokens: &Tokens) {
@@ -1712,11 +1863,19 @@ impl<'a> Visitor for NodeFinder<'a> {
         trait_bound.trait_generics.accept(self);
         false
     }
+
+    fn visit_module_declaration(&mut self, module: &ModuleDeclaration, _: Span) {
+        if !self.includes_span(module.ident.span()) {
+            return;
+        }
+
+        self.complete_module_delcaration(module);
+    }
 }
 
 fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
     match typ {
-        Type::Struct(struct_type, generics) => {
+        Type::DataType(struct_type, generics) => {
             Some(struct_type.borrow().get_field(name, generics)?.0)
         }
         Type::Tuple(types) => {
@@ -1756,13 +1915,13 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
     }
 }
 
-fn get_type_struct_id(typ: &Type) -> Option<StructId> {
-    match typ {
-        Type::Struct(struct_type, _) => Some(struct_type.borrow().id),
+fn get_type_type_id(typ: &Type) -> Option<TypeId> {
+    match typ.follow_bindings_shallow().deref() {
+        Type::DataType(struct_type, _) => Some(struct_type.borrow().id),
         Type::Alias(type_alias, generics) => {
             let type_alias = type_alias.borrow();
             let typ = type_alias.get_type(generics);
-            get_type_struct_id(&typ)
+            get_type_type_id(&typ)
         }
         _ => None,
     }
@@ -1814,11 +1973,12 @@ fn name_matches(name: &str, prefix: &str) -> bool {
 fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDefId> {
     match reference_id {
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
-        ReferenceId::Struct(struct_id) => Some(ModuleDefId::TypeId(struct_id)),
+        ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)
+        | ReferenceId::EnumVariant(_, _)
         | ReferenceId::Global(_)
         | ReferenceId::Local(_)
         | ReferenceId::Reference(_, _) => None,

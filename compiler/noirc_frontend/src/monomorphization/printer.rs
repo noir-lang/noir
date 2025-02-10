@@ -49,6 +49,7 @@ impl AstPrinter {
                 write!(f, " as {})", cast.r#type)
             }
             Expression::For(for_expr) => self.print_for(for_expr, f),
+            Expression::Loop(block) => self.print_loop(block, f),
             Expression::If(if_expr) => self.print_if(if_expr, f),
             Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
@@ -105,9 +106,11 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::FmtStr(s, _, _) => {
+            super::ast::Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
-                s.fmt(f)?;
+                for fragment in fragments {
+                    fragment.fmt(f)?;
+                }
                 write!(f, "\"")
             }
             super::ast::Literal::Unit => {
@@ -207,6 +210,15 @@ impl AstPrinter {
         write!(f, "}}")
     }
 
+    fn print_loop(&mut self, block: &Expression, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "loop {{")?;
+        self.indent_level += 1;
+        self.print_expr_expect_block(block, f)?;
+        self.indent_level -= 1;
+        self.next_line(f)?;
+        write!(f, "}}")
+    }
+
     fn print_if(
         &mut self,
         if_expr: &super::ast::If,
@@ -291,6 +303,7 @@ impl Display for Definition {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
+            Definition::Global(id) => write!(f, "g{}", id.0),
             Definition::Function(id) => write!(f, "f{}", id),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),

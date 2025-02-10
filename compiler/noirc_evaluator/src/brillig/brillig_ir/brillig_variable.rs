@@ -88,7 +88,7 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: typ.element_size() * size,
+            size: typ.element_size() * *size as usize,
         },
         Type::Slice(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),

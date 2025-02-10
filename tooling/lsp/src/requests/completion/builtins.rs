@@ -91,6 +91,9 @@ impl<'a> NodeFinder<'a> {
             AttributeTarget::Struct => {
                 self.suggest_one_argument_attributes(prefix, &["abi"]);
             }
+            AttributeTarget::Enum => {
+                self.suggest_one_argument_attributes(prefix, &["abi"]);
+            }
             AttributeTarget::Function => {
                 let no_arguments_attributes = &[
                     "contract_library_method",
@@ -106,6 +109,24 @@ impl<'a> NodeFinder<'a> {
 
                 let one_argument_attributes = &["abi", "field", "foreign", "oracle"];
                 self.suggest_one_argument_attributes(prefix, one_argument_attributes);
+
+                if name_matches("deprecated", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "deprecated(\"...\")",
+                        CompletionItemKind::METHOD,
+                        "deprecated(\"${1:message}\")",
+                        None,
+                    ));
+                }
+
+                if name_matches("test", prefix) || name_matches("should_fail", prefix) {
+                    self.completion_items.push(snippet_completion_item(
+                        "test(should_fail)",
+                        CompletionItemKind::METHOD,
+                        "test(should_fail)",
+                        None,
+                    ));
+                }
 
                 if name_matches("test", prefix) || name_matches("should_fail_with", prefix) {
                     self.completion_items.push(snippet_completion_item(
@@ -138,6 +159,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
     match keyword {
         Keyword::Bool => Some("bool"),
         Keyword::CtString => Some("CtString"),
+        Keyword::EnumDefinition => Some("EnumDefinition"),
         Keyword::Expr => Some("Expr"),
         Keyword::Field => Some("Field"),
         Keyword::FunctionDefinition => Some("FunctionDefinition"),
@@ -164,6 +186,7 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Crate
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
         | Keyword::Fn
         | Keyword::For
         | Keyword::FormatString
@@ -172,6 +195,8 @@ pub(super) fn keyword_builtin_type(keyword: &Keyword) -> Option<&'static str> {
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Mut
         | Keyword::Pub
@@ -225,6 +250,8 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::CtString
         | Keyword::Dep
         | Keyword::Else
+        | Keyword::Enum
+        | Keyword::EnumDefinition
         | Keyword::Expr
         | Keyword::Field
         | Keyword::Fn
@@ -236,6 +263,8 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Impl
         | Keyword::In
         | Keyword::Let
+        | Keyword::Loop
+        | Keyword::Match
         | Keyword::Mod
         | Keyword::Module
         | Keyword::Mut

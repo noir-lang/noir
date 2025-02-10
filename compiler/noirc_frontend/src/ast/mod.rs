@@ -5,6 +5,7 @@
 //! Noir's Ast is produced by the parser and taken as input to name resolution,
 //! where it is converted into the Hir (defined in the hir_def module).
 mod docs;
+mod enumeration;
 mod expression;
 mod function;
 mod statement;
@@ -19,8 +20,12 @@ pub use visitor::Visitor;
 pub use expression::*;
 pub use function::*;
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+
 use acvm::FieldElement;
 pub use docs::*;
+pub use enumeration::*;
 use noirc_errors::Span;
 use serde::{Deserialize, Serialize};
 pub use statement::*;
@@ -37,6 +42,7 @@ use crate::{
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
 pub enum IntegerBitSize {
     One,
@@ -196,6 +202,14 @@ impl GenericTypeArgs {
     pub fn is_empty(&self) -> bool {
         self.ordered_args.is_empty() && self.named_args.is_empty()
     }
+
+    fn contains_unspecified(&self) -> bool {
+        let ordered_args_contains_unspecified =
+            self.ordered_args.iter().any(|ordered_arg| ordered_arg.contains_unspecified());
+        let named_args_contains_unspecified =
+            self.named_args.iter().any(|(_name, named_arg)| named_arg.contains_unspecified());
+        ordered_args_contains_unspecified || named_args_contains_unspecified
+    }
 }
 
 impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
@@ -237,12 +251,6 @@ pub enum UnresolvedTypeExpression {
         Span,
     ),
     AsTraitPath(Box<AsTraitPath>),
-}
-
-impl Recoverable for UnresolvedType {
-    fn error(span: Span) -> Self {
-        UnresolvedType { typ: UnresolvedTypeData::Error, span }
-    }
 }
 
 impl std::fmt::Display for GenericTypeArg {
@@ -371,6 +379,10 @@ impl UnresolvedType {
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
         UnresolvedType { typ, span }
     }
+
+    pub(crate) fn contains_unspecified(&self) -> bool {
+        self.typ.contains_unspecified()
+    }
 }
 
 impl UnresolvedTypeData {
@@ -390,6 +402,47 @@ impl UnresolvedTypeData {
 
     pub fn with_span(&self, span: Span) -> UnresolvedType {
         UnresolvedType { typ: self.clone(), span }
+    }
+
+    fn contains_unspecified(&self) -> bool {
+        match self {
+            UnresolvedTypeData::Array(typ, length) => {
+                typ.contains_unspecified() || length.contains_unspecified()
+            }
+            UnresolvedTypeData::Slice(typ) => typ.contains_unspecified(),
+            UnresolvedTypeData::Expression(expr) => expr.contains_unspecified(),
+            UnresolvedTypeData::String(length) => length.contains_unspecified(),
+            UnresolvedTypeData::FormatString(typ, length) => {
+                typ.contains_unspecified() || length.contains_unspecified()
+            }
+            UnresolvedTypeData::Parenthesized(typ) => typ.contains_unspecified(),
+            UnresolvedTypeData::Named(path, args, _is_synthesized) => {
+                // '_' is unspecified
+                let path_is_wildcard = path.is_wildcard();
+                let an_arg_is_unresolved = args.contains_unspecified();
+                path_is_wildcard || an_arg_is_unresolved
+            }
+            UnresolvedTypeData::TraitAsType(_path, args) => args.contains_unspecified(),
+            UnresolvedTypeData::MutableReference(typ) => typ.contains_unspecified(),
+            UnresolvedTypeData::Tuple(args) => args.iter().any(|arg| arg.contains_unspecified()),
+            UnresolvedTypeData::Function(args, ret, env, _unconstrained) => {
+                let args_contains_unspecified = args.iter().any(|arg| arg.contains_unspecified());
+                args_contains_unspecified
+                    || ret.contains_unspecified()
+                    || env.contains_unspecified()
+            }
+            UnresolvedTypeData::Unspecified => true,
+
+            UnresolvedTypeData::FieldElement
+            | UnresolvedTypeData::Integer(_, _)
+            | UnresolvedTypeData::Bool
+            | UnresolvedTypeData::Unit
+            | UnresolvedTypeData::Quoted(_)
+            | UnresolvedTypeData::AsTraitPath(_)
+            | UnresolvedTypeData::Resolved(_)
+            | UnresolvedTypeData::Interned(_)
+            | UnresolvedTypeData::Error => false,
+        }
     }
 }
 
@@ -490,6 +543,19 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Modulo
         )
     }
+
+    fn contains_unspecified(&self) -> bool {
+        match self {
+            // '_' is unspecified
+            UnresolvedTypeExpression::Variable(path) => path.is_wildcard(),
+            UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) => {
+                lhs.contains_unspecified() || rhs.contains_unspecified()
+            }
+            UnresolvedTypeExpression::Constant(_, _) | UnresolvedTypeExpression::AsTraitPath(_) => {
+                false
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -510,12 +576,13 @@ impl std::fmt::Display for ItemVisibility {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 /// Represents whether the parameter is public or known only to the prover.
 pub enum Visibility {
     Public,
     // Constants are not allowed in the ABI for main at the moment.
     // Constant,
+    #[default]
     Private,
     /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
