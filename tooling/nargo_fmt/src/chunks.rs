@@ -725,7 +725,7 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        // Check if the group first in the remainder of the current line.
+        // Check if the group fits in the remainder of the current line.
         if total_width > self.max_width {
             // If this chunk is the value of an assignment (either a normal assignment or a let statement)
             // and it doesn't fit the current line, we check if it fits the next line with an increased
