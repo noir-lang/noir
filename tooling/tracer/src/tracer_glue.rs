@@ -115,34 +115,43 @@ fn register_value(
                 )
             }
         }
+        PrintableType::SignedInteger { width } => {
+            if let PrintableValue::Field(field_value) = value {
+                let mut noir_type_name = String::new();
+                if let Err(err) = write!(&mut noir_type_name, "i{width}") {
+                    panic!("failed to generate Noir type name: {err}");
+                }
+                let type_id =
+                    tracer.ensure_type_id(runtime_tracing::TypeKind::Int, &noir_type_name);
+                ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
+            } else {
+                panic!(
+                    "type-value mismatch: value: {:?} does not match type UnsignedInteger",
+                    value
+                )
+            }
+        }
         PrintableType::Boolean => {
             if let PrintableValue::Field(field_value) = value {
                 let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Bool, "Bool");
                 ValueRecord::Bool { b: field_value.to_i128() as i64 == 1, type_id }
             } else {
-                panic!(
-                    "type-value mismatch: value: {:?} does not match type Bool",
-                    value
-                )
+                panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
         PrintableType::Array { length, typ } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
                 // println!("array elements {array_elements:?} is_slice {is_slice}");
-                let element_values: Vec<ValueRecord> = array_elements.iter()
-                    .map(|e| register_value(tracer, e, &*typ))
-                    .collect();
+                let element_values: Vec<ValueRecord> =
+                    array_elements.iter().map(|e| register_value(tracer, e, &*typ)).collect();
                 let type_name_base = if !is_slice { "Array" } else { "Slice" };
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Seq, &format!("{type_name_base}<{length}, ..>")); // TODO: more precise?
-                ValueRecord::Sequence {
-                    elements: element_values,
-                    type_id
-                }
+                let type_id = tracer.ensure_type_id(
+                    runtime_tracing::TypeKind::Seq,
+                    &format!("{type_name_base}<{length}, ..>"),
+                ); // TODO: more precise?
+                ValueRecord::Sequence { elements: element_values, type_id }
             } else {
-                panic!(
-                    "type-value mismatch: value: {:?} does not match type Bool",
-                    value
-                )
+                panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
         _ => {
