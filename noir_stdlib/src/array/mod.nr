@@ -5,6 +5,24 @@ use crate::runtime::is_unconstrained;
 mod check_shuffle;
 mod quicksort;
 
+/// Creates a new array containing numbers from 0 to N-1.
+/// This is a utility function to create arrays from ranges.
+///
+/// Example:
+/// ```noir
+/// fn main() {
+///     let arr = std::array::range(5);
+///     assert(arr == [0, 1, 2, 3, 4]);
+/// }
+/// ```
+pub fn range<T>(size: Field) -> [Field] {
+    let mut result = [];
+    for i in 0..size {
+        result.push(i);
+    }
+    result
+}
+
 impl<T, let N: u32> [T; N] {
     /// Returns the length of this array.
     ///
@@ -136,6 +154,28 @@ impl<T, let N: u32> [T; N] {
         }
         ret
     }
+
+    /// Returns a new array with elements in reverse order.
+    /// The original array remains untouched.
+    ///
+    /// Example:
+    /// ```noir
+    /// fn main() {
+    ///     let arr = [1, 2, 3];
+    ///     let reversed = arr.reverse();
+    ///     assert(reversed == [3, 2, 1]);
+    /// }
+    /// ```
+    pub fn reverse(self) -> Self {
+        let mut result = self;
+        let len = self.len();
+        for i in 0..(len / 2) {
+            let temp = result[i];
+            result[i] = result[len - 1 - i];
+            result[len - 1 - i] = temp;
+        }
+        result
+    }
 }
 
 impl<T, let N: u32> [T; N]
@@ -157,7 +197,7 @@ where
     /// }
     /// ```
     pub fn sort(self) -> Self {
-        self.sort_via(|a, b| a <= b)
+        self.sort_via(|a: T, b: T| a <= b)
     }
 }
 
@@ -184,10 +224,11 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        /// Safety: `sorted` array is checked to be:
-        /// a. a permutation of `input`'s elements
-        /// b. satisfying the predicate `ordering`
         unsafe {
+            /*@safety: `sorted` array is checked to be:
+                a. a permutation of `input`'s elements
+                b. satisfying the predicate `ordering`
+            */
             let sorted = quicksort::quicksort(self, ordering);
 
             if !is_unconstrained() {
@@ -231,5 +272,27 @@ mod test {
     #[test]
     fn map_empty() {
         assert_eq([].map(|x| x + 1), []);
+    }
+
+    #[test]
+    fn test_range() {
+        let arr = range(5);
+        assert_eq(arr, [0, 1, 2, 3, 4]);
+
+        let empty = range(0);
+        assert_eq(empty, []);
+    }
+
+    #[test]
+    fn test_reverse() {
+        let arr = [1, 2, 3, 4, 5];
+        let reversed = arr.reverse();
+        assert_eq(reversed, [5, 4, 3, 2, 1]);
+
+        let empty: [Field; 0] = [];
+        assert_eq(empty.reverse(), []);
+
+        let single = [1];
+        assert_eq(single.reverse(), [1]);
     }
 }
