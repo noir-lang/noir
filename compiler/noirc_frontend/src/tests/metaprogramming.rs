@@ -3,7 +3,7 @@ use noirc_errors::Located;
 use crate::{
     ast::Ident,
     hir::{
-        comptime::InterpreterError,
+        comptime::{InterpreterError, MacroError},
         def_collector::{
             dc_crate::CompilationError,
             errors::{DefCollectorErrorKind, DuplicateType},
@@ -150,10 +150,17 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     }
     "#;
 
-    let errors = get_program_errors(src);
+    let mut errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
+
+    let CompilationError::MacroError(MacroError::ErrorRunningAttribute { error, .. }) =
+        errors.remove(0).0
+    else {
+        panic!("Expected a MacroError, got {:?}", errors[0].0);
+    };
+
     assert!(matches!(
-        &errors[0].0,
+        *error,
         CompilationError::DefinitionError(
             DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Function,
