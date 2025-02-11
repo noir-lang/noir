@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739232571224,
+  "lastUpdate": 1739232573585,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4735,100 +4735,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jose@aztecprotocol.com",
-            "name": "José Pedro Sousa",
-            "username": "signorecello"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "248857d64b55cd8a846eace23f97bd2c11d2d7cf",
-          "message": "chore(docs): moving references to noir-starter to awesome-noir (#7203)\n\nCo-authored-by: signorecello <outgoing@zkpedro.dev>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>",
-          "timestamp": "2025-01-29T13:14:39Z",
-          "tree_id": "515c4f57627c770f34e5d8d6ac28b4568545aa3b",
-          "url": "https://github.com/noir-lang/noir/commit/248857d64b55cd8a846eace23f97bd2c11d2d7cf"
-        },
-        "date": 1738159735244,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.802,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 18.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.57,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 82.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.472,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 35.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 13.42,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.005,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.094,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.07,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9666,6 +9572,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.536,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df0d72970a9d64d7bf6132b55142e26bb3720d73",
+          "message": "chore: remove some unused types and functions in the AST (#7339)",
+          "timestamp": "2025-02-10T23:51:11Z",
+          "tree_id": "2ee6e8c50724dd39cb1545898b32a7387700dab8",
+          "url": "https://github.com/noir-lang/noir/commit/df0d72970a9d64d7bf6132b55142e26bb3720d73"
+        },
+        "date": 1739232571577,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.978,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.855,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.693,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.1,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.348,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.378,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.582,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.066,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 72.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.714,
             "unit": "s"
           }
         ]
