@@ -426,7 +426,7 @@ mod tests {
             
             let mut reversed_le = le_bytes.clone();
             reversed_le.reverse();
-            prop_assert_eq!(be_bytes, reversed_le, "BE bytes should be reverse of LE bytes");
+            prop_assert_eq!(&be_bytes, &reversed_le, "BE bytes should be reverse of LE bytes");
 
             // Test deserialization consistency
             let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
@@ -445,7 +445,7 @@ mod tests {
         // Check that the bytes are reversed between BE and LE
         let mut reversed_le = le_bytes.clone();
         reversed_le.reverse();
-        assert_eq!(be_bytes, reversed_le);
+        assert_eq!(&be_bytes, &reversed_le);
 
         // Verify we can reconstruct the same field element from either byte order
         let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
