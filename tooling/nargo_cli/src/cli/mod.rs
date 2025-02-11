@@ -109,11 +109,13 @@ enum NargoCommand {
 
 /// Commands that can execute on the workspace level, or be limited to a selected package.
 trait WorkspaceCommand {
+    /// Indicate which package the command will be applied to.
     fn package_selection(&self) -> PackageSelection;
+    /// The kind of lock the command needs to take out on the selected packages.
     fn lock_type(&self) -> LockType;
 }
 
-/// What kind of lock to take out on the (selected) packages in the workspace.
+/// What kind of lock to take out on the (selected) workspace members.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)] // Not using `Shared` at the moment, e.g. while we `debug` we can `compile` a different version.
 enum LockType {
