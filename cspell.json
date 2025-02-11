@@ -246,6 +246,8 @@
         "vararg",
         "varargs",
         "vecmap",
+        "vecs",
+        "Vecs",
         "vitkov",
         "walkdir",
         "wasi",
