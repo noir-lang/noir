@@ -296,9 +296,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// Converts bytes in little-endian order into a FieldElement and applies a
     /// reduction if needed.
     fn from_le_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
-        let mut le_bytes = bytes.to_vec();
-        le_bytes.reverse();
-        FieldElement(F::from_be_bytes_mod_order(&le_bytes))
+        FieldElement(F::from_le_bytes_mod_order(bytes))
     }
 
     /// Returns the closest number of bytes to the bits specified
