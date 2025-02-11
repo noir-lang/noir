@@ -150,8 +150,8 @@ impl<T, let N: u32> [T; N] {
     /// }
     /// ```
     pub fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M] {
-        let mut result = [self[0]; N + M];
-        for i in 1..N {
+        let mut result = [crate::mem::zeroed(); N + M];
+        for i in 0..N {
             result[i] = self[i];
         }
         for i in 0..M {
