@@ -76,9 +76,9 @@ pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
 }
 
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
-/// returning at the topmost directory found, i.e. the one corresponding to the entire workspace.
+/// returning the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [ManifestError] if none of the ancestor directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let root = path_root(current_path);
     let manifest_path = find_package_manifest(&root, current_path)?;
