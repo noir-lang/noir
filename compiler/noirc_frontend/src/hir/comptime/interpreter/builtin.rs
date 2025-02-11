@@ -2763,7 +2763,7 @@ fn module_add_item(
                 (error, file)
             });
 
-            elaborator.errors.extend(errors);
+            elaborator.push_errors(errors);
         }
 
         if !generated_items.is_empty() {

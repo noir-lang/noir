@@ -848,7 +848,7 @@ impl<'context> Elaborator<'context> {
             &mut errors,
             make_error,
         );
-        self.errors.extend(errors.into_iter().map(|error| (error.into(), location.file)));
+        self.push_errors(errors.into_iter().map(|error| (error.into(), location.file)));
     }
 
     /// Return a fresh integer or field type variable and log it

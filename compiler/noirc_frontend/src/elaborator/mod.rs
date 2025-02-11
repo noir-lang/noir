@@ -381,7 +381,7 @@ impl<'context> Elaborator<'context> {
             self.elaborate_trait_impl(trait_impl);
         }
 
-        self.errors.extend(self.interner.check_for_dependency_cycles());
+        self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -719,6 +719,13 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
         self.errors.push((error.into(), file));
+    }
+
+    pub(crate) fn push_errors(
+        &mut self,
+        errors: impl IntoIterator<Item = (CompilationError, FileId)>,
+    ) {
+        self.errors.extend(errors);
     }
 
     fn run_lint(&mut self, file: FileId, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -1259,7 +1266,7 @@ impl<'context> Elaborator<'context> {
             self.local_module = *module;
             let file = noir_function.location().file;
             let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
-            self.errors.extend(errors.into_iter().map(|error| (error.into(), file)));
+            self.push_errors(errors.into_iter().map(|error| (error.into(), file)));
         }
 
         self.elaborate_functions(trait_impl.methods);

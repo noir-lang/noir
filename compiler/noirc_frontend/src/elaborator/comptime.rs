@@ -366,7 +366,7 @@ impl<'context> Elaborator<'context> {
                 CompilationError::MacroError(MacroError::ErrorRunningAttribute { error, location });
             (error, file)
         });
-        self.errors.extend(errors);
+        self.push_errors(errors);
     }
 
     pub(crate) fn add_item(

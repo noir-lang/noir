@@ -1235,7 +1235,8 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) -> (ExprId, Type) {
         let make_error = |this: &mut Self, error: InterpreterError| {
-            this.errors.push(error.into_compilation_error_pair());
+            let (error, file) = error.into_compilation_error_pair();
+            this.push_err(error, file);
             let error = this.interner.push_expr(HirExpression::Error);
             this.interner.push_expr_location(error, location);
             (error, Type::Error)
