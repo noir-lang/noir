@@ -8,7 +8,7 @@ use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::FuzzingRunStatus,
     package::{CrateName, Package},
-    parse_all, prepare_package, FuzzFolderConfig,
+    parse_all, prepare_package, FuzzExecutionConfig, FuzzFolderConfig,
 };
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{json::serialize_to_json, Format};
@@ -60,6 +60,10 @@ pub(crate) struct FuzzCommand {
     /// JSON RPC url to solve oracle calls
     #[clap(long)]
     oracle_resolver: Option<String>,
+
+    /// Maximum time in seconds to spend fuzzing (default: no timeout)
+    #[arg(long)]
+    timeout: Option<u64>,
 }
 
 pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError> {
@@ -125,6 +129,9 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
         corpus_folder: args.corpus_folder,
         minimized_corpus_folder: args.minimized_corpus_folder,
     };
+    let fuzz_execution_config =
+        FuzzExecutionConfig { timeout: args.timeout.unwrap_or(0), num_threads: args.num_threads };
+
     // // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
     // // Default is 2MB.
     // let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
@@ -142,7 +149,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
                 Some(package.name.to_string()),
                 &args.compile_options,
                 &fuzz_folder_config,
-                args.num_threads,
+                &fuzz_execution_config,
             )
             .unwrap_or_else(|_| Vec::new())
         })
@@ -206,7 +213,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     package_name: Option<String>,
     compile_options: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
-    num_threads: usize,
+    fuzz_execution_config: &FuzzExecutionConfig,
 ) -> Result<Vec<(String, FuzzingRunStatus)>, CliError> {
     let fuzzing_harnesses = get_fuzzing_harnesses_in_package(
         file_manager,
@@ -216,35 +223,33 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         compile_options,
     )?;
 
-    let fuzzing_report: Vec<(String, FuzzingRunStatus)> = fuzzing_harnesses
-        .into_iter()
-        .map(|fuzzing_harness_name| {
-            let status = run_fuzzing_harness::<S>(
-                file_manager,
-                parsed_files,
-                package,
-                &fuzzing_harness_name,
-                show_output,
-                foreign_call_resolver_url,
-                root_path.clone(),
-                package_name.clone(),
-                compile_options,
-                fuzz_folder_config,
-                num_threads,
-            );
+    let mut fuzzing_reports = Vec::new();
+    for fuzzing_harness_name in fuzzing_harnesses.into_iter() {
+        let status = run_fuzzing_harness::<S>(
+            file_manager,
+            parsed_files,
+            package,
+            &fuzzing_harness_name,
+            show_output,
+            foreign_call_resolver_url,
+            root_path.clone(),
+            package_name.clone(),
+            compile_options,
+            fuzz_folder_config,
+            fuzz_execution_config,
+        );
+        fuzzing_reports.push((fuzzing_harness_name, status));
+        // Display the latest report
+        display_fuzzing_report_and_store(
+            root_path.clone(),
+            file_manager,
+            package,
+            compile_options,
+            &fuzzing_reports[(&fuzzing_reports.len() - 1)..fuzzing_reports.len()],
+        )?;
+    }
 
-            (fuzzing_harness_name, status)
-        })
-        .collect();
-
-    display_fuzzing_report_and_store(
-        root_path.clone(),
-        file_manager,
-        package,
-        compile_options,
-        &fuzzing_report,
-    )?;
-    Ok(fuzzing_report)
+    Ok(fuzzing_reports)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -259,7 +264,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     package_name: Option<String>,
     compile_options: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
-    num_threads: usize,
+    fuzz_execution_config: &FuzzExecutionConfig,
 ) -> FuzzingRunStatus {
     // This is really hacky but we can't share `Context` or `S` across threads.
     // We then need to construct a separate copy for each test.
@@ -282,7 +287,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         package_name,
         compile_options,
         &fuzz_folder_config,
-        num_threads,
+        fuzz_execution_config,
     )
 }
 

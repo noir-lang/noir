@@ -2,7 +2,7 @@ use core::panic;
 use std::{
     cmp::max,
     path::{Path, PathBuf},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use acvm::{
@@ -248,6 +248,12 @@ impl Metrics {
         self.removed_testcase_last_round = false;
     }
 }
+pub struct FuzzedExecutorExecutionConfiguration {
+    /// Number of threads to use for fuzzing
+    pub num_threads: usize,
+    /// Maximum time in seconds to spend fuzzing (default: no timeout)
+    pub timeout: u64,
+}
 
 pub struct FuzzedExecutorFailureConfiguration {
     /// Fail on specific asserts
@@ -313,6 +319,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Execution metric
     metrics: Metrics,
+
+    /// Maximum time in seconds to spend fuzzing (default: no timeout)
+    timeout: u64,
 }
 pub struct AcirAndBrilligPrograms {
     pub acir_program: ProgramArtifact,
@@ -339,7 +348,7 @@ impl<
         brillig_executor: F,
         package_name: &str,
         function_name: &str,
-        num_threads: usize,
+        fuzz_execution_config: FuzzedExecutorExecutionConfiguration,
         failure_configuration: FuzzedExecutorFailureConfiguration,
         folder_configuration: FuzzedExecutorFolderConfiguration,
     ) -> Self {
@@ -365,7 +374,7 @@ impl<
             mutator,
             package_name: package_name.to_string(),
             function_name: function_name.to_string(),
-            num_threads,
+            num_threads: fuzz_execution_config.num_threads,
             failure_configuration,
             corpus_folder: PathBuf::from(
                 folder_configuration.corpus_folder.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
@@ -374,7 +383,7 @@ impl<
             minimized_corpus_folder: PathBuf::from(
                 folder_configuration.minimized_corpus_folder.unwrap_or_default(),
             ),
-
+            timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
         }
     }
@@ -504,7 +513,8 @@ impl<
             .unwrap();
 
         let testcases_per_iteration = self.num_threads * 2;
-        let mut time_tracker = Instant::now();
+        let time_tracker = Instant::now();
+        let mut last_metric_check = time_tracker.elapsed();
         let mut brillig_executions_multiplier = 1usize;
         let mut acir_executions_multiplier = 1usize;
         let mut processed_starting_corpus = false;
@@ -661,11 +671,14 @@ impl<
             let updating_time_tracker = Instant::now();
 
             self.metrics.increase_processed_testcase_count(&current_round_size);
-
+            self.metrics.set_last_round_size(current_round_size);
+            self.metrics.set_last_round_execution_time(fuzz_time_micros);
             // Check if there are any failures and immediately break the loop if some are found
             if let Some(individual_failing_result) =
                 all_fuzzing_results.iter().find(|fast_result| fast_result.failed())
             {
+                self.metrics.set_active_corpus_size(corpus.get_testcase_count());
+                display_metrics(&self.metrics);
                 break individual_failing_result.outcome().clone();
             }
 
@@ -878,17 +891,21 @@ impl<
             }
             // If we've found something, return
             if let Some(result) = failing_result {
+                self.metrics.set_active_corpus_size(corpus.get_testcase_count());
+                display_metrics(&self.metrics);
                 break result;
             }
-            if time_tracker.elapsed().as_secs() >= 1 {
+            if time_tracker.elapsed() - last_metric_check >= Duration::from_secs(1) {
                 // Update and display metrics
                 self.metrics.set_active_corpus_size(corpus.get_testcase_count());
-                self.metrics.set_last_round_size(current_round_size);
                 self.metrics.set_last_round_update_time(updating_time);
-                self.metrics.set_last_round_execution_time(fuzz_time_micros);
                 display_metrics(&self.metrics);
                 self.metrics.refresh_round();
-                time_tracker = Instant::now();
+                last_metric_check = time_tracker.elapsed();
+                // Check if we've exceeded the timeout
+                if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
+                    return FuzzTestResult::Success;
+                }
             }
 
             if self.minimize_corpus {

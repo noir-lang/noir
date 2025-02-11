@@ -6,8 +6,8 @@ use acvm::{
     BlackBoxFunctionSolver, FieldElement,
 };
 use noir_greybox_fuzzer::{
-    AcirAndBrilligPrograms, ErrorAndCoverage, FuzzTestResult, FuzzedExecutorFailureConfiguration,
-    FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
+    AcirAndBrilligPrograms, ErrorAndCoverage, FuzzTestResult, FuzzedExecutorExecutionConfiguration,
+    FuzzedExecutorFailureConfiguration, FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
 };
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{compile_no_check, CompileOptions};
@@ -20,6 +20,13 @@ use crate::{
 use crate::{foreign_calls::DefaultForeignCallExecutor, PrintOutput};
 
 use super::execute_program;
+/// Configuration for fuzzing loop execution
+pub struct FuzzExecutionConfig {
+    /// Number of threads to use for fuzzing
+    pub num_threads: usize,
+    /// Maximum time in seconds to spend fuzzing (default: no timeout)
+    pub timeout: u64,
+}
 
 /// Folder configuration for fuzzing
 pub struct FuzzFolderConfig {
@@ -68,7 +75,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     package_name: Option<String>,
     compile_config: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
-    num_threads: usize,
+    fuzz_execution_config: &FuzzExecutionConfig,
 ) -> FuzzingRunStatus {
     let fuzzing_harness_has_no_arguments = context
         .def_interner
@@ -182,7 +189,10 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                     brillig_executor,
                     &package_name.clone().unwrap(),
                     context.def_interner.function_name(&fuzzing_harness.get_id()),
-                    num_threads,
+                    FuzzedExecutorExecutionConfiguration {
+                        num_threads: fuzz_execution_config.num_threads,
+                        timeout: fuzz_execution_config.timeout,
+                    },
                     FuzzedExecutorFailureConfiguration {
                         fail_on_specific_asserts: fuzzing_harness.only_fail_enabled(),
                         failure_reason: fuzzing_harness.failure_reason(),
