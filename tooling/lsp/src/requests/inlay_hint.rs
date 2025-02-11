@@ -322,7 +322,7 @@ impl<'a> InlayHintCollector<'a> {
 
 impl<'a> Visitor for InlayHintCollector<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.intersects_span(item.span)
+        self.intersects_span(item.location.span)
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {

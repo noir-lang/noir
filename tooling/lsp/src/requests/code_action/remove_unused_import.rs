@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use fm::FileId;
 use lsp_types::TextEdit;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
     parser::{Item, ItemKind},
@@ -130,7 +131,7 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
     let parsed_module = ParsedModule {
         items: vec![Item {
             kind: ItemKind::Import(use_tree, visibility),
-            span: Span::from(0..source.len() as u32),
+            location: Location::new(Span::from(0..source.len() as u32), FileId::dummy()),
             doc_comments: Vec::new(),
         }],
         inner_doc_comments: Vec::new(),

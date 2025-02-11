@@ -1192,13 +1192,13 @@ impl<'a> NodeFinder<'a> {
 impl<'a> Visitor for NodeFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
             self.use_segment_positions.add(use_tree);
         }
 
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_import(

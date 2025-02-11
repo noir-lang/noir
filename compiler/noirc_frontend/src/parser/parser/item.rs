@@ -92,13 +92,13 @@ impl<'a> Parser<'a> {
         let start_location = self.current_token_location;
         let doc_comments = self.parse_outer_doc_comments();
         let kinds = self.parse_item_kind();
-        let span = self.location_since(start_location).span;
+        let location = self.location_since(start_location);
 
         if kinds.is_empty() && !doc_comments.is_empty() {
             self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
-        vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
+        vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.

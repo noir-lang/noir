@@ -33,7 +33,7 @@ pub(super) fn parsed_module_with_file(parsed_module: ParsedModule, file: FileId)
 fn item_with_file(item: Item, file: FileId) -> Item {
     Item {
         kind: item_kind_with_file(item.kind, file),
-        span: item.span,
+        location: item.location,
         doc_comments: item.doc_comments,
     }
 }

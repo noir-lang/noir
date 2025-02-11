@@ -334,7 +334,7 @@ impl<'a> SignatureFinder<'a> {
 
 impl<'a> Visitor for SignatureFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {

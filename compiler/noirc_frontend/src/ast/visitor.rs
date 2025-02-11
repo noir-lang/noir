@@ -515,31 +515,33 @@ impl Item {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        let span = self.location.span;
+
         match &self.kind {
             ItemKind::Submodules(parsed_sub_module) => {
-                parsed_sub_module.accept(self.span, visitor);
+                parsed_sub_module.accept(span, visitor);
             }
-            ItemKind::Function(noir_function) => noir_function.accept(self.span, visitor),
+            ItemKind::Function(noir_function) => noir_function.accept(span, visitor),
             ItemKind::TraitImpl(noir_trait_impl) => {
-                noir_trait_impl.accept(self.span, visitor);
+                noir_trait_impl.accept(span, visitor);
             }
-            ItemKind::Impl(type_impl) => type_impl.accept(self.span, visitor),
+            ItemKind::Impl(type_impl) => type_impl.accept(span, visitor),
             ItemKind::Global(let_statement, _visibility) => {
-                if visitor.visit_global(let_statement, self.span) {
+                if visitor.visit_global(let_statement, span) {
                     let_statement.accept(visitor);
                 }
             }
-            ItemKind::Trait(noir_trait) => noir_trait.accept(self.span, visitor),
+            ItemKind::Trait(noir_trait) => noir_trait.accept(span, visitor),
             ItemKind::Import(use_tree, visibility) => {
-                if visitor.visit_import(use_tree, self.span, *visibility) {
+                if visitor.visit_import(use_tree, span, *visibility) {
                     use_tree.accept(visitor);
                 }
             }
-            ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(self.span, visitor),
-            ItemKind::Struct(noir_struct) => noir_struct.accept(self.span, visitor),
-            ItemKind::Enum(noir_enum) => noir_enum.accept(self.span, visitor),
+            ItemKind::TypeAlias(noir_type_alias) => noir_type_alias.accept(span, visitor),
+            ItemKind::Struct(noir_struct) => noir_struct.accept(span, visitor),
+            ItemKind::Enum(noir_enum) => noir_enum.accept(span, visitor),
             ItemKind::ModuleDecl(module_declaration) => {
-                module_declaration.accept(self.span, visitor);
+                module_declaration.accept(span, visitor);
             }
             ItemKind::InnerAttribute(attribute) => {
                 attribute.accept(AttributeTarget::Module, visitor);
@@ -838,79 +840,80 @@ impl Expression {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        let span = self.location.span;
         match &self.kind {
-            ExpressionKind::Literal(literal) => literal.accept(self.location.span, visitor),
+            ExpressionKind::Literal(literal) => literal.accept(span, visitor),
             ExpressionKind::Block(block_expression) => {
-                block_expression.accept(Some(self.location.span), visitor);
+                block_expression.accept(Some(span), visitor);
             }
             ExpressionKind::Prefix(prefix_expression) => {
-                prefix_expression.accept(self.location.span, visitor);
+                prefix_expression.accept(span, visitor);
             }
             ExpressionKind::Index(index_expression) => {
-                index_expression.accept(self.location.span, visitor);
+                index_expression.accept(span, visitor);
             }
             ExpressionKind::Call(call_expression) => {
-                call_expression.accept(self.location.span, visitor);
+                call_expression.accept(span, visitor);
             }
             ExpressionKind::MethodCall(method_call_expression) => {
-                method_call_expression.accept(self.location.span, visitor);
+                method_call_expression.accept(span, visitor);
             }
             ExpressionKind::Constrain(constrain) => {
                 constrain.accept(visitor);
             }
             ExpressionKind::Constructor(constructor_expression) => {
-                constructor_expression.accept(self.location.span, visitor);
+                constructor_expression.accept(span, visitor);
             }
             ExpressionKind::MemberAccess(member_access_expression) => {
-                member_access_expression.accept(self.location.span, visitor);
+                member_access_expression.accept(span, visitor);
             }
             ExpressionKind::Cast(cast_expression) => {
-                cast_expression.accept(self.location.span, visitor);
+                cast_expression.accept(span, visitor);
             }
             ExpressionKind::Infix(infix_expression) => {
-                infix_expression.accept(self.location.span, visitor);
+                infix_expression.accept(span, visitor);
             }
             ExpressionKind::If(if_expression) => {
-                if_expression.accept(self.location.span, visitor);
+                if_expression.accept(span, visitor);
             }
             ExpressionKind::Match(match_expression) => {
-                match_expression.accept(self.location.span, visitor);
+                match_expression.accept(span, visitor);
             }
             ExpressionKind::Tuple(expressions) => {
-                if visitor.visit_tuple(expressions, self.location.span) {
+                if visitor.visit_tuple(expressions, span) {
                     visit_expressions(expressions, visitor);
                 }
             }
-            ExpressionKind::Lambda(lambda) => lambda.accept(self.location.span, visitor),
+            ExpressionKind::Lambda(lambda) => lambda.accept(span, visitor),
             ExpressionKind::Parenthesized(expression) => {
-                if visitor.visit_parenthesized(expression, self.location.span) {
+                if visitor.visit_parenthesized(expression, span) {
                     expression.accept(visitor);
                 }
             }
             ExpressionKind::Unquote(expression) => {
-                if visitor.visit_unquote(expression, self.location.span) {
+                if visitor.visit_unquote(expression, span) {
                     expression.accept(visitor);
                 }
             }
             ExpressionKind::Comptime(block_expression, _) => {
-                if visitor.visit_comptime_expression(block_expression, self.location.span) {
+                if visitor.visit_comptime_expression(block_expression, span) {
                     block_expression.accept(None, visitor);
                 }
             }
             ExpressionKind::Unsafe(block_expression, _) => {
-                if visitor.visit_unsafe(block_expression, self.location.span) {
+                if visitor.visit_unsafe(block_expression, span) {
                     block_expression.accept(None, visitor);
                 }
             }
             ExpressionKind::Variable(path) => {
-                if visitor.visit_variable(path, self.location.span) {
+                if visitor.visit_variable(path, span) {
                     path.accept(visitor);
                 }
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                as_trait_path.accept(self.location.span, visitor);
+                as_trait_path.accept(span, visitor);
             }
-            ExpressionKind::TypePath(path) => path.accept(self.location.span, visitor),
+            ExpressionKind::TypePath(path) => path.accept(span, visitor),
             ExpressionKind::Quote(tokens) => visitor.visit_quote(tokens),
             ExpressionKind::Resolved(expr_id) => visitor.visit_resolved_expression(*expr_id),
             ExpressionKind::Interned(id) => visitor.visit_interned_expression(*id),
