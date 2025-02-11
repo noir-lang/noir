@@ -3,7 +3,7 @@
 use std::embedded_curve_ops::embedded_curve_add_unsafe;
 use std::embedded_curve_ops::EmbeddedCurvePoint;
 
-unconstrained fn main(
+fn main(
     points: [EmbeddedCurvePoint; 5],
     scalars: [Field; 5],
 ) -> pub EmbeddedCurvePoint {
