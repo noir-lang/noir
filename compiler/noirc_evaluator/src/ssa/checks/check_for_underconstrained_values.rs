@@ -14,10 +14,6 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use tracing::trace;
 
-/// The number of instructions that have to be passed to stop
-/// following a Brillig call, with assumption it wouldn't get constrained
-const BRILLIG_CONSTRAINT_SEARCH_DEPTH: usize = 10_000_000;
-
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
     /// If this is the case, then part of the final circuit can be completely replaced by any other passing circuit, since there are no constraints ensuring connections.
@@ -119,9 +115,6 @@ struct DependencyContext {
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
     // Maintains count of calls being tracked
     tracking_count: usize,
-    // Map of block indices to Brillig call ids that should not be
-    // followed after meeting them
-    search_limits: HashMap<usize, InstructionId>,
     // Opt-in to use the lookback feature (tracking the argument values
     // of a Brillig call before the call happens if their usage precedes
     // it). Can prevent certain false positives, at the cost of
@@ -373,12 +366,6 @@ impl DependencyContext {
                                             .or_default()
                                             .push(*instruction);
                                     });
-
-                                    // Set the constraint search limit for the call
-                                    self.search_limits.insert(
-                                        block_index + BRILLIG_CONSTRAINT_SEARCH_DEPTH,
-                                        *instruction,
-                                    );
                                 }
 
                                 if let Some(location) = location {
@@ -420,14 +407,6 @@ impl DependencyContext {
             if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
                 tainted_ids.tracking = true;
                 self.tracking_count += 1;
-            }
-
-            // Stop tracking calls when their search limit is hit
-            if let Some(call) = self.search_limits.get(&block_index) {
-                if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                    tainted_ids.tracking = false;
-                    self.tracking_count -= 1;
-                }
             }
 
             // We can skip over instructions while nothing is being tracked
