@@ -42,8 +42,8 @@ impl WorkspaceCommand for CheckCommand {
         self.package_options.package_selection()
     }
     fn lock_type(&self) -> LockType {
-        // Creates a Nargo.toml template if it doesn't exist, but only if `allow_overwrite` is true.
-        // Doesn't produce compilation artifacts.
+        // Creates a Nargo.toml template if it doesn't exist, otherwise only writes if `allow_overwrite` is true,
+        // so it shouldn't lead to any conflicts. Doesn't produce compilation artifacts.
         LockType::None
     }
 }

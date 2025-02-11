@@ -59,7 +59,9 @@ impl WorkspaceCommand for DebugCommand {
     }
 
     fn lock_type(&self) -> LockType {
-        LockType::Shared
+        // Always compiles fresh in-memory in debug mode, doesn't read or write the compilation artifacts.
+        // Reads the Prover.toml file and writes the witness at the end, but shouldn't conflict with others.
+        LockType::None
     }
 }
 
