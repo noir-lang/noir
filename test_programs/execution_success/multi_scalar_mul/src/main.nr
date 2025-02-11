@@ -3,7 +3,7 @@
 use std::embedded_curve_ops::embedded_curve_add_unsafe;
 use std::embedded_curve_ops::EmbeddedCurvePoint;
 
-fn main(
+unconstrained fn main(
     points: [EmbeddedCurvePoint; 5],
     scalars: [Field; 5],
 ) -> pub EmbeddedCurvePoint {
@@ -30,9 +30,9 @@ fn main(
             let k = 253 - j;
 
             // Add
-           if full_scalar_bits[k] == 1 {
-                 res = embedded_curve_add_unsafe(res, temp);
-           } 
+            if full_scalar_bits[k] == 1 {
+                res = embedded_curve_add_unsafe(res, temp);
+            }
             // Double
             temp = embedded_curve_add_unsafe(temp, temp);
         }
