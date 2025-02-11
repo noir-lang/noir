@@ -122,7 +122,7 @@ pub enum InternalWarning {
 pub enum InternalBug {
     #[error("Input to Brillig function is in a separate subgraph to output")]
     IndependentSubgraph { call_stack: CallStack },
-    #[error("Brillig function call isn't properly covered by a manual constraint (in space of 1000 instructions)")]
+    #[error("Brillig function call isn't properly covered by a manual constraint")]
     UncheckedBrilligCall { call_stack: CallStack },
     #[error("Assertion is always false")]
     AssertFailed { call_stack: CallStack },
