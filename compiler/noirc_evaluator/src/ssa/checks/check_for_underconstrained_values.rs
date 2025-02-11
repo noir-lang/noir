@@ -515,7 +515,7 @@ impl DependencyContext {
                                     self.update_children(&arguments, &results);
                                 }
                             },
-                            Value::Function(callee) => match all_functions[&callee].runtime() {
+                            Value::Function(callee) => match all_functions[callee].runtime() {
                                 // Only update tainted sets for non-Brillig calls, as
                                 // the chained Brillig case should already be covered
                                 RuntimeType::Acir(..) => {
