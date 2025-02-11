@@ -1,4 +1,4 @@
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Statement = Attributes StatementKind ';'?
-    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
+    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         loop {
             let location_before_doc_comments = self.current_token_location;
             let doc_comments = self.parse_outer_doc_comments();
@@ -59,21 +59,21 @@ impl<'a> Parser<'a> {
 
             self.statement_doc_comments = None;
 
-            let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
+            let (semicolon_token, semicolon_location) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
                 self.bump();
-                let span = token.to_span();
+                let location = token.to_location();
 
-                (Some(token.into_token()), span)
+                (Some(token.into_token()), location)
             } else {
-                (None, self.previous_token_location.span)
+                (None, self.previous_token_location)
             };
 
             let location = self.location_since(start_location);
 
             if let Some(kind) = kind {
                 let statement = Statement { kind, location };
-                return Some((statement, (semicolon_token, semicolon_span)));
+                return Some((statement, (semicolon_token, semicolon_location)));
             }
 
             self.expected_label(ParsingRuleLabel::Statement);

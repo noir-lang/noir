@@ -460,10 +460,10 @@ impl UnresolvedTypeExpression {
     #[allow(clippy::result_large_err)]
     pub(crate) fn from_expr(
         expr: Expression,
-        span: Span,
+        location: Location,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
         Self::from_expr_helper(expr).map_err(|err_expr| {
-            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), span)
+            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), location)
         })
     }
 

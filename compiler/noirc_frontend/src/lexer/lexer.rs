@@ -105,7 +105,7 @@ impl<'a> Lexer<'a> {
             // When we issue this error the first '&' will already be consumed
             // and the next token issued will be the next '&'.
             let span = Span::inclusive(self.position, self.position + 1);
-            Err(LexerErrorKind::LogicalAnd { span })
+            Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
         } else {
             self.single_char_token(Token::Ampersand)
         }
@@ -277,7 +277,7 @@ impl<'a> Lexer<'a> {
                 Ok(prev_token.into_single_span(start))
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: prev_token,
             }),
         }
@@ -319,7 +319,7 @@ impl<'a> Lexer<'a> {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
             '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
             }),
@@ -338,7 +338,7 @@ impl<'a> Lexer<'a> {
 
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: self.next_char(),
                 expected: "[".to_owned(),
             });
@@ -415,7 +415,7 @@ impl<'a> Lexer<'a> {
         let consecutive_underscores = integer_str.contains("__");
         if invalid_underscore_location || consecutive_underscores {
             return Err(LexerErrorKind::InvalidIntegerLiteral {
-                span: Span::inclusive(start, end),
+                location: self.location(Span::inclusive(start, end)),
                 found: integer_str,
             });
         }
@@ -432,7 +432,7 @@ impl<'a> Lexer<'a> {
             Ok(bigint) => {
                 if bigint > self.max_integer {
                     return Err(LexerErrorKind::IntegerLiteralTooLarge {
-                        span: Span::inclusive(start, end),
+                        location: self.location(Span::inclusive(start, end)),
                         limit: self.max_integer.to_string(),
                     });
                 }
@@ -441,7 +441,7 @@ impl<'a> Lexer<'a> {
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
-                    span: Span::inclusive(start, end),
+                    location: self.location(Span::inclusive(start, end)),
                     found: integer_str,
                 })
             }
@@ -468,11 +468,16 @@ impl<'a> Lexer<'a> {
                         Some('\\') => '\\',
                         Some(escaped) => {
                             let span = Span::inclusive(start, self.position);
-                            return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                            return Err(LexerErrorKind::InvalidEscape {
+                                escaped,
+                                location: self.location(span),
+                            });
                         }
                         None => {
                             let span = Span::inclusive(start, self.position);
-                            return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                            return Err(LexerErrorKind::UnterminatedStringLiteral {
+                                location: self.location(span),
+                            });
                         }
                     },
                     other => other,
@@ -481,7 +486,9 @@ impl<'a> Lexer<'a> {
                 string.push(char);
             } else {
                 let span = Span::inclusive(start, self.position);
-                return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                return Err(LexerErrorKind::UnterminatedStringLiteral {
+                    location: self.location(span),
+                });
             }
         }
 
@@ -515,11 +522,16 @@ impl<'a> Lexer<'a> {
                             Some('\\') => '\\',
                             Some(escaped) => {
                                 let span = Span::inclusive(start, self.position);
-                                return Err(LexerErrorKind::InvalidEscape { escaped, span });
+                                return Err(LexerErrorKind::InvalidEscape {
+                                    escaped,
+                                    location: self.location(span),
+                                });
                             }
                             None => {
                                 let span = Span::inclusive(start, self.position);
-                                return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                                return Err(LexerErrorKind::UnterminatedStringLiteral {
+                                    location: self.location(span),
+                                });
                             }
                         },
                         '{' if self.peek_char_is('{') => {
@@ -537,7 +549,10 @@ impl<'a> Lexer<'a> {
                             self.skip_until_string_end();
 
                             let span = Span::inclusive(error_position, error_position);
-                            return Err(LexerErrorKind::InvalidFormatString { found: '}', span });
+                            return Err(LexerErrorKind::InvalidFormatString {
+                                found: '}',
+                                location: self.location(span),
+                            });
                         }
                         '{' => {
                             found_curly = true;
@@ -561,7 +576,9 @@ impl<'a> Lexer<'a> {
                     }
                 } else {
                     let span = Span::inclusive(start, self.position);
-                    return Err(LexerErrorKind::UnterminatedStringLiteral { span });
+                    return Err(LexerErrorKind::UnterminatedStringLiteral {
+                        location: self.location(span),
+                    });
                 }
             }
 
@@ -589,7 +606,9 @@ impl<'a> Lexer<'a> {
                             self.skip_until_string_end();
 
                             let span = Span::inclusive(error_position, error_position);
-                            return Err(LexerErrorKind::EmptyFormatStringInterpolation { span });
+                            return Err(LexerErrorKind::EmptyFormatStringInterpolation {
+                                location: self.location(span),
+                            });
                         }
 
                         break;
@@ -610,7 +629,10 @@ impl<'a> Lexer<'a> {
                             }
 
                             let span = Span::inclusive(error_position, error_position);
-                            return Err(LexerErrorKind::InvalidFormatString { found: other, span });
+                            return Err(LexerErrorKind::InvalidFormatString {
+                                found: other,
+                                location: self.location(span),
+                            });
                         }
                         first_char = false;
                         other
@@ -658,7 +680,7 @@ impl<'a> Lexer<'a> {
             // too many hashes (unlikely in practice)
             // also, Rust disallows 256+ hashes as well
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(start + 255),
+                location: self.location(Span::single_char(start + 255)),
                 found: Some('#'),
                 expected: "\"".to_owned(),
             });
@@ -666,7 +688,7 @@ impl<'a> Lexer<'a> {
 
         if !self.peek_char_is('"') {
             return Err(LexerErrorKind::UnexpectedCharacter {
-                span: Span::single_char(self.position),
+                location: self.location(Span::single_char(self.position)),
                 found: self.next_char(),
                 expected: "\"".to_owned(),
             });
@@ -679,7 +701,7 @@ impl<'a> Lexer<'a> {
             str_literal.push_str(&chars[..]);
             if !self.peek_char_is('"') {
                 return Err(LexerErrorKind::UnexpectedCharacter {
-                    span: Span::single_char(self.position),
+                    location: self.location(Span::single_char(self.position)),
                     found: self.next_char(),
                     expected: "\"".to_owned(),
                 });
@@ -736,11 +758,7 @@ impl<'a> Lexer<'a> {
             Token::LeftBrace => (Token::LeftBrace, Token::RightBrace),
             Token::LeftBracket => (Token::LeftBracket, Token::RightBracket),
             Token::LeftParen => (Token::LeftParen, Token::RightParen),
-            _ => {
-                return Err(LexerErrorKind::InvalidQuoteDelimiter {
-                    delimiter: delimiter.into_spanned_token(),
-                })
-            }
+            _ => return Err(LexerErrorKind::InvalidQuoteDelimiter { delimiter }),
         };
 
         let mut tokens = Vec::new();
@@ -758,10 +776,7 @@ impl<'a> Lexer<'a> {
             } else if *token.token() == Token::EOF {
                 let start_delim =
                     nested_delimiters.pop().expect("If this were empty, we wouldn't be looping");
-                return Err(LexerErrorKind::UnclosedQuote {
-                    start_delim: start_delim.into_spanned_token(),
-                    end_delim,
-                });
+                return Err(LexerErrorKind::UnclosedQuote { start_delim, end_delim });
             }
 
             tokens.push(token);
@@ -792,7 +807,7 @@ impl<'a> Lexer<'a> {
 
         if !comment.is_ascii() {
             let span = Span::from(start..self.position);
-            return Err(LexerErrorKind::NonAsciiComment { span });
+            return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
         }
 
         Ok(Token::LineComment(comment, doc_style).into_span(start, self.position))
@@ -837,13 +852,13 @@ impl<'a> Lexer<'a> {
         if depth == 0 {
             if !content.is_ascii() {
                 let span = Span::from(start..self.position);
-                return Err(LexerErrorKind::NonAsciiComment { span });
+                return Err(LexerErrorKind::NonAsciiComment { location: self.location(span) });
             }
 
             Ok(Token::BlockComment(content, doc_style).into_span(start, self.position))
         } else {
             let span = Span::inclusive(start, self.position);
-            Err(LexerErrorKind::UnterminatedBlockComment { span })
+            Err(LexerErrorKind::UnterminatedBlockComment { location: self.location(span) })
         }
     }
 
@@ -856,6 +871,10 @@ impl<'a> Lexer<'a> {
         let start = self.position;
         let whitespace = self.eat_while(initial_char.into(), Self::is_code_whitespace);
         SpannedToken::new(Token::Whitespace(whitespace), Span::inclusive(start, self.position))
+    }
+
+    fn location(&self, span: Span) -> Location {
+        Location::new(span, self.file_id)
     }
 }
 

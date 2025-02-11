@@ -64,11 +64,11 @@ impl Statement {
     pub fn add_semicolon(
         mut self,
         semi: Option<Token>,
-        span: Span,
+        location: Location,
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Self {
-        self.kind = self.kind.add_semicolon(semi, span, last_statement_in_block, emit_error);
+        self.kind = self.kind.add_semicolon(semi, location, last_statement_in_block, emit_error);
         self
     }
 }
@@ -77,12 +77,12 @@ impl StatementKind {
     pub fn add_semicolon(
         self,
         semi: Option<Token>,
-        span: Span,
+        location: Location,
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Self {
         let missing_semicolon =
-            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         match self {
             StatementKind::Let(_)
@@ -99,7 +99,7 @@ impl StatementKind {
             }
             StatementKind::Comptime(mut statement) => {
                 *statement =
-                    statement.add_semicolon(semi, span, last_statement_in_block, emit_error);
+                    statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
             }
             // A semicolon on a for loop is optional and does nothing

@@ -514,7 +514,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
-            self.current_token_location.span,
+            self.current_token_location,
         ));
     }
 
@@ -522,7 +522,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
-            self.current_token_location.span,
+            self.current_token_location,
         ));
     }
 
@@ -530,7 +530,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
-            self.current_token_location.span,
+            self.current_token_location,
         ));
     }
 
@@ -607,7 +607,7 @@ impl<'a> Parser<'a> {
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
-        self.errors.push(ParserError::with_reason(reason, location.span));
+        self.errors.push(ParserError::with_reason(reason, location));
     }
 }
 

@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -881,7 +881,7 @@ impl<'a> Parser<'a> {
         Some(BlockExpression { statements })
     }
 
-    fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
+    fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         if let Some(statement) = self.parse_statement() {
             Some(statement)
         } else {
@@ -892,13 +892,13 @@ impl<'a> Parser<'a> {
 
     fn check_statements_require_semicolon(
         &mut self,
-        statements: Vec<(Statement, (Option<Token>, Span))>,
+        statements: Vec<(Statement, (Option<Token>, Location))>,
     ) -> Vec<Statement> {
         let last = statements.len().saturating_sub(1);
         let iter = statements.into_iter().enumerate();
-        vecmap(iter, |(i, (statement, (semicolon, span)))| {
+        vecmap(iter, |(i, (statement, (semicolon, location)))| {
             statement
-                .add_semicolon(semicolon, span, i == last, &mut |error| self.errors.push(error))
+                .add_semicolon(semicolon, location, i == last, &mut |error| self.errors.push(error))
         })
     }
 

@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
             Attribute::Function(function_attribute) => {
                 self.errors.push(
                     LexerErrorKind::InvalidInnerAttribute {
-                        span: self.location_since(start_location).span,
+                        location: self.location_since(start_location),
                         found: function_attribute.to_string(),
                     }
                     .into(),
@@ -302,7 +302,7 @@ impl<'a> Parser<'a> {
         } else {
             self.errors.push(
                 LexerErrorKind::MalformedTestAttribute {
-                    span: self.location_since(start_location).span,
+                    location: self.location_since(start_location),
                 }
                 .into(),
             );
@@ -341,10 +341,13 @@ impl<'a> Parser<'a> {
                 f(argument.to_string())
             }
             _ => {
-                let span = self.location_since(start_location).span;
+                let location = self.location_since(start_location);
                 self.errors.push(
-                    LexerErrorKind::MalformedFuncAttribute { span, found: argument.to_string() }
-                        .into(),
+                    LexerErrorKind::MalformedFuncAttribute {
+                        location,
+                        found: argument.to_string(),
+                    }
+                    .into(),
                 );
                 f(String::new())
             }

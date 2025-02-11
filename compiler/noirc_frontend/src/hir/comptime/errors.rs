@@ -153,7 +153,6 @@ pub enum InterpreterError {
         error: ParserError,
         tokens: String,
         rule: &'static str,
-        file: FileId,
     },
     UnsupportedTopLevelItemUnquote {
         item: String,
@@ -334,9 +333,7 @@ impl InterpreterError {
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
 
-            InterpreterError::FailedToParseMacro { error, file, .. } => {
-                Location::new(error.span(), *file)
-            }
+            InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error, file } => {
                 Location::new(error.span, *file)
             }
@@ -525,7 +522,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
-            InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
+            InterpreterError::FailedToParseMacro { error, tokens, rule } => {
                 let message = format!("Failed to parse macro's token stream into {rule}");
 
                 // If it's less than 48 chars, the error message fits in a single line (less than 80 chars total)

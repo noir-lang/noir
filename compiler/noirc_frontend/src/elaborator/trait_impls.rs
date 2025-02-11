@@ -251,7 +251,7 @@ impl<'context> Elaborator<'context> {
         let mut associated_types = Vec::new();
         for (name, _, expr) in trait_impl.associated_constants.drain(..) {
             let location = expr.location;
-            let typ = match UnresolvedTypeExpression::from_expr(expr, location.span) {
+            let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
                 Err(error) => {
                     self.push_err(error, location.file);

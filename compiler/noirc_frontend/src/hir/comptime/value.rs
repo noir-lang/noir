@@ -278,10 +278,9 @@ impl Value {
                     }
                     Err(mut errors) => {
                         let error = errors.swap_remove(0);
-                        let file = location.file;
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
-                        Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+                        Err(InterpreterError::FailedToParseMacro { error, tokens, rule })
                     }
                 };
             }
@@ -608,9 +607,8 @@ where
         }
         Err(mut errors) => {
             let error = errors.swap_remove(0);
-            let file = location.file;
             let tokens = tokens_to_string(&tokens, elaborator.interner);
-            Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+            Err(InterpreterError::FailedToParseMacro { error, tokens, rule })
         }
     }
 }

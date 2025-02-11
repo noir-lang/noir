@@ -278,11 +278,12 @@ impl<'context> Elaborator<'context> {
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
                 let location = length.location;
-                let length = UnresolvedTypeExpression::from_expr(*length, location.span)
-                    .unwrap_or_else(|error| {
+                let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
+                    |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)), location.file);
                         UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
-                    });
+                    },
+                );
 
                 let length = self.convert_expression_type(length, &Kind::u32(), location);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);

@@ -357,7 +357,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::expected_label(
             ParsingRuleLabel::TypeExpression,
             self.token.token().clone(),
-            self.current_token_location.span,
+            self.current_token_location,
         ))
     }
 }
