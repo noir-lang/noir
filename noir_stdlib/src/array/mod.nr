@@ -183,25 +183,25 @@ where
     ///     assert(sorted_descending == [32, 42]); // does not verify
     /// }
     /// ```
-    pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        /// Safety: `sorted` array is checked to be:
-        /// a. a permutation of `input`'s elements
-        /// b. satisfying the predicate `ordering`
-        unsafe {
-            let sorted = quicksort::quicksort(self, ordering);
+    pub fn sort_via(self, sortfn: fn(T, T) -> bool) -> Self
+    {
+        // Safety: `sorted` array is checked to be:
+        // a. a permutation of `input`'s elements
+        // b. satisfying the predicate `ordering`
+        let sorted = unsafe { quicksort::quicksort(self, sortfn) };
 
-            if !is_unconstrained() {
-                for i in 0..N - 1 {
-                    assert(
-                        ordering(sorted[i], sorted[i + 1]),
-                        "Array has not been sorted correctly according to `ordering`.",
-                    );
-                }
-                check_shuffle::check_shuffle(self, sorted);
+        if !is_unconstrained() {
+            for i in 0..N - 1 {
+                assert(
+                    sortfn(sorted[i], sorted[i + 1]),
+                    "Array has not been sorted correctly according to `ordering`.",
+                );
             }
-            sorted
+            check_shuffle::check_shuffle(self, sorted);
         }
+        sorted
     }
+
 }
 
 impl<let N: u32> [u8; N] {
@@ -231,5 +231,93 @@ mod test {
     #[test]
     fn map_empty() {
         assert_eq([].map(|x| x + 1), []);
+    }
+
+    global arr_with_100_values: [u32; 100] = [
+        42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2, 54,
+        89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41, 19, 98,
+        53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21, 43, 86, 35,
+        21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15, 127, 81, 30, 8,
+        125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+    ];
+    global expected_with_100_values: [u32; 100] = [
+        0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30, 32,
+        32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58, 61, 62,
+        62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82, 84, 84, 86,
+        86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114, 114, 116, 118,
+        119, 120, 121, 123, 123, 123, 125, 126, 127,
+    ];
+    fn sort_u32(a: u32, b: u32) -> bool {
+        a <= b
+    }
+
+    #[test]
+    fn test_sort() {
+        let mut arr: [u32; 7] = [3, 6, 8, 10, 1, 2, 1];
+
+        let sorted = arr.sort();
+
+        let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_100_values() {
+        let mut arr: [u32; 100] = [
+            42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2,
+            54, 89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41,
+            19, 98, 53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21,
+            43, 86, 35, 21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15,
+            127, 81, 30, 8, 125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+        ];
+
+        let sorted = arr.sort();
+
+        let expected: [u32; 100] = [
+            0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30,
+            32, 32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58,
+            61, 62, 62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82,
+            84, 84, 86, 86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114,
+            114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
+        ];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_100_values_comptime() {
+        let sorted = arr_with_100_values.sort();
+        assert(sorted == expected_with_100_values);
+    }
+
+    #[test]
+    fn test_sort_via() {
+        let mut arr: [u32; 7] = [3, 6, 8, 10, 1, 2, 1];
+
+        let sorted = arr.sort_via(sort_u32);
+
+        let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_via_100_values() {
+        let mut arr: [u32; 100] = [
+            42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2,
+            54, 89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41,
+            19, 98, 53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21,
+            43, 86, 35, 21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15,
+            127, 81, 30, 8, 125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+        ];
+
+        let sorted = arr.sort_via(sort_u32);
+
+        let expected: [u32; 100] = [
+            0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30,
+            32, 32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58,
+            61, 62, 62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82,
+            84, 84, 86, 86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114,
+            114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
+        ];
+        assert(sorted == expected);
     }
 }

@@ -1,8 +1,8 @@
-unconstrained fn partition<T, Env, let N: u32>(
+unconstrained fn partition<T, let N: u32>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: fn[Env](T, T) -> bool,
+    sortfn: unconstrained fn(T, T) -> bool,
 ) -> u32 {
     let pivot = high;
     let mut i = low;
@@ -14,34 +14,48 @@ unconstrained fn partition<T, Env, let N: u32>(
             i += 1;
         }
     }
+
     let temp = arr[i];
     arr[i] = arr[pivot];
     arr[pivot] = temp;
     i
 }
 
-unconstrained fn quicksort_recursive<T, Env, let N: u32>(
+unconstrained fn quicksort_loop<T, let N: u32>(
     arr: &mut [T; N],
     low: u32,
     high: u32,
-    sortfn: fn[Env](T, T) -> bool,
+    sortfn: unconstrained fn(T, T) -> bool,
 ) {
-    if low < high {
-        let pivot_index = partition(arr, low, high, sortfn);
-        if pivot_index > 0 {
-            quicksort_recursive(arr, low, pivot_index - 1, sortfn);
+    let mut stack: [(u32, u32)] = &[(low, high)];
+    // TODO(https://github.com/noir-lang/noir_sort/issues/22): use 'loop' once it's stabilized
+    for _ in 0..2 * N {
+        if stack.len() == 0 {
+            break;
         }
-        quicksort_recursive(arr, pivot_index + 1, high, sortfn);
+
+        let (new_stack, (new_low, new_high)) = stack.pop_back();
+        stack = new_stack;
+
+        if new_high < new_low + 1 {
+            continue;
+        }
+
+        let pivot_index = partition(arr, new_low, new_high, sortfn);
+        stack = stack.push_back((pivot_index + 1, new_high));
+        if 0 < pivot_index {
+            stack = stack.push_back((new_low, pivot_index - 1));
+        }
     }
 }
 
-pub(crate) unconstrained fn quicksort<T, Env, let N: u32>(
-    _arr: [T; N],
-    sortfn: fn[Env](T, T) -> bool,
+pub unconstrained fn quicksort<T, let N: u32>(
+    arr: [T; N],
+    sortfn: unconstrained fn(T, T) -> bool,
 ) -> [T; N] {
-    let mut arr: [T; N] = _arr;
+    let mut arr: [T; N] = arr;
     if arr.len() <= 1 {} else {
-        quicksort_recursive(&mut arr, 0, arr.len() - 1, sortfn);
+        quicksort_loop(&mut arr, 0, arr.len() - 1, sortfn);
     }
     arr
 }
