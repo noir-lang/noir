@@ -341,9 +341,7 @@ impl DependencyContext {
                             let location = call_stack.last();
 
                             // If there is no call stack (happens for tests), consider unvisited
-                            let mut visited = false;
-                            if let Some(location) = location {
-                                visited = self.visited_locations.contains(location);
+                            let visited = location.map(|loc| self.visited_locations.contains(loc)).unwrap_or_default();
                             }
 
                             if !visited {
