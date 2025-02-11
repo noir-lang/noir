@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739223195017,
+  "lastUpdate": 1739232571224,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9675,90 +9675,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jose@aztecprotocol.com",
-            "name": "José Pedro Sousa",
-            "username": "signorecello"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "248857d64b55cd8a846eace23f97bd2c11d2d7cf",
-          "message": "chore(docs): moving references to noir-starter to awesome-noir (#7203)\n\nCo-authored-by: signorecello <outgoing@zkpedro.dev>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>",
-          "timestamp": "2025-01-29T13:14:39Z",
-          "tree_id": "515c4f57627c770f34e5d8d6ac28b4568545aa3b",
-          "url": "https://github.com/noir-lang/noir/commit/248857d64b55cd8a846eace23f97bd2c11d2d7cf"
-        },
-        "date": 1738159736144,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.601,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.103,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 41.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.103,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.45,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.311,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -13698,6 +13614,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 35.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.101,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df0d72970a9d64d7bf6132b55142e26bb3720d73",
+          "message": "chore: remove some unused types and functions in the AST (#7339)",
+          "timestamp": "2025-02-10T23:51:11Z",
+          "tree_id": "2ee6e8c50724dd39cb1545898b32a7387700dab8",
+          "url": "https://github.com/noir-lang/noir/commit/df0d72970a9d64d7bf6132b55142e26bb3720d73"
+        },
+        "date": 1739232569751,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.067,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.309,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.418,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.557,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.6,
             "unit": "s"
           },
           {
