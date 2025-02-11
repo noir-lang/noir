@@ -18,13 +18,13 @@ use nargo::{
     ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
     PrintOutput,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use nargo_toml::PackageSelection;
+use noirc_driver::{check_crate, CompileOptions};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::{NargoConfig, PackageOptions};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 
 pub(crate) mod formatters;
 
@@ -68,6 +68,16 @@ pub(crate) struct TestCommand {
     /// Display one character per test instead of one line
     #[clap(short = 'q', long = "quiet")]
     quiet: bool,
+}
+
+impl WorkspaceCommand for TestCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
+    fn lock_type(&self) -> LockType {
+        // Reads the code to compile tests in memory, but doesn't save artifacts.
+        LockType::None
+    }
 }
 
 #[derive(Debug, Copy, Clone, clap::ValueEnum)]
@@ -116,15 +126,7 @@ struct TestResult {
 
 const STACK_SIZE: usize = 4 * 1024 * 1024;
 
-pub(crate) fn run(args: TestCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
-
+pub(crate) fn run(args: TestCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
     let parsed_files = parse_all(&file_manager);

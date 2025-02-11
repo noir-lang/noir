@@ -5,20 +5,18 @@ use fm::FileManager;
 use iter_extended::btree_map;
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, ops::report_errors,
-    package::Package, parse_all, prepare_package,
+    package::Package, parse_all, prepare_package, workspace::Workspace,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::PackageSelection;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{
-    check_crate, compute_function_abi, CompileOptions, CrateId, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{check_crate, compute_function_abi, CompileOptions, CrateId};
 use noirc_frontend::{
     hir::{Context, ParsedFiles},
     monomorphization::monomorphize,
 };
 
-use super::NargoConfig;
 use super::{fs::write_to_file, PackageOptions};
+use super::{LockType, WorkspaceCommand};
 
 /// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]
@@ -39,15 +37,18 @@ pub(crate) struct CheckCommand {
     show_program_hash: bool,
 }
 
-pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
+impl WorkspaceCommand for CheckCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
+    fn lock_type(&self) -> LockType {
+        // Creates a `Prover.toml` template if it doesn't exist, otherwise only writes if `allow_overwrite` is true,
+        // so it shouldn't lead to accidental conflicts. Doesn't produce compilation artifacts.
+        LockType::None
+    }
+}
 
+pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
