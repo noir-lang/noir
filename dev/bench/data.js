@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739276700621,
+  "lastUpdate": 1739292374145,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9645,95 +9645,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "784a562fac44f4af338040fa41ae86a0e3da919a",
-          "message": "chore(ci): Add test for global vars entry points regression (#7209)",
-          "timestamp": "2025-01-29T14:44:52Z",
-          "tree_id": "2a12d33aba1ca1a2cc724b8084212114a8857b76",
-          "url": "https://github.com/noir-lang/noir/commit/784a562fac44f4af338040fa41ae86a0e3da919a"
-        },
-        "date": 1738163268756,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.078,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.602,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 39.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.451,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.316,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -13648,6 +13559,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.102,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "668a476cf77b309f36bd63ca1ec48c6ae5b1e462",
+          "message": "chore: Basic test for MSM in Noir to catch performance improvements and regressions (#7341)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-11T16:21:08Z",
+          "tree_id": "62d04a008efb6954a7a0ccb5db40560f72b49aa4",
+          "url": "https://github.com/noir-lang/noir/commit/668a476cf77b309f36bd63ca1ec48c6ae5b1e462"
+        },
+        "date": 1739292372744,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.311,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.451,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.563,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.102,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.101,
             "unit": "s"
           }
         ]
