@@ -189,7 +189,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "`static_assert` and `assert_constant`",
         )?
         .run_pass(Ssa::purity_analysis, "Purity Analysis")
-        .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
+        // .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
