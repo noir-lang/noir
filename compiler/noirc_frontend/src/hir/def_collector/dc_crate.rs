@@ -2,7 +2,7 @@ use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
-use crate::hir::comptime::InterpreterError;
+use crate::hir::comptime::{InterpreterError, MacroError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
@@ -182,13 +182,14 @@ pub(crate) type ImplMap = HashMap<
     Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
 >;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompilationError {
     ParseError(ParserError),
     DefinitionError(DefCollectorErrorKind),
     ResolverError(ResolverError),
     TypeError(TypeCheckError),
     InterpreterError(InterpreterError),
+    MacroError(MacroError),
     DebugComptimeScopeNotFound(Vec<PathBuf>),
 }
 
@@ -201,6 +202,7 @@ impl std::fmt::Display for CompilationError {
             CompilationError::TypeError(error) => write!(f, "{}", error),
             CompilationError::InterpreterError(error) => write!(f, "{:?}", error),
             CompilationError::DebugComptimeScopeNotFound(error) => write!(f, "{:?}", error),
+            CompilationError::MacroError(error) => write!(f, "{:?}", error),
         }
     }
 }
@@ -213,6 +215,7 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
             CompilationError::ResolverError(error) => error.into(),
             CompilationError::TypeError(error) => error.into(),
             CompilationError::InterpreterError(error) => error.into(),
+            CompilationError::MacroError(error) => error.into(),
             CompilationError::DebugComptimeScopeNotFound(error) => {
                 let msg = "multiple files found matching --debug-comptime path".into();
                 let secondary = error.iter().fold(String::new(), |mut output, path| {

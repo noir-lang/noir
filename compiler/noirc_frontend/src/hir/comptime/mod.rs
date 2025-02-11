@@ -5,6 +5,6 @@ mod interpreter;
 mod tests;
 mod value;
 
-pub use errors::InterpreterError;
+pub use errors::{InterpreterError, MacroError};
 pub use interpreter::Interpreter;
 pub use value::Value;

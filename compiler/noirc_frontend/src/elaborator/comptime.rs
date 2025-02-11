@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Documented, Expression, ExpressionKind},
     hir::{
-        comptime::{Interpreter, InterpreterError, Value},
+        comptime::{Interpreter, InterpreterError, MacroError, Value},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
@@ -352,15 +352,28 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
+        // Don't collect errors in `self.errors` yet...
+        let mut errors = Vec::new();
         for item in items {
-            self.add_item(item, generated_items, location);
+            self.add_item(item, generated_items, &mut errors, location);
         }
+
+        // Wrap them in a MacroError so we show the error where it happens, but also
+        // point out that it was because of running a function attribute.
+        let errors = vecmap(errors, |(error, file)| {
+            let error = Box::new(error);
+            let error =
+                CompilationError::MacroError(MacroError::ErrorRunningAttribute { error, location });
+            (error, file)
+        });
+        self.errors.extend(errors);
     }
 
     pub(crate) fn add_item(
         &mut self,
         item: Item,
         generated_items: &mut CollectedItems,
+        errors: &mut Vec<(CompilationError, FileId)>,
         location: Location,
     ) {
         match item.kind {
@@ -374,7 +387,7 @@ impl<'context> Elaborator<'context> {
                     &function,
                     module_id,
                     item.doc_comments,
-                    &mut self.errors,
+                    errors,
                 ) {
                     let functions = vec![(self.local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
@@ -429,7 +442,7 @@ impl<'context> Elaborator<'context> {
 
                 generated_items.globals.push(global);
                 if let Some(error) = error {
-                    self.errors.push(error);
+                    errors.push(error);
                 }
             }
             ItemKind::Struct(struct_def) => {
@@ -440,7 +453,7 @@ impl<'context> Elaborator<'context> {
                     Documented::new(struct_def, item.doc_comments),
                     self.local_module,
                     self.crate_id,
-                    &mut self.errors,
+                    errors,
                 ) {
                     generated_items.structs.insert(type_id, the_struct);
                 }
@@ -454,7 +467,7 @@ impl<'context> Elaborator<'context> {
                     location.file,
                     self.local_module,
                     self.crate_id,
-                    &mut self.errors,
+                    errors,
                 ) {
                     generated_items.enums.insert(type_id, the_enum);
                 }
@@ -467,7 +480,7 @@ impl<'context> Elaborator<'context> {
                     r#impl,
                     location.file,
                     module,
-                    &mut self.errors,
+                    errors,
                 );
             }
 
@@ -477,9 +490,10 @@ impl<'context> Elaborator<'context> {
             | ItemKind::TypeAlias(_)
             | ItemKind::Submodules(_)
             | ItemKind::InnerAttribute(_) => {
+                let location = item.location;
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                self.errors.push(error.into_compilation_error_pair());
+                errors.push(error.into_compilation_error_pair());
             }
         }
     }

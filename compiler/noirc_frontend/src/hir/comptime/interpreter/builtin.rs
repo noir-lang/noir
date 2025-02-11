@@ -28,9 +28,9 @@ use crate::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
+            InterpreterError, MacroError, Value,
         },
-        def_collector::dc_crate::CollectedItems,
+        def_collector::dc_crate::{CollectedItems, CompilationError},
         def_map::ModuleDefId,
     },
     hir_def::{
@@ -2748,7 +2748,22 @@ fn module_add_item(
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
-            elaborator.add_item(top_level_statement, &mut generated_items, location);
+            // Don't collect errors in `elaborator.errors` yet...
+            let mut errors = Vec::new();
+            elaborator.add_item(top_level_statement, &mut generated_items, &mut errors, location);
+
+            // Wrap them in a MacroError so we show the error where it happens, but also
+            // point out that it was because of this macro call.
+            let errors = vecmap(errors, |(error, file)| {
+                let error = Box::new(error);
+                let error = CompilationError::MacroError(MacroError::ErrorAddingItemToModule {
+                    error,
+                    location,
+                });
+                (error, file)
+            });
+
+            elaborator.errors.extend(errors);
         }
 
         if !generated_items.is_empty() {
