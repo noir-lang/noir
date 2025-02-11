@@ -572,6 +572,15 @@ impl BinaryOp {
             _ => self,
         }
     }
+
+    pub(crate) fn is_unchecked(self) -> bool {
+        match self {
+            BinaryOp::Add { unchecked }
+            | BinaryOp::Sub { unchecked }
+            | BinaryOp::Mul { unchecked } => unchecked,
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]
