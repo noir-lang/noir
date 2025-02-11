@@ -557,6 +557,22 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Call(call) => self.function_call(call, expr)?,
 
+            HirExpression::Constrain(constrain) => {
+                let expr = self.expr(constrain.0)?;
+                let location = self.interner.expr_location(&constrain.0);
+                let assert_message = constrain
+                    .2
+                    .map(|assert_msg_expr| {
+                        self.expr(assert_msg_expr).map(|expr| {
+                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                        })
+                    })
+                    .transpose()?
+                    .map(Box::new);
+
+                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+            }
+
             HirExpression::Cast(cast) => {
                 let location = self.interner.expr_location(&expr);
                 let typ = Self::convert_type(&cast.r#type, location)?;
@@ -658,21 +674,6 @@ impl<'interner> Monomorphizer<'interner> {
     fn statement(&mut self, id: StmtId) -> Result<ast::Expression, MonomorphizationError> {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
-            HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0)?;
-                let location = self.interner.expr_location(&constrain.0);
-                let assert_message = constrain
-                    .2
-                    .map(|assert_msg_expr| {
-                        self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
-                        })
-                    })
-                    .transpose()?
-                    .map(Box::new);
-
-                Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
-            }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
                 self.is_range_loop = true;
@@ -2209,7 +2210,7 @@ fn unwrap_enum_type(
     typ: &HirType,
     location: Location,
 ) -> Result<Vec<(String, Vec<HirType>)>, MonomorphizationError> {
-    match typ.follow_bindings() {
+    match typ.unwrap_forall().1.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
             for arg in &args {

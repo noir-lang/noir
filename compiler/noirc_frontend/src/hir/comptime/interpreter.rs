@@ -14,7 +14,7 @@ use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::expr::{HirEnumConstructorExpression, ImplKind};
+use crate::hir_def::expr::{HirConstrainExpression, HirEnumConstructorExpression, ImplKind};
 use crate::hir_def::function::FunctionBody;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
@@ -32,8 +32,8 @@ use crate::{
             HirPrefixExpression,
         },
         stmt::{
-            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
-            HirPattern, HirStatement,
+            HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
+            HirStatement,
         },
         types::Kind,
     },
@@ -532,6 +532,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
             HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
+            HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
@@ -1294,7 +1295,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> IResult<Value> {
         let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.elaborator.interner.id_type(id).unwrap_forall().1.follow_bindings();
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
@@ -1560,7 +1561,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
-            HirStatement::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
             HirStatement::Loop(expression) => self.evaluate_loop(expression),
@@ -1586,7 +1586,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Unit)
     }
 
-    fn evaluate_constrain(&mut self, constrain: HirConstrainStatement) -> IResult<Value> {
+    fn evaluate_constrain(&mut self, constrain: HirConstrainExpression) -> IResult<Value> {
         match self.evaluate(constrain.0)? {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {

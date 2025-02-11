@@ -54,18 +54,7 @@ jobs:
           echo "$HOME/.bb/" >> $GITHUB_PATH
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate gates report
         working-directory: ./test_programs
@@ -73,10 +62,10 @@ jobs:
           ./rebuild.sh
           ./gates_report.sh
           mv gates_report.json ../gates_report.json
-      
+
       - name: Compare gates reports
         id: gates_diff
-        uses: noir-lang/noir-gates-diff@7e4ddaa91c69380f15ccba514eac17bc7432a8cc
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report.json
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
@@ -100,18 +89,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Brillig bytecode size report
         working-directory: ./test_programs
@@ -132,7 +110,7 @@ jobs:
 
       - name: Compare Brillig bytecode size reports
         id: brillig_bytecode_diff
-        uses: noir-lang/noir-gates-diff@7e4ddaa91c69380f15ccba514eac17bc7432a8cc
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report_brillig.json
           header: |
@@ -150,7 +128,7 @@ jobs:
           message: ${{ steps.brillig_bytecode_diff.outputs.markdown }}
 
   compare_brillig_execution_reports:
-    name: Brillig execution trace sizes  
+    name: Brillig execution trace sizes
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -160,18 +138,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Brillig execution report
         working-directory: ./test_programs
@@ -192,7 +159,7 @@ jobs:
 
       - name: Compare Brillig execution reports
         id: brillig_execution_diff
-        uses: noir-lang/noir-gates-diff@c1503343c3e264925ef67c68a2a5eeadd245a77b
+        uses: noir-lang/noir-gates-diff@dbe920a8dcc3370af4be4f702ca9cef29317bec1
         with:
           report: gates_report_brillig_execution.json
           header: |
@@ -210,7 +177,7 @@ jobs:
           message: ${{ steps.brillig_execution_diff.outputs.markdown }}
 
   generate_memory_report:
-    name: Peak memory usage  
+    name: Peak memory usage
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     permissions:
@@ -220,18 +187,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Memory report
         working-directory: ./test_programs
@@ -272,18 +228,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
+        uses: ./.github/actions/download-nargo
 
       - name: Generate Compilation report
         working-directory: ./test_programs
@@ -336,28 +281,18 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
-
       - uses: actions/checkout@v4
         with:
           path: scripts
           sparse-checkout: |
+            .github/actions/download-nargo/action.yml
             test_programs/compilation_report.sh
             test_programs/execution_report.sh
             test_programs/parse_time.sh
           sparse-checkout-cone-mode: false
+
+      - name: Download nargo binary
+        uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -383,6 +318,18 @@ jobs:
           ./compilation_report.sh 1 ${{ matrix.project.num_runs }}
         env:
           FLAGS: ${{ matrix.project.flags }}
+        
+      - name: Check compilation time limit
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_report.json)
+          TIME_LIMIT=80
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Compilation took: "$TIME"s".
+            exit 1
+          fi
 
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -391,6 +338,19 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./execution_report.sh 1 ${{ matrix.project.num_runs }}
+    
+      - name: Check execution time limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/execution_report.json)
+          TIME_LIMIT=60
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Execution took: "$TIME"s".
+            exit 1
+          fi
 
       - name: Move compilation report
         id: compilation_report
@@ -451,27 +411,17 @@ jobs:
 
     name: External repo memory report - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
-      - name: Download nargo binary
-        uses: actions/download-artifact@v4
-        with:
-          name: nargo
-          path: ./nargo
-
-      - name: Set nargo on PATH
-        run: |
-          nargo_binary="${{ github.workspace }}/nargo/nargo"
-          chmod +x $nargo_binary
-          echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
-          export PATH="$PATH:$(dirname $nargo_binary)"
-          nargo -V
-
       - uses: actions/checkout@v4
         with:
           path: scripts
           sparse-checkout: |
+            .github/actions/download-nargo/action.yml
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
+      
+      - name: Download nargo binary
+        uses: ./scripts/.github/actions/download-nargo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -491,11 +441,36 @@ jobs:
         env:
           FLAGS: ${{ matrix.project.flags }}
 
+      - name: Check compilation memory limit
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
+          MEMORY_LIMIT=6000
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Compilation took: "$MEMORY"MB".
+            exit 1
+          fi
+
       - name: Generate execution memory report
         working-directory: ./test-repo/${{ matrix.project.path }}
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           ./memory_report.sh 1 1
+
+      - name: Check execution memory limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
+          MEMORY_LIMIT=1300
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Execution took: "$MEMORY"MB".
+            exit 1
+          fi
 
       - name: Move compilation report
         id: compilation_mem_report
@@ -517,7 +492,6 @@ jobs:
       - name: Move execution report
         id: execution_mem_report
         if: ${{ !matrix.project.cannot_execute }}
-        shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
@@ -552,21 +526,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: in_progress_compilation_report
+          path: ./reports
 
       - name: Download matrix compilation reports
         uses: actions/download-artifact@v4
         with:
           pattern: compilation_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge compilation reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh compilation_report
-          jq ".compilation_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./compilation_report.json > time_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Compilation Time"
@@ -607,15 +582,15 @@ jobs:
         with:
           pattern: compilation_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./memory_report.json > memory_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Compilation Memory"
@@ -656,17 +631,15 @@ jobs:
         with:
           pattern: execution_mem_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge memory reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh memory_report
-          # Rename the memory report as to not clash with the compilation memory report file name
-          cp memory_report.json execution_memory_report.json
-          jq ".memory_reports | map({name: .artifact_name, value: (.peak_memory | tonumber), unit: \"MB\"}) " ./execution_memory_report.json > memory_bench.json          
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Execution Memory"
@@ -708,15 +681,15 @@ jobs:
         with:
           pattern: execution_report_*
           path: ./reports
+          merge-multiple: true
 
       - name: Merge execution reports using jq
         run: |
-          mv ./.github/scripts/merge-bench-reports.sh merge-bench-reports.sh
-          ./merge-bench-reports.sh execution_report
-          jq ".execution_reports | map({name: .artifact_name, value: (.time[:-1] | tonumber), unit: \"s\"}) " ./execution_report.json > time_bench.json
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp '. | flatten' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        continue-on-error: true
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Execution Time"
@@ -730,3 +703,28 @@ jobs:
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
+
+  # This is a job which depends on all test jobs and reports the overall status.
+  # This allows us to add/remove test jobs without having to update the required workflows.
+  reports-end:
+    name: End
+    runs-on: ubuntu-22.04
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
+    needs:
+      - upload_compilation_report
+      - upload_compilation_memory_report
+      - upload_execution_report
+      - upload_execution_memory_report
+     
+    steps:
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
