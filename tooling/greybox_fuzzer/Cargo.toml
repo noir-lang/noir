@@ -22,6 +22,7 @@ noir_fuzzer.workspace = true
 num-traits.workspace = true
 fm.workspace=true
 rayon.workspace = true
+num-bigint.workspace = true
 
 rand_xorshift="0.3.0"
 walkdir = "2.5.0"
