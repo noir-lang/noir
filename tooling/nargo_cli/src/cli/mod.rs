@@ -185,16 +185,25 @@ where
     R: FnOnce(C, Workspace) -> Result<(), CliError>,
 {
     // All commands need to run on the workspace level, because that's where the `target` directory is.
-    let program_dir = nargo_toml::find_root(&config.program_dir, true)?;
-    let selection = cmd.package_selection();
-    let workspace = read_workspace(&program_dir, selection)?;
-
+    let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
+    let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
+    // Check if we're running inside the directory of a package, without having selected the entire workspace
+    // or a specific package; if that's the case then parse the package name to select it in the workspace.
+    let selection = match cmd.package_selection() {
+        PackageSelection::DefaultOrAll if workspace_dir != package_dir => {
+            let workspace = read_workspace(&package_dir, PackageSelection::DefaultOrAll)?;
+            let package = workspace.into_iter().next().expect("there should be exactly 1 package");
+            PackageSelection::Selected(package.name.clone())
+        }
+        other => other,
+    };
+    // Parse the top level workspace with the member selected.
+    let workspace = read_workspace(&workspace_dir, selection)?;
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
         typ => Some(lock_workspace(&workspace, typ == LockType::Exclusive)?),
     };
-
     run(cmd, workspace)
 }
 
