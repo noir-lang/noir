@@ -4,13 +4,14 @@ use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
     constants::PROVER_INPUT_FILE, foreign_calls::DefaultForeignCallBuilder, package::Package,
+    workspace::Workspace,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::PackageSelection;
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_artifacts_info::{
     count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
 };
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::CompileOptions;
 use prettytable::{row, Row};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -20,7 +21,7 @@ use crate::errors::CliError;
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
     fs::{inputs::read_inputs_from_file_any_format, program::read_program_from_file},
-    NargoConfig, PackageOptions,
+    LockType, PackageOptions, WorkspaceCommand,
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
@@ -49,15 +50,17 @@ pub(crate) struct InfoCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(mut args: InfoCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
+impl WorkspaceCommand for InfoCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
 
+    fn lock_type(&self) -> LockType {
+        LockType::Exclusive
+    }
+}
+
+pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.profile_execution {
         // Execution profiling is only relevant with the Brillig VM
         // as a constrained circuit should have totally flattened control flow (e.g. loops and if statements).

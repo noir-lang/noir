@@ -323,7 +323,7 @@ impl DependencyContext {
             |(block_index, instruction)| {
                 if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
                     if let Value::Function(callee) = &function.dfg[*func] {
-                        if all_functions[&callee].runtime().is_brillig() {
+                        if all_functions[callee].runtime().is_brillig() {
                             let results = function.dfg.instruction_results(*instruction);
                             let current_tainted =
                                 BrilligTaintedIds::new(function, arguments, results);
@@ -485,7 +485,7 @@ impl DependencyContext {
                                     self.update_children(&arguments, &results);
                                 }
                             },
-                            Value::Function(callee) => match all_functions[&callee].runtime() {
+                            Value::Function(callee) => match all_functions[callee].runtime() {
                                 // Only update tainted sets for non-Brillig calls, as
                                 // the chained Brillig case should already be covered
                                 RuntimeType::Acir(..) => {
@@ -663,10 +663,11 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
+        let returns = function.returns();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()
-            .chain(function.returns())
+            .chain(returns)
             .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
             .map(|value_id| function.dfg.resolve(*value_id));
 
