@@ -403,8 +403,10 @@ impl DependencyContext {
                 }
             }
             if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
-                tainted_ids.tracking = true;
-                self.tracking_count += 1;
+                if !tainted_ids.tracking {
+                    tainted_ids.tracking = true;
+                    self.tracking_count += 1;
+                }
             }
 
             // We can skip over instructions while nothing is being tracked
