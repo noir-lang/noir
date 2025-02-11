@@ -30,11 +30,9 @@ fn main(
             let k = 253 - j;
 
             // Add
-            res = if full_scalar_bits[k] == 1 {
-                embedded_curve_add_unsafe(res, temp)
-            } else {
-                res
-            };
+           if full_scalar_bits[k] == 1 {
+                 res = embedded_curve_add_unsafe(res, temp);
+           } 
             // Double
             temp = embedded_curve_add_unsafe(temp, temp);
         }
