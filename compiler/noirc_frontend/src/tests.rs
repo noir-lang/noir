@@ -4364,3 +4364,9 @@ fn errors_on_if_without_else_type_mismatch() {
     };
     assert!(matches!(**err, TypeCheckError::TypeMismatch { .. }));
 }
+
+#[test]
+fn does_not_stack_overflow_on_many_comments_in_a_row() {
+    let src = "//\n".repeat(10_000);
+    assert_no_errors(&src);
+}

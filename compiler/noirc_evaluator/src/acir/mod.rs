@@ -20,6 +20,8 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_variable;
 mod big_int;
+mod black_box;
+mod brillig_call;
 mod brillig_directive;
 mod generated_acir;
 

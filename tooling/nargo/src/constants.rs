@@ -1,8 +1,4 @@
 // Directories
-/// The directory for the `nargo contract` command output
-pub const CONTRACT_DIR: &str = "contract";
-/// The directory to store serialized circuit proofs.
-pub const PROOFS_DIR: &str = "proofs";
 /// The directory to store Noir source files
 pub const SRC_DIR: &str = "src";
 /// The directory to store circuits' serialized ACIR representations.
@@ -17,7 +13,5 @@ pub const PROVER_INPUT_FILE: &str = "Prover";
 pub const PKG_FILE: &str = "Nargo.toml";
 
 // Extensions
-/// The extension for files containing circuit proofs.
-pub const PROOF_EXT: &str = "proof";
 /// The extension for files containing proof witnesses.
 pub const WITNESS_EXT: &str = "gz";
