@@ -1,7 +1,10 @@
 use crate::{
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
-    hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
+    hir::def_collector::{
+        dc_crate::{CompilationError, UnresolvedTraitImpl},
+        errors::DefCollectorErrorKind,
+    },
     node_interner::TraitImplId,
     ResolvedGeneric,
 };
@@ -113,15 +116,18 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.interner.get_trait_mut(trait_id);
         the_trait.set_methods(methods);
 
+        let trait_name = the_trait.name.clone();
+
         // Emit MethodNotInTrait error for methods in the impl block that
         // don't have a corresponding method signature defined in the trait
         for (_, func_id, func) in &trait_impl.methods.functions {
             if !func_ids_in_trait.contains(func_id) {
-                let trait_name = the_trait.name.clone();
+                let trait_name = trait_name.clone();
                 let trait_name_file = trait_name.location().file;
                 let impl_method = func.name_ident().clone();
                 let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                self.errors.push((error.into(), trait_name_file));
+                let error: CompilationError = error.into();
+                self.push_err(error, trait_name_file);
             }
         }
 

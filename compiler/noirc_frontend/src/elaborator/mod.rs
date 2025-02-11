@@ -717,7 +717,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
+    pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
         self.errors.push((error.into(), file));
     }
 
@@ -1989,7 +1989,8 @@ impl<'context> Elaborator<'context> {
         let mut interpreter = self.setup_interpreter();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
-            self.errors.push(error.into_compilation_error_pair());
+            let (error, file) = error.into_compilation_error_pair();
+            self.push_err(error, file);
         } else {
             let value = interpreter
                 .lookup_id(definition_id, location)

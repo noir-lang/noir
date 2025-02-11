@@ -8,6 +8,7 @@ use noirc_errors::Location;
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::token::LocatedToken;
@@ -508,7 +509,9 @@ where
     let (result, warnings) =
         parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        elaborator.errors.push((warning.into(), location.file));
+        let location = warning.location();
+        let warning: CompilationError = warning.into();
+        elaborator.push_err(warning, location.file);
     }
     Ok(result)
 }

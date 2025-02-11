@@ -189,7 +189,7 @@ impl<'context> Elaborator<'context> {
                 expr_kind: resolved_type.kind().to_string(),
                 expr_span: span,
             });
-            self.errors.push((expected_typ_err, file));
+            self.push_err(expected_typ_err, file);
             return Type::Error;
         }
 
@@ -808,7 +808,8 @@ impl<'context> Elaborator<'context> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
-            self.errors.push((make_error().into(), file));
+            let error: CompilationError = make_error().into();
+            self.push_err(error, file);
         }
     }
 
@@ -824,7 +825,8 @@ impl<'context> Elaborator<'context> {
     ) {
         let mut bindings = TypeBindings::new();
         if actual.try_unify(expected, &mut bindings).is_err() {
-            self.errors.push((make_error().into(), file));
+            let error: CompilationError = make_error().into();
+            self.push_err(error, file);
         }
     }
 

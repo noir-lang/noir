@@ -161,13 +161,13 @@ impl<'context> Elaborator<'context> {
     ) {
         if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
-                if let Err(error) = this.collect_comptime_attribute_name_on_item(
+                if let Err((error, file)) = this.collect_comptime_attribute_name_on_item(
                     attribute,
                     item.clone(),
                     attribute_context,
                     attributes_to_run,
                 ) {
-                    this.errors.push(error);
+                    this.push_err(error, file);
                 }
             });
         }
@@ -513,10 +513,9 @@ impl<'context> Elaborator<'context> {
     ) {
         if Some(location.file) == self.debug_comptime_in_file {
             let displayed_expr = expr_f(self.interner);
-            self.errors.push((
-                InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),
-                location.file,
-            ));
+            let error: CompilationError =
+                InterpreterError::debug_evaluate_comptime(displayed_expr, location).into();
+            self.push_err(error, location.file);
         }
     }
 
@@ -567,7 +566,7 @@ impl<'context> Elaborator<'context> {
 
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
-                if let Err(error) = this.run_attribute(
+                if let Err((error, file)) = this.run_attribute(
                     context,
                     attribute,
                     args,
@@ -575,7 +574,7 @@ impl<'context> Elaborator<'context> {
                     location,
                     &mut generated_items,
                 ) {
-                    this.errors.push(error);
+                    this.push_err(error, file);
                 }
             });
 

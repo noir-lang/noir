@@ -839,7 +839,7 @@ impl<'context> Elaborator<'context> {
                         actual_count: turbofish_generics.len(),
                         span,
                     };
-                    self.errors.push((CompilationError::TypeError(type_check_err), location.file));
+                    self.push_err(CompilationError::TypeError(type_check_err), location.file);
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
                     // Fetch the count of any implicit generics on the function, such as

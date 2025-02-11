@@ -13,7 +13,10 @@ use crate::{
         UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
-    hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
+    hir::{
+        def_collector::dc_crate::CompilationError, def_map::ModuleId,
+        type_check::generics::TraitGenerics,
+    },
     hir_def::expr::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
         HirIdent, HirLambda, HirLiteral, ImplKind,
@@ -271,7 +274,9 @@ impl Value {
                 return match parser.parse_result(Parser::parse_expression_or_error) {
                     Ok((expr, warnings)) => {
                         for warning in warnings {
-                            elaborator.errors.push((warning.into(), location.file));
+                            let location = warning.location();
+                            let warning: CompilationError = warning.into();
+                            elaborator.push_err(warning, location.file);
                         }
 
                         Ok(expr)
@@ -601,7 +606,9 @@ where
     match parser.parse_result(parsing_function) {
         Ok((expr, warnings)) => {
             for warning in warnings {
-                elaborator.errors.push((warning.into(), location.file));
+                let location = warning.location();
+                let warning: CompilationError = warning.into();
+                elaborator.push_err(warning, location.file);
             }
             Ok(expr)
         }
