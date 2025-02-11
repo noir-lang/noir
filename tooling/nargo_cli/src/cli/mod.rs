@@ -115,6 +115,7 @@ trait WorkspaceCommand {
 
 /// What kind of lock to take out on the (selected) packages in the workspace.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)] // Not using `Shared` at the moment, e.g. while we `debug` we can `compile` a different version.
 enum LockType {
     /// For commands that write artifacts.
     Exclusive,
@@ -224,23 +225,23 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
     let mut locks = Vec::new();
     for pkg in workspace.into_iter() {
         let toml_path = get_package_manifest(&pkg.root_dir)?;
-        let file = File::open(&toml_path).expect("Expected Nargo.toml to exist");
+        let path_display = toml_path.display();
+
+        let file = File::open(&toml_path)
+            .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
 
         if exclusive {
             if file.try_lock_exclusive().is_err() {
-                eprintln!("Waiting for lock on {}...", toml_path.to_string_lossy());
+                eprintln!("Waiting for lock on {path_display}...");
             }
-
-            file.lock_exclusive()
-                .unwrap_or_else(|e| panic!("Failed to lock {}: {e}", toml_path.to_string_lossy()));
+            file.lock_exclusive().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         } else {
             if file.try_lock_shared().is_err() {
-                eprintln!("Waiting for lock on {}...", toml_path.to_string_lossy());
+                eprintln!("Waiting for lock on {path_display}...",);
             }
-
-            file.lock_shared()
-                .unwrap_or_else(|e| panic!("Failed to lock {}: {e}", toml_path.to_string_lossy()));
+            file.lock_shared().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         }
+
         locks.push(LockedFile(file));
     }
     Ok(locks)
