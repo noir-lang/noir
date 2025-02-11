@@ -718,7 +718,7 @@ impl<'a> From<&'a MacroError> for CustomDiagnostic {
             MacroError::ErrorRunningAttribute { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
                 diagnostic.add_secondary_with_file(
-                    "Error while running this function attribute".into(),
+                    "While running this function attribute".into(),
                     location.span,
                     location.file,
                 );
@@ -727,7 +727,7 @@ impl<'a> From<&'a MacroError> for CustomDiagnostic {
             MacroError::ErrorAddingItemToModule { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
                 diagnostic.add_secondary_with_file(
-                    "Error while interpreting `Module::add_item`".into(),
+                    "While interpreting `Module::add_item`".into(),
                     location.span,
                     location.file,
                 );
