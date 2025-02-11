@@ -3203,6 +3203,7 @@ dependencies = [
  "convert_case",
  "fm",
  "fxhash",
+ "iter-extended",
  "lsp-types 0.94.1",
  "nargo",
  "nargo_fmt",

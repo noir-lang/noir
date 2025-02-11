@@ -74,12 +74,14 @@ mod types;
 mod use_segment_positions;
 mod utils;
 mod visibility;
+mod with_file;
 
 #[cfg(test)]
 mod test_utils;
 
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
+use with_file::parsed_module_with_file;
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -387,18 +389,22 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             })
             .collect();
 
-        let cache_hits: Vec<_> = noir_file_hashes
+        let cache_hits = noir_file_hashes
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, cached_parsing)) = cached_version {
+                if let Some((hash, (parsed_module, errors))) = cached_version {
                     if hash == current_hash {
-                        return Some((*file_id, cached_parsing.clone()));
+                        // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
+                        // so we must replace all of those FileIDs with the one here.
+                        let parsed_module =
+                            parsed_module_with_file(parsed_module.clone(), *file_id);
+                        return Some((*file_id, (parsed_module, errors.clone())));
                     }
                 }
                 None
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         let cache_hits_ids: FxHashSet<_> = cache_hits.iter().map(|(file_id, _)| *file_id).collect();
 
