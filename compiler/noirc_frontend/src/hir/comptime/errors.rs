@@ -153,6 +153,7 @@ pub enum InterpreterError {
         error: ParserError,
         tokens: String,
         rule: &'static str,
+        location: Location,
     },
     UnsupportedTopLevelItemUnquote {
         item: String,
@@ -522,9 +523,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
-            InterpreterError::FailedToParseMacro { error, tokens, rule } => {
-                let message = format!("Failed to parse macro's token stream into {rule}");
-
+            InterpreterError::FailedToParseMacro { error, tokens, rule, location } => {
                 // If it's less than 48 chars, the error message fits in a single line (less than 80 chars total)
                 let token_stream = if tokens.len() <= 48 && !tokens.contains('\n') {
                     format!("The resulting token stream was: {tokens}")
@@ -537,11 +536,12 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
 
                 let mut diagnostic = CustomDiagnostic::from(error);
-                // Swap the parser's primary note to become the secondary note so that it is
-                // more clear this error originates from failing to parse a macro.
-                let secondary = std::mem::take(&mut diagnostic.message);
-                diagnostic.add_secondary(secondary, error.span());
-                diagnostic.message = message;
+
+                // Given more prominence to where the parser error happened, but still show that it's
+                // because of a failure to parse a macro's token stream, and where that happens.
+                let message = format!("Failed to parse macro's token stream into {rule}");
+                diagnostic.add_secondary_with_file(message, location.span, location.file);
+
                 diagnostic.add_note(token_stream);
                 diagnostic.add_note(push_the_problem_on_the_library_author);
                 diagnostic

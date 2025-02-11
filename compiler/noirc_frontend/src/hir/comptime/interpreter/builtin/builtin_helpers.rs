@@ -505,7 +505,8 @@ where
 {
     let tokens = get_quoted((value, location))?;
     let quoted = Tokens(unwrap_rc(tokens.clone()));
-    let (result, warnings) = parse_tokens(tokens, quoted, elaborator.interner, parser, rule)?;
+    let (result, warnings) =
+        parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
         elaborator.errors.push((warning.into(), location.file));
     }
@@ -516,6 +517,7 @@ pub(super) fn parse_tokens<'a, T, F>(
     tokens: Rc<Vec<LocatedToken>>,
     quoted: Tokens,
     interner: &NodeInterner,
+    location: Location,
     parsing_function: F,
     rule: &'static str,
 ) -> IResult<(T, Vec<ParserError>)>
@@ -525,7 +527,7 @@ where
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
         let error = errors.swap_remove(0);
         let tokens = tokens_to_string(&tokens, interner);
-        InterpreterError::FailedToParseMacro { error, tokens, rule }
+        InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
 
