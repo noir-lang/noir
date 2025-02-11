@@ -633,9 +633,9 @@ impl<'a> FunctionContext<'a> {
     ///   jmpif v0, then: while_body, else: while_end  
     /// while_body():
     ///   v3 = ... codegen body ...
-    ///   br while_entry()
+    ///   jmp while_entry()
     /// while_end():
-    ///   ... This is the current insert point after codegen_for finishes ...
+    ///   ... This is the current insert point after codegen_while finishes ...
     /// ```
     fn codegen_while(&mut self, while_: &While) -> Result<Values, RuntimeError> {
         let while_entry = self.builder.insert_block();
