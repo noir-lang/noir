@@ -25,7 +25,7 @@ use crate::{
     Type, TypeBindings, UnificationError,
 };
 
-use super::{Elaborator, FunctionContext, ResolverMeta};
+use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
 struct AttributeContext {
@@ -98,6 +98,7 @@ impl<'context> Elaborator<'context> {
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
             self.pedantic_solving,
+            self.elaborate_reasons.clone(),
         );
 
         elaborator.function_context.push(FunctionContext::default());
@@ -579,7 +580,9 @@ impl<'context> Elaborator<'context> {
             });
 
             if !generated_items.is_empty() {
+                self.elaborate_reasons.push_back((ElaborateReason::RunningAttribute, location));
                 self.elaborate_items(generated_items);
+                self.elaborate_reasons.pop_back();
             }
         }
     }

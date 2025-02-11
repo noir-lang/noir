@@ -11,14 +11,16 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-            UnresolvedTypeAlias,
+        comptime::MacroError,
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
+            errors::DefCollectorErrorKind,
         },
-        def_collector::errors::DefCollectorErrorKind,
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
@@ -195,6 +197,31 @@ pub struct Elaborator<'context> {
 
     /// Use pedantic ACVM solving
     pedantic_solving: bool,
+
+    /// Sometimes items are elaborated because a function attribute ran and generated items.
+    /// The Elaborator keeps track of these reasons so that when an error is produced it will
+    /// be wrapped in another error that will include this reason.
+    pub(crate) elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+}
+
+#[derive(Copy, Clone)]
+pub enum ElaborateReason {
+    /// A function attribute generated an item that's being elaborated.
+    RunningAttribute,
+    /// Evaluating `Module::add_item`
+    AddingItemToModule,
+}
+impl ElaborateReason {
+    fn to_macro_error(self, error: CompilationError, location: Location) -> MacroError {
+        match self {
+            ElaborateReason::RunningAttribute => {
+                MacroError::ErrorRunningAttribute { error: Box::new(error), location }
+            }
+            ElaborateReason::AddingItemToModule => {
+                MacroError::ErrorAddingItemToModule { error: Box::new(error), location }
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -226,6 +253,7 @@ impl<'context> Elaborator<'context> {
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
         pedantic_solving: bool,
+        elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -254,6 +282,7 @@ impl<'context> Elaborator<'context> {
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
             pedantic_solving,
+            elaborate_reasons,
         }
     }
 
@@ -272,6 +301,7 @@ impl<'context> Elaborator<'context> {
             debug_comptime_in_file,
             im::Vector::new(),
             pedantic_solving,
+            im::Vector::new(),
         )
     }
 
@@ -718,14 +748,29 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
-        self.errors.push((error.into(), file));
+        let error: CompilationError = error.into();
+        let error = self.wrap_error_in_macro_error(error);
+        self.errors.push((error, file));
     }
 
     pub(crate) fn push_errors(
         &mut self,
         errors: impl IntoIterator<Item = (CompilationError, FileId)>,
     ) {
-        self.errors.extend(errors);
+        if self.elaborate_reasons.is_empty() {
+            self.errors.extend(errors);
+        } else {
+            for (error, file) in errors {
+                self.push_err(error, file);
+            }
+        }
+    }
+
+    fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
+        for (reason, location) in self.elaborate_reasons.iter().rev() {
+            error = CompilationError::MacroError(reason.to_macro_error(error, *location));
+        }
+        error
     }
 
     fn run_lint(&mut self, file: FileId, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {

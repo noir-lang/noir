@@ -23,7 +23,7 @@ use crate::{
         Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
-    elaborator::Elaborator,
+    elaborator::{ElaborateReason, Elaborator},
     hir::{
         comptime::{
             errors::IResult,
@@ -2767,7 +2767,9 @@ fn module_add_item(
         }
 
         if !generated_items.is_empty() {
+            elaborator.elaborate_reasons.push_back((ElaborateReason::AddingItemToModule, location));
             elaborator.elaborate_items(generated_items);
+            elaborator.elaborate_reasons.pop_back();
         }
     });
 
