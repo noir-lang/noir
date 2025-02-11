@@ -184,3 +184,7 @@ pub(crate) fn register_return(tracer: &mut Tracer, return_value: &Option<Variabl
 pub(crate) fn register_print(tracer: &mut Tracer, s: &str) {
     tracer.register_special_event(EventLogKind::Write, s);
 }
+
+pub(crate) fn register_error(tracer: &mut Tracer, s: &str) {
+    tracer.register_special_event(EventLogKind::Error, s);
+}

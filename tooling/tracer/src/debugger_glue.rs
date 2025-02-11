@@ -2,7 +2,7 @@ use crate::{stack_frame::Variable, SourceLocation, StackFrame};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::errors::Location;
-use noir_debugger::context::DebugContext;
+use noir_debugger::context::{DebugContext, DebugLocation};
 
 /// Extracts the current stack of source locations from the debugger, given that the relevant
 /// debugging information is present. In the context of this method, a source location is a path
@@ -19,6 +19,13 @@ pub(crate) fn get_current_source_locations<B: BlackBoxFunctionSolver<FieldElemen
 ) -> Vec<SourceLocation> {
     let call_stack = debug_context.get_call_stack();
 
+    get_source_locations_for_call_stack(debug_context, call_stack)
+}
+
+pub(crate) fn get_source_locations_for_call_stack<B: BlackBoxFunctionSolver<FieldElement>>(
+    debug_context: &DebugContext<B>,
+    call_stack: Vec<DebugLocation>,
+) -> Vec<SourceLocation> {
     let mut result: Vec<SourceLocation> = vec![];
     for opcode_location in call_stack {
         let locations = debug_context.get_source_location_for_debug_location(&opcode_location);

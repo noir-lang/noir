@@ -1,15 +1,20 @@
 mod source_location;
+use acvm::pwg::OpcodeResolutionError;
+use nargo::errors::ExecutionError;
 use source_location::SourceLocation;
 
 mod stack_frame;
 use stack_frame::{StackFrame, Variable};
 
 mod debugger_glue;
-use debugger_glue::{get_current_source_locations, get_stack_frames};
+use debugger_glue::{
+    get_current_source_locations, get_source_locations_for_call_stack, get_stack_frames,
+};
 
 pub mod tracer_glue;
 use tracer_glue::{
-    register_call, register_print, register_return, register_step, register_variables,
+    register_call, register_error, register_print, register_return, register_step,
+    register_variables,
 };
 
 pub mod tail_diff_vecs;
@@ -24,7 +29,6 @@ use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 use runtime_tracing::{Line, Tracer, TypeKind};
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
 use tracing::debug;
 
@@ -249,8 +253,35 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
         let source_locations = match tracing_context.step_debugger() {
             DebugStepResult::Finished => break,
             DebugStepResult::Error(err) => {
-                println!("Error: {err}");
-                break;
+                if let NargoError::ExecutionError(ExecutionError::SolvingError(
+                    OpcodeResolutionError::BrilligFunctionFailed {
+                        function_id,
+                        call_stack,
+                        payload: _,
+                    },
+                    _,
+                )) = &err
+                {
+                    let mut debug_locations = vec![];
+                    for opcode_loc in call_stack {
+                        debug_locations.push(noir_debugger::context::DebugLocation {
+                            circuit_id: 0,
+                            opcode_location: *opcode_loc,
+                            brillig_function_id: Some(function_id.clone()),
+                        });
+                    }
+                    let source_locations = get_source_locations_for_call_stack(
+                        &tracing_context.debug_context,
+                        debug_locations,
+                    );
+
+                    tracing_context.update_record(tracer, &source_locations);
+                    register_error(tracer, err.to_string().as_str());
+                    break;
+                } else {
+                    println!("Error: {err}");
+                    break;
+                }
             }
             DebugStepResult::Paused(source_location) => source_location,
         };
