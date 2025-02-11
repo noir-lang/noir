@@ -16,7 +16,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use super::{AsTraitPath, TypePath, UnaryRhsMemberAccess};
+use super::{AsTraitPath, TypePath};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -244,49 +244,6 @@ impl PartialEq<Expression> for Expression {
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
         Expression { kind, span }
-    }
-
-    pub fn member_access_or_method_call(
-        lhs: Expression,
-        rhs: UnaryRhsMemberAccess,
-        span: Span,
-    ) -> Expression {
-        let kind = match rhs.method_call {
-            None => {
-                let rhs = rhs.method_or_field;
-                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs }))
-            }
-            Some(method_call) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs.method_or_field,
-                generics: method_call.turbofish,
-                arguments: method_call.args,
-                is_macro_call: method_call.macro_call,
-            })),
-        };
-        Expression::new(kind, span)
-    }
-
-    pub fn index(collection: Expression, index: Expression, span: Span) -> Expression {
-        let kind = ExpressionKind::Index(Box::new(IndexExpression { collection, index }));
-        Expression::new(kind, span)
-    }
-
-    pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
-        let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
-        Expression::new(kind, span)
-    }
-
-    pub fn call(
-        lhs: Expression,
-        is_macro_call: bool,
-        arguments: Vec<Expression>,
-        span: Span,
-    ) -> Expression {
-        let func = Box::new(lhs);
-        let kind =
-            ExpressionKind::Call(Box::new(CallExpression { func, is_macro_call, arguments }));
-        Expression::new(kind, span)
     }
 }
 
