@@ -16,7 +16,7 @@ use tracing::trace;
 
 /// The number of instructions that have to be passed to stop
 /// following a Brillig call, with assumption it wouldn't get constrained
-const BRILLIG_CONSTRAINT_SEARCH_DEPTH: usize = 1000;
+const BRILLIG_CONSTRAINT_SEARCH_DEPTH: usize = 10_000_000;
 
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
@@ -276,12 +276,11 @@ impl BrilligTaintedIds {
         }
 
         // Along with it, one of the argument descendants should be constrained
-        // (skipped if there were no arguments, or if an actual result and not a
-        // descendant has been constrained _alone_, e.g. against a constant)
+        // (skipped if there were no arguments, or if a result descendant
+        // has been constrained _alone_, e.g. against a constant)
         if !results_involved.is_empty()
             && (self.arguments.is_empty()
-                || (constrained_values.len() == 1
-                    && self.root_results.intersection(constrained_values).next().is_some())
+                || (constrained_values.len() == 1)
                 || self.arguments.intersection(constrained_values).next().is_some())
         {
             // Remember the partial constraint, clearing the sets
