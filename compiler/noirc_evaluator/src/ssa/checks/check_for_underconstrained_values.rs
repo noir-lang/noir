@@ -604,7 +604,14 @@ impl DependencyContext {
             }
         }
 
-        self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
+        self.tainted.retain(|_, tainted_ids| {
+            if tainted_ids.check_constrained() {
+                self.tracking_count -= 1;
+                false
+            } else {
+                true
+            }
+        });
     }
 
     /// Process ArrayGet instruction for tracked Brillig calls
