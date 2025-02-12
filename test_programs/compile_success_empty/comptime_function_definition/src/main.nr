@@ -106,7 +106,7 @@ mod foo {
     }
 }
 
-mod test_as_typed_expr {
+mod test_as_typed_expr_1 {
     #![foo]
 
     pub fn method<T>(x: T) -> T {
@@ -120,6 +120,91 @@ mod test_as_typed_expr {
             pub fn bar() -> i32 {
                 $func(1)
             }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 1);
+        }
+    }
+}
+
+mod test_as_typed_expr_2 {
+    #![foo]
+
+    unconstrained fn method<T, let N: u32>(xs: [T; N]) -> u32 {
+        xs.len()
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> u32 {
+                /// Safety: test program
+                unsafe { $func([1, 2, 3, 0]) }
+            }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 4);
+        }
+    }
+}
+
+mod test_as_typed_expr_3 {
+    #![foo]
+
+    pub comptime fn method<T, U, let N: u32>(xs_ys: ([T; N], U)) -> u32 {
+        let (xs, _ys) = xs_ys;
+        xs.len()
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> u32 {
+                /// Safety: test program
+                comptime { $func(([1, 2, 3, 0], "a")) }
+            }
+        }
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(bar(), 4);
+        }
+    }
+}
+
+mod test_as_typed_expr_4 {
+    comptime fn foo(f: TypedExpr) -> Quoted {
+        quote {
+        $f()
+    }
+    }
+
+    fn bar() -> Field {
+        1
+    }
+
+    fn baz() -> Field {
+        let x: Field = comptime {
+            let bar_q = quote {
+            bar
+        };
+            foo(bar_q.as_expr().unwrap().resolve(Option::none()))
+        };
+        x
+    }
+
+    pub fn test() {
+        comptime {
+            assert_eq(baz(), 1);
         }
     }
 }
