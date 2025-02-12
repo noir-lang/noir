@@ -7,7 +7,7 @@ pub use self::optimize::{optimize_contract, optimize_program};
 pub use self::transform::{transform_contract, transform_program};
 
 pub use self::execute::{execute_program, execute_program_with_profiling};
-pub use self::test::{run_test, TestStatus};
+pub use self::test::{run_compiled_test, run_test, test_status_program_compile_fail, TestStatus};
 
 mod check;
 mod compile;

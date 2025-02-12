@@ -14,13 +14,17 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
+    foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager,
+    ops::{test_status_program_compile_fail, TestStatus},
+    package::Package,
+    parse_all, prepare_package,
+    workspace::Workspace,
     PrintOutput,
 };
 use nargo_toml::PackageSelection;
-use noirc_driver::{check_crate, CompileOptions};
-use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
+use noirc_driver::{compile_no_check, CompileOptions, CompiledProgram};
+use noirc_frontend::hir::{def_map::TestFunction, FunctionNameMatch, ParsedFiles};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
@@ -455,23 +459,47 @@ impl<'a> TestRunner<'a> {
         root_path: Option<PathBuf>,
         package_name: String,
     ) -> Result<Vec<Test<'a>>, CliError> {
-        let test_functions = self.get_tests_in_package(package)?;
+        let (mut context, crate_id) =
+            prepare_package(self.file_manager, self.parsed_files, package);
+        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
+
+        let test_functions =
+            context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern);
 
         let tests: Vec<Test> = test_functions
             .into_iter()
-            .map(|test_name| {
+            .map(|(test_name, test_function)| {
+                let compiled_program_result = compile_no_check(
+                    &mut context,
+                    &self.args.compile_options,
+                    test_function.get_id(),
+                    None,
+                    false,
+                );
+                let compiled_program_result = compiled_program_result
+                    .map_err(|err| test_status_program_compile_fail(err, &test_function));
+
+                let test_function_has_no_arguments = context
+                    .def_interner
+                    .function_meta(&test_function.get_id())
+                    .function_signature()
+                    .0
+                    .is_empty();
+
                 let test_name_copy = test_name.clone();
                 let root_path = root_path.clone();
                 let package_name_clone = package_name.clone();
                 let package_name_clone2 = package_name.clone();
-                let runner = Box::new(move || {
-                    self.run_test::<S>(
-                        package,
-                        &test_name,
+                let runner = Box::new(move || match compiled_program_result {
+                    Ok(compiled_program) => self.run_test::<S>(
                         foreign_call_resolver_url,
                         root_path,
                         package_name_clone.clone(),
-                    )
+                        &test_function,
+                        compiled_program,
+                        test_function_has_no_arguments,
+                    ),
+                    Err(test_failure) => (test_failure, String::new()),
                 });
                 Test { name: test_name_copy, package_name: package_name_clone2, runner }
             })
@@ -480,48 +508,25 @@ impl<'a> TestRunner<'a> {
         Ok(tests)
     }
 
-    /// Compiles a single package and returns all of its test names
-    fn get_tests_in_package(&'a self, package: &'a Package) -> Result<Vec<String>, CliError> {
-        let (mut context, crate_id) =
-            prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate_and_report_errors(&mut context, crate_id, &self.args.compile_options)?;
-
-        Ok(context
-            .get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
-            .into_iter()
-            .map(|(test_name, _)| test_name)
-            .collect())
-    }
-
     /// Runs a single test and returns its status together with whatever was printed to stdout
     /// during the test.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
-        package: &Package,
-        fn_name: &str,
         foreign_call_resolver_url: Option<&str>,
         root_path: Option<PathBuf>,
         package_name: String,
+        test_function: &TestFunction,
+        compiled_program: CompiledProgram,
+        test_function_has_no_arguments: bool,
     ) -> (TestStatus, String) {
-        // This is really hacky but we can't share `Context` or `S` across threads.
-        // We then need to construct a separate copy for each test.
-
-        let (mut context, crate_id) =
-            prepare_package(self.file_manager, self.parsed_files, package);
-        check_crate(&mut context, crate_id, &self.args.compile_options)
-            .expect("Any errors should have occurred when collecting test functions");
-
-        let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
-        let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, &pattern);
-        let (_, test_function) = test_functions.first().expect("Test function should exist");
-
         let blackbox_solver = S::default();
         let mut output_string = String::new();
 
-        let test_status = nargo::ops::run_test(
+        let test_status = nargo::ops::run_compiled_test(
             &blackbox_solver,
-            &mut context,
             test_function,
+            test_function_has_no_arguments,
+            compiled_program,
             PrintOutput::String(&mut output_string),
             &self.args.compile_options,
             |output, base| {

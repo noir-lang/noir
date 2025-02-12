@@ -7,7 +7,9 @@ use acvm::{
     AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
+use noirc_driver::{
+    compile_no_check, CompileError, CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH,
+};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
 
@@ -54,115 +56,131 @@ where
         .is_empty();
 
     match compile_no_check(context, config, test_function.get_id(), None, false) {
-        Ok(compiled_program) => {
-            // Do the same optimizations as `compile_cmd`.
-            let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
-            let compiled_program = crate::ops::transform_program(compiled_program, target_width);
-
-            if test_function_has_no_arguments {
-                // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
-                // otherwise constraints involving these expressions will not error.
-                // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                let inner_executor = build_foreign_call_executor(output, layers::Unhandled);
-                let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
-
-                let circuit_execution = execute_program(
-                    &compiled_program.program,
-                    WitnessMap::new(),
-                    blackbox_solver,
-                    &mut foreign_call_executor,
-                );
-
-                let status = test_status_program_compile_pass(
-                    test_function,
-                    &compiled_program.abi,
-                    &compiled_program.debug,
-                    &circuit_execution,
-                );
-
-                let ignore_foreign_call_failures =
-                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                        .is_ok_and(|var| &var == "true");
-
-                if let TestStatus::Fail { .. } = status {
-                    if ignore_foreign_call_failures
-                        && foreign_call_executor.encountered_unknown_foreign_call
-                    {
-                        TestStatus::Skipped
-                    } else {
-                        status
-                    }
-                } else {
-                    status
-                }
-            } else {
-                use acvm::acir::circuit::Program;
-                use noir_fuzzer::FuzzedExecutor;
-                use proptest::test_runner::Config;
-                use proptest::test_runner::TestRunner;
-
-                let runner =
-                    TestRunner::new(Config { failure_persistence: None, ..Config::default() });
-
-                let abi = compiled_program.abi.clone();
-                let debug = compiled_program.debug.clone();
-
-                let executor = |program: &Program<FieldElement>,
-                                initial_witness: WitnessMap<FieldElement>|
-                 -> Result<WitnessStack<FieldElement>, String> {
-                    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                    let inner_executor =
-                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
-
-                    let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
-
-                    let circuit_execution = execute_program(
-                        program,
-                        initial_witness,
-                        blackbox_solver,
-                        &mut foreign_call_executor,
-                    );
-
-                    // Check if a failure was actually expected.
-                    let status = test_status_program_compile_pass(
-                        test_function,
-                        &abi,
-                        &debug,
-                        &circuit_execution,
-                    );
-
-                    if let TestStatus::Fail { message, error_diagnostic: _ } = status {
-                        Err(message)
-                    } else {
-                        // The fuzzer doesn't care about the actual result.
-                        Ok(WitnessStack::default())
-                    }
-                };
-
-                let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
-
-                let result = fuzzer.fuzz();
-                if result.success {
-                    TestStatus::Pass
-                } else {
-                    TestStatus::Fail {
-                        message: result.reason.unwrap_or_default(),
-                        error_diagnostic: None,
-                    }
-                }
-            }
-        }
+        Ok(compiled_program) => run_compiled_test(
+            blackbox_solver,
+            test_function,
+            test_function_has_no_arguments,
+            compiled_program,
+            output,
+            config,
+            build_foreign_call_executor,
+        ),
         Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
 
+pub fn run_compiled_test<'a, B, F, E>(
+    blackbox_solver: &B,
+    test_function: &TestFunction,
+    test_function_has_no_arguments: bool,
+    compiled_program: CompiledProgram,
+    output: PrintOutput<'a>,
+    config: &CompileOptions,
+    build_foreign_call_executor: F,
+) -> TestStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement>,
+    F: Fn(PrintOutput<'a>, layers::Unhandled) -> E + 'a,
+    E: ForeignCallExecutor<FieldElement>,
+{
+    // Do the same optimizations as `compile_cmd`.
+    let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
+    let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+
+    if test_function_has_no_arguments {
+        // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
+        // otherwise constraints involving these expressions will not error.
+        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+        let inner_executor = build_foreign_call_executor(output, layers::Unhandled);
+        let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+
+        let circuit_execution = execute_program(
+            &compiled_program.program,
+            WitnessMap::new(),
+            blackbox_solver,
+            &mut foreign_call_executor,
+        );
+
+        let status = test_status_program_compile_pass(
+            test_function,
+            &compiled_program.abi,
+            &compiled_program.debug,
+            &circuit_execution,
+        );
+
+        let ignore_foreign_call_failures =
+            std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                .is_ok_and(|var| &var == "true");
+
+        if let TestStatus::Fail { .. } = status {
+            if ignore_foreign_call_failures
+                && foreign_call_executor.encountered_unknown_foreign_call
+            {
+                TestStatus::Skipped
+            } else {
+                status
+            }
+        } else {
+            status
+        }
+    } else {
+        use acvm::acir::circuit::Program;
+        use noir_fuzzer::FuzzedExecutor;
+        use proptest::test_runner::Config;
+        use proptest::test_runner::TestRunner;
+
+        let runner = TestRunner::new(Config { failure_persistence: None, ..Config::default() });
+
+        let abi = compiled_program.abi.clone();
+        let debug = compiled_program.debug.clone();
+
+        let executor = |program: &Program<FieldElement>,
+                        initial_witness: WitnessMap<FieldElement>|
+         -> Result<WitnessStack<FieldElement>, String> {
+            // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+            let inner_executor = build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+
+            let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+
+            let circuit_execution = execute_program(
+                program,
+                initial_witness,
+                blackbox_solver,
+                &mut foreign_call_executor,
+            );
+
+            // Check if a failure was actually expected.
+            let status =
+                test_status_program_compile_pass(test_function, &abi, &debug, &circuit_execution);
+
+            if let TestStatus::Fail { message, error_diagnostic: _ } = status {
+                Err(message)
+            } else {
+                // The fuzzer doesn't care about the actual result.
+                Ok(WitnessStack::default())
+            }
+        };
+
+        let fuzzer = FuzzedExecutor::new(compiled_program.into(), executor, runner);
+
+        let result = fuzzer.fuzz();
+        if result.success {
+            TestStatus::Pass
+        } else {
+            TestStatus::Fail { message: result.reason.unwrap_or_default(), error_diagnostic: None }
+        }
+    }
+}
 /// Test function failed to compile
 ///
 /// Note: This could be because the compiler was able to deduce
 /// that a constraint was never satisfiable.
 /// An example of this is the program `assert(false)`
 /// In that case, we check if the test function should fail, and if so, we return `TestStatus::Pass`.
-fn test_status_program_compile_fail(err: CompileError, test_function: &TestFunction) -> TestStatus {
+pub fn test_status_program_compile_fail(
+    err: CompileError,
+    test_function: &TestFunction,
+) -> TestStatus {
     // The test has failed compilation, but it should never fail. Report error.
     if !test_function.should_fail() {
         return TestStatus::CompileError(err.into());
