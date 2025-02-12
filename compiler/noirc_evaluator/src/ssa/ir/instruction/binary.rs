@@ -441,7 +441,8 @@ pub(crate) fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 1 << bit_size {
+            let limit = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
+            if result >= limit {
                 return None;
             }
             result.into()
@@ -489,6 +490,7 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
     let signed_int = if is_positive {
         unsigned_int as i128
     } else {
+        assert!(bit_size < 128);
         let x = (1u128 << bit_size) - unsigned_int;
         -(x as i128)
     };
@@ -501,13 +503,14 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
         FieldElement::from(int)
     } else {
         // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
+        assert!(bit_size < 128);
         let offset_int = (1i128 << bit_size) + int;
         FieldElement::from(offset_int)
     }
 }
 
 fn truncate(int: u128, bit_size: u32) -> u128 {
-    let max = 1 << bit_size;
+    let max = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
     int % max
 }
 
