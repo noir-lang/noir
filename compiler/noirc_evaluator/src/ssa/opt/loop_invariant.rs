@@ -252,7 +252,7 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
-                self.eval_binary_op_with_induction_vars(binary, &self.outer_induction_variables)
+                self.can_evaluate_binary_op(binary, &self.outer_induction_variables)
             }
             _ => false,
         }
@@ -266,28 +266,25 @@ impl<'f> LoopInvariantContext<'f> {
     /// with a known upper bound, we know whether that binary operation will ever overflow.
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
     fn transform_to_unchecked_from_upper_bound(&mut self, instruction_id: InstructionId) {
-        if let Instruction::Binary(binary) = &self.inserter.function.dfg[instruction_id] {
-            let new_instruction = if !binary.operator.is_unchecked()
-                && self
-                    .eval_binary_op_with_induction_vars(binary, &self.current_induction_variables)
-            {
-                let binary = Binary {
-                    lhs: binary.lhs,
-                    rhs: binary.rhs,
-                    operator: binary.operator.into_unchecked(),
-                };
-                Some(Instruction::Binary(binary))
-            } else {
-                None
-            };
+        let Instruction::Binary(binary) = &self.inserter.function.dfg[instruction_id] else {
+            return;
+        };
 
-            if let Some(new_instruction) = new_instruction {
-                self.inserter.function.dfg[instruction_id] = new_instruction;
-            }
+        if binary.operator.is_unchecked()
+            || !self.can_evaluate_binary_op(binary, &self.current_induction_variables)
+        {
+            return;
         }
+
+        if let Instruction::Binary(binary) = &mut self.inserter.function.dfg[instruction_id] {
+            binary.operator = binary.operator.into_unchecked();
+        };
     }
 
-    fn eval_binary_op_with_induction_vars(
+    /// Checks whether a binary operation can be evaluated using the upper bound of the given loop induction variables.
+    /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
+    /// that the operation can potentially overflow at the upper loop bound.
+    fn can_evaluate_binary_op(
         &self,
         binary: &Binary,
         induction_vars: &HashMap<ValueId, FieldElement>,
@@ -311,6 +308,9 @@ impl<'f> LoopInvariantContext<'f> {
             _ => return false,
         };
 
+        // We evaluate this expression using the upper bounds of its inputs to check whether it will ever overflow.
+        // If so, this will cause `eval_constant_binary_op` to return `None`.
+        // Therefore a `Some` value shows that this operation is safe.
         eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
     }
 
@@ -770,10 +770,6 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 0); // The final return is not counted
 
         // `v8 = add v2, i32 1` in b3 should now be `v9 = unchecked_add v2, i32 1` in b3
         let expected = "
