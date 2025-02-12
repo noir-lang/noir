@@ -301,6 +301,7 @@ fn on_formatting_inner(
     state: &LspState,
     params: lsp_types::DocumentFormattingParams,
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
+    let file_path = params.text_document.uri.to_file_path();
     let path = params.text_document.uri.to_string();
 
     if let Some(source) = state.input_files.get(&path) {
@@ -310,7 +311,12 @@ fn on_formatting_inner(
             return Ok(None);
         }
 
-        let new_text = nargo_fmt::format(source, module, &Config::default());
+        let config = match file_path {
+            Ok(file_path) => Config::read(&file_path).unwrap_or_default(),
+            Err(_) => Config::default(),
+        };
+
+        let new_text = nargo_fmt::format(source, module, &config);
 
         let start_position = Position { line: 0, character: 0 };
         let end_position = Position {
