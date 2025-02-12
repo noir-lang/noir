@@ -23,10 +23,10 @@ libraries:
     timeout: 2
   noir-bignum:
     repo: noir-lang/noir-bignum
-    timeout: 360
+    timeout: 380
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 290
+    timeout: 330
   noir_base64:
     repo: noir-lang/noir_base64
     timeout: 2

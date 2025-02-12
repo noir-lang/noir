@@ -13,7 +13,7 @@ use fm::FileManager;
 use noirc_driver::file_manager_with_stdlib;
 
 use crate::{
-    constants::{CONTRACT_DIR, EXPORT_DIR, PROOFS_DIR, TARGET_DIR},
+    constants::{EXPORT_DIR, TARGET_DIR},
     package::Package,
 };
 
@@ -31,15 +31,6 @@ impl Workspace {
     pub fn package_build_path(&self, package: &Package) -> PathBuf {
         let name: String = package.name.clone().into();
         self.target_directory_path().join(name).with_extension("json")
-    }
-
-    pub fn contracts_directory_path(&self, package: &Package) -> PathBuf {
-        let name: String = package.name.clone().into();
-        self.root_dir.join(CONTRACT_DIR).join(name)
-    }
-
-    pub fn proofs_directory_path(&self) -> PathBuf {
-        self.root_dir.join(PROOFS_DIR)
     }
 
     pub fn target_directory_path(&self) -> PathBuf {

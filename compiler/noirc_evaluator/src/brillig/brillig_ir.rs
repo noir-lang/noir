@@ -353,7 +353,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -427,15 +427,22 @@ pub(crate) mod tests {
         });
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::ForeignCallWait {
+                function: "make_number_sequence".to_string(),
+                inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
+            }
+        );
+
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
-        let mut vm = VM::new(
-            vec![],
-            &bytecode,
-            vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
-            &DummyBlackBoxSolver,
-            false,
-        );
+        let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
+        vm.resolve_foreign_call(response);
+
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }
