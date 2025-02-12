@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739377471488,
+  "lastUpdate": 1739377474942,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4630,105 +4630,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2d2c73b462abdf1c1bcbe35cac6f48bd685dbbce",
-          "message": "chore: Rework defunctionalize pass to not rely on DFG bugs (#7222)",
-          "timestamp": "2025-01-29T17:00:45Z",
-          "tree_id": "73e4dd0b1cbd225e2b4ff9ed3de890979f8b0261",
-          "url": "https://github.com/noir-lang/noir/commit/2d2c73b462abdf1c1bcbe35cac6f48bd685dbbce"
-        },
-        "date": 1738171182135,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.85,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 18.4,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.571,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.472,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.012,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 75.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 74.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.436,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 24.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.9,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.004,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.742,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.024,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9561,6 +9462,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.69,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10b377fb4eb9284df66f5c0bd830f6d20ab2c003",
+          "message": "feat(performance): Use unchecked ops based upon known induction variables (#7344)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-12T16:06:10Z",
+          "tree_id": "053366b3ea7ac17463e851f39f133aae40f78f02",
+          "url": "https://github.com/noir-lang/noir/commit/10b377fb4eb9284df66f5c0bd830f6d20ab2c003"
+        },
+        "date": 1739377473034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.958,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.822,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.68,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.066,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.788,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 10.244,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.658,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.104,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 76.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.594,
             "unit": "s"
           }
         ]
