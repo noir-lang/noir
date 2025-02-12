@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739379421950,
+  "lastUpdate": 1739380070739,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4580,105 +4580,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9f218247aecf2a57eab43fde667e7b0759eeb78c",
-          "message": "feat(optimization): Add purity analysis to SSA (#7197)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-29T18:56:14Z",
-          "tree_id": "eed4b1eb22ce28e0a3ef8228e7d43fbaebcf4160",
-          "url": "https://github.com/noir-lang/noir/commit/9f218247aecf2a57eab43fde667e7b0759eeb78c"
-        },
-        "date": 1738178141404,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.973,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.799,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.1,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.554,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.642,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 71.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.106,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 70,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.61,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 26.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.394,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.036,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.126,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.088,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9511,6 +9412,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.588,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b6ba5d960239f8fa934d9543699eb86edd3c43b",
+          "message": "feat(cli): Add `--target-dir` option (#7350)",
+          "timestamp": "2025-02-12T16:46:32Z",
+          "tree_id": "a5d5e3ac067f290eff04d53273f51aeadde4ff2b",
+          "url": "https://github.com/noir-lang/noir/commit/1b6ba5d960239f8fa934d9543699eb86edd3c43b"
+        },
+        "date": 1739380069459,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.924,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.836,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.693,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.194,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.49,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.014,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.892,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.568,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.044,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 71.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 70.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.036,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.63,
             "unit": "s"
           }
         ]
