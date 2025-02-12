@@ -103,104 +103,80 @@ impl<F: AcirField> MemoryValue<F> {
     }
 
     pub fn expect_field(&self) -> Result<&F, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::Field(field) => return Ok(field),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U64(_) => 64,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize {
-            value_bit_size,
-            expected_bit_size: F::max_num_bits(),
-        })
+        if let MemoryValue::Field(field) = self {
+            Ok(field)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: F::max_num_bits(),
+            })
+        }
     }
 
     pub fn expect_u1(&self) -> Result<bool, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U1(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U64(_) => 64,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 1 })
+        if let MemoryValue::U1(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 1,
+            })
+        }
     }
 
     pub fn expect_u8(&self) -> Result<u8, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U8(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U64(_) => 64,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 8 })
+        if let MemoryValue::U8(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 8,
+            })
+        }
     }
 
     pub fn expect_u16(&self) -> Result<u16, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U16(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U64(_) => 64,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 16 })
+        if let MemoryValue::U16(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 16,
+            })
+        }
     }
 
     pub fn expect_u32(&self) -> Result<u32, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U32(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U64(_) => 64,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 32 })
+        if let MemoryValue::U32(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 32,
+            })
+        }
     }
 
     pub fn expect_u64(&self) -> Result<u64, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U64(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U128(_) => 128,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 64 })
+        if let MemoryValue::U64(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 64,
+            })
+        }
     }
 
     pub fn expect_u128(&self) -> Result<u128, MemoryTypeError> {
-        let value_bit_size = match self {
-            MemoryValue::U128(value) => return Ok(*value),
-            MemoryValue::Field(_) => F::max_num_bits(),
-            MemoryValue::U1(_) => 1,
-            MemoryValue::U8(_) => 8,
-            MemoryValue::U16(_) => 16,
-            MemoryValue::U32(_) => 32,
-            MemoryValue::U64(_) => 64,
-        };
-
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 128 })
+        if let MemoryValue::U128(value) = self {
+            Ok(*value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 128,
+            })
+        }
     }
 }
 
