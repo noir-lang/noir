@@ -118,8 +118,7 @@ fn evaluate_binary_int_op_u1(
     rhs: bool,
 ) -> Result<bool, BrilligArithmeticError> {
     let result = match op {
-        BinaryIntOp::Add => lhs ^ rhs,
-        BinaryIntOp::Sub => lhs ^ rhs,
+        BinaryIntOp::Add | BinaryIntOp::Sub => lhs ^ rhs,
         BinaryIntOp::Mul => lhs & rhs,
         BinaryIntOp::Div => {
             if !rhs {
