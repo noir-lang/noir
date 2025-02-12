@@ -1,6 +1,6 @@
 use crate::{
     hir::{
-        comptime::MacroError,
+        comptime::ComptimeError,
         def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
         resolution::{errors::ResolverError, import::PathResolutionError},
     },
@@ -613,10 +613,10 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
     let mut errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::MacroError(MacroError::ErrorRunningAttribute { error, .. }) =
+    let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
         errors.remove(0).0
     else {
-        panic!("Expected a MacroError, got {:?}", errors[0].0);
+        panic!("Expected a ComptimeError, got {:?}", errors[0].0);
     };
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(

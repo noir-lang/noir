@@ -704,18 +704,18 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
     }
 }
 
-/// Macro errors always wrap another error to show it together with a
-/// macro call or macro "something" that eventually led to that error.
+/// Comptime errors always wrap another error to show it together with a
+/// comptime call or macro "something" that eventually led to that error.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MacroError {
+pub enum ComptimeError {
     ErrorRunningAttribute { error: Box<CompilationError>, location: Location },
     ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
 }
 
-impl<'a> From<&'a MacroError> for CustomDiagnostic {
-    fn from(error: &'a MacroError) -> Self {
+impl<'a> From<&'a ComptimeError> for CustomDiagnostic {
+    fn from(error: &'a ComptimeError) -> Self {
         match error {
-            MacroError::ErrorRunningAttribute { error, location } => {
+            ComptimeError::ErrorRunningAttribute { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
                 diagnostic.add_secondary_with_file(
                     "While running this function attribute".into(),
@@ -724,7 +724,7 @@ impl<'a> From<&'a MacroError> for CustomDiagnostic {
                 );
                 diagnostic
             }
-            MacroError::ErrorAddingItemToModule { error, location } => {
+            ComptimeError::ErrorAddingItemToModule { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
                 diagnostic.add_secondary_with_file(
                     "While interpreting `Module::add_item`".into(),

@@ -11,7 +11,7 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        comptime::MacroError,
+        comptime::ComptimeError,
         def_collector::{
             dc_crate::{
                 filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
@@ -212,13 +212,13 @@ pub enum ElaborateReason {
     AddingItemToModule,
 }
 impl ElaborateReason {
-    fn to_macro_error(self, error: CompilationError, location: Location) -> MacroError {
+    fn to_macro_error(self, error: CompilationError, location: Location) -> ComptimeError {
         match self {
             ElaborateReason::RunningAttribute => {
-                MacroError::ErrorRunningAttribute { error: Box::new(error), location }
+                ComptimeError::ErrorRunningAttribute { error: Box::new(error), location }
             }
             ElaborateReason::AddingItemToModule => {
-                MacroError::ErrorAddingItemToModule { error: Box::new(error), location }
+                ComptimeError::ErrorAddingItemToModule { error: Box::new(error), location }
             }
         }
     }

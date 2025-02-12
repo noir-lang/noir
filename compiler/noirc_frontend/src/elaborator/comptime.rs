@@ -678,7 +678,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Pops en ElaborateREason. Receives the errors that were returned by `push_elaborate_reason`
-    /// so they are restored, while also wrapping errors in the current Elaborator in a MacroError.
+    /// so they are restored, while also wrapping errors in the current Elaborator in a ComptimeError.
     pub(crate) fn pop_elaborate_reason(
         &mut self,
         previous_errors: Vec<(CompilationError, FileId)>,
@@ -699,7 +699,7 @@ impl<'context> Elaborator<'context> {
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
         for (reason, location) in self.elaborate_reasons.iter().rev() {
-            error = CompilationError::MacroError(reason.to_macro_error(error, *location));
+            error = CompilationError::ComptimeError(reason.to_macro_error(error, *location));
         }
         error
     }
