@@ -261,16 +261,32 @@ fn parse_path(path: &str) -> Result<PathBuf, String> {
 
 #[cfg(test)]
 mod tests {
+    use super::NargoCli;
     use clap::Parser;
+
     #[test]
     fn test_parse_invalid_expression_width() {
         let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = super::NargoCli::try_parse_from(cmd.split_ascii_whitespace());
+        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
         assert!(err
             .to_string()
             .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+    }
+
+    #[test]
+    fn test_parse_target_dir() {
+        let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+
+        let target_dir = cli.config.target_dir.expect("should parse target dir");
+        assert!(target_dir.is_absolute(), "should be made absolute");
+        assert!(target_dir.ends_with("foo/bar"));
+
+        let cmd = "nargo --program-dir . execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        assert!(cli.config.target_dir.is_none());
     }
 }
