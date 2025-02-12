@@ -89,6 +89,7 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
+    // Maps current loop induction variable -> fixed upper loop bound
     current_induction_variables: HashMap<ValueId, FieldElement>,
     // Maps outer loop induction variable -> fixed upper loop bound
     outer_induction_variables: HashMap<ValueId, FieldElement>,
@@ -751,7 +752,7 @@ mod test {
     #[test]
     fn transform_safe_ops_to_unchecked_during_code_motion() {
         // This test is identical to `simple_loop_invariant_code_motion`, except this test
-        // has an induction variable with a known upper loop bound.
+        // uses a checked add in `b3`.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
