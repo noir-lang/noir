@@ -1,112 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739396276950,
+  "lastUpdate": 1739396278413,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9f218247aecf2a57eab43fde667e7b0759eeb78c",
-          "message": "feat(optimization): Add purity analysis to SSA (#7197)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-29T18:56:14Z",
-          "tree_id": "eed4b1eb22ce28e0a3ef8228e7d43fbaebcf4160",
-          "url": "https://github.com/noir-lang/noir/commit/9f218247aecf2a57eab43fde667e7b0759eeb78c"
-        },
-        "date": 1738178371855,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 77.85,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.82,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 425.12,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 1480,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 433.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 662.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 553.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5330,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 549.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 662.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2180,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1180,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 204.79,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 273.59,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4519,6 +4415,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 544.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 661.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7cdce1fef7e0fd63355fe6dc0993415bbb210ebf",
+          "message": "feat(performance): Check sub operations against induction variables (#7356)",
+          "timestamp": "2025-02-12T21:15:57Z",
+          "tree_id": "4303f33f696a6e30d3d73c4a57ca9d74303ff4ed",
+          "url": "https://github.com/noir-lang/noir/commit/7cdce1fef7e0fd63355fe6dc0993415bbb210ebf"
+        },
+        "date": 1739396276866,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 272.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 587.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1170,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 661.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 545.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 5310,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 5320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 544.37,
             "unit": "MB"
           },
           {
