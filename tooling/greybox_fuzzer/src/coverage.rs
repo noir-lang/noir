@@ -12,11 +12,14 @@ use num_traits::Zero;
 
 use crate::corpus::TestCaseId;
 
-/// A branch taken or comparison state in brillig VM. The first usize is the index of the instruction, the second is the state (0,1 for branches, log2 of the difference for comparisons)
+/// A branch taken or comparison state in brillig VM.
+/// The first usize is the index of the instruction,
+/// the second is the state (0,1 for branches, log2 of the difference for comparisons)
 pub type Feature = (usize, usize);
 
 /// A map from a particular branch or comparison to its unique index in the raw vector used inside brillig vm
 pub type FeatureToIndexMap = HashMap<Feature, usize>;
+
 /// This file implements the mechanisms for coverage - detection of changes is the execution of the target program
 /// It assists in exploration of the program through testcase mutation by telling the fuzzer whether a new testcase represents previously unexplored
 /// functionality. This in turn allows the fuzzer to add them to the corpus as footholds for further exploration
@@ -30,6 +33,7 @@ pub type FeatureToIndexMap = HashMap<Feature, usize>;
 /// Mechanism for automated detection of boolean witnesses in the ACIR witness map
 #[derive(Default)]
 pub struct PotentialBoolWitnessList {
+    // Set of witnesses that could be boolean values
     witness: HashSet<Witness>,
 }
 
@@ -40,6 +44,8 @@ impl From<&WitnessStack<FieldElement>> for PotentialBoolWitnessList {
         // Should be only one function
         assert!(witness_stack.length() == 1);
         let first_func_witnesses = witness_stack.peek().unwrap();
+
+        // Look for witnesses that are either 0 or 1
         for (witness_index, value) in first_func_witnesses.witness.clone().into_iter() {
             if value == FieldElement::one() || value == FieldElement::zero() {
                 witness_set.insert(witness_index);
@@ -53,23 +59,27 @@ impl PotentialBoolWitnessList {
     pub fn new(given_set: HashSet<Witness>) -> Self {
         Self { witness: given_set }
     }
+
     /// Given witnesses from a program, remove non-boolean witnesses from the list
     pub fn update(&mut self, witness_stack: &WitnessStack<FieldElement>) {
         assert!(witness_stack.length() == 1);
         let first_func_witnesses = witness_stack.peek().unwrap();
         let mut witnesses_for_removal = Vec::new();
+
         // Go through the list of perceived boolean witnesses
         for witness_index in self.witness.iter().copied() {
             let value = first_func_witnesses
                 .witness
                 .get(&witness_index)
                 .expect("There should be a witness in the witness map");
+
             // Check that the values are zero or 1
             if *value != FieldElement::zero() && *value != FieldElement::one() {
                 witnesses_for_removal.push(witness_index);
             }
         }
-        // Remove values that
+
+        // Remove values that are not boolean
         for witness_index in witnesses_for_removal.into_iter() {
             self.witness.remove(&witness_index);
         }
@@ -80,6 +90,8 @@ impl PotentialBoolWitnessList {
         assert!(witness_stack.length() == 1);
         let first_func_witnesses = witness_stack.peek().unwrap();
         let mut new_set = HashSet::new();
+
+        // Keep only witnesses that are 0 or 1
         for witness_index in self.witness.iter().copied() {
             let value = first_func_witnesses
                 .witness
@@ -92,6 +104,7 @@ impl PotentialBoolWitnessList {
         Self::new(new_set)
     }
 }
+
 /// Represents a single encountered state of a boolean witness in the Acir program
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct AcirBoolState {
@@ -99,6 +112,7 @@ pub struct AcirBoolState {
     state: bool,
 }
 
+// Constants for branch and equality state counts
 const IF_BRANCH_COUNT: usize = 2;
 const EQ_STATE_COUNT: usize = 2;
 
@@ -216,14 +230,19 @@ pub struct AccumulatedFuzzerCoverage {
     /// The list of indices of all witnesses that are inferred to be boolean
     pub potential_bool_witness_list: Option<PotentialBoolWitnessList>,
 }
+
 type UnusedTestcaseIdSet = HashSet<TestCaseId>;
+
 impl AccumulatedFuzzerCoverage {
     /// Create an initial AccumulatedFuzzerCoverage object from brillig coverage ranges
     pub fn new(coverage_items: &BrilligCoverageRanges) -> AccumulatedFuzzerCoverage {
         let mut single_branch_coverage = Vec::new();
         let mut cmp_coverage = Vec::new();
+
+        // Process each coverage item
         for coverage_item in coverage_items.iter() {
             match coverage_item {
+                // Handle branch coverage
                 BrilligCoverageItemRange::Branch(branch_coverage_range) => {
                     for i in 0..IF_BRANCH_COUNT {
                         single_branch_coverage.push(AccumulatedSingleBranchCoverage {
@@ -235,6 +254,7 @@ impl AccumulatedFuzzerCoverage {
                         });
                     }
                 }
+                // Handle comparison coverage
                 BrilligCoverageItemRange::Comparison(cmp_coverage_range) => {
                     for i in 0..EQ_STATE_COUNT {
                         single_branch_coverage.push(AccumulatedSingleBranchCoverage {
@@ -259,6 +279,7 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
         }
+
         Self {
             acir_bool_coverage: HashSet::new(),
             bool_state_to_testcase_id: HashMap::new(),
@@ -274,6 +295,8 @@ impl AccumulatedFuzzerCoverage {
         if unused_testcases.is_empty() {
             return unused_testcases;
         }
+
+        // Helper closure to remove used testcases from the set
         let mut remove_if_used = |&x| match x {
             Some(testcase_id) => {
                 unused_testcases.remove(&testcase_id);
@@ -281,6 +304,7 @@ impl AccumulatedFuzzerCoverage {
             }
             None => false,
         };
+
         // Go through branch coverage and remove testcase id from the set of unused if we encounter it
         for branch in self.brillig_branch_coverage.iter() {
             if branch.encountered_loop_log2s.is_zero() {
@@ -333,11 +357,13 @@ impl AccumulatedFuzzerCoverage {
         }
         let mut potential_leavers: UnusedTestcaseIdSet = UnusedTestcaseIdSet::new();
 
+        // Helper closure to add testcase IDs to the set of potential leavers
         let mut add_to_leavers = |x| {
             if let Some(leaver_id) = x {
                 potential_leavers.insert(leaver_id);
             };
         };
+
         // Go through all single branch coverage ranges and merge branch coverage in
         for branch in self.brillig_branch_coverage.iter_mut() {
             let prev_value = *branch;
@@ -361,6 +387,7 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
         }
+
         // Go through comparison coverage
         for cmp_approach in self.brillig_cmp_approach_coverage.iter_mut() {
             if !cmp_approach.enabled {
