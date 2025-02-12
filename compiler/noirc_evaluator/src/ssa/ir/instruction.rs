@@ -1,3 +1,5 @@
+use num_bigint::BigUint;
+use num_traits::One;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -959,9 +961,11 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
-                    let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                    let integer_modulus = BigUint::from(2_u128).pow(*bit_size);
+                    let truncated = BigUint::from(numeric_constant.to_u128())
+                        .modpow(&BigUint::one(), &integer_modulus);
+                    let truncated = FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
+                    SimplifiedTo(dfg.make_constant(truncated, typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
                     match &dfg[*instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {

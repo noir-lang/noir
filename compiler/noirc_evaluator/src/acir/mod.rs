@@ -1,6 +1,7 @@
 //! This file holds the pass to convert from Noir's SSA IR to ACIR.
 
 use fxhash::FxHashMap as HashMap;
+use num_bigint::BigUint;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
@@ -1967,23 +1968,23 @@ impl<'a> Context<'a> {
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
 
         let binary_type = self.type_of_binary_operation(binary, dfg);
-        match &binary_type {
-            Type::Numeric(NumericType::Unsigned { bit_size })
-            | Type::Numeric(NumericType::Signed { bit_size }) => {
-                // Conservative max bit size that is small enough such that two operands can be
-                // multiplied and still fit within the field modulus. This is necessary for the
-                // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
-                if *bit_size > max_integer_bit_size {
-                    return Err(RuntimeError::UnsupportedIntegerSize {
-                        num_bits: *bit_size,
-                        max_num_bits: max_integer_bit_size,
-                        call_stack: self.acir_context.get_call_stack(),
-                    });
-                }
-            }
-            _ => {}
-        }
+        // match &binary_type {
+        //     Type::Numeric(NumericType::Unsigned { bit_size })
+        //     | Type::Numeric(NumericType::Signed { bit_size }) => {
+        //         // Conservative max bit size that is small enough such that two operands can be
+        //         // multiplied and still fit within the field modulus. This is necessary for the
+        //         // truncation technique: result % 2^bit_size to be valid.
+        //         let max_integer_bit_size = FieldElement::max_num_bits() / 2;
+        //         if *bit_size > max_integer_bit_size {
+        //             return Err(RuntimeError::UnsupportedIntegerSize {
+        //                 num_bits: *bit_size,
+        //                 max_num_bits: max_integer_bit_size,
+        //                 call_stack: self.acir_context.get_call_stack(),
+        //             });
+        //         }
+        //     }
+        //     _ => {}
+        // }
 
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
@@ -2114,7 +2115,9 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = self.acir_context.add_constant(2_u128.pow(bit_size));
+                    let integer_modulus = BigUint::from(2_u128).pow(bit_size).to_bytes_be();
+                    let integer_modulus = FieldElement::from_be_bytes_reduce(&integer_modulus);
+                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
                 }
             }
