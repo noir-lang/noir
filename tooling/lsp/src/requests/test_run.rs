@@ -44,7 +44,6 @@ fn on_test_run_request_inner(
         &toml_path,
         PackageSelection::Selected(crate_name.clone()),
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        None, // We're not reading or producing artifacts here.
     )
     .map_err(|err| {
         // If we found a manifest, but the workspace is invalid, we raise an error about it

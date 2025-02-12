@@ -42,7 +42,6 @@ fn read_compiled_programs_and_inputs(
         &toml_path,
         nargo_toml::PackageSelection::All,
         Some(noirc_driver::NOIR_ARTIFACT_VERSION_STRING.to_string()),
-        None,
     )
     .expect("failed to resolve workspace");
 

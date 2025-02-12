@@ -388,7 +388,7 @@ mod tests {
         let verbose = matches!(sel, PackageSelection::Selected(_));
 
         let test_workspaces = read_test_program_dirs(&test_programs_dir(), "execution_success")
-            .filter_map(|dir| read_workspace(&dir, None, sel.clone()).ok())
+            .filter_map(|dir| read_workspace(&dir, sel.clone()).ok())
             .collect::<Vec<_>>();
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");

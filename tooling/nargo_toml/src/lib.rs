@@ -522,11 +522,9 @@ pub fn resolve_workspace_from_toml(
     toml_path: &Path,
     package_selection: PackageSelection,
     current_compiler_version: Option<String>,
-    target_dir_path: Option<&Path>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    let mut workspace = toml_to_workspace(nargo_toml, package_selection)?;
-    workspace.target_dir = target_dir_path.map(|p| p.to_path_buf());
+    let workspace = toml_to_workspace(nargo_toml, package_selection)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }

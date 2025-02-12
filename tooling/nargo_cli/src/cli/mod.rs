@@ -172,7 +172,6 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 /// Read a given program directory into a workspace.
 fn read_workspace(
     program_dir: &Path,
-    target_dir: Option<&Path>,
     selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let toml_path = get_package_manifest(program_dir)?;
@@ -181,7 +180,6 @@ fn read_workspace(
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-        target_dir,
     )?;
 
     Ok(workspace)
@@ -200,14 +198,17 @@ where
     // or a specific package; if that's the case then parse the package name to select it in the workspace.
     let selection = match cmd.package_selection() {
         PackageSelection::DefaultOrAll if workspace_dir != package_dir => {
-            let package = read_workspace(&package_dir, None, PackageSelection::DefaultOrAll)?;
+            let package = read_workspace(&package_dir, PackageSelection::DefaultOrAll)?;
             let package = package.into_iter().next().expect("there should be exactly 1 package");
             PackageSelection::Selected(package.name.clone())
         }
         other => other,
     };
     // Parse the top level workspace with the member selected.
-    let workspace = read_workspace(&workspace_dir, config.target_dir.as_ref(), selection)?;
+    let mut workspace = read_workspace(&workspace_dir, selection)?;
+    // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
+    // don't read or write artifacts, so they don't use the target directory.
+    workspace.target_dir = config.target_dir.clone();
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
