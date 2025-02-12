@@ -250,7 +250,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         &mut self,
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
-        call_stack_hlp: &mut CallStackHelper,
+        call_stacks: &mut CallStackHelper,
     ) {
         let instruction = &dfg[instruction_id];
         let call_stack = dfg.get_instruction_call_stack(instruction_id);
