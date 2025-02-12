@@ -226,38 +226,37 @@ impl<F: AcirField> Default for MemoryValue<F> {
 
 impl<F: AcirField> From<bool> for MemoryValue<F> {
     fn from(value: bool) -> Self {
-        let value = if value { 1 } else { 0 };
-        MemoryValue::new_integer(value, IntegerBitSize::U1)
+        MemoryValue::U1(value)
     }
 }
 
 impl<F: AcirField> From<u8> for MemoryValue<F> {
     fn from(value: u8) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U8)
+        MemoryValue::U8(value)
     }
 }
 
 impl<F: AcirField> From<usize> for MemoryValue<F> {
     fn from(value: usize) -> Self {
-        MemoryValue::new_integer(value as u128, MEMORY_ADDRESSING_BIT_SIZE)
+        MemoryValue::U32(value as u32)
     }
 }
 
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U32)
+        MemoryValue::U32(value)
     }
 }
 
 impl<F: AcirField> From<u64> for MemoryValue<F> {
     fn from(value: u64) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U64)
+        MemoryValue::U64(value)
     }
 }
 
 impl<F: AcirField> From<u128> for MemoryValue<F> {
     fn from(value: u128) -> Self {
-        MemoryValue::new_integer(value, IntegerBitSize::U128)
+        MemoryValue::U128(value)
     }
 }
 

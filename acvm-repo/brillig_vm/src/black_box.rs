@@ -1,4 +1,4 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
@@ -346,13 +346,10 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             for i in (0..num_limbs).rev() {
                 let limb = &input % &radix;
                 if output_bits {
-                    limbs[i] = MemoryValue::new_integer(
-                        if limb.is_zero() { 0 } else { 1 },
-                        IntegerBitSize::U1,
-                    );
+                    limbs[i] = MemoryValue::U1(!limb.is_zero());
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
+                    limbs[i] = MemoryValue::U8(limb);
                 };
                 input /= &radix;
             }
