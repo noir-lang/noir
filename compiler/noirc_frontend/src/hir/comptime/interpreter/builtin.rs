@@ -28,9 +28,9 @@ use crate::{
         comptime::{
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            InterpreterError, MacroError, Value,
+            InterpreterError, Value,
         },
-        def_collector::dc_crate::{CollectedItems, CompilationError},
+        def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
     },
     hir_def::{
@@ -2745,32 +2745,20 @@ fn module_add_item(
 
     let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+        let previous_errors =
+            elaborator.push_elaborate_reason(ElaborateReason::AddingItemToModule, location);
+
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
-            // Don't collect errors in `elaborator.errors` yet...
-            let mut errors = Vec::new();
-            elaborator.add_item(top_level_statement, &mut generated_items, &mut errors, location);
-
-            // Wrap them in a MacroError so we show the error where it happens, but also
-            // point out that it was because of this macro call.
-            let errors = vecmap(errors, |(error, file)| {
-                let error = Box::new(error);
-                let error = CompilationError::MacroError(MacroError::ErrorAddingItemToModule {
-                    error,
-                    location,
-                });
-                (error, file)
-            });
-
-            elaborator.push_errors(errors);
+            elaborator.add_item(top_level_statement, &mut generated_items, location);
         }
 
         if !generated_items.is_empty() {
-            elaborator.elaborate_reasons.push_back((ElaborateReason::AddingItemToModule, location));
             elaborator.elaborate_items(generated_items);
-            elaborator.elaborate_reasons.pop_back();
         }
+
+        elaborator.pop_elaborate_reason(previous_errors);
     });
 
     Ok(Value::Unit)

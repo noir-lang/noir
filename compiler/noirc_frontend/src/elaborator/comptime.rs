@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Documented, Expression, ExpressionKind},
     hir::{
-        comptime::{Interpreter, InterpreterError, MacroError, Value},
+        comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
@@ -353,28 +353,20 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        // Don't collect errors in `self.errors` yet...
-        let mut errors = Vec::new();
+        let previous_errors =
+            self.push_elaborate_reason(ElaborateReason::RunningAttribute, location);
+
         for item in items {
-            self.add_item(item, generated_items, &mut errors, location);
+            self.add_item(item, generated_items, location);
         }
 
-        // Wrap them in a MacroError so we show the error where it happens, but also
-        // point out that it was because of running a function attribute.
-        let errors = vecmap(errors, |(error, file)| {
-            let error = Box::new(error);
-            let error =
-                CompilationError::MacroError(MacroError::ErrorRunningAttribute { error, location });
-            (error, file)
-        });
-        self.push_errors(errors);
+        self.pop_elaborate_reason(previous_errors);
     }
 
     pub(crate) fn add_item(
         &mut self,
         item: Item,
         generated_items: &mut CollectedItems,
-        errors: &mut Vec<(CompilationError, FileId)>,
         location: Location,
     ) {
         match item.kind {
@@ -388,7 +380,7 @@ impl<'context> Elaborator<'context> {
                     &function,
                     module_id,
                     item.doc_comments,
-                    errors,
+                    &mut self.errors,
                 ) {
                     let functions = vec![(self.local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
@@ -442,8 +434,8 @@ impl<'context> Elaborator<'context> {
                 );
 
                 generated_items.globals.push(global);
-                if let Some(error) = error {
-                    errors.push(error);
+                if let Some((error, file)) = error {
+                    self.push_err(error, file);
                 }
             }
             ItemKind::Struct(struct_def) => {
@@ -454,7 +446,7 @@ impl<'context> Elaborator<'context> {
                     Documented::new(struct_def, item.doc_comments),
                     self.local_module,
                     self.crate_id,
-                    errors,
+                    &mut self.errors,
                 ) {
                     generated_items.structs.insert(type_id, the_struct);
                 }
@@ -468,7 +460,7 @@ impl<'context> Elaborator<'context> {
                     location.file,
                     self.local_module,
                     self.crate_id,
-                    errors,
+                    &mut self.errors,
                 ) {
                     generated_items.enums.insert(type_id, the_enum);
                 }
@@ -481,7 +473,7 @@ impl<'context> Elaborator<'context> {
                     r#impl,
                     location.file,
                     module,
-                    errors,
+                    &mut self.errors,
                 );
             }
 
@@ -494,7 +486,8 @@ impl<'context> Elaborator<'context> {
                 let location = item.location;
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                errors.push(error.into_compilation_error_pair());
+                let (error, file) = error.into_compilation_error_pair();
+                self.push_err(error, file);
             }
         }
     }
@@ -580,9 +573,12 @@ impl<'context> Elaborator<'context> {
             });
 
             if !generated_items.is_empty() {
-                self.elaborate_reasons.push_back((ElaborateReason::RunningAttribute, location));
+                let previous_errors =
+                    self.push_elaborate_reason(ElaborateReason::RunningAttribute, location);
+
                 self.elaborate_items(generated_items);
-                self.elaborate_reasons.pop_back();
+
+                self.pop_elaborate_reason(previous_errors);
             }
         }
     }
@@ -669,5 +665,42 @@ impl<'context> Elaborator<'context> {
                 Some(DependencyId::Global(id)) => self.interner.get_global_definition(id).comptime,
                 _ => false,
             }
+    }
+
+    /// Pushes an ElaborateReason but also takes the current errors and returns them.
+    pub(crate) fn push_elaborate_reason(
+        &mut self,
+        reason: ElaborateReason,
+        location: Location,
+    ) -> Vec<(CompilationError, FileId)> {
+        self.elaborate_reasons.push_back((reason, location));
+        std::mem::take(&mut self.errors)
+    }
+
+    /// Pops en ElaborateREason. Receives the errors that were returned by `push_elaborate_reason`
+    /// so they are restored, while also wrapping errors in the current Elaborator in a MacroError.
+    pub(crate) fn pop_elaborate_reason(
+        &mut self,
+        previous_errors: Vec<(CompilationError, FileId)>,
+    ) {
+        let new_errors = std::mem::take(&mut self.errors);
+        let new_errors = self.wrap_errors_in_macro_error(new_errors);
+        self.errors = previous_errors;
+        self.push_errors(new_errors);
+        self.elaborate_reasons.pop_back();
+    }
+
+    fn wrap_errors_in_macro_error(
+        &self,
+        errors: Vec<(CompilationError, FileId)>,
+    ) -> Vec<(CompilationError, FileId)> {
+        vecmap(errors, |(error, file_id)| (self.wrap_error_in_macro_error(error), file_id))
+    }
+
+    fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
+        for (reason, location) in self.elaborate_reasons.iter().rev() {
+            error = CompilationError::MacroError(reason.to_macro_error(error, *location));
+        }
+        error
     }
 }

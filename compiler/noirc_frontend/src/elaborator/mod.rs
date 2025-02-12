@@ -749,7 +749,6 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
         let error: CompilationError = error.into();
-        let error = self.wrap_error_in_macro_error(error);
         self.errors.push((error, file));
     }
 
@@ -757,20 +756,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         errors: impl IntoIterator<Item = (CompilationError, FileId)>,
     ) {
-        if self.elaborate_reasons.is_empty() {
-            self.errors.extend(errors);
-        } else {
-            for (error, file) in errors {
-                self.push_err(error, file);
-            }
-        }
-    }
-
-    fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
-        for (reason, location) in self.elaborate_reasons.iter().rev() {
-            error = CompilationError::MacroError(reason.to_macro_error(error, *location));
-        }
-        error
+        self.errors.extend(errors);
     }
 
     fn run_lint(&mut self, file: FileId, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
