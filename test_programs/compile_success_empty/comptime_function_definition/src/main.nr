@@ -105,3 +105,21 @@ mod foo {
         assert(!f.is_unconstrained());
     }
 }
+
+mod test_as_typed_expr {
+    #![foo]
+
+    pub fn method<T>(x: T) -> T {
+        x
+    }
+
+    comptime fn foo(module: Module) -> Quoted {
+        let method = module.functions().filter(|f| f.name() == quote { method })[0];
+        let func = method.as_typed_expr();
+        quote { 
+            pub fn bar() -> i32 {
+                $func(1)
+            }
+        }
+    }
+}
