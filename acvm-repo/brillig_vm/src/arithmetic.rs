@@ -154,11 +154,7 @@ fn evaluate_binary_int_op_generic(
     bit_size: IntegerBitSize,
 ) -> Result<u128, BrilligArithmeticError> {
     let bit_size: u32 = bit_size.into();
-    let bit_modulo = if bit_size == 128 {
-        u128::MAX 
-    } else {
-        1 << bit_size
-    };
+    let bit_modulo = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
     let result = match op {
         // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
         BinaryIntOp::Add => (lhs + rhs) % bit_modulo,

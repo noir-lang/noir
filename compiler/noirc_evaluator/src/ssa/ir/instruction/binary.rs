@@ -441,11 +441,7 @@ pub(crate) fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            let limit = if bit_size == 128 {
-                u128::MAX
-            } else {
-                1 << bit_size
-            };
+            let limit = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
             if result >= limit {
                 return None;
             }
@@ -514,11 +510,7 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
 }
 
 fn truncate(int: u128, bit_size: u32) -> u128 {
-    let max = if bit_size == 128 {
-        u128::MAX
-    } else {
-        1 << bit_size
-    };
+    let max = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
     int % max
 }
 
