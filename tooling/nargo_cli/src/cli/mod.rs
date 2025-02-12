@@ -56,11 +56,11 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./")]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
     program_dir: PathBuf,
 
     /// Override the default target directory.
-    #[arg(long, hide = true, global = true)]
+    #[arg(long, hide = true, global = true, value_parser = parse_path)]
     target_dir: Option<PathBuf>,
 }
 
@@ -134,14 +134,7 @@ enum LockType {
 #[cfg(not(feature = "codegen-docs"))]
 #[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    use fm::NormalizePath;
-
-    let NargoCli { command, mut config } = NargoCli::parse();
-
-    // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
-    if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir).normalize();
-    }
+    let NargoCli { command, config } = NargoCli::parse();
 
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
@@ -254,6 +247,16 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
         locks.push(LockedFile(file));
     }
     Ok(locks)
+}
+
+/// Parses a path and turns it into an absolute one by joining to the current directory.
+fn parse_path(path: &str) -> Result<PathBuf, String> {
+    use fm::NormalizePath;
+    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
+    if !path.is_absolute() {
+        path = std::env::current_dir().unwrap().join(path).normalize();
+    }
+    Ok(path)
 }
 
 #[cfg(test)]
