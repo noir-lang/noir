@@ -261,6 +261,7 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Binary operations can take advantage of that our induction variable has a fixed maximum,
     /// to be transformed from a checked operation to an unchecked operation.
+    ///
     /// Checked operations require more bytecode and thus we aim to minimize their usage wherever possible.
     ///
     /// If one side of a binary operation is a constant and the other is an induction variable
