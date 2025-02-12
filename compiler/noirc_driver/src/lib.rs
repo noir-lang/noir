@@ -145,6 +145,12 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub skip_brillig_constraints_check: bool,
 
+    /// Flag to turn on the lookback feature of the Brillig call constraints
+    /// check, allowing tracking argument values before the call happens preventing
+    /// certain rare false positives (leads to a slowdown on large rollout functions)
+    #[arg(long)]
+    pub enable_brillig_constraints_check_lookback: bool,
+
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -683,6 +689,8 @@ pub fn compile_no_check(
         },
         emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
         skip_underconstrained_check: options.skip_underconstrained_check,
+        enable_brillig_constraints_check_lookback: options
+            .enable_brillig_constraints_check_lookback,
         enable_brillig_constraints_check: options.enable_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
