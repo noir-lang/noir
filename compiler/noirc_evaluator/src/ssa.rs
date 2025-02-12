@@ -104,6 +104,28 @@ pub(crate) fn optimize_into_acir(
 
     let mut ssa_level_warnings = vec![];
 
+    drop(ssa_gen_span_guard);
+
+    let used_globals_map = std::mem::take(&mut ssa.used_globals);
+    let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
+        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
+    });
+
+    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
+    let ssa_gen_span_guard = ssa_gen_span.enter();
+
+    let mut ssa = SsaBuilder {
+        ssa,
+        ssa_logging: options.ssa_logging.clone(),
+        print_codegen_timings: options.print_codegen_timings,
+    }
+    .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
+    // It could happen that we inlined all calls to a given brillig function.
+    // In that case it's unused so we can remove it. This is what we check next.
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
+    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
+    .finish();
+
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
             "After Check for Underconstrained Values",
@@ -119,25 +141,6 @@ pub(crate) fn optimize_into_acir(
             || ssa.check_for_missing_brillig_constraints(),
         ));
     };
-
-    drop(ssa_gen_span_guard);
-
-    let used_globals_map = std::mem::take(&mut ssa.used_globals);
-    let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
-    });
-
-    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
-    let ssa_gen_span_guard = ssa_gen_span.enter();
-
-    let ssa = SsaBuilder {
-        ssa,
-        ssa_logging: options.ssa_logging.clone(),
-        print_codegen_timings: options.print_codegen_timings,
-    }
-    .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
-    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
-    .finish();
 
     drop(ssa_gen_span_guard);
 
@@ -495,6 +498,11 @@ impl SsaBuilder {
     }
 
     fn print(mut self, msg: &str) -> Self {
+        // Always normalize if we are going to print at least one of the passes
+        if !matches!(self.ssa_logging, SsaLogging::None) {
+            self.ssa.normalize_ids();
+        }
+
         let print_ssa_pass = match &self.ssa_logging {
             SsaLogging::None => false,
             SsaLogging::All => true,
@@ -506,7 +514,6 @@ impl SsaBuilder {
             }
         };
         if print_ssa_pass {
-            self.ssa.normalize_ids();
             println!("After {msg}:\n{}", self.ssa);
         }
         self

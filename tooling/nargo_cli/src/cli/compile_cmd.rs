@@ -8,9 +8,7 @@ use nargo::ops::{collect_errors, compile_contract, compile_program, report_error
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{
-    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
-};
+use nargo_toml::PackageSelection;
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -23,7 +21,7 @@ use notify_debouncer_full::new_debouncer;
 use crate::errors::CliError;
 
 use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
-use super::{NargoConfig, PackageOptions};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
@@ -40,34 +38,24 @@ pub(crate) struct CompileCommand {
     watch: bool,
 }
 
-pub(crate) fn run(args: CompileCommand, config: NargoConfig) -> Result<(), CliError> {
-    let selection = args.package_options.package_selection();
-    let workspace = read_workspace(&config.program_dir, selection)?;
+impl WorkspaceCommand for CompileCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
 
+    fn lock_type(&self) -> LockType {
+        LockType::Exclusive
+    }
+}
+
+pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.watch {
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
         compile_workspace_full(&workspace, &args.compile_options)?;
     }
-
     Ok(())
-}
-
-/// Read a given program directory into a workspace.
-fn read_workspace(
-    program_dir: &Path,
-    selection: PackageSelection,
-) -> Result<Workspace, ManifestError> {
-    let toml_path = get_package_manifest(program_dir)?;
-
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
-
-    Ok(workspace)
 }
 
 /// Continuously recompile the workspace on any Noir file change event.
@@ -334,8 +322,11 @@ mod tests {
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
 
-    use crate::cli::compile_cmd::{get_target_width, parse_workspace, read_workspace};
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
+    use crate::cli::{
+        compile_cmd::{get_target_width, parse_workspace},
+        read_workspace,
+    };
 
     /// Try to find the directory that Cargo sets when it is running;
     /// otherwise fallback to assuming the CWD is the root of the repository

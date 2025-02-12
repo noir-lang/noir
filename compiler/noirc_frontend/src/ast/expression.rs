@@ -4,8 +4,8 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
+    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{
     ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, TypeId,
@@ -16,7 +16,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
 
-use super::{AsTraitPath, TypePath, UnaryRhsMemberAccess};
+use super::{AsTraitPath, TypePath};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -26,11 +26,13 @@ pub enum ExpressionKind {
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
     MethodCall(Box<MethodCallExpression>),
+    Constrain(ConstrainExpression),
     Constructor(Box<ConstructorExpression>),
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
+    Match(Box<MatchExpression>),
     Variable(Path),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
@@ -225,24 +227,6 @@ impl ExpressionKind {
     }
 }
 
-impl Recoverable for ExpressionKind {
-    fn error(_: Span) -> Self {
-        ExpressionKind::Error
-    }
-}
-
-impl Recoverable for Expression {
-    fn error(span: Span) -> Self {
-        Expression::new(ExpressionKind::Error, span)
-    }
-}
-
-impl Recoverable for Option<Expression> {
-    fn error(span: Span) -> Self {
-        Some(Expression::new(ExpressionKind::Error, span))
-    }
-}
-
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
@@ -260,49 +244,6 @@ impl PartialEq<Expression> for Expression {
 impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
         Expression { kind, span }
-    }
-
-    pub fn member_access_or_method_call(
-        lhs: Expression,
-        rhs: UnaryRhsMemberAccess,
-        span: Span,
-    ) -> Expression {
-        let kind = match rhs.method_call {
-            None => {
-                let rhs = rhs.method_or_field;
-                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs }))
-            }
-            Some(method_call) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs.method_or_field,
-                generics: method_call.turbofish,
-                arguments: method_call.args,
-                is_macro_call: method_call.macro_call,
-            })),
-        };
-        Expression::new(kind, span)
-    }
-
-    pub fn index(collection: Expression, index: Expression, span: Span) -> Expression {
-        let kind = ExpressionKind::Index(Box::new(IndexExpression { collection, index }));
-        Expression::new(kind, span)
-    }
-
-    pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
-        let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
-        Expression::new(kind, span)
-    }
-
-    pub fn call(
-        lhs: Expression,
-        is_macro_call: bool,
-        arguments: Vec<Expression>,
-        span: Span,
-    ) -> Expression {
-        let func = Box::new(lhs);
-        let kind =
-            ExpressionKind::Call(Box::new(CallExpression { func, is_macro_call, arguments }));
-        Expression::new(kind, span)
     }
 }
 
@@ -466,6 +407,12 @@ pub struct IfExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MatchExpression {
+    pub expression: Expression,
+    pub rules: Vec<(/*pattern*/ Expression, /*branch*/ Expression)>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
     pub parameters: Vec<(Pattern, UnresolvedType)>,
     pub return_type: UnresolvedType,
@@ -593,6 +540,55 @@ impl BlockExpression {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ConstrainExpression {
+    pub kind: ConstrainKind,
+    pub arguments: Vec<Expression>,
+    pub span: Span,
+}
+
+impl Display for ConstrainExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ConstrainKind {
+    Assert,
+    AssertEq,
+    Constrain,
+}
+
+impl ConstrainKind {
+    pub fn required_arguments_count(&self) -> usize {
+        match self {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        }
+    }
+}
+
+impl Display for ConstrainKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstrainKind::Assert => write!(f, "assert"),
+            ConstrainKind::AssertEq => write!(f, "assert_eq"),
+            ConstrainKind::Constrain => write!(f, "constrain"),
+        }
+    }
+}
+
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.kind.fmt(f)
@@ -609,9 +605,11 @@ impl Display for ExpressionKind {
             Index(index) => index.fmt(f),
             Call(call) => call.fmt(f),
             MethodCall(call) => call.fmt(f),
+            Constrain(constrain) => constrain.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
+            Match(match_expr) => match_expr.fmt(f),
             Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
@@ -787,6 +785,16 @@ impl Display for IfExpression {
             write!(f, " else {alternative}")?;
         }
         Ok(())
+    }
+}
+
+impl Display for MatchExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "match {} {{", self.expression)?;
+        for (pattern, branch) in &self.rules {
+            writeln!(f, "    {pattern} -> {branch},")?;
+        }
+        write!(f, "}}")
     }
 }
 
