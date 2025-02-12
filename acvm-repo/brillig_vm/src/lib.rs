@@ -794,7 +794,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             !value
         } else {
             let bit_size: u32 = bit_size.into();
-            let mask = (1_u128 << bit_size as u128) - 1;
+            let mask = if bit_size == 128 {
+                u128::MAX
+            } else {
+            (1_u128 << bit_size as u128) - 1}; 
             (!value) & mask
         };
         self.memory.write(destination, MemoryValue::new_integer(negated_value, bit_size));
