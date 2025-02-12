@@ -28,6 +28,7 @@ mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
 mod trace_cmd;
+mod fmt_trace_cmd;
 mod fs;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
@@ -105,6 +106,7 @@ enum NargoCommand {
     Debug(debug_cmd::DebugCommand),
     Test(test_cmd::TestCommand),
     Trace(trace_cmd::TraceCommand),
+    FormatTrace(fmt_trace_cmd::FmtTraceCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
@@ -140,13 +142,14 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
+        NargoCommand::Trace(args) => trace_cmd::run(args, config),
+        NargoCommand::FormatTrace(args) => fmt_trace_cmd::run(args),
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
         NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
         NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
         NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
         NargoCommand::Test(args) => with_workspace(args, config, test_cmd::run),
-        NargoCommand::Trace(args) => trace_cmd::run(args, config),
         NargoCommand::Info(args) => with_workspace(args, config, info_cmd::run),
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
