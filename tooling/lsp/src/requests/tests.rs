@@ -44,6 +44,7 @@ fn on_tests_request_inner(
         &toml_path,
         PackageSelection::All,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        None,
     )
     .map_err(|err| {
         // If we found a manifest, but the workspace is invalid, we raise an error about it

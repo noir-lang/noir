@@ -80,6 +80,7 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
         &toml_path,
         selection,
         Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        None, // Doesn't write artifacts
     ) {
         Ok(workspace) => Some(workspace),
         Err(err) => {

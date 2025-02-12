@@ -274,6 +274,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
             &toml_path,
             PackageSelection::All,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+            None, // The LSP compiles source, but doesn't read or save artifacts.
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
@@ -316,6 +317,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         members: vec![assumed_package],
         selected_package_index: Some(0),
         is_assumed: true,
+        target_dir: None,
     };
     Ok(workspace)
 }
