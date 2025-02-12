@@ -90,12 +90,12 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
-    // Maps current loop induction variable -> fixed upper loop bound
+    // Maps current loop induction variable -> fixed lower and upper loop bound
     // This map is expected to only ever contain a singular value.
     // However, we store it in a map in order to match the definition of
     // `outer_induction_variables` as both maps share checks for evaluating binary operations.
     current_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
-    // Maps outer loop induction variable -> fixed upper loop bound
+    // Maps outer loop induction variable -> fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
     // have safe operations reliant upon an outer loop's maximum induction variable.
     outer_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
@@ -854,5 +854,50 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn transform_safe_sub_to_unchecked() {
+        // This test is identical to `do_not_transform_unsafe_sub_to_unchecked`, except the loop
+        // in this test starts with a lower bound of `1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+              jmp b1(u32 1)
+          b1(v2: u32):
+              v5 = lt v2, u32 4
+              jmpif v5 then: b3, else: b2
+          b2():
+              return
+          b3():
+              v6 = mul v0, v1
+              constrain v6 == u32 6
+              v8 = sub v2, u32 1
+              jmp b1(v8)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            jmp b1(u32 1)
+          b1(v2: u32):
+            v6 = lt v2, u32 4
+            jmpif v6 then: b3, else: b2
+          b2():
+            return
+          b3():
+            constrain v3 == u32 6
+            v8 = unchecked_sub v2, u32 1
+            jmp b1(v8)
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
