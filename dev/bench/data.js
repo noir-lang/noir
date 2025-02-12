@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739379119009,
+  "lastUpdate": 1739379124630,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4605,105 +4605,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0c4687025ad8ff2faa0512223147977b1bc28b46",
-          "message": "chore: start tracking time to run critical library tests (#7221)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-01-29T17:51:44Z",
-          "tree_id": "4f85d8d463c383ce8962d71b58afc93c94f7419b",
-          "url": "https://github.com/noir-lang/noir/commit/0c4687025ad8ff2faa0512223147977b1bc28b46"
-        },
-        "date": 1738174240186,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.948,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.809,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 17.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.549,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.608,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.022,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 73.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.05,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 76.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.392,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 26.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.044,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.072,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.536,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 1.964,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9536,6 +9437,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 3.594,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "31becc6863688dc9cadf15d2e9726aab9f2a0150",
+          "message": "fix(ssa): Make the lookback feature opt-in (#7190)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-02-12T16:29:42Z",
+          "tree_id": "b54ab8aaca630d71991b5714f5502004bd8a2cb3",
+          "url": "https://github.com/noir-lang/noir/commit/31becc6863688dc9cadf15d2e9726aab9f2a0150"
+        },
+        "date": 1739379122632,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.966,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.808,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.682,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.084,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.836,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.995,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.824,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 3.55,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 67.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 73.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.588,
             "unit": "s"
           }
         ]
