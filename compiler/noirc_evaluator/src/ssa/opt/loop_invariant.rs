@@ -283,6 +283,7 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Checks whether a binary operation can be evaluated using the upper bound of the given loop induction variables.
+    ///
     /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
     /// that the operation can potentially overflow at the upper loop bound.
     fn can_evaluate_binary_op(
