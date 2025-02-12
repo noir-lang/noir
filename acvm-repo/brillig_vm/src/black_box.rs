@@ -312,16 +312,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
-            let radix = memory
-                .read(*radix)
-                .expect_integer_with_bit_size(IntegerBitSize::U32)
-                .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
+            let MemoryValue::U32(radix) = memory.read(*radix) else {
+                panic!("ToRadix opcode's radix bit size does not match expected bit size 32")
+            };
             let num_limbs = memory.read(*num_limbs).to_usize();
-            let output_bits = !memory
-                .read(*output_bits)
-                .expect_integer_with_bit_size(IntegerBitSize::U1)
-                .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
-                .is_zero();
+            let MemoryValue::U1(output_bits) = memory.read(*output_bits) else {
+                panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
+            };
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
