@@ -11,3 +11,7 @@ repository.workspace = true
 serde = "1.0.204"
 serde_json = { version = "=1.0.96", features = ["preserve_order"] }
 regex = "1.10.5"
+
+[lib]
+name = "format_trace"
+path = "src/lib.rs"
