@@ -130,7 +130,7 @@ impl<F: AcirField> MemoryValue<F> {
             MemoryValue::U128(_) => 128,
         };
 
-        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 32 })
+        Err(MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size: 1 })
     }
 
     pub fn expect_u8(&self) -> Result<u8, MemoryTypeError> {

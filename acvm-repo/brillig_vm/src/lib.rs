@@ -780,12 +780,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         let value = self.memory.read(source);
 
         let negated_value = match op_bit_size {
-            IntegerBitSize::U1 => MemoryValue::U32(!value.expect_u32()?),
-            IntegerBitSize::U8 => MemoryValue::U32(!value.expect_u32()?),
-            IntegerBitSize::U16 => MemoryValue::U32(!value.expect_u32()?),
+            IntegerBitSize::U1 => MemoryValue::U1(!value.expect_u1()?),
+            IntegerBitSize::U8 => MemoryValue::U8(!value.expect_u8()?),
+            IntegerBitSize::U16 => MemoryValue::U16(!value.expect_u16()?),
             IntegerBitSize::U32 => MemoryValue::U32(!value.expect_u32()?),
-            IntegerBitSize::U64 => MemoryValue::U32(!value.expect_u32()?),
-            IntegerBitSize::U128 => MemoryValue::U32(!value.expect_u32()?),
+            IntegerBitSize::U64 => MemoryValue::U64(!value.expect_u64()?),
+            IntegerBitSize::U128 => MemoryValue::U128(!value.expect_u128()?),
         };
         self.memory.write(destination, negated_value);
         Ok(())
