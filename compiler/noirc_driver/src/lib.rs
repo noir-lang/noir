@@ -688,10 +688,12 @@ pub fn compile_no_check(
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
 
+    let oracles = abi_gen::compute_oracles(&program);
+
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         create_program(program, &ssa_evaluator_options)?;
 
-    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
+    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types, oracles);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

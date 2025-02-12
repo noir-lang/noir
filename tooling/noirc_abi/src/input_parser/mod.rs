@@ -273,6 +273,7 @@ mod serialization_tests {
                 visibility: AbiVisibility::Public,
             }),
             error_types: Default::default(),
+            oracles: vec![],
         };
 
         let input_map: BTreeMap<String, InputValue> = BTreeMap::from([

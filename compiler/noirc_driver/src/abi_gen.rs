@@ -4,12 +4,13 @@ use acvm::acir::circuit::ErrorSelector;
 use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_abi::{
-    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
+    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Oracle,
+    OracleParameter, Sign,
 };
 use noirc_errors::Span;
 use noirc_evaluator::ErrorType;
-use noirc_frontend::ast::{Signedness, Visibility};
-use noirc_frontend::TypeBinding;
+use noirc_frontend::ast::{IntegerBitSize, Signedness, Visibility};
+use noirc_frontend::monomorphization::ast::Program;
 use noirc_frontend::{
     hir::Context,
     hir_def::{
@@ -20,6 +21,7 @@ use noirc_frontend::{
     },
     node_interner::{FuncId, NodeInterner},
 };
+use noirc_frontend::{monomorphization, TypeBinding};
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
@@ -28,6 +30,7 @@ pub(super) fn gen_abi(
     func_id: &FuncId,
     return_visibility: Visibility,
     error_types: BTreeMap<ErrorSelector, ErrorType>,
+    oracles: Vec<Oracle>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
     let return_type = return_type.map(|typ| AbiReturnType {
@@ -38,7 +41,7 @@ pub(super) fn gen_abi(
         .into_iter()
         .map(|(selector, typ)| (selector, build_abi_error_type(context, typ)))
         .collect();
-    Abi { parameters, return_type, error_types }
+    Abi { parameters, return_type, error_types, oracles }
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails
@@ -81,14 +84,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let typ = typ.as_ref();
             AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
         }
-        Type::Integer(sign, bit_width) => {
-            let sign = match sign {
-                Signedness::Unsigned => Sign::Unsigned,
-                Signedness::Signed => Sign::Signed,
-            };
-
-            AbiType::Integer { sign, width: (*bit_width).into() }
-        }
+        Type::Integer(sign, bit_width) => integer_abi_type(sign, bit_width),
         Type::TypeVariable(binding) => {
             if binding.is_integer() || binding.is_integer_or_field() {
                 match &*binding.borrow() {
@@ -140,6 +136,36 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     }
 }
 
+fn abi_type_from_monomorphized_type(typ: &monomorphization::ast::Type) -> AbiType {
+    use monomorphization::ast::Type::*;
+
+    match typ {
+        Field => AbiType::Field,
+        Array(length, typ) => {
+            AbiType::Array { length: *length, typ: Box::new(abi_type_from_monomorphized_type(typ)) }
+        }
+        Integer(sign, bit_width) => integer_abi_type(sign, bit_width),
+        Bool => AbiType::Boolean,
+        String(length) => AbiType::String { length: *length },
+        Tuple(fields) => {
+            let fields = vecmap(fields, abi_type_from_monomorphized_type);
+            AbiType::Tuple { fields }
+        }
+        Slice(_) | MutableReference(_) | FmtString(..) | Function(..) | Unit => {
+            unreachable!("{typ} cannot be used in the abi")
+        }
+    }
+}
+
+fn integer_abi_type(sign: &Signedness, bit_width: &IntegerBitSize) -> AbiType {
+    let sign = match sign {
+        Signedness::Unsigned => Sign::Unsigned,
+        Signedness::Signed => Sign::Signed,
+    };
+
+    AbiType::Integer { sign, width: (*bit_width).into() }
+}
+
 fn to_abi_visibility(value: Visibility) -> AbiVisibility {
     match value {
         Visibility::Public => AbiVisibility::Public,
@@ -158,6 +184,23 @@ pub(super) fn compute_function_abi(
     let parameters = into_abi_params(context, parameters);
     let return_type = return_type.map(|typ| abi_type_from_hir_type(context, &typ));
     (parameters, return_type)
+}
+
+pub(super) fn compute_oracles(program: &Program) -> Vec<Oracle> {
+    vecmap(&program.oracles, |oracle| {
+        let name = oracle.name.to_string();
+
+        let parameters = vecmap(&oracle.parameters, |typ| OracleParameter {
+            typ: abi_type_from_monomorphized_type(typ),
+        });
+        let return_type = if oracle.return_type == monomorphization::ast::Type::Unit {
+            None
+        } else {
+            Some(abi_type_from_monomorphized_type(&oracle.return_type))
+        };
+
+        Oracle { name, parameters, return_type }
+    })
 }
 
 /// Attempts to retrieve the name of this parameter. Returns None
