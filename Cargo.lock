@@ -3144,6 +3144,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_artifact_cli"
+version = "1.0.0-beta.2"
+dependencies = [
+ "acir",
+ "bn254_blackbox_solver",
+ "clap",
+ "color-eyre",
+ "const_format",
+ "nargo",
+ "noirc_artifacts",
+ "noirc_artifacts_info",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
 name = "noir_debugger"
 version = "1.0.0-beta.2"
 dependencies = [
