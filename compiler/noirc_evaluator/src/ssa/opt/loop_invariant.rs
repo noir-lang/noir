@@ -90,8 +90,13 @@ struct LoopInvariantContext<'f> {
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
     // Maps current loop induction variable -> fixed upper loop bound
+    // This map is expected to only ever contain a singular value.
+    // However, we store it in a map in order to match the definition of
+    // `outer_induction_variables` as both maps share checks for evaluating binary operations.
     current_induction_variables: HashMap<ValueId, FieldElement>,
     // Maps outer loop induction variable -> fixed upper loop bound
+    // This will be used by inner loops to determine whether they
+    // have safe operations reliant upon an outer loop's maximum induction variable.
     outer_induction_variables: HashMap<ValueId, FieldElement>,
 }
 
@@ -108,7 +113,6 @@ impl<'f> LoopInvariantContext<'f> {
 
     fn hoist_loop_invariants(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
         self.set_values_defined_in_loop(loop_);
-        self.set_induction_var_bounds(loop_, true);
 
         for block in loop_.blocks.iter() {
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
@@ -157,6 +161,11 @@ impl<'f> LoopInvariantContext<'f> {
         // These are safe to keep per function, but we want to be clear that these values
         // are used per loop.
         self.loop_invariants.clear();
+        // There is only ever one current induction variable for a loop.
+        // For a new loop, we clear the previous induction variable and then
+        // set the new current induction variable.
+        self.current_induction_variables.clear();
+        self.set_induction_var_bounds(loop_, true);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
