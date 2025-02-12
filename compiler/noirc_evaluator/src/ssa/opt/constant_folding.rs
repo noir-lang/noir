@@ -600,12 +600,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         let bytecode = &generated_brillig.byte_code;
-        let foreign_call_results = Vec::new();
         let pedantic_solving = true;
         let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
         let profiling_active = false;
-        let mut vm =
-            VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active);
         let vm_status: VMStatus<_> = vm.process_opcodes();
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
             return EvaluationResult::CannotEvaluate;
