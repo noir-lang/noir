@@ -254,7 +254,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ) {
         let instruction = &dfg[instruction_id];
         let call_stack = dfg.get_instruction_call_stack(instruction_id);
-        let call_stack_new_id = call_stack_hlp.get_or_insert_locations(&call_stack);
+        let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
         self.initialize_constants(
