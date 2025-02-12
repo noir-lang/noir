@@ -1,112 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739380295976,
+  "lastUpdate": 1739380309303,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2d2c73b462abdf1c1bcbe35cac6f48bd685dbbce",
-          "message": "chore: Rework defunctionalize pass to not rely on DFG bugs (#7222)",
-          "timestamp": "2025-01-29T17:00:45Z",
-          "tree_id": "73e4dd0b1cbd225e2b4ff9ed3de890979f8b0261",
-          "url": "https://github.com/noir-lang/noir/commit/2d2c73b462abdf1c1bcbe35cac6f48bd685dbbce"
-        },
-        "date": 1738171408526,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 77.86,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.45,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 425,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 1480,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 433.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 614.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 505.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5390,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 502.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5390,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 614.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2130,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1130,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 202.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 540.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 270.94,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4554,6 +4450,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 545.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 5310,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 5320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 544.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 661.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b6ba5d960239f8fa934d9543699eb86edd3c43b",
+          "message": "feat(cli): Add `--target-dir` option (#7350)",
+          "timestamp": "2025-02-12T16:46:32Z",
+          "tree_id": "a5d5e3ac067f290eff04d53273f51aeadde4ff2b",
+          "url": "https://github.com/noir-lang/noir/commit/1b6ba5d960239f8fa934d9543699eb86edd3c43b"
+        },
+        "date": 1739380307403,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 272.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 587.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1170,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1300,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 661.49,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 545.97,
             "unit": "MB"
           },
           {
