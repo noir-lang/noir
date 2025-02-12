@@ -598,7 +598,7 @@ pub(crate) fn find_all_references_in_workspace(
             ));
         }
 
-        // The LSP client usually removes duplicate loctions, but we do it here just in case they don't
+        // The LSP client usually removes duplicate locations, but we do it here just in case they don't
         locations.sort_by_key(|location| {
             (
                 location.uri.to_string(),
