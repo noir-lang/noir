@@ -26,6 +26,12 @@ export default {
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
+  middleware: [async (ctx, next) => {
+    if (ctx.url.endsWith('.wasm.gz')) {
+      ctx.url = ctx.url.replace('/', "/node_modules/@aztec/bb.js/dest/browser/");
+    }
+    await next();
+  }],
   plugins: [
     esbuildPlugin({
       ts: true,

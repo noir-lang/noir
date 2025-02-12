@@ -649,8 +649,8 @@ mod test {
             v21 = add v1, v2
             v23 = array_set v19, index v21, value Field 128
             call f1(v23)
-            v25 = add v2, u32 1
-            jmp b1(v25)
+            v24 = add v2, u32 1
+            jmp b1(v24)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -685,8 +685,8 @@ mod test {
             v21 = add v1, v2
             v23 = array_set v14, index v21, value Field 128
             call f1(v23)
-            v25 = add v2, u32 1
-            jmp b1(v25)
+            v24 = add v2, u32 1
+            jmp b1(v24)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):

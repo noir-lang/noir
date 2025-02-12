@@ -114,6 +114,7 @@ impl Function {
         let mut new_function = Function::new(another.name.clone(), id);
         new_function.set_runtime(another.runtime());
         new_function.set_globals(another.dfg.globals.clone());
+        new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function
     }
 
@@ -164,17 +165,13 @@ impl Function {
 
     /// Returns the return types of this function.
     pub(crate) fn returns(&self) -> &[ValueId] {
-        let blocks = self.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
+        for block in self.reachable_blocks() {
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                function_return_values = Some(return_values);
-                break;
+                return return_values;
             }
         }
-        function_return_values
-            .expect("Expected a return instruction, as function construction is finished")
+        &[]
     }
 
     /// Collects all the reachable blocks of this function.
@@ -209,6 +206,16 @@ impl Function {
         }
 
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
+    }
+
+    pub(crate) fn num_instructions(&self) -> usize {
+        self.reachable_blocks()
+            .iter()
+            .map(|block| {
+                let block = &self.dfg[*block];
+                block.instructions().len() + block.terminator().is_some() as usize
+            })
+            .sum()
     }
 }
 

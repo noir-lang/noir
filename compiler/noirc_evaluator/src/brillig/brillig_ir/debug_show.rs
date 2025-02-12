@@ -397,13 +397,14 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  TO_RADIX {} {} -> {}",
+                    "  TO_RADIX {} {} {} -> {}",
                     input,
                     radix,
-                    output
+                    num_limbs,
+                    output_pointer
                 );
             }
         }

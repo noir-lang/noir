@@ -8,7 +8,7 @@ PARSE_MEMORY=$(realpath "$(dirname "$0")/parse_memory.sh")
 
 
 # Tests to be profiled for memory report
-tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression")
+tests_to_profile=("keccak256" "workspace" "regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
 
 current_dir=$(pwd)
 base_path="$current_dir/execution_success"
@@ -22,7 +22,7 @@ fi
 FIRST="1"
 
 FLAGS=${FLAGS:- ""}
-echo "{\"memory_reports\": [ " > memory_report.json
+echo "[" > memory_report.json
 
 for test_name in ${tests_to_profile[@]}; do    
         cd $base_path/$test_name
@@ -57,8 +57,9 @@ for test_name in ${tests_to_profile[@]}; do
         peak=${consumption:30:len}
         rm $current_dir/$test_name"_heap_analysis.txt"
         peak_memory=$($PARSE_MEMORY $peak)
-        echo -e " {\n    \"artifact_name\":\"$test_name\",\n    \"peak_memory\":\"$peak_memory\"\n }" >> $current_dir"/memory_report.json"
+        jq -rc "{name: \"$test_name\", value: \"$peak_memory\" | tonumber, unit: \"MB\"}" --null-input >> $current_dir/memory_report.json
+
 done
 
-echo "]}" >> $current_dir"/memory_report.json"
+echo "]" >> $current_dir"/memory_report.json"
 

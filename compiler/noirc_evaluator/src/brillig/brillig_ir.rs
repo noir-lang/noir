@@ -37,7 +37,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{GlobalSpace, ProcedureId};
+use super::{FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -221,11 +221,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
-    pub(crate) fn new_for_global_init(enable_debug_trace: bool) -> BrilligContext<F, GlobalSpace> {
+    pub(crate) fn new_for_global_init(
+        enable_debug_trace: bool,
+        entry_point: FunctionId,
+    ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: GlobalSpace::new(),
-            context_label: Label::globals_init(),
+            context_label: Label::globals_init(entry_point),
             current_section: 0,
             next_section: 1,
             debug_show: DebugShow::new(enable_debug_trace),
@@ -350,7 +353,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -424,15 +427,22 @@ pub(crate) mod tests {
         });
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::ForeignCallWait {
+                function: "make_number_sequence".to_string(),
+                inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
+            }
+        );
+
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
-        let mut vm = VM::new(
-            vec![],
-            &bytecode,
-            vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
-            &DummyBlackBoxSolver,
-            false,
-        );
+        let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
+        vm.resolve_foreign_call(response);
+
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }

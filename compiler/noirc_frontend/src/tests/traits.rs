@@ -273,11 +273,11 @@ fn regression_6314_single_inheritance() {
         trait Foo {
             fn foo(self) -> Self;
         }
-        
+
         trait Baz: Foo {}
-        
+
         impl<T> Baz for T where T: Foo {}
-        
+
         fn main() { }
     "#;
     assert_no_errors(src);
@@ -291,31 +291,31 @@ fn regression_6314_double_inheritance() {
         trait Foo {
             fn foo(self) -> Self;
         }
-       
+
         trait Bar {
             fn bar(self) -> Self;
         }
-       
+
         trait Baz: Foo + Bar {}
-       
+
         impl<T> Baz for T where T: Foo + Bar {}
-       
+
         fn baz<T>(x: T) -> T where T: Baz {
             x.foo().bar()
         }
-       
+
         impl Foo for Field {
             fn foo(self) -> Self {
                 self + 1
             }
         }
-       
+
         impl Bar for Field {
             fn bar(self) -> Self {
                 self + 2
             }
         }
-       
+
         fn main() {
             assert(0.foo().bar() == baz(0));
         }"#;
@@ -329,7 +329,7 @@ fn trait_alias_single_member() {
         trait Foo {
             fn foo(self) -> Self;
         }
-       
+
         trait Baz = Foo;
 
         impl Foo for Field {
@@ -354,29 +354,29 @@ fn trait_alias_two_members() {
         pub trait Foo {
             fn foo(self) -> Self;
         }
-       
+
         pub trait Bar {
             fn bar(self) -> Self;
         }
-       
+
         pub trait Baz = Foo + Bar;
-       
+
         fn baz<T>(x: T) -> T where T: Baz {
             x.foo().bar()
         }
-       
+
         impl Foo for Field {
             fn foo(self) -> Self {
                 self + 1
             }
         }
-       
+
         impl Bar for Field {
             fn bar(self) -> Self {
                 self + 2
             }
         }
-       
+
         fn main() {
             assert(0.foo().bar() == baz(0));
         }"#;
@@ -394,25 +394,25 @@ fn trait_alias_polymorphic_inheritance() {
         trait Bar<T> {
             fn bar(self) -> T;
         }
-       
+
         trait Baz<T> = Foo + Bar<T>;
-       
+
         fn baz<T, U>(x: T) -> U where T: Baz<U> {
             x.foo().bar()
         }
-       
+
         impl Foo for Field {
             fn foo(self) -> Self {
                 self + 1
             }
         }
-       
+
         impl Bar<bool> for Field {
             fn bar(self) -> bool {
                 true
             }
         }
-       
+
         fn main() {
             assert(0.foo().bar() == baz(0));
         }"#;
@@ -428,39 +428,39 @@ fn trait_alias_polymorphic_where_clause() {
         trait Foo {
             fn foo(self) -> Self;
         }
-        
+
         trait Bar<T> {
             fn bar(self) -> T;
         }
-        
+
         trait Baz {
             fn baz(self) -> bool;
         }
-      
+
         trait Qux<T> = Foo + Bar<T> where T: Baz;
-       
+
         fn qux<T, U>(x: T) -> bool where T: Qux<U> {
             x.foo().bar().baz()
         }
-       
+
         impl Foo for Field {
             fn foo(self) -> Self {
                 self + 1
             }
         }
-        
+
         impl Bar<bool> for Field {
             fn bar(self) -> bool {
                 true
             }
         }
-        
+
         impl Baz for bool {
             fn baz(self) -> bool {
                 self
             }
         }
-        
+
         fn main() {
             assert(0.foo().bar().baz() == qux(0));
         }
@@ -503,18 +503,18 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
         trait Bar {
             fn bar(self) -> Self;
         }
-        
+
         trait Baz {
             fn baz(self) -> bool;
         }
-        
+
         trait Qux<T>: Bar where T: Baz {}
-        
+
         impl<T, U> Qux<T> for U where
             U: Bar,
             T: Baz,
         {}
-        
+
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
         }
@@ -526,13 +526,13 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
         trait Bar {
             fn bar(self) -> Self;
         }
-        
+
         trait Baz {
             fn baz(self) -> bool;
         }
-        
+
         trait Qux<T> = Bar where T: Baz;
-        
+
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
         }
