@@ -1,7 +1,9 @@
+use std::ops::{Shl, Shr};
+
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, IntegerBitSize};
 use acir::AcirField;
 use num_bigint::BigUint;
-use num_traits::{AsPrimitive, PrimInt, WrappingAdd, WrappingMul, WrappingSub};
+use num_traits::{AsPrimitive, PrimInt, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
 use crate::memory::{MemoryTypeError, MemoryValue};
 
@@ -69,49 +71,60 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     if matches!(op, BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals) {
         let result = match (lhs, rhs, bit_size) {
             (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
-                evaluate_binary_int_op_u1(op, lhs, rhs)?
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 8)? != 0
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 16)? != 0
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 32)? != 0
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 64)? != 0
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 128)? != 0
+                evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
             _ => unreachable!(""),
         };
         Ok(MemoryValue::U1(result))
     } else if matches!(op, BinaryIntOp::Shl | BinaryIntOp::Shr) {
-        // `lhs` and `rhs` are asserted to fit within their given types when being read from memory so this is safe.
-        match (lhs, rhs, bit_size) {
-            (MemoryValue::U1(lhs), MemoryValue::U8(rhs), IntegerBitSize::U1) => {
-                evaluate_binary_int_op_u1(op, lhs, rhs != 0).map(MemoryValue::U1)
+        let rhs = rhs.expect_u8().map_err(
+            |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+                BrilligArithmeticError::MismatchedRhsBitSize {
+                    rhs_bit_size: value_bit_size,
+                    op_bit_size: expected_bit_size,
+                }
+            },
+        )?;
+
+        let result = match (lhs, bit_size) {
+            (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
+                let result = if rhs == 0 { lhs } else { false };
+                MemoryValue::U1(result)
             }
-            (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 8).map(MemoryValue::U8)
+            (MemoryValue::U8(lhs), IntegerBitSize::U8) => {
+                MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
-            (MemoryValue::U16(lhs), MemoryValue::U8(rhs), IntegerBitSize::U16) => {
-                evaluate_binary_int_op_num(op, lhs, rhs as u16, 16).map(MemoryValue::U16)
+            (MemoryValue::U16(lhs), IntegerBitSize::U16) => {
+                MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
-            (MemoryValue::U32(lhs), MemoryValue::U8(rhs), IntegerBitSize::U32) => {
-                evaluate_binary_int_op_num(op, lhs, rhs as u32, 32).map(MemoryValue::U32)
+            (MemoryValue::U32(lhs), IntegerBitSize::U32) => {
+                MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
-            (MemoryValue::U64(lhs), MemoryValue::U8(rhs), IntegerBitSize::U64) => {
-                evaluate_binary_int_op_num(op, lhs, rhs as u64, 64).map(MemoryValue::U64)
+            (MemoryValue::U64(lhs), IntegerBitSize::U64) => {
+                MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
-            (MemoryValue::U128(lhs), MemoryValue::U8(rhs), IntegerBitSize::U128) => {
-                evaluate_binary_int_op_num(op, lhs, rhs as u128, 128).map(MemoryValue::U128)
+            (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
+                MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
             _ => unreachable!(""),
-        }
+        };
+
+        Ok(result)
     } else {
         // `lhs` and `rhs` are asserted to fit within their given types when being read from memory so this is safe.
         match (lhs, rhs, bit_size) {
@@ -119,19 +132,19 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 evaluate_binary_int_op_u1(op, lhs, rhs).map(MemoryValue::U1)
             }
             (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 8).map(MemoryValue::U8)
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U8)
             }
             (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 16).map(MemoryValue::U16)
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U16)
             }
             (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 32).map(MemoryValue::U32)
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U32)
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 64).map(MemoryValue::U64)
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U64)
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
-                evaluate_binary_int_op_num(op, lhs, rhs, 128).map(MemoryValue::U128)
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U128)
             }
             _ => unreachable!(""),
         }
@@ -144,8 +157,12 @@ fn evaluate_binary_int_op_u1(
     rhs: bool,
 ) -> Result<bool, BrilligArithmeticError> {
     let result = match op {
-        BinaryIntOp::Add | BinaryIntOp::Sub => lhs ^ rhs,
-        BinaryIntOp::Mul => lhs & rhs,
+        BinaryIntOp::Equals => lhs == rhs,
+        BinaryIntOp::LessThan => !lhs & rhs,
+        BinaryIntOp::LessThanEquals => lhs <= rhs,
+        BinaryIntOp::And | BinaryIntOp::Mul => lhs & rhs,
+        BinaryIntOp::Or => lhs | rhs,
+        BinaryIntOp::Xor | BinaryIntOp::Add | BinaryIntOp::Sub => lhs ^ rhs,
         BinaryIntOp::Div => {
             if !rhs {
                 return Err(BrilligArithmeticError::DivisionByZero);
@@ -153,58 +170,66 @@ fn evaluate_binary_int_op_u1(
                 lhs
             }
         }
-        BinaryIntOp::Equals => lhs == rhs,
-        BinaryIntOp::LessThan => !lhs & rhs,
-        BinaryIntOp::LessThanEquals => lhs <= rhs,
-        BinaryIntOp::And => lhs & rhs,
-        BinaryIntOp::Or => lhs | rhs,
-        BinaryIntOp::Xor => lhs ^ rhs,
-        BinaryIntOp::Shl | BinaryIntOp::Shr => {
-            if rhs {
-                false
-            } else {
-                lhs
-            }
-        }
+        _ => unreachable!(""),
     };
     Ok(result)
 }
 
-fn evaluate_binary_int_op_num<
+fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
+    match op {
+        BinaryIntOp::Equals => lhs == rhs,
+        BinaryIntOp::LessThan => lhs < rhs,
+        BinaryIntOp::LessThanEquals => lhs <= rhs,
+        _ => unreachable!(""),
+    }
+}
+
+fn evaluate_binary_int_op_shifts<
+    T: AsPrimitive<usize> + From<u8> + Zero + PartialOrd + Shl<Output = T> + Shr<Output = T>,
+>(
+    op: &BinaryIntOp,
+    lhs: T,
+    rhs: u8,
+) -> T {
+    match op {
+        BinaryIntOp::Shl => {
+            let rhs_usize: usize = rhs.as_();
+            #[allow(unused_qualifications)]
+            if rhs_usize >= 8 * std::mem::size_of::<T>() {
+                T::zero()
+            } else {
+                lhs << rhs.into()
+            }
+        }
+        BinaryIntOp::Shr => {
+            let rhs_usize: usize = rhs.as_();
+            #[allow(unused_qualifications)]
+            if rhs_usize >= 8 * std::mem::size_of::<T>() {
+                T::zero()
+            } else {
+                lhs >> rhs.into()
+            }
+        }
+        _ => unreachable!(""),
+    }
+}
+
+fn evaluate_binary_int_op_arith<
     T: PrimInt + AsPrimitive<usize> + From<bool> + WrappingAdd + WrappingSub + WrappingMul,
 >(
     op: &BinaryIntOp,
     lhs: T,
     rhs: T,
-    num_bits: usize,
 ) -> Result<T, BrilligArithmeticError> {
     let result = match op {
         BinaryIntOp::Add => lhs.wrapping_add(&rhs),
         BinaryIntOp::Sub => lhs.wrapping_sub(&rhs),
         BinaryIntOp::Mul => lhs.wrapping_mul(&rhs),
         BinaryIntOp::Div => lhs.checked_div(&rhs).ok_or(BrilligArithmeticError::DivisionByZero)?,
-        BinaryIntOp::Equals => (lhs == rhs).into(),
-        BinaryIntOp::LessThan => (lhs < rhs).into(),
-        BinaryIntOp::LessThanEquals => (lhs <= rhs).into(),
         BinaryIntOp::And => lhs & rhs,
         BinaryIntOp::Or => lhs | rhs,
         BinaryIntOp::Xor => lhs ^ rhs,
-        BinaryIntOp::Shl => {
-            let rhs_usize = rhs.as_();
-            if rhs_usize >= num_bits {
-                T::zero()
-            } else {
-                lhs << rhs_usize
-            }
-        }
-        BinaryIntOp::Shr => {
-            let rhs_usize = rhs.as_();
-            if rhs_usize >= num_bits {
-                T::zero()
-            } else {
-                lhs >> rhs_usize
-            }
-        }
+        _ => unreachable!(""),
     };
     Ok(result)
 }
