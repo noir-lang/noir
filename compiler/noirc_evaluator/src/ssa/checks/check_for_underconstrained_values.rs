@@ -122,7 +122,7 @@ struct DependencyContext {
     enable_lookback: bool,
     // Code locations of brillig calls already visited (we don't
     // need to recheck calls happening in the same unrolled functions)
-    visited_locations: HashSet<Location>,
+    visited_locations: HashSet<(FunctionId, Location)>,
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
@@ -334,7 +334,7 @@ impl DependencyContext {
 
                         // If there is no call stack (happens for tests), consider unvisited
                         let visited = location
-                            .map(|loc| self.visited_locations.contains(loc))
+                            .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
                             .unwrap_or_default();
 
                         if !visited {
@@ -368,7 +368,7 @@ impl DependencyContext {
                             }
 
                             if let Some(location) = location {
-                                self.visited_locations.insert(*location);
+                                self.visited_locations.insert((*callee, *location));
                             }
                         }
                     }
