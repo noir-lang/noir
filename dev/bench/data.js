@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739472078119,
+  "lastUpdate": 1739478521856,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9309,95 +9309,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "8d39337bc25bed77d03413ce02b90a2a30863ec1",
-          "message": "fix(ssa): Use number of SSA instructions for the Brillig unrolling bytecode size limit (#7242)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-31T14:03:50Z",
-          "tree_id": "276bf2ded89bdcde92140f04af040d5a237d80e9",
-          "url": "https://github.com/noir-lang/noir/commit/8d39337bc25bed77d03413ce02b90a2a30863ec1"
-        },
-        "date": 1738333380745,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.608,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.202,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.452,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.315,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5841122627ed7f786d24ea2fef3008126569fd55",
           "message": "fix(unrolling): Fetch original bytecode size from the original function (#7253)",
@@ -13013,6 +12924,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f20392cab7cca4abf0f1811204ce1a4229f827a",
+          "message": "fix: give \"correct\" error when trying to use AsTraitPath (#7360)",
+          "timestamp": "2025-02-13T20:10:14Z",
+          "tree_id": "ba39c168c377e234b10e31ba170c1245235d5886",
+          "url": "https://github.com/noir-lang/noir/commit/8f20392cab7cca4abf0f1811204ce1a4229f827a"
+        },
+        "date": 1739478520487,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.3,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.464,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.184,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.039,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.04,
             "unit": "s"
           }
         ]
