@@ -632,10 +632,7 @@ impl<'brillig> Context<'brillig> {
                 let memory = memory_values[*memory_index];
                 *memory_index += 1;
 
-                let field_value = match memory {
-                    MemoryValue::Field(field_value) => field_value,
-                    MemoryValue::Integer(u128_value, _) => u128_value.into(),
-                };
+                let field_value = memory.to_field();
                 dfg.make_constant(field_value, typ)
             }
             Type::Array(types, length) => {
