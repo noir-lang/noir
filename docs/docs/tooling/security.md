@@ -23,7 +23,7 @@ This pass checks if the constraint coverage of Brillig calls is sufficient in th
 
 The check is at the moment disabled by default due to performance concerns and can be enabled by passing the `--enable-brillig-constraints-check` option to `nargo`.
 
-#### Lookback option
+#### "Look back" option
 
 Certain false positives of this check can be avoided by providing the `--enable-brillig-constraints-check-lookback` option to `nargo`, which can be slower but additionally ensures that descendants of call argument values coming from operations *preceding* the call itself would be followed. For example, consider this SSA case:
 
@@ -43,4 +43,4 @@ brillig(inline) fn foo f1 {
 }
 ```
 
-Normally, the `add` operation over `v0` and `v1` happening before the call itself would prevent the call from being (correctly) considered properly constrained. With lookback option, this false positive goes away at the cost of the check becoming somewhat less performant on large unrolled functions. 
+Normally, the `add` operation over `v0` and `v1` happening before the call itself would prevent the call from being (correctly) considered properly constrained. With this option enabled, the false positive goes away at the cost of the check becoming somewhat less performant on large unrolled functions. 
