@@ -1,6 +1,6 @@
 use std::ops::{Shl, Shr};
 
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, IntegerBitSize};
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use acir::AcirField;
 use num_bigint::BigUint;
 use num_traits::{AsPrimitive, PrimInt, WrappingAdd, WrappingMul, WrappingSub, Zero};
@@ -97,7 +97,19 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
                 evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U128)
             }
-            _ => unreachable!(""),
+            (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                    rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            _ => unreachable!("Invalid arguments are covered by the two arms above."),
         }
     } else if matches!(
         op,
@@ -122,7 +134,19 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
                 evaluate_binary_int_op_cmp(op, lhs, rhs)
             }
-            _ => unreachable!(""),
+            (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                return Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                return Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                    rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            _ => unreachable!("Invalid arguments are covered by the two arms above."),
         };
         Ok(MemoryValue::U1(result))
     } else {
@@ -155,7 +179,12 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
             (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
                 MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs))
             }
-            _ => unreachable!(""),
+            _ => {
+                return Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
         };
 
         Ok(result)
