@@ -379,9 +379,9 @@ impl ChunkGroup {
                 }
                 Chunk::TrailingComment(chunk, indent) => {
                     if indent {
-                        group.trailing_comment(chunk)
+                        group.trailing_comment(chunk);
                     } else {
-                        group.trailing_comment_without_final_indentation(chunk)
+                        group.trailing_comment_without_final_indentation(chunk);
                     }
                 }
                 Chunk::LeadingComment(chunk) => group.leading_comment(chunk),
@@ -1029,13 +1029,22 @@ impl<'a> Formatter<'a> {
 
     /// Appends the string to the current buffer line by line, with some pre-checks.
     fn write_chunk_lines(&mut self, string: &str, is_comment: bool) {
+        // Here we also wrap comments if this chunk is a comment.
+        // The logic involves checking whether each line is part of a line or block comment
+        // and wrapping those accordingly.
+        let mut inside_block_comment = false;
+
         let lines: Vec<_> = string.lines().collect();
 
         let mut index = 0;
         while index < lines.len() {
             let mut line = lines[index];
+
             let starts_with_space = line.starts_with(' ');
-            let is_line_comment = is_comment && line.trim_start().starts_with("//");
+            let is_line_comment =
+                is_comment && !inside_block_comment && line.trim_start().starts_with("//");
+            let is_block_comment =
+                is_comment && !inside_block_comment && line.trim_start().starts_with("/*");
 
             // Don't indent the first line (it should already be indented).
             // Also don't indent if the current line already has a space as the last char
@@ -1060,6 +1069,16 @@ impl<'a> Formatter<'a> {
                     self.write(" ");
                 }
                 self.write_line_comment(line.trim_start().strip_prefix("//").unwrap_or(line));
+            } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
+                // Only append a space if it's the start of a block comment (no leading spaces in following lines)
+                if starts_with_space && is_block_comment {
+                    self.write(" ");
+                }
+                self.write_comment_with_prefix(line, "");
+                if inside_block_comment {
+                    self.start_new_line();
+                }
+                inside_block_comment = true;
             } else {
                 self.write(line);
             }
@@ -1070,6 +1089,10 @@ impl<'a> Formatter<'a> {
             while index < lines.len() && lines[index].is_empty() {
                 self.write_multiple_lines_without_skipping_whitespace_and_comments();
                 index += 1;
+            }
+
+            if inside_block_comment && line.trim_end().ends_with("*/") {
+                inside_block_comment = false;
             }
         }
     }

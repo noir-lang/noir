@@ -198,11 +198,18 @@ impl<'a> Formatter<'a> {
             return;
         }
 
-        self.write("//");
+        self.write_comment_with_prefix(comment, "//");
+    }
+
+    pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
+        self.write(prefix);
         for word in comment.split_inclusive([' ', '\n', '\t']) {
             if self.current_line_width() + word.trim().chars().count() >= self.max_width {
                 self.start_new_line();
-                self.write("// ");
+                if !prefix.is_empty() {
+                    self.write(prefix);
+                    self.write(" ");
+                }
             }
 
             self.write(word);
@@ -1107,6 +1114,55 @@ This is a long comment
 that's wrapped.
 */
 global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_in_statement() {
+        let src = "fn foo() {
+        /* This is a long comment that's going to be wrapped. */
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    /* This is a long
+    comment that's going to
+    be wrapped. */
+    let x = 1;
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_mixed_comments_in_statement() {
+        let src = "fn foo() {
+        /* 
+        This is a long comment that's going to be wrapped. 
+        This is a long comment that's going to be wrapped. 
+        */
+        // This is a long comment that's going to be wrapped.
+        /* This is a long comment that's going to be wrapped. */
+        let x = 1;
+    }
+        ";
+        let expected = "fn foo() {
+    /* This is a long
+    comment that's going to
+    be wrapped.
+    This is a long comment
+    that's going to be
+    wrapped.
+    */
+    // This is a long
+    // comment that's going
+    // to be wrapped.
+    /* This is a long
+    comment that's going to
+    be wrapped. */
+    let x = 1;
+}
 ";
         assert_format_wrapping_comments(src, expected, 29);
     }
