@@ -49,7 +49,7 @@ pub(super) fn hover_from_reference(
         .and_then(|reference| {
             let location = args.interner.reference_location(reference);
             let lsp_location = to_lsp_location(args.files, location.file, location.span);
-            format_reference(reference, &args).map(|formatted| Hover {
+            format_reference(reference, args).map(|formatted| Hover {
                 range: lsp_location.map(|location| location.range),
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,

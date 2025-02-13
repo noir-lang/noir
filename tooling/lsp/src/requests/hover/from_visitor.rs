@@ -73,6 +73,6 @@ impl<'a> Visitor for HoverFinder<'a> {
         let value =
             format!("    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:x})`");
         let contents = HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value });
-        self.hover = Some(Hover { contents, range })
+        self.hover = Some(Hover { contents, range });
     }
 }
