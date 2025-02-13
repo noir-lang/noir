@@ -323,42 +323,93 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
                 .is_zero();
 
-            let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
-
-            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
-
             assert!(
-                radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
+                (2..=256).contains(&radix),
                 "Radix out of the valid range [2,256]. Value: {}",
                 radix
             );
 
             assert!(
-                num_limbs >= 1 || input == BigUint::from(0u32),
+                num_limbs >= 1 || input.is_zero(),
                 "Input value {} is not zero but number of limbs is zero.",
                 input
             );
 
             assert!(
-                !output_bits || radix == BigUint::from(2u32),
+                !output_bits || radix == 2,
                 "Radix {} is not equal to 2 and bit mode is activated.",
                 radix
             );
 
-            for i in (0..num_limbs).rev() {
-                let limb = &input % &radix;
-                if output_bits {
-                    limbs[i] = MemoryValue::new_integer(
-                        if limb.is_zero() { 0 } else { 1 },
-                        IntegerBitSize::U1,
-                    );
-                } else {
-                    let limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
-                };
-                input /= &radix;
-            }
+            let limbs = match radix {
+                256 => input
+                    .to_be_bytes()
+                    .into_iter()
+                    .map(|limb| MemoryValue::Integer(limb as u128, IntegerBitSize::U8))
+                    .collect(),
+                2 => input
+                    .to_be_bytes()
+                    .into_iter()
+                    .flat_map(|limb| {
+                        [
+                            MemoryValue::Integer(((limb & 0x80) >> 7) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x40) >> 6) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x20) >> 5) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x10) >> 4) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x08) >> 3) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x04) >> 2) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer(((limb & 0x02) >> 1) as u128, IntegerBitSize::U1),
+                            MemoryValue::Integer((limb & 0x01) as u128, IntegerBitSize::U1),
+                        ]
+                        .into_iter()
+                    })
+                    .collect(),
+                16 => input
+                    .to_be_bytes()
+                    .into_iter()
+                    .flat_map(|limb| {
+                        [
+                            MemoryValue::Integer(((limb & 0xf0) >> 4) as u128, IntegerBitSize::U8),
+                            MemoryValue::Integer((limb & 0x0f) as u128, IntegerBitSize::U8),
+                        ]
+                        .into_iter()
+                    })
+                    .collect(),
+                4 => input
+                    .to_be_bytes()
+                    .into_iter()
+                    .flat_map(|limb| {
+                        [
+                            MemoryValue::Integer(((limb & 0xc0) >> 6) as u128, IntegerBitSize::U8),
+                            MemoryValue::Integer(((limb & 0x30) >> 4) as u128, IntegerBitSize::U8),
+                            MemoryValue::Integer(((limb & 0x0c) >> 2) as u128, IntegerBitSize::U8),
+                            MemoryValue::Integer((limb & 0x03) as u128, IntegerBitSize::U8),
+                        ]
+                        .into_iter()
+                    })
+                    .collect(),
+
+                _ => {
+                    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+                    let radix = BigUint::from(radix);
+
+                    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
+                    for i in (0..num_limbs).rev() {
+                        let limb = &input % &radix;
+                        if output_bits {
+                            limbs[i] = MemoryValue::new_integer(
+                                if limb.is_zero() { 0 } else { 1 },
+                                IntegerBitSize::U1,
+                            );
+                        } else {
+                            let limb: u8 = limb.try_into().unwrap();
+                            limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
+                        };
+                        input /= &radix;
+                    }
+                    limbs
+                }
+            };
 
             memory.write_slice(memory.read_ref(*output_pointer), &limbs);
 
