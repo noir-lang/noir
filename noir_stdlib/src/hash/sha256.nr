@@ -349,6 +349,7 @@ fn update_block_item<Env>(
 }
 
 // Set the rightmost `zeros` number of bytes to 0.
+#[inline_always]
 fn set_item_zeros(item: u32, zeros: u8) -> u32 {
     lshift8(rshift8(item, zeros), zeros)
 }
@@ -374,6 +375,7 @@ fn get_item_byte(mut msg_item: u32, msg_byte_ptr: BLOCK_BYTE_PTR) -> u8 {
 // Project a byte into a position in a field based on the overall block pointer.
 // For example putting 1 into pointer 5 would be 100, because overall we would
 // have [____, 0100] with indexes [0123,4567].
+#[inline_always]
 fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
     let mut msg_item = msg_byte as u32;
     // How many times do we have to shift to the left to get to the position we want?
