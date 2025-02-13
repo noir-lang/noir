@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739453131319,
+  "lastUpdate": 1739453364209,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13186,100 +13186,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "6d319afe651ebc6d36493604e088489787b1b612",
-          "message": "feat: Allow resolved types in constructors (#7223)",
-          "timestamp": "2025-01-29T20:13:54Z",
-          "tree_id": "594010d9fdefe15587041f37bccb4cd804597120",
-          "url": "https://github.com/noir-lang/noir/commit/6d319afe651ebc6d36493604e088489787b1b612"
-        },
-        "date": 1738182995494,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.05,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.01,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.28,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.8,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 794.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.67,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.95,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.13,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.13,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "429ae523bbc6ab69daadcfde7dce0dc548ba69f2",
           "message": "fix: Avoid type error when calling something with a type alias of a function (#7239)",
@@ -17075,6 +16981,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/55545d630a5b338cf97068d23695779c32e5109b"
         },
         "date": 1739449653344,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 597.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.03,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.41,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81b86e2a9bfe991bc0385118094656648a125587",
+          "message": "fix: let LSP read `noirfmt.toml` for formatting files (#7355)",
+          "timestamp": "2025-02-13T13:07:41Z",
+          "tree_id": "d5ca5ca35b7c3f65f2f9ad9ddea958b8f36fb2ff",
+          "url": "https://github.com/noir-lang/noir/commit/81b86e2a9bfe991bc0385118094656648a125587"
+        },
+        "date": 1739453363072,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
