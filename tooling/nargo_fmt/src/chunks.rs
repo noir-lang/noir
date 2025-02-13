@@ -42,7 +42,7 @@ pub(crate) enum Chunk {
     /// (for example for a call we'll add a trailing comma to the last argument).
     TrailingComma,
     /// A trailing comment (happens at the end of a line, and always after something else have been written).
-    TrailingComment(TextChunk, bool /* indent */),
+    TrailingComment(TextChunk, bool /* at_block_end */),
     /// A leading comment. Happens at the beginning of a line.
     LeadingComment(TextChunk),
     /// A group of chunks.
@@ -247,14 +247,15 @@ impl ChunkGroup {
     /// Appends a trailing comment (it's formatted slightly differently than a regular text chunk).
     pub(crate) fn trailing_comment(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
-            self.push(Chunk::TrailingComment(chunk, true));
+            self.push(Chunk::TrailingComment(chunk, false));
         }
     }
 
-    /// Similar to `trailing_comment` but won't append a newline+indentation after the chunk.
-    pub(crate) fn trailing_comment_without_final_indentation(&mut self, chunk: TextChunk) {
+    /// Similar to `trailing_comment` but happens in a block end so no newline+indent will be
+    /// produced afterwards.
+    pub(crate) fn trailing_comment_at_block_end(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
-            self.push(Chunk::TrailingComment(chunk, false));
+            self.push(Chunk::TrailingComment(chunk, true));
         }
     }
 
@@ -377,11 +378,11 @@ impl ChunkGroup {
                     // so that it glues with the last text present there (if any)
                     group.add_trailing_comma_to_last_text();
                 }
-                Chunk::TrailingComment(chunk, indent) => {
-                    if indent {
-                        group.trailing_comment(chunk);
+                Chunk::TrailingComment(chunk, at_block_end) => {
+                    if at_block_end {
+                        group.trailing_comment_at_block_end(chunk);
                     } else {
-                        group.trailing_comment_without_final_indentation(chunk);
+                        group.trailing_comment(chunk);
                     }
                 }
                 Chunk::LeadingComment(chunk) => group.leading_comment(chunk),
@@ -928,12 +929,12 @@ impl<'a> Formatter<'a> {
                 Chunk::Verbatim(text_chunk) => {
                     self.write(&text_chunk.string);
                 }
-                Chunk::TrailingComment(text_chunk, indent) => {
+                Chunk::TrailingComment(text_chunk, at_block_end) => {
                     self.write_chunk_lines(
                         &text_chunk.string,
                         true, // is comment
                     );
-                    if indent {
+                    if !at_block_end {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
                     }

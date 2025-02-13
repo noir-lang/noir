@@ -545,7 +545,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             group.trailing_comma();
         }
 
-        group.trailing_comment_without_final_indentation(chunk);
+        group.trailing_comment_at_block_end(chunk);
 
         if force_trailing_comma {
             group.text(TextChunk::new(",".to_string()));
@@ -1269,7 +1269,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         }
 
         // Finally format the comment, if any
-        group.trailing_comment_without_final_indentation(self.chunk(|formatter| {
+        group.trailing_comment_at_block_end(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
         }));
 
