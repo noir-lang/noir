@@ -942,7 +942,7 @@ impl Literal {
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
             Literal::Integer(value, negative) => {
-                visitor.visit_literal_integer(*value, *negative, span)
+                visitor.visit_literal_integer(*value, *negative, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
