@@ -184,12 +184,12 @@ impl<F: std::fmt::Display> std::fmt::Display for MemoryValue<F> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
             MemoryValue::Field(value) => write!(f, "{}: field", value),
-            MemoryValue::U1(value) => write!(f, "{}: {}", value, 1),
-            MemoryValue::U8(value) => write!(f, "{}: {}", value, 8),
-            MemoryValue::U16(value) => write!(f, "{}: {}", value, 16),
-            MemoryValue::U32(value) => write!(f, "{}: {}", value, 32),
-            MemoryValue::U64(value) => write!(f, "{}: {}", value, 64),
-            MemoryValue::U128(value) => write!(f, "{}: {}", value, 128),
+            MemoryValue::U1(value) => write!(f, "{}: u1", value),
+            MemoryValue::U8(value) => write!(f, "{}: u8", value),
+            MemoryValue::U16(value) => write!(f, "{}: u16", value),
+            MemoryValue::U32(value) => write!(f, "{}: u32", value),
+            MemoryValue::U64(value) => write!(f, "{}: u64", value),
+            MemoryValue::U128(value) => write!(f, "{}: u128", value),
         }
     }
 }
