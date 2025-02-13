@@ -40,14 +40,12 @@ impl<'a> Formatter<'a> {
                     let comment = comment.clone();
                     self.write_indentation();
                     self.write_line_comment(&comment, "///");
-                    self.bump();
                     self.write_line();
                 }
                 Token::BlockComment(comment, Some(DocStyle::Outer)) => {
                     let comment = comment.clone();
                     self.write_indentation();
                     self.write_block_comment(&comment, "/**");
-                    self.bump();
                     self.write_line();
                 }
                 _ => unreachable!("Expected an outer doc comment"),
@@ -147,5 +145,19 @@ that's going to be wrapped.
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn doc_comment_followed_by_comment() {
+        let src = "
+        /// Some doc comment
+        // Some comment
+        global x: Field = 1;
+        ";
+        let expected = "/// Some doc comment
+// Some comment
+global x: Field = 1;
+";
+        assert_format(src, expected);
     }
 }
