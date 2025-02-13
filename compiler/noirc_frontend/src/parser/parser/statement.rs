@@ -764,7 +764,7 @@ mod tests {
     fn parses_empty_loop() {
         let src = "loop { }";
         let mut parser = Parser::for_str(src);
-        let (statement, _cfg_attribute) = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Loop(block, span) = statement.kind else {
             panic!("Expected loop");
         };
@@ -780,7 +780,7 @@ mod tests {
     fn parses_loop_with_statements() {
         let src = "loop { 1; 2 }";
         let mut parser = Parser::for_str(src);
-        let (statement, _cfg_attribute) = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Loop(block, _) = statement.kind else {
             panic!("Expected loop");
         };
@@ -794,7 +794,7 @@ mod tests {
     fn parses_let_with_assert() {
         let src = "let _ = assert(true);";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let");
         };

@@ -1024,6 +1024,20 @@ pub enum CfgAttribute {
     },
 }
 
+impl CfgAttribute {
+    pub fn name(&self) -> String {
+        match self {
+            CfgAttribute::Feature { name, .. } => name.clone(),
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            CfgAttribute::Feature { span, .. } => span.clone(),
+        }
+    }
+}
+
 impl Display for CfgAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
