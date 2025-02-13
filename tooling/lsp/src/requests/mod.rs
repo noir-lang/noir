@@ -301,7 +301,9 @@ fn on_formatting_inner(
     state: &LspState,
     params: lsp_types::DocumentFormattingParams,
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
-    let file_path = params.text_document.uri.to_file_path();
+    // The file_path might be Err/None if the action runs against an unsaved file
+    let file_path = params.text_document.uri.to_file_path().ok();
+
     let path = params.text_document.uri.to_string();
 
     if let Some(source) = state.input_files.get(&path) {
@@ -311,11 +313,7 @@ fn on_formatting_inner(
             return Ok(None);
         }
 
-        let config = match file_path {
-            Ok(file_path) => Config::read(&file_path).unwrap_or_default(),
-            Err(_) => Config::default(),
-        };
-
+        let config = read_config(file_path);
         let new_text = nargo_fmt::format(source, module, &config);
 
         let start_position = Position { line: 0, character: 0 };
@@ -330,6 +328,19 @@ fn on_formatting_inner(
         }]))
     } else {
         Ok(None)
+    }
+}
+
+fn read_config(file_path: Option<PathBuf>) -> Config {
+    match file_path {
+        Some(file_path) => match Config::read(&file_path) {
+            Ok(config) => config,
+            Err(err) => {
+                eprintln!("Failed to parse noirfmt.toml: {}", err);
+                Config::default()
+            }
+        },
+        None => Config::default(),
     }
 }
 
