@@ -156,7 +156,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
     });
 }
 
-/// Go through all the selected tests and executem with and without Brillig.
+/// Go through all the selected tests and execute them with and without Brillig.
 fn criterion_selected_tests_execution(c: &mut Criterion) {
     for test_program_dir in get_selected_tests() {
         for force_brillig in [false, true] {

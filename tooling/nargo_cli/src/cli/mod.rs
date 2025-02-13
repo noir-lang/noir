@@ -56,8 +56,12 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./")]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
     program_dir: PathBuf,
+
+    /// Override the default target directory.
+    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    target_dir: Option<PathBuf>,
 }
 
 /// Options for commands that work on either workspace or package scope.
@@ -130,14 +134,7 @@ enum LockType {
 #[cfg(not(feature = "codegen-docs"))]
 #[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    use fm::NormalizePath;
-
-    let NargoCli { command, mut config } = NargoCli::parse();
-
-    // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
-    if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir).normalize();
-    }
+    let NargoCli { command, config } = NargoCli::parse();
 
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
@@ -194,14 +191,17 @@ where
     // or a specific package; if that's the case then parse the package name to select it in the workspace.
     let selection = match cmd.package_selection() {
         PackageSelection::DefaultOrAll if workspace_dir != package_dir => {
-            let workspace = read_workspace(&package_dir, PackageSelection::DefaultOrAll)?;
-            let package = workspace.into_iter().next().expect("there should be exactly 1 package");
+            let package = read_workspace(&package_dir, PackageSelection::DefaultOrAll)?;
+            let package = package.into_iter().next().expect("there should be exactly 1 package");
             PackageSelection::Selected(package.name.clone())
         }
         other => other,
     };
     // Parse the top level workspace with the member selected.
-    let workspace = read_workspace(&workspace_dir, selection)?;
+    let mut workspace = read_workspace(&workspace_dir, selection)?;
+    // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
+    // don't read or write artifacts, so they don't use the target directory.
+    workspace.target_dir = config.target_dir.clone();
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
@@ -249,18 +249,44 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
     Ok(locks)
 }
 
+/// Parses a path and turns it into an absolute one by joining to the current directory.
+fn parse_path(path: &str) -> Result<PathBuf, String> {
+    use fm::NormalizePath;
+    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
+    if !path.is_absolute() {
+        path = std::env::current_dir().unwrap().join(path).normalize();
+    }
+    Ok(path)
+}
+
 #[cfg(test)]
 mod tests {
+    use super::NargoCli;
     use clap::Parser;
+
     #[test]
     fn test_parse_invalid_expression_width() {
         let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = super::NargoCli::try_parse_from(cmd.split_ascii_whitespace());
+        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
         assert!(err
             .to_string()
             .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+    }
+
+    #[test]
+    fn test_parse_target_dir() {
+        let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+
+        let target_dir = cli.config.target_dir.expect("should parse target dir");
+        assert!(target_dir.is_absolute(), "should be made absolute");
+        assert!(target_dir.ends_with("foo/bar"));
+
+        let cmd = "nargo --program-dir . execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        assert!(cli.config.target_dir.is_none());
     }
 }
