@@ -203,7 +203,7 @@ fn evaluate_binary_int_op_u1(
                 lhs
             }
         }
-        _ => unreachable!("Operators not handled by this function"),
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     };
     Ok(result)
 }
@@ -213,7 +213,7 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
         BinaryIntOp::Equals => lhs == rhs,
         BinaryIntOp::LessThan => lhs < rhs,
         BinaryIntOp::LessThanEquals => lhs <= rhs,
-        _ => unreachable!("Operators not handled by this function"),
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     }
 }
 
