@@ -3,6 +3,7 @@ use std::future::{self, Future};
 use async_lsp::ResponseError;
 use fm::PathString;
 use from_reference::hover_from_reference;
+use from_visitor::hover_from_visitor;
 use lsp_types::{Hover, HoverParams};
 
 use crate::LspState;
@@ -10,6 +11,7 @@ use crate::LspState;
 use super::process_request;
 
 mod from_reference;
+mod from_visitor;
 
 pub(crate) fn on_hover_request(
     state: &mut LspState,
@@ -20,7 +22,8 @@ pub(crate) fn on_hover_request(
     let result = process_request(state, params.text_document_position_params, |args| {
         let path = PathString::from_path(uri.to_file_path().unwrap());
         let file_id = args.files.get_file_id(&path);
-        hover_from_reference(file_id, position, args)
+        hover_from_reference(file_id, position, &args)
+            .or_else(|| hover_from_visitor(file_id, position, &args))
     });
 
     future::ready(result)
@@ -458,5 +461,13 @@ mod hover_tests {
 
  Like a tomato"
         ));
+    }
+
+    #[test]
+    async fn hover_on_integer_literal() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 9, character: 69 })
+                .await;
+        assert_eq!(&hover_text, "    Field\n---\nvalue of literal: `123 (0x7b)`");
     }
 }

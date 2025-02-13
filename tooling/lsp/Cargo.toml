@@ -32,6 +32,7 @@ fm.workspace = true
 rayon.workspace = true
 fxhash.workspace = true
 convert_case = "0.6.0"
+num-bigint.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

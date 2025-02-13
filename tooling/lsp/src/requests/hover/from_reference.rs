@@ -27,7 +27,7 @@ use crate::{
 pub(super) fn hover_from_reference(
     file_id: Option<FileId>,
     position: Position,
-    args: ProcessRequestCallbackArgs,
+    args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
     file_id
         .and_then(|file_id| {
