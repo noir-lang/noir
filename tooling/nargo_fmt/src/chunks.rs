@@ -1065,7 +1065,7 @@ impl<'a> Formatter<'a> {
             }
 
             if is_line_comment && self.config.wrap_comments {
-                if starts_with_space {
+                if starts_with_space && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
                 self.write_comment_with_prefix(
@@ -1074,7 +1074,7 @@ impl<'a> Formatter<'a> {
                 );
             } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
                 // Only append a space if it's the start of a block comment (no leading spaces in following lines)
-                if starts_with_space && is_block_comment {
+                if starts_with_space && is_block_comment && !self.buffer.ends_with_space() {
                     self.write(" ");
                 }
                 self.write_comment_with_prefix(line, "");

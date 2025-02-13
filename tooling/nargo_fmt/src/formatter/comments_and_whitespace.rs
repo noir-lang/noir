@@ -1168,4 +1168,20 @@ global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
     }
+
+    #[test]
+    fn wraps_line_comments_at_block_end() {
+        let src = "fn foo() {
+        let x = 1;
+        // This is a very long comment
+    }
+        ";
+        let expected = "fn foo() {
+    let x = 1;
+    // This is a very long
+    // comment
+}
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
 }
