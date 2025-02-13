@@ -3,12 +3,10 @@ use std::collections::BTreeMap;
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{
-    BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
-};
+use super::{brillig_block::BrilligBlock, BrilligVariable, Function, FunctionContext, ValueId};
 use crate::brillig::{
-    brillig_ir::BrilligContext, called_functions_vec, Brillig, DataFlowGraph, FunctionId,
-    Instruction, Value,
+    brillig_ir::BrilligContext, called_functions_vec, Brillig, BrilligArtifact, DataFlowGraph,
+    FunctionId, Instruction, Label, Value,
 };
 
 /// Context structure for generating Brillig globals
@@ -164,8 +162,12 @@ impl BrilligGlobals {
             }
 
             let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
-            let (artifact, brillig_globals, globals_size) =
-                convert_ssa_globals(enable_debug_trace, globals_dfg, &used_globals, entry_point);
+            let (artifact, brillig_globals, globals_size) = brillig.convert_ssa_globals(
+                enable_debug_trace,
+                globals_dfg,
+                &used_globals,
+                entry_point,
+            );
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
@@ -216,39 +218,43 @@ impl BrilligGlobals {
     }
 }
 
-pub(crate) fn convert_ssa_globals(
-    enable_debug_trace: bool,
-    globals_dfg: &DataFlowGraph,
-    used_globals: &HashSet<ValueId>,
-    entry_point: FunctionId,
-) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>, usize) {
-    let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
-    // The global space does not have globals itself
-    let empty_globals = HashMap::default();
-    // We can use any ID here as this context is only going to be used for globals which does not differentiate
-    // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-    let mut function_context = FunctionContext::default();
-    brillig_context.enter_context(Label::globals_init(entry_point));
+impl Brillig {
+    pub(crate) fn convert_ssa_globals(
+        &mut self,
+        enable_debug_trace: bool,
+        globals_dfg: &DataFlowGraph,
+        used_globals: &HashSet<ValueId>,
+        entry_point: FunctionId,
+    ) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>, usize) {
+        let mut brillig_context =
+            BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
+        // The global space does not have globals itself
+        let empty_globals = HashMap::default();
+        // We can use any ID here as this context is only going to be used for globals which does not differentiate
+        // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
+        let mut function_context = FunctionContext::default();
+        brillig_context.enter_context(Label::globals_init(entry_point));
 
-    let block_id = DataFlowGraph::default().make_block();
-    let mut brillig_block = BrilligBlock {
-        function_context: &mut function_context,
-        block_id,
-        brillig_context: &mut brillig_context,
-        variables: Default::default(),
-        last_uses: HashMap::default(),
-        globals: &empty_globals,
-        building_globals: true,
-    };
+        let block_id = DataFlowGraph::default().make_block();
+        let mut brillig_block = BrilligBlock {
+            function_context: &mut function_context,
+            block_id,
+            brillig_context: &mut brillig_context,
+            variables: Default::default(),
+            last_uses: HashMap::default(),
+            globals: &empty_globals,
+            building_globals: true,
+        };
 
-    brillig_block.compile_globals(globals_dfg, used_globals);
+        brillig_block.compile_globals(globals_dfg, used_globals, &mut self.call_stacks);
 
-    let globals_size = brillig_context.global_space_size();
+        let globals_size = brillig_context.global_space_size();
 
-    brillig_context.return_instruction();
+        brillig_context.return_instruction();
 
-    let artifact = brillig_context.artifact();
-    (artifact, function_context.ssa_value_allocations, globals_size)
+        let artifact = brillig_context.artifact();
+        (artifact, function_context.ssa_value_allocations, globals_size)
+    }
 }
 
 #[cfg(test)]

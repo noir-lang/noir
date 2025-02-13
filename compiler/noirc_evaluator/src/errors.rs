@@ -9,10 +9,10 @@
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{call_stack::CallStack, CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
 
-use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]

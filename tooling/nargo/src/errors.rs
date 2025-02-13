@@ -2,15 +2,16 @@ use std::collections::BTreeMap;
 
 use acvm::{
     acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
-        ResolvedAssertionPayload, ResolvedOpcodeLocation,
+        brillig::BrilligFunctionId, AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector,
+        OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload, ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
 };
 use noirc_abi::{display_abi_error, Abi, AbiErrorType};
 use noirc_errors::{
-    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
+    call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic,
+    FileDiagnostic,
 };
 
 pub use noirc_errors::Location;
@@ -165,25 +166,21 @@ fn extract_locations_from_error<F: AcirField>(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
+                let call_stack_id = match resolved_location.opcode_location {
+                    OpcodeLocation::Acir(idx) => *debug[resolved_location.acir_function_index]
+                        .location_map
+                        .get(&AcirOpcodeLocation::new(idx))
+                        .unwrap_or(&CallStackId::root()),
+                    // TODO: should we use acir_index here and merge the 2 call stacks?
+                    OpcodeLocation::Brillig { brillig_index, .. } => *debug
+                        [resolved_location.acir_function_index]
+                        .brillig_locations[&brillig_function_id.unwrap()]
+                        .get(&BrilligOpcodeLocation(brillig_index))
+                        .unwrap_or(&CallStackId::root()),
+                };
                 debug[resolved_location.acir_function_index]
-                    .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_else(|| {
-                        if let (Some(brillig_function_id), Some(brillig_location)) = (
-                            brillig_function_id,
-                            &resolved_location.opcode_location.to_brillig_location(),
-                        ) {
-                            let brillig_locations = debug[resolved_location.acir_function_index]
-                                .brillig_locations
-                                .get(&brillig_function_id);
-                            brillig_locations
-                                .unwrap()
-                                .get(brillig_location)
-                                .cloned()
-                                .unwrap_or_default()
-                        } else {
-                            vec![]
-                        }
-                    })
+                    .location_tree
+                    .get_call_stack(call_stack_id)
             })
             .collect(),
     )
@@ -233,6 +230,7 @@ pub fn try_to_diagnose_runtime_error(
 ) -> Option<FileDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
+            dbg!(&debug);
             extract_locations_from_error(execution_error, debug)?
         }
         _ => return None,

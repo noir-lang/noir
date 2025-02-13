@@ -1,12 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use acvm::acir::circuit::ErrorSelector;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::GlobalsGraph,
         function::{Function, FunctionId},
         instruction::{ConstrainError, Instruction},
