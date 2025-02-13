@@ -201,9 +201,7 @@ impl<'a> Formatter<'a> {
         self.write("//");
         for word in comment.split_inclusive([' ', '\n', '\t']) {
             if self.current_line_width() + word.trim().chars().count() >= self.max_width {
-                self.trim_spaces();
-                self.write_line_without_skipping_whitespace_and_comments();
-                self.write_indentation();
+                self.start_new_line();
                 self.write("// ");
             }
 
@@ -222,22 +220,17 @@ impl<'a> Formatter<'a> {
         self.write("/*");
 
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
-            self.write_line_without_skipping_whitespace_and_comments();
-            self.write_indentation();
+            self.start_new_line();
         }
 
         for (index, line) in comment.lines().enumerate() {
             if index > 0 {
-                self.trim_spaces();
-                self.write_line_without_skipping_whitespace_and_comments();
-                self.write_indentation();
+                self.start_new_line();
             }
 
             for word in line.split_inclusive([' ', '\n', '\t']) {
                 if self.current_line_width() + word.trim().chars().count() >= self.max_width {
-                    self.trim_spaces();
-                    self.write_line_without_skipping_whitespace_and_comments();
-                    self.write_indentation();
+                    self.start_new_line();
                 }
 
                 self.write(word);
@@ -245,15 +238,11 @@ impl<'a> Formatter<'a> {
         }
 
         if comment.ends_with('\n') {
-            self.trim_spaces();
-            self.write_line_without_skipping_whitespace_and_comments();
-            self.write_indentation();
+            self.start_new_line();
         }
 
         if self.current_line_width() + 2 >= self.max_width {
-            self.trim_spaces();
-            self.write_line_without_skipping_whitespace_and_comments();
-            self.write_indentation();
+            self.start_new_line();
         }
 
         self.write("*/");
@@ -302,6 +291,12 @@ impl<'a> Formatter<'a> {
             self.write(NEWLINE);
             self.write(NEWLINE);
         }
+    }
+
+    pub(crate) fn start_new_line(&mut self) {
+        self.trim_spaces();
+        self.write_line_without_skipping_whitespace_and_comments();
+        self.write_indentation();
     }
 
     /// Trim spaces from the end of the buffer.
