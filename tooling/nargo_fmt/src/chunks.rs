@@ -930,10 +930,8 @@ impl<'a> Formatter<'a> {
                     self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk, at_block_end) => {
-                    self.write_chunk_lines(
-                        &text_chunk.string,
-                        true, // is comment
-                    );
+                    let is_comment = true;
+                    self.write_chunk_lines(&text_chunk.string, is_comment);
                     if !at_block_end {
                         self.write_line_without_skipping_whitespace_and_comments();
                         self.write_indentation();
@@ -943,10 +941,8 @@ impl<'a> Formatter<'a> {
                     let ends_with_multiple_newlines = text_chunk.string.ends_with("\n\n");
                     let ends_with_newline =
                         ends_with_multiple_newlines || text_chunk.string.ends_with('\n');
-                    self.write_chunk_lines(
-                        text_chunk.string.trim(),
-                        true, // is comment
-                    );
+                    let is_comment = true;
+                    self.write_chunk_lines(text_chunk.string.trim(), is_comment);
 
                     // Respect whether the leading comment had a newline before what comes next or not
                     if ends_with_multiple_newlines {
