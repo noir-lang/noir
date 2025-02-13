@@ -13,6 +13,7 @@ use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
+use comptime::Value;
 use def_collector::dc_crate::CompilationError;
 use def_map::{fully_qualified_module_path, Contract, CrateDefMap};
 use fm::{FileId, FileManager};
@@ -52,6 +53,11 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 
     pub package_build_path: PathBuf,
+
+    /// When interpreting functions, if a function has no arguments and isn't comptime
+    /// then it's guaranteed that it will always return the same Value. We cache these
+    /// to avoid recomputing them in case it's expensive to do so.
+    pub(crate) cached_function_values: im::HashMap<FuncId, Value>,
 }
 
 #[derive(Debug)]
@@ -73,6 +79,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            cached_function_values: im::HashMap::new(),
         }
     }
 
@@ -90,6 +97,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            cached_function_values: im::HashMap::new(),
         }
     }
 

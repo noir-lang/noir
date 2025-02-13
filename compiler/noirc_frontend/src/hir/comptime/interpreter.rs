@@ -172,6 +172,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
     ) -> IResult<Value> {
         let meta = self.elaborator.interner.function_meta(&function);
+
+        /// A function's value can be cached if:
+        /// - it has no arguments
+        /// - it's not generic (it's not Type::Forall)
+        /// - it's not comptime (because comptime functions can mutate comptime globals)
+        /// - it's not a trait method (for simplicity)
+        let can_be_cached = arguments.is_empty()
+            && matches!(meta.typ, Type::Function(..))
+            && !self.elaborator.interner.function_modifiers(&function).is_comptime
+            && self.elaborator.interner.get_trait_method_id(function).is_none();
+
+        if can_be_cached {
+            if let Some(value) = self.elaborator.cached_function_values.get(&function) {
+                eprintln!(
+                    "Use cached: {}, {}",
+                    self.elaborator.interner.function_name(&function),
+                    function
+                );
+                return Ok(value.clone());
+            }
+        }
+
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
@@ -182,6 +204,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let function_body = self.get_function_body(function, location)?;
         let result = self.evaluate(function_body)?;
         self.exit_function(previous_state);
+
+        if can_be_cached {
+            self.elaborator.cached_function_values.insert(function, result.clone());
+        }
+
         Ok(result)
     }
 

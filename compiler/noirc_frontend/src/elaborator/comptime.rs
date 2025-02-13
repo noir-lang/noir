@@ -98,6 +98,7 @@ impl<'context> Elaborator<'context> {
             self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
             self.pedantic_solving,
+            self.cached_function_values,
         );
 
         elaborator.function_context.push(FunctionContext::default());

@@ -11,14 +11,16 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-            UnresolvedTypeAlias,
+        comptime::Value,
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
+            errors::DefCollectorErrorKind,
         },
-        def_collector::errors::DefCollectorErrorKind,
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
@@ -195,6 +197,9 @@ pub struct Elaborator<'context> {
 
     /// Use pedantic ACVM solving
     pedantic_solving: bool,
+
+    /// See Context::cached_function_values
+    pub(crate) cached_function_values: &'context mut im::HashMap<FuncId, Value>,
 }
 
 #[derive(Default)]
@@ -226,6 +231,7 @@ impl<'context> Elaborator<'context> {
         debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
         pedantic_solving: bool,
+        cached_function_values: &'context mut im::HashMap<FuncId, Value>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -254,6 +260,7 @@ impl<'context> Elaborator<'context> {
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
             pedantic_solving,
+            cached_function_values,
         }
     }
 
@@ -272,6 +279,7 @@ impl<'context> Elaborator<'context> {
             debug_comptime_in_file,
             im::Vector::new(),
             pedantic_solving,
+            &mut context.cached_function_values,
         )
     }
 
