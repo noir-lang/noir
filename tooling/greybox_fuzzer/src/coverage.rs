@@ -364,6 +364,20 @@ impl AccumulatedFuzzerCoverage {
             };
         };
 
+        self.merge_branch_coverage(new_coverage, &mut add_to_leavers);
+        self.merge_comparison_coverage(new_coverage, &mut add_to_leavers);
+        self.merge_acir_coverage(new_coverage, &mut add_to_leavers);
+        self.remove_boolean_witness_false_positives(new_coverage, &mut add_to_leavers);
+
+        // Filter testcase ids of testcases, whose feature ownership has been revoked by this new testcase
+        (true, self.check_if_unused(&potential_leavers))
+    }
+
+    fn merge_branch_coverage(
+        &mut self,
+        new_coverage: &SingleTestCaseCoverage,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
         // Go through all single branch coverage ranges and merge branch coverage in
         for branch in self.brillig_branch_coverage.iter_mut() {
             let prev_value = *branch;
@@ -387,77 +401,123 @@ impl AccumulatedFuzzerCoverage {
                 }
             }
         }
+    }
 
+    fn merge_comparison_coverage(
+        &mut self,
+        new_coverage: &SingleTestCaseCoverage,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
         // Go through comparison coverage
         for cmp_approach in self.brillig_cmp_approach_coverage.iter_mut() {
             if !cmp_approach.enabled {
                 // No need to detect closeness any more if we've hit the equality case
                 continue;
             }
-            let mut least_different_bits = u32::MAX;
-            let mut last_value = 0;
 
-            // Each log of difference has a separate spot in the raw coverage
-            for i in 0..(cmp_approach.bits + 1) {
-                // Sequential indices in the raw brillig coverage represent how close the comparison was, starting with the maximum logarithm  and ending with complete equality
-                // So for 8-bit it will be 256, 128, 64, 32, 16, 8, 4, 2, 1, 0
-
-                if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
-                    least_different_bits = (cmp_approach.bits - i) as u32;
-                    last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
-                }
-            }
+            let (least_different_bits, last_value) =
+                Self::find_closest_comparison(new_coverage, cmp_approach);
 
             match least_different_bits.cmp(&cmp_approach.closest_bits) {
                 std::cmp::Ordering::Less => {
-                    // Remove testcases used in approach at previous difference
-                    add_to_leavers(cmp_approach.maximum_testcase);
-                    add_to_leavers(cmp_approach.closest_bits_testcase);
-
-                    // Remove testcases used in approach
-                    for i in 0..32 {
-                        add_to_leavers(cmp_approach.testcases_involved[i]);
-                    }
-
-                    // Register new metrics that have been reached
-                    cmp_approach.closest_bits = least_different_bits;
-                    cmp_approach.encountered_loop_maximum = last_value;
-                    let loop_log_shift =
-                        if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
-                    cmp_approach.encountered_loop_log2s = 1u32 << loop_log_shift;
-
-                    // Memorize the testcase that showed this feature
-                    cmp_approach.closest_bits_testcase = Some(new_coverage.testcase_id);
-                    cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
-                    cmp_approach.testcases_involved = [None; 32];
-                    cmp_approach.testcases_involved[loop_log_shift as usize] =
-                        Some(new_coverage.testcase_id);
-                    // If we've hit the equality case, tracking comparisons makes no sense
-                    if least_different_bits == 0 {
-                        cmp_approach.enabled = false;
-                    }
+                    Self::handle_closer_comparison(
+                        cmp_approach,
+                        new_coverage,
+                        least_different_bits,
+                        last_value,
+                        add_to_leavers,
+                    );
                 }
                 std::cmp::Ordering::Equal => {
-                    // In case the difference stays the same, observe if there are more repetitions
-                    let prev_value = *cmp_approach;
-                    let loop_log_shift =
-                        if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
-                    add_to_leavers(cmp_approach.testcases_involved[loop_log_shift as usize]);
-
-                    cmp_approach.encountered_loop_log2s |= 1u32 << loop_log_shift;
-                    cmp_approach.testcases_involved[loop_log_shift as usize] =
-                        Some(new_coverage.testcase_id);
-                    if last_value > prev_value.encountered_loop_maximum {
-                        cmp_approach.encountered_loop_maximum = last_value;
-                        add_to_leavers(cmp_approach.maximum_testcase);
-                        cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
-                    }
+                    Self::handle_equal_comparison(
+                        cmp_approach,
+                        new_coverage,
+                        last_value,
+                        add_to_leavers,
+                    );
                 }
                 std::cmp::Ordering::Greater => {}
             }
-            // If we've encountered a new minimum, replace everything
+        }
+    }
+
+    fn find_closest_comparison(
+        new_coverage: &SingleTestCaseCoverage,
+        cmp_approach: &mut AccumulatedCmpCoverage,
+    ) -> (u32, u32) {
+        let mut least_different_bits = u32::MAX;
+        let mut last_value = 0;
+
+        // Each log of difference has a separate spot in the raw coverage
+        for i in 0..(cmp_approach.bits + 1) {
+            if !new_coverage.brillig_coverage[i + cmp_approach.raw_index].is_zero() {
+                least_different_bits = (cmp_approach.bits - i) as u32;
+                last_value = new_coverage.brillig_coverage[i + cmp_approach.raw_index];
+            }
         }
 
+        (least_different_bits, last_value)
+    }
+
+    fn handle_closer_comparison(
+        cmp_approach: &mut AccumulatedCmpCoverage,
+        new_coverage: &SingleTestCaseCoverage,
+        least_different_bits: u32,
+        last_value: u32,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
+        // Remove testcases used in approach at previous difference
+        add_to_leavers(cmp_approach.maximum_testcase);
+        add_to_leavers(cmp_approach.closest_bits_testcase);
+
+        // Remove testcases used in approach
+        for i in 0..32 {
+            add_to_leavers(cmp_approach.testcases_involved[i]);
+        }
+
+        // Register new metrics that have been reached
+        cmp_approach.closest_bits = least_different_bits;
+        cmp_approach.encountered_loop_maximum = last_value;
+        let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
+        cmp_approach.encountered_loop_log2s = 1u32 << loop_log_shift;
+
+        // Memorize the testcase that showed this feature
+        cmp_approach.closest_bits_testcase = Some(new_coverage.testcase_id);
+        cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
+        cmp_approach.testcases_involved = [None; 32];
+        cmp_approach.testcases_involved[loop_log_shift as usize] = Some(new_coverage.testcase_id);
+
+        // If we've hit the equality case, tracking comparisons makes no sense
+        if least_different_bits == 0 {
+            cmp_approach.enabled = false;
+        }
+    }
+
+    fn handle_equal_comparison(
+        cmp_approach: &mut AccumulatedCmpCoverage,
+        new_coverage: &SingleTestCaseCoverage,
+        last_value: u32,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
+        // In case the difference stays the same, observe if there are more repetitions
+        let prev_value = *cmp_approach;
+        let loop_log_shift = if last_value.is_zero() { 0 } else { last_value.ilog2() + 1 };
+        add_to_leavers(cmp_approach.testcases_involved[loop_log_shift as usize]);
+
+        cmp_approach.encountered_loop_log2s |= 1u32 << loop_log_shift;
+        cmp_approach.testcases_involved[loop_log_shift as usize] = Some(new_coverage.testcase_id);
+        if last_value > prev_value.encountered_loop_maximum {
+            cmp_approach.encountered_loop_maximum = last_value;
+            add_to_leavers(cmp_approach.maximum_testcase);
+            cmp_approach.maximum_testcase = Some(new_coverage.testcase_id);
+        }
+    }
+
+    fn merge_acir_coverage(
+        &mut self,
+        new_coverage: &SingleTestCaseCoverage,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
         // Insert all ACIR states and replace testcase association
         for acir_bool_state in new_coverage.acir_bool_coverage.iter() {
             add_to_leavers(
@@ -467,14 +527,20 @@ impl AccumulatedFuzzerCoverage {
                 self.acir_bool_coverage.insert(*acir_bool_state);
             }
         }
+    }
 
-        // Remove previous boolean witness false positives
+    fn remove_boolean_witness_false_positives(
+        &mut self,
+        new_coverage: &SingleTestCaseCoverage,
+        add_to_leavers: &mut impl FnMut(Option<TestCaseId>),
+    ) {
         // Get all boolean witnesses in the state
         let all_witnesses_in_bool_coverage: HashSet<_> = new_coverage
             .acir_bool_coverage
             .iter()
             .map(|acir_bool_state| acir_bool_state.witness_id)
             .collect();
+
         let mut states_to_remove = Vec::new();
         // Check that all boolean state witnesses observed in accumulated coverage are booleans here, too
         for state in self.acir_bool_coverage.iter() {
@@ -482,14 +548,12 @@ impl AccumulatedFuzzerCoverage {
                 states_to_remove.push(*state);
             }
         }
+
         // Remove states that are not booleans
         for state in states_to_remove {
             self.acir_bool_coverage.remove(&state);
-
-            potential_leavers.insert(self.bool_state_to_testcase_id[&state]);
+            add_to_leavers(Some(self.bool_state_to_testcase_id[&state]));
         }
-        // Filter testcase ids of testcases, whose feature ownership has been revoked by this new testcase
-        (true, self.check_if_unused(&potential_leavers))
     }
 
     /// Returns true if there is new coverage in the presented testcase
