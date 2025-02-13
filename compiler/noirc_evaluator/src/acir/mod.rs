@@ -211,6 +211,8 @@ struct Context<'a> {
     /// Contains state that is generated and also used across ACIR functions
     shared_context: &'a mut SharedContext<FieldElement>,
 
+    brillig: &'a Brillig,
+
     /// Options affecting Brillig code generation.
     brillig_options: &'a BrilligOptions,
 }
@@ -317,10 +319,10 @@ impl Ssa {
         let mut shared_context = SharedContext::default();
 
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context, expression_width, brillig_options);
-            if let Some(mut generated_acir) =
-                context.convert_ssa_function(&self, function, brillig)?
-            {
+            let context =
+                Context::new(&mut shared_context, expression_width, brillig, brillig_options);
+
+            if let Some(mut generated_acir) = context.convert_ssa_function(&self, function)? {
                 // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
                 // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
                 // we instead store the opcode location at which a Brillig call to a std lib function occurred.
@@ -369,6 +371,7 @@ impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
+        brillig: &'a Brillig,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
@@ -386,6 +389,7 @@ impl<'a> Context<'a> {
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
+            brillig,
             brillig_options,
         }
     }
@@ -394,7 +398,6 @@ impl<'a> Context<'a> {
         self,
         ssa: &Ssa,
         function: &Function,
-        brillig: &Brillig,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
@@ -410,11 +413,11 @@ impl<'a> Context<'a> {
                     InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
-                Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
+                Ok(Some(self.convert_acir_main(function, ssa)?))
             }
             RuntimeType::Brillig(_) => {
                 if function.id() == ssa.main_id {
-                    Ok(Some(self.convert_brillig_main(function, brillig)?))
+                    Ok(Some(self.convert_brillig_main(function)?))
                 } else {
                     Ok(None)
                 }
@@ -426,7 +429,6 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         ssa: &Ssa,
-        brillig: &Brillig,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
@@ -454,7 +456,7 @@ impl<'a> Context<'a> {
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
-            warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa, brillig)?);
+            warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
@@ -511,7 +513,6 @@ impl<'a> Context<'a> {
     fn convert_brillig_main(
         mut self,
         main_func: &Function,
-        brillig: &Brillig,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
 
@@ -526,7 +527,8 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = gen_brillig_for(main_func, arguments.clone(), brillig, self.brillig_options)?;
+        let code =
+            gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -681,7 +683,6 @@ impl<'a> Context<'a> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
-        brillig: &Brillig,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
@@ -784,13 +785,7 @@ impl<'a> Context<'a> {
             }
             Instruction::Call { .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                warnings.extend(self.convert_ssa_call(
-                    instruction,
-                    dfg,
-                    ssa,
-                    brillig,
-                    result_ids,
-                )?);
+                warnings.extend(self.convert_ssa_call(instruction, dfg, ssa, result_ids)?);
             }
             Instruction::Not(value_id) => {
                 let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
@@ -856,7 +851,6 @@ impl<'a> Context<'a> {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
-        brillig: &Brillig,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let mut warnings = Vec::new();
@@ -937,7 +931,7 @@ impl<'a> Context<'a> {
                                     let code = gen_brillig_for(
                                         func,
                                         arguments.clone(),
-                                        brillig,
+                                        self.brillig,
                                         &BrilligOptions::default(),
                                     )?;
                                     let generated_pointer =
