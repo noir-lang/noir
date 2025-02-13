@@ -243,7 +243,7 @@ fn evaluate_binary_int_op_shifts<
                 lhs >> rhs.into()
             }
         }
-        _ => unreachable!("Operators not handled by this function"),
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     }
 }
 
