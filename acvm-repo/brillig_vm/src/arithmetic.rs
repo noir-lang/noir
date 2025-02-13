@@ -210,7 +210,7 @@ fn evaluate_binary_int_op_u1(
                 lhs
             }
         }
-        _ => unreachable!(""),
+        _ => unreachable!("Operators not handled by this function"),
     };
     Ok(result)
 }
@@ -220,7 +220,7 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
         BinaryIntOp::Equals => lhs == rhs,
         BinaryIntOp::LessThan => lhs < rhs,
         BinaryIntOp::LessThanEquals => lhs <= rhs,
-        _ => unreachable!(""),
+        _ => unreachable!("Operators not handled by this function"),
     }
 }
 
@@ -250,7 +250,7 @@ fn evaluate_binary_int_op_shifts<
                 lhs >> rhs.into()
             }
         }
-        _ => unreachable!(""),
+        _ => unreachable!("Operators not handled by this function"),
     }
 }
 
@@ -269,7 +269,7 @@ fn evaluate_binary_int_op_arith<
         BinaryIntOp::And => lhs & rhs,
         BinaryIntOp::Or => lhs | rhs,
         BinaryIntOp::Xor => lhs ^ rhs,
-        _ => unreachable!(""),
+        _ => unreachable!("Operators not handled by this function"),
     };
     Ok(result)
 }
