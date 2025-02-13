@@ -93,6 +93,7 @@ noir_debugger = { path = "tooling/debugger" }
 noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
+noir_artifact_cli = { path = "tooling/artifact_cli" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [

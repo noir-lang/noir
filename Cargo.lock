@@ -84,17 +84,15 @@ name = "acvm_cli"
 version = "0.40.0"
 dependencies = [
  "acir",
- "acvm",
  "bn254_blackbox_solver",
  "clap",
  "color-eyre",
  "const_format",
  "nargo",
+ "noir_artifact_cli",
  "paste",
  "proptest",
  "rand",
- "thiserror",
- "toml",
  "tracing-appender",
  "tracing-subscriber",
 ]
@@ -3148,6 +3146,7 @@ name = "noir_artifact_cli"
 version = "1.0.0-beta.2"
 dependencies = [
  "acir",
+ "acvm",
  "bn254_blackbox_solver",
  "clap",
  "color-eyre",
@@ -3159,6 +3158,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "toml",
+ "tracing-subscriber",
 ]
 
 [[package]]

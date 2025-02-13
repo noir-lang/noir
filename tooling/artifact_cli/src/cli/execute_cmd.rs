@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
-use noir_artifact_cli::fs::Artifact;
+use noir_artifact_cli::Artifact;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
