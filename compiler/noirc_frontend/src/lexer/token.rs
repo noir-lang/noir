@@ -162,7 +162,7 @@ pub enum Token {
     InternedLValue(InternedExpressionKind),
     /// A reference to an interned `UnresolvedTypeData`.
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
-    /// A reference to an interned `Patter`.
+    /// A reference to an interned `Pattern`.
     InternedPattern(InternedPattern),
     /// <
     Less,

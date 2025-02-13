@@ -299,9 +299,8 @@ impl Loop {
     fn get_const_lower_bound(
         &self,
         function: &Function,
-        cfg: &ControlFlowGraph,
+        pre_header: BasicBlockId,
     ) -> Option<FieldElement> {
-        let pre_header = self.get_pre_header(function, cfg).ok()?;
         let jump_value = get_induction_variable(function, pre_header).ok()?;
         function.dfg.get_numeric_constant(jump_value)
     }
@@ -320,7 +319,7 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    pub(super) fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
+    fn get_const_upper_bound(&self, function: &Function) -> Option<FieldElement> {
         let block = &function.dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
@@ -351,12 +350,12 @@ impl Loop {
     }
 
     /// Get the lower and upper bounds of the loop if both are constant numeric values.
-    fn get_const_bounds(
+    pub(super) fn get_const_bounds(
         &self,
         function: &Function,
-        cfg: &ControlFlowGraph,
+        pre_header: BasicBlockId,
     ) -> Option<(FieldElement, FieldElement)> {
-        let lower = self.get_const_lower_bound(function, cfg)?;
+        let lower = self.get_const_lower_bound(function, pre_header)?;
         let upper = self.get_const_upper_bound(function)?;
         Some((lower, upper))
     }
@@ -665,7 +664,8 @@ impl Loop {
         function: &Function,
         cfg: &ControlFlowGraph,
     ) -> Option<BoilerplateStats> {
-        let (lower, upper) = self.get_const_bounds(function, cfg)?;
+        let pre_header = self.get_pre_header(function, cfg).ok()?;
+        let (lower, upper) = self.get_const_bounds(function, pre_header)?;
         let lower = lower.try_to_u64()?;
         let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
@@ -1143,9 +1143,11 @@ mod tests {
         let loops = Loops::find_all(function);
         assert_eq!(loops.yet_to_unroll.len(), 1);
 
-        let (lower, upper) = loops.yet_to_unroll[0]
-            .get_const_bounds(function, &loops.cfg)
-            .expect("bounds are numeric const");
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) =
+            loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
 
         assert_eq!(lower, FieldElement::from(0u32));
         assert_eq!(upper, FieldElement::from(4u32));
@@ -1273,7 +1275,7 @@ mod tests {
             jmp b1()
           b1():
             v20 = load v3 -> [u64; 6]
-            dec_rc v0
+            dec_rc v0 v0
             return v20
         }
         ";
@@ -1449,7 +1451,7 @@ mod tests {
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]
-            dec_rc v0
+            dec_rc v0 v0
             return v8
         }}
         "
