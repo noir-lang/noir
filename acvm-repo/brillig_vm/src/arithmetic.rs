@@ -68,17 +68,14 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     rhs: MemoryValue<F>,
     bit_size: IntegerBitSize,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    if matches!(
-        op,
+    match op {
         BinaryIntOp::Add
-            | BinaryIntOp::Sub
-            | BinaryIntOp::Mul
-            | BinaryIntOp::Div
-            | BinaryIntOp::And
-            | BinaryIntOp::Or
-            | BinaryIntOp::Xor
-    ) {
-        match (lhs, rhs, bit_size) {
+        | BinaryIntOp::Sub
+        | BinaryIntOp::Mul
+        | BinaryIntOp::Div
+        | BinaryIntOp::And
+        | BinaryIntOp::Or
+        | BinaryIntOp::Xor => match (lhs, rhs, bit_size) {
             (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
                 evaluate_binary_int_op_u1(op, lhs, rhs).map(MemoryValue::U1)
             }
@@ -110,84 +107,80 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 })
             }
             _ => unreachable!("Invalid arguments are covered by the two arms above."),
-        }
-    } else if matches!(
-        op,
-        BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals
-    ) {
-        let result = match (lhs, rhs, bit_size) {
-            (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
-                evaluate_binary_int_op_cmp(op, lhs, rhs)
-            }
-            (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
-                return Err(BrilligArithmeticError::MismatchedLhsBitSize {
-                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
-                    op_bit_size: bit_size.into(),
-                })
-            }
-            (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
-                return Err(BrilligArithmeticError::MismatchedRhsBitSize {
-                    rhs_bit_size: rhs.bit_size().to_u32::<F>(),
-                    op_bit_size: bit_size.into(),
-                })
-            }
-            _ => unreachable!("Invalid arguments are covered by the two arms above."),
-        };
-        Ok(MemoryValue::U1(result))
-    } else {
-        let rhs = rhs.expect_u8().map_err(
-            |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
-                BrilligArithmeticError::MismatchedRhsBitSize {
-                    rhs_bit_size: value_bit_size,
-                    op_bit_size: expected_bit_size,
+        },
+
+        BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
+            match (lhs, rhs, bit_size) {
+                (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
                 }
-            },
-        )?;
+                (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                    Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                        lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                        op_bit_size: bit_size.into(),
+                    })
+                }
+                (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                    Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                        rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                        op_bit_size: bit_size.into(),
+                    })
+                }
+                _ => unreachable!("Invalid arguments are covered by the two arms above."),
+            }
+        }
 
-        let result = match (lhs, bit_size) {
-            (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
-                let result = if rhs == 0 { lhs } else { false };
-                MemoryValue::U1(result)
-            }
-            (MemoryValue::U8(lhs), IntegerBitSize::U8) => {
-                MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs))
-            }
-            (MemoryValue::U16(lhs), IntegerBitSize::U16) => {
-                MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs))
-            }
-            (MemoryValue::U32(lhs), IntegerBitSize::U32) => {
-                MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs))
-            }
-            (MemoryValue::U64(lhs), IntegerBitSize::U64) => {
-                MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs))
-            }
-            (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
-                MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs))
-            }
-            _ => {
-                return Err(BrilligArithmeticError::MismatchedLhsBitSize {
+        BinaryIntOp::Shl | BinaryIntOp::Shr => {
+            let rhs = rhs.expect_u8().map_err(
+                |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+                    BrilligArithmeticError::MismatchedRhsBitSize {
+                        rhs_bit_size: value_bit_size,
+                        op_bit_size: expected_bit_size,
+                    }
+                },
+            )?;
+
+            match (lhs, bit_size) {
+                (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
+                    let result = if rhs == 0 { lhs } else { false };
+                    Ok(MemoryValue::U1(result))
+                }
+                (MemoryValue::U8(lhs), IntegerBitSize::U8) => {
+                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U16(lhs), IntegerBitSize::U16) => {
+                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U32(lhs), IntegerBitSize::U32) => {
+                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U64(lhs), IntegerBitSize::U64) => {
+                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
+                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
                     lhs_bit_size: lhs.bit_size().to_u32::<F>(),
                     op_bit_size: bit_size.into(),
-                })
+                }),
             }
-        };
-
-        Ok(result)
+        }
     }
 }
 
