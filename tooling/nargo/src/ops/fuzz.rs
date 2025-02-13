@@ -14,10 +14,12 @@ use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
 
+use crate::PrintOutput;
 use crate::{
-    errors::try_to_diagnose_runtime_error, ops::execute::execute_program_with_brillig_fuzzing,
+    errors::try_to_diagnose_runtime_error,
+    foreign_calls::{layers, DefaultForeignCallBuilder},
+    ops::{execute::execute_program_with_brillig_fuzzing, test::TestForeignCallExecutor},
 };
-use crate::{foreign_calls::DefaultForeignCallExecutor, PrintOutput};
 
 use super::execute_program;
 /// Configuration for fuzzing loop execution
@@ -66,7 +68,7 @@ impl FuzzingRunStatus {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
+pub fn run_fuzzing_harness<'a, B>(
     context: &mut Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
@@ -76,7 +78,10 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     compile_config: &CompileOptions,
     fuzz_folder_config: &FuzzFolderConfig,
     fuzz_execution_config: &FuzzExecutionConfig,
-) -> FuzzingRunStatus {
+) -> FuzzingRunStatus
+where
+    B: BlackBoxFunctionSolver<FieldElement> + Default,
+{
     let fuzzing_harness_has_no_arguments = context
         .def_interner
         .function_meta(&fuzzing_harness.get_id())
@@ -129,16 +134,32 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                 let acir_executor = |program: &Program<FieldElement>,
                                      initial_witness: WitnessMap<FieldElement>|
                  -> Result<WitnessStack<FieldElement>, String> {
+                    #[cfg(feature = "rpc")]
+                    let build_foreign_call_executor = |output, base| {
+                        DefaultForeignCallBuilder {
+                            output,
+                            enable_mocks: true,
+                            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+                            root_path: root_path.clone(),
+                            package_name: package_name.clone(),
+                        }
+                        .build_with_base(base)
+                    };
+                    #[cfg(not(feature = "rpc"))]
+                    let build_foreign_call_executor = |output, base| {
+                        DefaultForeignCallBuilder { output, enable_mocks: true }
+                            .build_with_base(base)
+                    };
+                    // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                    let inner_executor =
+                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+
+                    let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
                     execute_program(
                         program,
                         initial_witness,
                         &B::default(),
-                        &mut DefaultForeignCallExecutor::new(
-                            PrintOutput::None,
-                            foreign_call_resolver_url,
-                            root_path.clone(),
-                            package_name.clone(),
-                        ),
+                        &mut foreign_call_executor,
                     )
                     .map_err(|err| {
                         err.to_string()
@@ -155,16 +176,34 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                      initial_witness: WitnessMap<FieldElement>,
                      location_to_feature_map: &BranchToFeatureMap|
                      -> Result<WitnessAndCoverage, ErrorAndCoverage> {
+                        #[cfg(feature = "rpc")]
+                        let build_foreign_call_executor = |output, base| {
+                            DefaultForeignCallBuilder {
+                                output,
+                                enable_mocks: true,
+                                resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+                                root_path: root_path.clone(),
+                                package_name: package_name.clone(),
+                            }
+                            .build_with_base(base)
+                        };
+                        #[cfg(not(feature = "rpc"))]
+                        let build_foreign_call_executor = |output, base| {
+                            DefaultForeignCallBuilder { output, enable_mocks: true }
+                                .build_with_base(base)
+                        };
+                        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                        let inner_executor =
+                            build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+
+                        let mut foreign_call_executor =
+                            TestForeignCallExecutor::new(inner_executor);
+
                         execute_program_with_brillig_fuzzing(
                             program,
                             initial_witness,
                             &B::default(),
-                            &mut DefaultForeignCallExecutor::new(
-                                if show_output { PrintOutput::Stdout } else { PrintOutput::None },
-                                foreign_call_resolver_url,
-                                root_path.clone(),
-                                package_name.clone(),
-                            ),
+                            &mut foreign_call_executor,
                             Some(location_to_feature_map),
                         )
                         .map_err(|(nargo_err, brillig_coverage)| {
@@ -213,18 +252,35 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                             .abi
                             .encode(&program_failure_result.counterexample.clone(), None)
                             .unwrap();
+                        #[cfg(feature = "rpc")]
+                        let build_foreign_call_executor = |output, base| {
+                            DefaultForeignCallBuilder {
+                                output,
+                                enable_mocks: true,
+                                resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
+                                root_path: root_path.clone(),
+                                package_name: package_name.clone(),
+                            }
+                            .build_with_base(base)
+                        };
+                        #[cfg(not(feature = "rpc"))]
+                        let build_foreign_call_executor = |output, base| {
+                            DefaultForeignCallBuilder { output, enable_mocks: true }
+                                .build_with_base(base)
+                        };
+                        // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
+                        let inner_executor =
+                            build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+
+                        let mut foreign_call_executor =
+                            TestForeignCallExecutor::new(inner_executor);
 
                         // Execute the program with the failing witness
                         let execution_failure = execute_program(
                             &unwrapped_acir_program.program,
                             initial_witness,
                             &B::default(),
-                            &mut DefaultForeignCallExecutor::new(
-                                PrintOutput::None,
-                                foreign_call_resolver_url,
-                                root_path.clone(),
-                                package_name.clone(),
-                            ),
+                            &mut foreign_call_executor,
                         );
                         let error_diagnostic = match execution_failure {
                             Err(err) => try_to_diagnose_runtime_error(
@@ -246,12 +302,7 @@ pub fn run_fuzzing_harness<B: BlackBoxFunctionSolver<FieldElement> + Default>(
                                     &unwrapped_brillig_program.program,
                                     initial_witness,
                                     &B::default(),
-                                    &mut DefaultForeignCallExecutor::new(
-                                        PrintOutput::None,
-                                        foreign_call_resolver_url,
-                                        root_path.clone(),
-                                        package_name.clone(),
-                                    ),
+                                    &mut foreign_call_executor,
                                 );
                                 match execution_failure{
                                     Err(err) => try_to_diagnose_runtime_error(

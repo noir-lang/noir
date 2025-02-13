@@ -256,13 +256,13 @@ fn check_expected_failure_message(
 }
 
 /// A specialized foreign call executor which tracks whether it has encountered any unknown foreign calls
-struct TestForeignCallExecutor<E> {
+pub(crate) struct TestForeignCallExecutor<E> {
     executor: E,
     encountered_unknown_foreign_call: bool,
 }
 
 impl<E> TestForeignCallExecutor<E> {
-    fn new(executor: E) -> Self {
+    pub(crate) fn new(executor: E) -> Self {
         Self { executor, encountered_unknown_foreign_call: false }
     }
 }
