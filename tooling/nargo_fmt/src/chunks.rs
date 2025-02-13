@@ -251,7 +251,7 @@ impl ChunkGroup {
         }
     }
 
-    /// Similar to `trailing_comment` but won't appent a newline+indentation after the chunk.
+    /// Similar to `trailing_comment` but won't append a newline+indentation after the chunk.
     pub(crate) fn trailing_comment_without_final_indentation(&mut self, chunk: TextChunk) {
         if chunk.width > 0 {
             self.push(Chunk::TrailingComment(chunk, false));
