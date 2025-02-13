@@ -62,7 +62,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
 
         let (parsed_module, _errors) = noirc_frontend::parse_program(input);
 
-        let config = nargo_fmt::Config::default();
+        let config = nargo_fmt::Config::of("{config}", &std::path::PathBuf::new()).unwrap();
         let fmt_text = nargo_fmt::format(input, parsed_module, &config);
 
         if std::env::var("UPDATE_EXPECT").is_ok() {{
