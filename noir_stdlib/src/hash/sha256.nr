@@ -383,6 +383,7 @@ fn byte_into_item(msg_byte: u8, msg_byte_ptr: BLOCK_BYTE_PTR) -> u32 {
 }
 
 // Construct a field out of 4 bytes.
+#[inline_always]
 fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
     let mut item = b0 as u32;
     item = lshift8(item, 1) + b1 as u32;
@@ -394,6 +395,7 @@ fn make_item(b0: u8, b1: u8, b2: u8, b3: u8) -> u32 {
 // Shift by 8 bits to the left between 0 and 4 times.
 // Checks `is_unconstrained()` to just use a bitshift if we're running in an unconstrained context,
 // otherwise multiplies by 256.
+#[inline_always]
 fn lshift8(item: u32, shifts: u8) -> u32 {
     if is_unconstrained() {
         if item == 0 {
