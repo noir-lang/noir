@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{collections::HashMap, future::Future};
 
 use crate::{insert_all_files_for_workspace_into_file_manager, parse_diff, PackageCacheData};
@@ -303,6 +303,7 @@ fn on_formatting_inner(
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
     // The file_path might be Err/None if the action runs against an unsaved file
     let file_path = params.text_document.uri.to_file_path().ok();
+    let directory_path = file_path.as_ref().and_then(|path| path.parent());
 
     let path = params.text_document.uri.to_string();
 
@@ -313,7 +314,7 @@ fn on_formatting_inner(
             return Ok(None);
         }
 
-        let config = read_config(file_path);
+        let config = read_config(directory_path);
         let new_text = nargo_fmt::format(source, module, &config);
 
         let start_position = Position { line: 0, character: 0 };
@@ -331,9 +332,9 @@ fn on_formatting_inner(
     }
 }
 
-fn read_config(file_path: Option<PathBuf>) -> Config {
+fn read_config(file_path: Option<&Path>) -> Config {
     match file_path {
-        Some(file_path) => match Config::read(&file_path) {
+        Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
             Err(err) => {
                 eprintln!("Failed to parse noirfmt.toml: {}", err);
