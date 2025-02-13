@@ -341,11 +341,17 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 radix
             );
 
+            // TODO: raise an error if we cannot fit `input` into `num_limbs`.
             let limbs = match radix {
                 256 => input
                     .to_be_bytes()
                     .into_iter()
                     .map(|limb| MemoryValue::Integer(limb as u128, IntegerBitSize::U8))
+                    .rev()
+                    .take(num_limbs)
+                    .collect::<Vec<MemoryValue<F>>>()
+                    .into_iter()
+                    .rev()
                     .collect(),
                 2 => input
                     .to_be_bytes()
@@ -363,6 +369,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                         ]
                         .into_iter()
                     })
+                    .rev()
+                    .take(num_limbs)
+                    .collect::<Vec<MemoryValue<F>>>()
+                    .into_iter()
+                    .rev()
                     .collect(),
                 16 => input
                     .to_be_bytes()
@@ -374,6 +385,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                         ]
                         .into_iter()
                     })
+                    .rev()
+                    .take(num_limbs)
+                    .collect::<Vec<MemoryValue<F>>>()
+                    .into_iter()
+                    .rev()
                     .collect(),
                 4 => input
                     .to_be_bytes()
@@ -387,6 +403,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                         ]
                         .into_iter()
                     })
+                    .rev()
+                    .take(num_limbs)
+                    .collect::<Vec<MemoryValue<F>>>()
+                    .into_iter()
+                    .rev()
                     .collect(),
 
                 _ => {
@@ -396,15 +417,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
                     for i in (0..num_limbs).rev() {
                         let limb = &input % &radix;
-                        if output_bits {
-                            limbs[i] = MemoryValue::new_integer(
-                                if limb.is_zero() { 0 } else { 1 },
-                                IntegerBitSize::U1,
-                            );
-                        } else {
-                            let limb: u8 = limb.try_into().unwrap();
-                            limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
-                        };
+                        let limb: u8 = limb.try_into().unwrap();
+                        limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
+
                         input /= &radix;
                     }
                     limbs
