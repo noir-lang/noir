@@ -5,7 +5,7 @@ keywords: [Nargo, Security, Brillig, Unconstrained]
 sidebar_position: 2
 ---
 
-# Securtiy checks
+# Security checks
 
 Two SSA security passes exist currently to ensure soundness of compiled code. Problems they catch are reported as bugs (as opposed to errors) in the compiler output. 
 
