@@ -34,7 +34,7 @@ use crate::{
     brillig::{
         brillig_gen::gen_brillig_for,
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
-        Brillig,
+        Brillig, BrilligOptions,
     },
     ssa::{
         ir::{
@@ -590,7 +590,9 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
-        let Ok(generated_brillig) = gen_brillig_for(func, brillig_arguments, brillig) else {
+        let Ok(generated_brillig) =
+            gen_brillig_for(func, brillig_arguments, brillig, &BrilligOptions::default())
+        else {
             return EvaluationResult::CannotEvaluate;
         };
 
@@ -806,15 +808,18 @@ mod test {
 
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            function::RuntimeType,
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        brillig::BrilligOptions,
+        ssa::{
+            function_builder::FunctionBuilder,
+            ir::{
+                function::RuntimeType,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::assert_normalized_ssa_equals,
+            Ssa,
         },
-        opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -1292,7 +1297,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1321,7 +1326,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1350,7 +1355,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1379,7 +1384,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1409,7 +1414,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1439,12 +1444,12 @@ mod test {
                 v2 = array_get v0, index u32 0 -> Field
                 v4 = array_get v0, index u32 1 -> Field
                 v5 = add v2, v4
-                dec_rc v0
+                dec_rc v0 v0
                 return v5
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1478,7 +1483,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let mut ssa = ssa.dead_instruction_elimination();
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         let expected = "
         g0 = Field 2
@@ -1520,7 +1525,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let mut ssa = ssa.dead_instruction_elimination();
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         let expected = "
         g0 = Field 2
