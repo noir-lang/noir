@@ -185,11 +185,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if can_be_cached {
             if let Some(value) = self.elaborator.cached_function_values.get(&function) {
-                eprintln!(
-                    "Use cached: {}, {}",
-                    self.elaborator.interner.function_name(&function),
-                    function
-                );
                 return Ok(value.clone());
             }
         }
