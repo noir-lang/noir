@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739472063032,
+  "lastUpdate": 1739472078119,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13031,100 +13031,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "49d1b13a185dbf4a61beddd62c5304b4ec8ea3bc",
-          "message": "feat: simplify subtraction from self to return zero (#7189)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-01-30T16:03:17Z",
-          "tree_id": "a9123e1af63f9be471e3a5466c4786fe5d3651f2",
-          "url": "https://github.com/noir-lang/noir/commit/49d1b13a185dbf4a61beddd62c5304b4ec8ea3bc"
-        },
-        "date": 1738254417804,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.06,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.3,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.29,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.8,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.84,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 794.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.7,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.15,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "15bbaa86bde37546f69e3e7b375e10b569972bd3",
           "message": "chore: bump gates diff (#7245)",
@@ -16890,6 +16796,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 536.67,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3deb6ab504df75ae8c90d483d53083c6cd8d443",
+          "message": "chore: avoid u128s in brillig memory (#7363)",
+          "timestamp": "2025-02-13T18:18:27Z",
+          "tree_id": "6049f7ca12d33704c47f00a92f569729044addf9",
+          "url": "https://github.com/noir-lang/noir/commit/c3deb6ab504df75ae8c90d483d53083c6cd8d443"
+        },
+        "date": 1739472076127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 590.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.63,
             "unit": "MB"
           }
         ]
