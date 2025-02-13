@@ -337,7 +337,7 @@ fn read_config(file_path: Option<&Path>) -> Config {
         Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!("Failed to parse noirfmt.toml: {}", err);
+                eprintln!("{}", err);
                 Config::default()
             }
         },
