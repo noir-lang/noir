@@ -1,9 +1,9 @@
-use std::ops::{Shl, Shr};
+use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use acir::AcirField;
 use num_bigint::BigUint;
-use num_traits::{AsPrimitive, PrimInt, WrappingAdd, WrappingMul, WrappingSub, Zero};
+use num_traits::{CheckedDiv, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
 use crate::memory::{MemoryTypeError, MemoryValue};
 
@@ -217,16 +217,14 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
     }
 }
 
-fn evaluate_binary_int_op_shifts<
-    T: AsPrimitive<usize> + From<u8> + Zero + PartialOrd + Shl<Output = T> + Shr<Output = T>,
->(
+fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
     rhs: u8,
 ) -> T {
     match op {
         BinaryIntOp::Shl => {
-            let rhs_usize: usize = rhs.as_();
+            let rhs_usize: usize = rhs as usize;
             #[allow(unused_qualifications)]
             if rhs_usize >= 8 * std::mem::size_of::<T>() {
                 T::zero()
@@ -235,7 +233,7 @@ fn evaluate_binary_int_op_shifts<
             }
         }
         BinaryIntOp::Shr => {
-            let rhs_usize: usize = rhs.as_();
+            let rhs_usize: usize = rhs as usize;
             #[allow(unused_qualifications)]
             if rhs_usize >= 8 * std::mem::size_of::<T>() {
                 T::zero()
@@ -248,7 +246,13 @@ fn evaluate_binary_int_op_shifts<
 }
 
 fn evaluate_binary_int_op_arith<
-    T: PrimInt + AsPrimitive<usize> + From<bool> + WrappingAdd + WrappingSub + WrappingMul,
+    T: WrappingAdd
+        + WrappingSub
+        + WrappingMul
+        + CheckedDiv
+        + BitAnd<Output = T>
+        + BitOr<Output = T>
+        + BitXor<Output = T>,
 >(
     op: &BinaryIntOp,
     lhs: T,
@@ -262,7 +266,7 @@ fn evaluate_binary_int_op_arith<
         BinaryIntOp::And => lhs & rhs,
         BinaryIntOp::Or => lhs | rhs,
         BinaryIntOp::Xor => lhs ^ rhs,
-        _ => unreachable!("Operators not handled by this function"),
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     };
     Ok(result)
 }
