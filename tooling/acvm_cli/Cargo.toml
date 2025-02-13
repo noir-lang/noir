@@ -21,15 +21,14 @@ name = "acvm"
 path = "src/main.rs"
 
 [dependencies]
-thiserror.workspace = true
-toml.workspace = true
 color-eyre.workspace = true
 clap.workspace = true
-acvm.workspace = true
-nargo.workspace = true
 const_format.workspace = true
-bn254_blackbox_solver.workspace = true
+
 acir.workspace = true
+bn254_blackbox_solver.workspace = true
+nargo.workspace = true
+noir_artifact_cli.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true

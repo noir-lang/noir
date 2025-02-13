@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
@@ -7,11 +8,11 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::PrintOutput;
 
-use crate::cli::fs::inputs::{read_bytecode_from_file, read_inputs_from_file};
-use crate::errors::CliError;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
-
-use super::fs::witness::{create_output_witness_string, save_witness_to_dir};
+use noir_artifact_cli::errors::CliError;
+use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
+use noir_artifact_cli::fs::witness::{create_output_witness_string, save_witness_to_dir};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -30,7 +31,7 @@ pub(crate) struct ExecuteCommand {
 
     /// The working directory
     #[clap(long, short)]
-    working_directory: String,
+    working_directory: PathBuf,
 
     /// Set to print output witness to stdout
     #[clap(long, short, action)]
@@ -76,8 +77,8 @@ pub(crate) fn execute_program_from_witness(
     bytecode: &[u8],
     pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, CliError> {
-    let program: Program<FieldElement> = Program::deserialize_program(bytecode)
-        .map_err(|_| CliError::CircuitDeserializationError())?;
+    let program: Program<FieldElement> =
+        Program::deserialize_program(bytecode).map_err(CliError::CircuitDeserializationError)?;
     execute_program(
         &program,
         inputs_map,
