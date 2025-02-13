@@ -1,5 +1,4 @@
 mod cli;
-mod fs;
 
 fn main() {
     if let Err(e) = cli::start_cli() {

@@ -14,7 +14,7 @@ impl Artifact {
     /// Try to parse an artifact as a binary program or a contract
     pub fn read_from_file(path: &Path) -> eyre::Result<Artifact> {
         let json = std::fs::read(path)
-            .with_context(|| format!("failed to read artifact from '{}'", path.display()))?;
+            .wrap_err_with(|| format!("failed to read artifact from '{}'", path.display()))?;
 
         let as_program = || serde_json::from_slice::<ProgramArtifact>(&json).map(Artifact::Program);
         let as_contract =
