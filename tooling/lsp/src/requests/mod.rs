@@ -314,7 +314,7 @@ fn on_formatting_inner(
             return Ok(None);
         }
 
-        let config = read_config(directory_path);
+        let config = read_format_config(directory_path);
         let new_text = nargo_fmt::format(source, module, &config);
 
         let start_position = Position { line: 0, character: 0 };
@@ -332,7 +332,7 @@ fn on_formatting_inner(
     }
 }
 
-fn read_config(file_path: Option<&Path>) -> Config {
+fn read_format_config(file_path: Option<&Path>) -> Config {
     match file_path {
         Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
