@@ -346,16 +346,17 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 256 => input
                     .to_be_bytes()
                     .into_iter()
-                    .map(|limb| MemoryValue::Integer(limb as u128, IntegerBitSize::U8))
                     .rev()
                     .take(num_limbs)
-                    .collect::<Vec<MemoryValue<F>>>()
-                    .into_iter()
                     .rev()
+                    .map(|limb| MemoryValue::Integer(limb as u128, IntegerBitSize::U8))
                     .collect(),
                 2 => input
                     .to_be_bytes()
                     .into_iter()
+                    .rev()
+                    .take(num_limbs.div_ceil(8))
+                    .rev()
                     .flat_map(|limb| {
                         [
                             MemoryValue::Integer(((limb & 0x80) >> 7) as u128, IntegerBitSize::U1),
@@ -378,6 +379,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 16 => input
                     .to_be_bytes()
                     .into_iter()
+                    .rev()
+                    .take(num_limbs.div_ceil(2))
+                    .rev()
                     .flat_map(|limb| {
                         [
                             MemoryValue::Integer(((limb & 0xf0) >> 4) as u128, IntegerBitSize::U8),
@@ -394,6 +398,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 4 => input
                     .to_be_bytes()
                     .into_iter()
+                    .rev()
+                    .take(num_limbs.div_ceil(4))
+                    .rev()
                     .flat_map(|limb| {
                         [
                             MemoryValue::Integer(((limb & 0xc0) >> 6) as u128, IntegerBitSize::U8),
