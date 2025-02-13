@@ -35,7 +35,7 @@ use crate::{
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirLiteral},
+        expr::{HirExpression, HirIdent, HirLiteral},
         function::FunctionBody,
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
@@ -121,6 +121,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
+            "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
@@ -2427,6 +2428,25 @@ fn function_def_add_attribute(
     }
 
     Ok(Value::Unit)
+}
+
+// fn as_typed_expr(self) -> TypedExpr
+fn function_def_as_typed_expr(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
+    let hir_ident = HirIdent::non_trait_method(definition_id, location);
+    let generics = None;
+    let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
+    let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
+    interpreter.elaborator.interner.push_expr_location(expr_id, location.span, location.file);
+    let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
+    interpreter.elaborator.interner.push_expr_type(expr_id, typ);
+    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
 
 // fn body(self) -> Expr

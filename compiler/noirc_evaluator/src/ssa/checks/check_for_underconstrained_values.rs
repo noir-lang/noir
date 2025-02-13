@@ -970,7 +970,7 @@ mod test {
                 v5 = add v4, Field 2
                 return
         }
-        
+
         brillig(inline) fn br f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
@@ -1037,8 +1037,8 @@ mod test {
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
             constrain v6 == v20
-            dec_rc v4
-            dec_rc v5
+            dec_rc v4 v4
+            dec_rc v5 v5
             return
         }
 
@@ -1368,7 +1368,7 @@ mod test {
             constrain v32 == v35
             return v30, v31, v32
         }
-        
+
         brillig(inline) fn foo f2 {
           b0(v0: Field):
             return Field 4, u8 2, v0
