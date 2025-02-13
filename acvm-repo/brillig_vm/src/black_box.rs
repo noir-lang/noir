@@ -1,11 +1,10 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
     sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
-use num_traits::Zero;
 
 use crate::memory::MemoryValue;
 use crate::Memory;
@@ -312,16 +311,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
             let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
-            let radix = memory
-                .read(*radix)
-                .expect_integer_with_bit_size(IntegerBitSize::U32)
-                .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
+            let MemoryValue::U32(radix) = memory.read(*radix) else {
+                panic!("ToRadix opcode's radix bit size does not match expected bit size 32")
+            };
             let num_limbs = memory.read(*num_limbs).to_usize();
-            let output_bits = !memory
-                .read(*output_bits)
-                .expect_integer_with_bit_size(IntegerBitSize::U1)
-                .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
-                .is_zero();
+            let MemoryValue::U1(output_bits) = memory.read(*output_bits) else {
+                panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
+            };
 
             assert!(
                 (2..=256).contains(&radix),
@@ -349,7 +345,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     .rev()
                     .take(num_limbs)
                     .rev()
-                    .map(|limb| MemoryValue::Integer(limb as u128, IntegerBitSize::U8))
+                    .map(|limb| MemoryValue::U8(limb))
                     .collect(),
                 2 => input
                     .to_be_bytes()
@@ -359,14 +355,14 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     .rev()
                     .flat_map(|limb| {
                         [
-                            MemoryValue::Integer(((limb & 0x80) >> 7) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x40) >> 6) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x20) >> 5) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x10) >> 4) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x08) >> 3) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x04) >> 2) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer(((limb & 0x02) >> 1) as u128, IntegerBitSize::U1),
-                            MemoryValue::Integer((limb & 0x01) as u128, IntegerBitSize::U1),
+                            MemoryValue::U1(((limb & 0x80) >> 7) == 1),
+                            MemoryValue::U1(((limb & 0x40) >> 6) == 1),
+                            MemoryValue::U1(((limb & 0x20) >> 5) == 1),
+                            MemoryValue::U1(((limb & 0x10) >> 4) == 1),
+                            MemoryValue::U1(((limb & 0x08) >> 3) == 1),
+                            MemoryValue::U1(((limb & 0x04) >> 2) == 1),
+                            MemoryValue::U1(((limb & 0x02) >> 1) == 1),
+                            MemoryValue::U1((limb & 0x01) == 1),
                         ]
                         .into_iter()
                     })
@@ -383,11 +379,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     .take(num_limbs.div_ceil(2))
                     .rev()
                     .flat_map(|limb| {
-                        [
-                            MemoryValue::Integer(((limb & 0xf0) >> 4) as u128, IntegerBitSize::U8),
-                            MemoryValue::Integer((limb & 0x0f) as u128, IntegerBitSize::U8),
-                        ]
-                        .into_iter()
+                        [MemoryValue::U8((limb & 0xf0) >> 4), MemoryValue::U8(limb & 0x0f)]
+                            .into_iter()
                     })
                     .rev()
                     .take(num_limbs)
@@ -403,10 +396,10 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     .rev()
                     .flat_map(|limb| {
                         [
-                            MemoryValue::Integer(((limb & 0xc0) >> 6) as u128, IntegerBitSize::U8),
-                            MemoryValue::Integer(((limb & 0x30) >> 4) as u128, IntegerBitSize::U8),
-                            MemoryValue::Integer(((limb & 0x0c) >> 2) as u128, IntegerBitSize::U8),
-                            MemoryValue::Integer((limb & 0x03) as u128, IntegerBitSize::U8),
+                            MemoryValue::U8((limb & 0xc0) >> 6),
+                            MemoryValue::U8((limb & 0x30) >> 4),
+                            MemoryValue::U8((limb & 0x0c) >> 2),
+                            MemoryValue::U8(limb & 0x03),
                         ]
                         .into_iter()
                     })
@@ -425,7 +418,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                     for i in (0..num_limbs).rev() {
                         let limb = &input % &radix;
                         let limb: u8 = limb.try_into().unwrap();
-                        limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
+                        limbs[i] = MemoryValue::U8(limb);
 
                         input /= &radix;
                     }
