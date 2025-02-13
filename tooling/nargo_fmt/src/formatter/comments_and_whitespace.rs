@@ -190,7 +190,7 @@ impl<'a> Formatter<'a> {
         if !self.config.wrap_comments
             || self.in_chunk
             || comment.trim_start().starts_with('#')
-            || self.current_line_width() + comment.chars().count() + 2 < self.max_width
+            || self.current_line_width() + comment.chars().count() + 2 < self.config.comment_width
         {
             // +2 for "//"
             self.write("//");
@@ -204,7 +204,8 @@ impl<'a> Formatter<'a> {
     pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
         for word in comment.split_inclusive([' ', '\n', '\t']) {
-            if self.current_line_width() + word.trim().chars().count() >= self.max_width {
+            if self.current_line_width() + word.trim().chars().count() >= self.config.comment_width
+            {
                 self.start_new_line();
                 if !prefix.is_empty() {
                     self.write(prefix);
@@ -236,7 +237,9 @@ impl<'a> Formatter<'a> {
             }
 
             for word in line.split_inclusive([' ', '\n', '\t']) {
-                if self.current_line_width() + word.trim().chars().count() >= self.max_width {
+                if self.current_line_width() + word.trim().chars().count()
+                    >= self.config.comment_width
+                {
                     self.start_new_line();
                 }
 
@@ -248,7 +251,7 @@ impl<'a> Formatter<'a> {
             self.start_new_line();
         }
 
-        if self.current_line_width() + 2 >= self.max_width {
+        if self.current_line_width() + 2 >= self.config.comment_width {
             self.start_new_line();
         }
 
@@ -321,8 +324,8 @@ impl<'a> Formatter<'a> {
 mod tests {
     use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
 
-    fn assert_format_wrapping_comments(src: &str, expected: &str, max_width: usize) {
-        let config = Config { wrap_comments: true, max_width, ..Config::default() };
+    fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
+        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
         assert_format_with_config(src, expected, config);
     }
 
