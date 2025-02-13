@@ -74,7 +74,9 @@ impl DefunctionalizationContext {
     /// Defunctionalize all functions in the Ssa
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
-            self.defunctionalize(function);
+            if function.runtime().is_brillig() {
+                self.defunctionalize(function);
+            }
         }
     }
 
