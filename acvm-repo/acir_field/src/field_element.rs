@@ -485,4 +485,4 @@ mod tests {
             prop_assert_eq!(fe_1, fe_2, "equivalent hex strings with opposite parity deserialized to different values");
         }
     }
-}
+} 
