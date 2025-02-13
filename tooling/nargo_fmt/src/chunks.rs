@@ -1068,7 +1068,10 @@ impl<'a> Formatter<'a> {
                 if starts_with_space {
                     self.write(" ");
                 }
-                self.write_line_comment(line.trim_start().strip_prefix("//").unwrap_or(line));
+                self.write_comment_with_prefix(
+                    line.trim_start().strip_prefix("//").unwrap_or(line),
+                    "//",
+                );
             } else if (is_block_comment || inside_block_comment) && self.config.wrap_comments {
                 // Only append a space if it's the start of a block comment (no leading spaces in following lines)
                 if starts_with_space && is_block_comment {

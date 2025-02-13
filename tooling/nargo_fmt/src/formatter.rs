@@ -210,13 +210,6 @@ impl<'a> Formatter<'a> {
         self.bump();
     }
 
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
-    }
-
     /// Writes the current token but without turning it into a string using `to_string()`.
     /// Instead, we check the token's span and format what's in the original source there
     /// (useful when formatting integer tokens, because a token like 0xFF ends up being an

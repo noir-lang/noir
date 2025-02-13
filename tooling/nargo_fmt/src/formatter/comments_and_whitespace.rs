@@ -136,7 +136,7 @@ impl<'a> Formatter<'a> {
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
 
-                    self.write_line_comment(&comment);
+                    self.write_line_comment(&comment, "//");
                     self.write_line_without_skipping_whitespace_and_comments();
                     number_of_newlines = 1;
                     self.bump();
@@ -166,7 +166,7 @@ impl<'a> Formatter<'a> {
                         // will never write two consecutive spaces.
                         self.write_space_without_skipping_whitespace_and_comments();
                     }
-                    self.write_block_comment(&comment);
+                    self.write_block_comment(&comment, "/*");
                     self.bump();
                     passed_whitespace = false;
                     last_was_block_comment = true;
@@ -184,21 +184,21 @@ impl<'a> Formatter<'a> {
         self.ignore_next = ignore_next;
     }
 
-    pub(crate) fn write_line_comment(&mut self, comment: &str) {
+    pub(crate) fn write_line_comment(&mut self, comment: &str, prefix: &str) {
         // We don't wrap lines that start with '#' because these might be
         // markdown headers and wrapping those would actually break them.
         if !self.config.wrap_comments
             || self.in_chunk
             || comment.trim_start().starts_with('#')
-            || self.current_line_width() + comment.chars().count() + 2 < self.config.comment_width
+            || self.current_line_width() + comment.chars().count() + prefix.len()
+                < self.config.comment_width
         {
-            // +2 for "//"
-            self.write("//");
+            self.write(prefix);
             self.write(comment.trim_end());
             return;
         }
 
-        self.write_comment_with_prefix(comment, "//");
+        self.write_comment_with_prefix(comment, prefix);
     }
 
     pub(crate) fn write_comment_with_prefix(&mut self, comment: &str, prefix: &str) {
@@ -217,15 +217,14 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(crate) fn write_block_comment(&mut self, comment: &str) {
+    pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
+        self.write(prefix);
+
         if !self.config.wrap_comments || self.in_chunk {
-            self.write("/*");
             self.write(comment);
             self.write("*/");
             return;
         }
-
-        self.write("/*");
 
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
             self.start_new_line();
