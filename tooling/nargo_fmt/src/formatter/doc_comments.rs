@@ -1,4 +1,4 @@
-use noirc_frontend::token::{DocStyle, Token};
+use noirc_frontend::token::{DocStyle, Token, TokenKind};
 
 use super::Formatter;
 
@@ -7,22 +7,22 @@ impl<'a> Formatter<'a> {
         loop {
             self.skip_comments_and_whitespace();
 
-            match &self.token {
+            if self.token.kind() != TokenKind::InnerDocComment {
+                break;
+            }
+
+            match self.bump() {
                 Token::LineComment(comment, Some(DocStyle::Inner)) => {
-                    let comment = comment.clone();
                     self.write_indentation();
                     self.write_line_comment(&comment, "//!");
-                    self.bump();
                     self.write_line();
                 }
                 Token::BlockComment(comment, Some(DocStyle::Inner)) => {
-                    let comment = comment.clone();
                     self.write_indentation();
                     self.write_block_comment(&comment, "/*!");
-                    self.bump();
                     self.write_line();
                 }
-                _ => break,
+                _ => unreachable!("Expected an inner doc comment"),
             }
         }
     }
@@ -31,7 +31,11 @@ impl<'a> Formatter<'a> {
         loop {
             self.skip_comments_and_whitespace();
 
-            match &self.token {
+            if self.token.kind() != TokenKind::OuterDocComment {
+                break;
+            }
+
+            match self.bump() {
                 Token::LineComment(comment, Some(DocStyle::Outer)) => {
                     let comment = comment.clone();
                     self.write_indentation();
@@ -46,7 +50,7 @@ impl<'a> Formatter<'a> {
                     self.bump();
                     self.write_line();
                 }
-                _ => break,
+                _ => unreachable!("Expected an outer doc comment"),
             }
         }
     }
