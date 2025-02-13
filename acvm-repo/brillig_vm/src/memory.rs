@@ -113,7 +113,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u1(&self) -> Result<bool, MemoryTypeError> {
+    pub(crate) fn expect_u1(&self) -> Result<bool, MemoryTypeError> {
         if let MemoryValue::U1(value) = self {
             Ok(*value)
         } else {
@@ -124,7 +124,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u8(&self) -> Result<u8, MemoryTypeError> {
+    pub(crate) fn expect_u8(&self) -> Result<u8, MemoryTypeError> {
         if let MemoryValue::U8(value) = self {
             Ok(*value)
         } else {
@@ -135,7 +135,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u16(&self) -> Result<u16, MemoryTypeError> {
+    pub(crate) fn expect_u16(&self) -> Result<u16, MemoryTypeError> {
         if let MemoryValue::U16(value) = self {
             Ok(*value)
         } else {
@@ -146,7 +146,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u32(&self) -> Result<u32, MemoryTypeError> {
+    pub(crate) fn expect_u32(&self) -> Result<u32, MemoryTypeError> {
         if let MemoryValue::U32(value) = self {
             Ok(*value)
         } else {
@@ -157,7 +157,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u64(&self) -> Result<u64, MemoryTypeError> {
+    pub(crate) fn expect_u64(&self) -> Result<u64, MemoryTypeError> {
         if let MemoryValue::U64(value) = self {
             Ok(*value)
         } else {
@@ -168,7 +168,7 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_u128(&self) -> Result<u128, MemoryTypeError> {
+    pub(crate) fn expect_u128(&self) -> Result<u128, MemoryTypeError> {
         if let MemoryValue::U128(value) = self {
             Ok(*value)
         } else {
