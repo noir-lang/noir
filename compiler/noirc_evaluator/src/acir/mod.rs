@@ -932,7 +932,7 @@ impl<'a> Context<'a> {
                                         func,
                                         arguments.clone(),
                                         self.brillig,
-                                        &BrilligOptions::default(),
+                                        self.brillig_options,
                                     )?;
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
