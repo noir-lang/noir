@@ -6,9 +6,10 @@ global LIMBS_PER_BLOCK: u32 = BLOCK_SIZE_IN_BYTES / WORD_SIZE;
 global NUM_KECCAK_LANES: u32 = 25;
 
 #[foreign(keccakf1600)]
-fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 
 #[no_predicates]
+#[deprecated("keccak256 is being deprecated from the stdlib, use https://github.com/noir-lang/keccak256 instead")]
 pub(crate) fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32] {
     assert(N >= message_size);
 
