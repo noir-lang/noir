@@ -50,7 +50,7 @@ pub(crate) struct DebugCommand {
     skip_instrumentation: Option<bool>,
 
     /// Raw string printing of source for testing
-    #[clap(long, hide = true, default_value = "false")]
+    #[clap(long, hide = true)]
     raw_source_printing: Option<bool>,
 }
 
