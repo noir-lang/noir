@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739478521856,
+  "lastUpdate": 1739478531073,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4355,105 +4355,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d39337bc25bed77d03413ce02b90a2a30863ec1",
-          "message": "fix(ssa): Use number of SSA instructions for the Brillig unrolling bytecode size limit (#7242)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-31T14:03:50Z",
-          "tree_id": "276bf2ded89bdcde92140f04af040d5a237d80e9",
-          "url": "https://github.com/noir-lang/noir/commit/8d39337bc25bed77d03413ce02b90a2a30863ec1"
-        },
-        "date": 1738333377432,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.957,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.843,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.565,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.522,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.968,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 81.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 69.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.566,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 26.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.866,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.998,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.616,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.128,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9291,6 +9192,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 2.62,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f20392cab7cca4abf0f1811204ce1a4229f827a",
+          "message": "fix: give \"correct\" error when trying to use AsTraitPath (#7360)",
+          "timestamp": "2025-02-13T20:10:14Z",
+          "tree_id": "ba39c168c377e234b10e31ba170c1245235d5886",
+          "url": "https://github.com/noir-lang/noir/commit/8f20392cab7cca4abf0f1811204ce1a4229f827a"
+        },
+        "date": 1739478529790,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.939,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.845,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.681,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.974,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.386,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.032,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.784,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 6.214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 2.562,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 2.05,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 63.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 2.014,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.536,
             "unit": "s"
           }
         ]
