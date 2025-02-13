@@ -210,6 +210,9 @@ struct Context<'a> {
 
     /// Contains state that is generated and also used across ACIR functions
     shared_context: &'a mut SharedContext<FieldElement>,
+
+    /// Options affecting Brillig code generation.
+    brillig_options: &'a BrilligOptions,
 }
 
 #[derive(Clone)]
@@ -314,9 +317,9 @@ impl Ssa {
         let mut shared_context = SharedContext::default();
 
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context, expression_width);
+            let context = Context::new(&mut shared_context, expression_width, brillig_options);
             if let Some(mut generated_acir) =
-                context.convert_ssa_function(&self, function, brillig, brillig_options)?
+                context.convert_ssa_function(&self, function, brillig)?
             {
                 // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
                 // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
@@ -366,6 +369,7 @@ impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
+        brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         acir_context.set_expression_width(expression_width);
@@ -382,6 +386,7 @@ impl<'a> Context<'a> {
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
+            brillig_options,
         }
     }
 
@@ -390,7 +395,6 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
         brillig: &Brillig,
-        brillig_options: &BrilligOptions,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
@@ -410,7 +414,7 @@ impl<'a> Context<'a> {
             }
             RuntimeType::Brillig(_) => {
                 if function.id() == ssa.main_id {
-                    Ok(Some(self.convert_brillig_main(function, brillig, brillig_options)?))
+                    Ok(Some(self.convert_brillig_main(function, brillig)?))
                 } else {
                     Ok(None)
                 }
@@ -508,7 +512,6 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         brillig: &Brillig,
-        options: &BrilligOptions,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
 
@@ -523,7 +526,7 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = gen_brillig_for(main_func, arguments.clone(), brillig, options)?;
+        let code = gen_brillig_for(main_func, arguments.clone(), brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
