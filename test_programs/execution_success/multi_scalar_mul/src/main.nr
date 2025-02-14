@@ -35,7 +35,7 @@ unconstrained fn double_then_add_msm<let N: u32>(
             }
         }
 
-        let mut temp = points[i];
+        let temp = points[i];
         let mut res = points[i];
         // traversing from second MSB to LSB
         for j in (index_of_msb + 1)..(254) {
