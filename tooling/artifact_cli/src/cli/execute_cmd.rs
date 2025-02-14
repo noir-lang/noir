@@ -1,11 +1,17 @@
 use std::path::PathBuf;
 
-use acir::{circuit::Program, FieldElement};
+use acir::{circuit::Program, native_types::WitnessStack, FieldElement};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
-use noir_artifact_cli::{fs, Artifact};
-use noirc_abi::Abi;
+use nargo::{foreign_calls::DefaultForeignCallBuilder, PrintOutput};
+use noir_artifact_cli::{
+    errors::CliError,
+    fs::{self, inputs::read_inputs_from_file},
+    Artifact,
+};
+use noirc_abi::{input_parser::InputValue, Abi};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
@@ -45,39 +51,78 @@ pub(crate) struct ExecuteCommand {
 pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(&args.artifact)?;
 
-    match artifact {
-        Artifact::Program(program) => {
-            let circuit = Circuit { abi: &program.abi, bytecode: &program.bytecode };
-            let _witness = execute(&circuit, &args)?;
-            todo!("save witness with program name");
-        }
+    let circuit = match artifact {
+        Artifact::Program(program) => Circuit { abi: program.abi, bytecode: program.bytecode },
         Artifact::Contract(contract) => {
             let names =
-                || contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(",");
+                contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(",");
+
             let Some(ref name) = args.contract_fn else {
-                bail!("--contract-fn missing; options: [{}]", names());
+                bail!("--contract-fn missing; options: [{names}]");
             };
-            let Some(function) = contract.functions.iter().find(|f| f.name == *name) else {
-                bail!("unknown --contract-fn '{name}'; options: [{}]", names());
+            let Some(function) = contract.functions.into_iter().find(|f| f.name == *name) else {
+                bail!("unknown --contract-fn '{name}'; options: [{names}]");
             };
-            let circuit = Circuit { abi: &function.abi, bytecode: &function.bytecode };
-            let _witness = execute(&circuit, &args)?;
-            todo!("save witness with function name");
+
+            Circuit { abi: function.abi, bytecode: function.bytecode }
+        }
+    };
+
+    match execute(&circuit, &args) {
+        Ok(solved_witnesses) => {
+            todo!("save witness with program name");
+            todo!("check that the witness is not empty");
+            todo!("check that the witness is what was expected");
+        }
+        Err(CliError::CircuitExecutionError(err)) => {
+            todo!("show error diagnostic")
+        }
+        Err(e) => {
+            bail!("error executing circuit: {e}");
         }
     }
     Ok(())
 }
 
 /// Parameters necessary to execute a circuit, display execution failures, etc.
-struct Circuit<'a> {
-    abi: &'a Abi,
-    bytecode: &'a Program<FieldElement>,
+struct Circuit {
+    abi: Abi,
+    bytecode: Program<FieldElement>,
+}
+
+struct SolvedWitnesses {
+    expected_return: Option<InputValue>,
+    actual_return: Option<InputValue>,
+    witness_stack: WitnessStack<FieldElement>,
 }
 
 /// Execute a circuit and return the output witnesses.
-///
-/// If the execution fails display the stack trace and return an error.
-fn execute(circuit: &Circuit, args: &ExecuteCommand) -> eyre::Result<()> {
-    let _inputs = fs::inputs::read_inputs_from_file(&args.prover_file, circuit.abi)?;
-    todo!()
+fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, CliError> {
+    let (input_map, expected_return) = read_inputs_from_file(&args.prover_file, &circuit.abi)?;
+    let initial_witness = circuit.abi.encode(&input_map, None)?;
+
+    // TODO: Build a custom foreign call executor that reads from the Oracle transcript,
+    // and use it as a base for the default executor; see `DefaultForeignCallBuilder::build_with_base`
+    let mut foreign_call_executor = DefaultForeignCallBuilder {
+        output: PrintOutput::Stdout,
+        enable_mocks: false,
+        resolver_url: args.oracle_resolver.clone(),
+        root_path: None,
+        package_name: None,
+    }
+    .build();
+
+    let witness_stack = nargo::ops::execute_program(
+        &circuit.bytecode,
+        initial_witness,
+        &Bn254BlackBoxSolver(args.pedantic_solving),
+        &mut foreign_call_executor,
+    )?;
+
+    let main_witness =
+        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
+
+    let (_, actual_return) = circuit.abi.decode(main_witness)?;
+
+    Ok(SolvedWitnesses { expected_return, actual_return, witness_stack })
 }

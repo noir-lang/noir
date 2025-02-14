@@ -1,6 +1,6 @@
 use acir::FieldElement;
 use nargo::NargoError;
-use noirc_abi::errors::InputParserError;
+use noirc_abi::errors::{AbiError, InputParserError};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -31,9 +31,13 @@ pub enum CliError {
     #[error(transparent)]
     FilesystemError(#[from] FilesystemError),
 
-    /// Error related to ABI deserialization
+    /// Error related to ABI input deserialization
     #[error("Failed to deserialize inputs")]
     InputDeserializationError(#[from] InputParserError),
+
+    /// Error related to ABI encoding
+    #[error(transparent)]
+    AbiError(#[from] AbiError),
 
     /// Error related to artifact deserialization
     #[error("Failed to deserialize artifact from JSON")]
