@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// TraitImpl = 'impl' Generics Path GenericTypeArgs 'for' Type TraitImplBody
+    /// TraitImpl = 'impl' Generics Type 'for' Type TraitImplBody
     fn parse_trait_impl(
         &mut self,
         impl_generics: Vec<UnresolvedGeneric>,
