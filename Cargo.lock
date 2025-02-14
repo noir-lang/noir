@@ -3454,6 +3454,7 @@ name = "noirc_printable_type"
 version = "1.0.0-beta.2"
 dependencies = [
  "acvm",
+ "proptest",
  "serde",
 ]
 
