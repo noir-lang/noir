@@ -437,7 +437,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum BrilligBinaryOp {
+pub enum BrilligBinaryOp {
     Add,
     Sub,
     Mul,

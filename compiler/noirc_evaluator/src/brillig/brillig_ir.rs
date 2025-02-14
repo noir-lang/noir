@@ -9,7 +9,7 @@
 //! The instructions are low level operations that are printed via debug_show.
 //! They should emit few opcodes. Codegens on the other hand orchestrate the
 //! low level instructions to emit the desired high level operation.
-pub(crate) mod artifact;
+pub mod artifact;
 pub(crate) mod brillig_variable;
 pub(crate) mod debug_show;
 pub(crate) mod procedures;
@@ -26,7 +26,7 @@ mod instructions;
 
 use artifact::Label;
 use brillig_variable::SingleAddrVariable;
-pub(crate) use instructions::BrilligBinaryOp;
+pub use instructions::BrilligBinaryOp;
 use registers::{RegisterAllocator, ScratchSpace};
 
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};

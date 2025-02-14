@@ -36,7 +36,7 @@ use tracing::{span, Level};
 use crate::acir::{Artifacts, GeneratedAcir};
 
 mod checks;
-pub(super) mod function_builder;
+pub mod function_builder;
 pub mod ir;
 pub(crate) mod opt;
 #[cfg(test)]
@@ -80,7 +80,7 @@ pub struct SsaEvaluatorOptions {
     pub max_bytecode_increase_percent: Option<i32>,
 }
 
-pub(crate) struct ArtifactsAndWarnings(Artifacts, Vec<SsaReport>);
+pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// Optimize the given program by converting it into SSA
 /// form and performing optimizations there. When finished,
@@ -152,7 +152,7 @@ pub(crate) fn optimize_into_acir(
 }
 
 /// Run all SSA passes.
-fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
+pub fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
     Ok(builder
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
@@ -233,7 +233,7 @@ pub struct SsaProgramArtifact {
 }
 
 impl SsaProgramArtifact {
-    fn new(
+    pub fn new(
         unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
         error_types: BTreeMap<ErrorSelector, ErrorType>,
     ) -> Self {
@@ -250,7 +250,7 @@ impl SsaProgramArtifact {
         }
     }
 
-    fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
+    pub fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
         self.program.functions.push(circuit_artifact.circuit);
         self.debug.push(circuit_artifact.debug_info);
         self.warnings.append(&mut circuit_artifact.warnings);
@@ -294,7 +294,8 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let error_types = error_types
+    let error_types = 
+    error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
@@ -323,16 +324,16 @@ pub fn create_program(
 }
 
 pub struct SsaCircuitArtifact {
-    name: String,
-    circuit: Circuit<FieldElement>,
-    debug_info: DebugInfo,
-    warnings: Vec<SsaReport>,
-    input_witnesses: Vec<Witness>,
-    return_witnesses: Vec<Witness>,
-    error_types: BTreeMap<ErrorSelector, ErrorType>,
+    pub name: String,
+    pub circuit: Circuit<FieldElement>,
+    pub debug_info: DebugInfo,
+    pub warnings: Vec<SsaReport>,
+    pub input_witnesses: Vec<Witness>,
+    pub return_witnesses: Vec<Witness>,
+    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
 }
 
-fn convert_generated_acir_into_circuit(
+pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     func_sig: FunctionSignature,
     debug_variables: DebugVariables,
@@ -355,6 +356,8 @@ fn convert_generated_acir_into_circuit(
 
     let (public_parameter_witnesses, private_parameters) =
         split_public_and_private_inputs(&func_sig, &input_witnesses);
+    println!("public_parameter_witnesses: {:?}", public_parameter_witnesses);
+    println!("private_parameters: {:?}", private_parameters);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
@@ -445,10 +448,10 @@ fn split_public_and_private_inputs(
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-struct SsaBuilder {
-    ssa: Ssa,
-    ssa_logging: SsaLogging,
-    print_codegen_timings: bool,
+pub struct SsaBuilder {
+    pub ssa: Ssa,
+    pub ssa_logging: SsaLogging,
+    pub print_codegen_timings: bool,
 }
 
 impl SsaBuilder {
@@ -471,12 +474,12 @@ impl SsaBuilder {
         Ok(SsaBuilder { ssa_logging, print_codegen_timings, ssa }.print("Initial SSA"))
     }
 
-    fn finish(self) -> Ssa {
+    pub fn finish(self) -> Ssa {
         self.ssa.generate_entry_point_index()
     }
 
     /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
+    pub fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
     where
         F: FnOnce(Ssa) -> Ssa,
     {

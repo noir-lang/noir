@@ -1,0 +1,25 @@
+[package]
+name = "ssa_fuzzer-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+noirc_evaluator = { path = "../" }
+acvm = { path = "../../../acvm-repo/acvm" }
+log = "0.4"
+env_logger = "0.11.6"
+
+[dependencies.ssa_fuzzer]
+path = "../ssa_fuzzer"
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
+bench = false

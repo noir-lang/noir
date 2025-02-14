@@ -4,6 +4,8 @@ members = [
     # Compiler crates
     "compiler/noirc_arena",
     "compiler/noirc_evaluator",
+    "compiler/noirc_evaluator/ssa_fuzzer",
+    "compiler/noirc_evaluator/fuzz",
     "compiler/noirc_frontend",
     "compiler/noirc_errors",
     "compiler/noirc_driver",

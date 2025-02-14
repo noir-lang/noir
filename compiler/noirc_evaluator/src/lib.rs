@@ -5,7 +5,7 @@
 
 pub mod errors;
 
-mod acir;
+pub mod acir;
 pub mod brillig;
 pub mod ssa;
 

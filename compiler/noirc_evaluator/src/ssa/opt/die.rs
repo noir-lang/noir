@@ -25,7 +25,7 @@ impl Ssa {
     ///
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination(self) -> Ssa {
+    pub fn dead_instruction_elimination(self) -> Ssa {
         self.dead_instruction_elimination_inner(true)
     }
 

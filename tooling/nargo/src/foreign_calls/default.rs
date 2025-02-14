@@ -121,7 +121,6 @@ pub type DefaultForeignCallLayers<'a, B, F> = Layer<
 >;
 
 /// Convenience constructor for code that used to create the executor this way.
-#[cfg(feature = "rpc")]
 pub struct DefaultForeignCallExecutor;
 
 /// Convenience constructors for the RPC case. Non-RPC versions are not provided
@@ -131,7 +130,7 @@ pub struct DefaultForeignCallExecutor;
 #[cfg(feature = "rpc")]
 impl DefaultForeignCallExecutor {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new<'a, F>(
+    pub fn  new<'a, F>(
         output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<std::path::PathBuf>,

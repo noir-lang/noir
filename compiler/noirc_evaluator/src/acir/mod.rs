@@ -21,7 +21,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 mod acir_variable;
 mod big_int;
 mod brillig_directive;
-mod generated_acir;
+pub mod generated_acir;
 
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
@@ -291,7 +291,7 @@ impl AcirValue {
     }
 }
 
-pub(crate) type Artifacts = (
+pub type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
     Vec<String>,
@@ -300,7 +300,7 @@ pub(crate) type Artifacts = (
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn into_acir(
+    pub fn into_acir(
         self,
         brillig: &Brillig,
         expression_width: ExpressionWidth,

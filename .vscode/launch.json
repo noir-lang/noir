@@ -1,0 +1,897 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'ssa_fuzzer'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ssa_fuzzer",
+                    "--package=ssa_fuzzer"
+                ],
+                "filter": {
+                    "name": "ssa_fuzzer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'ssa_verification'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=ssa_verification",
+                    "--package=ssa_verification"
+                ],
+                "filter": {
+                    "name": "ssa_verification",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_evaluator'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_evaluator"
+                ],
+                "filter": {
+                    "name": "noirc_evaluator",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'acvm'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=acvm"
+                ],
+                "filter": {
+                    "name": "acvm",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'solver'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=solver",
+                    "--package=acvm"
+                ],
+                "filter": {
+                    "name": "solver",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'acir'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=acir"
+                ],
+                "filter": {
+                    "name": "acir",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'test_program_serialization'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=test_program_serialization",
+                    "--package=acir"
+                ],
+                "filter": {
+                    "name": "test_program_serialization",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benchmark 'serialization'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=serialization",
+                    "--package=acir"
+                ],
+                "filter": {
+                    "name": "serialization",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'acir_field'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=acir_field"
+                ],
+                "filter": {
+                    "name": "acir_field",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'brillig'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=brillig"
+                ],
+                "filter": {
+                    "name": "brillig",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'acvm_blackbox_solver'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=acvm_blackbox_solver"
+                ],
+                "filter": {
+                    "name": "acvm_blackbox_solver",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'brillig_vm'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=brillig_vm"
+                ],
+                "filter": {
+                    "name": "brillig_vm",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'bn254_blackbox_solver'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=bn254_blackbox_solver"
+                ],
+                "filter": {
+                    "name": "bn254_blackbox_solver",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benchmark 'criterion'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=criterion",
+                    "--package=bn254_blackbox_solver"
+                ],
+                "filter": {
+                    "name": "criterion",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'iter_extended'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=iter-extended"
+                ],
+                "filter": {
+                    "name": "iter_extended",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_errors'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_errors"
+                ],
+                "filter": {
+                    "name": "noirc_errors",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'fm'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=fm"
+                ],
+                "filter": {
+                    "name": "fm",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_printable_type'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_printable_type"
+                ],
+                "filter": {
+                    "name": "noirc_printable_type",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_frontend'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_frontend"
+                ],
+                "filter": {
+                    "name": "noirc_frontend",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_arena'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_arena"
+                ],
+                "filter": {
+                    "name": "noirc_arena",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_driver'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_driver"
+                ],
+                "filter": {
+                    "name": "noirc_driver",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'contracts'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=contracts",
+                    "--package=noirc_driver"
+                ],
+                "filter": {
+                    "name": "contracts",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'stdlib_warnings'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=stdlib_warnings",
+                    "--package=noirc_driver"
+                ],
+                "filter": {
+                    "name": "stdlib_warnings",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_abi'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_abi"
+                ],
+                "filter": {
+                    "name": "noirc_abi",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'nargo'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=nargo"
+                ],
+                "filter": {
+                    "name": "nargo",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noir_fuzzer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noir_fuzzer"
+                ],
+                "filter": {
+                    "name": "noir_fuzzer",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noirc_artifacts'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noirc_artifacts"
+                ],
+                "filter": {
+                    "name": "noirc_artifacts",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noir_greybox_fuzzer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noir_greybox_fuzzer"
+                ],
+                "filter": {
+                    "name": "noir_greybox_fuzzer",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noir_lsp'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noir_lsp"
+                ],
+                "filter": {
+                    "name": "noir_lsp",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'nargo_fmt'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=nargo_fmt"
+                ],
+                "filter": {
+                    "name": "nargo_fmt",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'execute'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=execute",
+                    "--package=nargo_fmt"
+                ],
+                "filter": {
+                    "name": "execute",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'nargo_toml'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=nargo_toml"
+                ],
+                "filter": {
+                    "name": "nargo_toml",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'noir_debugger'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=noir_debugger"
+                ],
+                "filter": {
+                    "name": "noir_debugger",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'debug'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=debug",
+                    "--package=noir_debugger"
+                ],
+                "filter": {
+                    "name": "debug",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'nargo'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=nargo",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "nargo",
+                    "kind": "bin"
+                }
+            },
+            "args": ["execute"],
+            "cwd": "/home/defkit/work/heck_noir/hello_world"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'nargo'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=nargo",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "nargo",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'execute'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=execute",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "execute",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'hello_world'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=hello_world",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "hello_world",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'stdlib-props'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=stdlib-props",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "stdlib-props",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'stdlib-tests'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=stdlib-tests",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "stdlib-tests",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benchmark 'criterion'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=criterion",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "criterion",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benchmark 'iai'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=iai",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "iai",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug benchmark 'utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bench=utils",
+                    "--package=nargo_cli"
+                ],
+                "filter": {
+                    "name": "utils",
+                    "kind": "bench"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'acvm'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=acvm",
+                    "--package=acvm_cli"
+                ],
+                "filter": {
+                    "name": "acvm",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'acvm'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=acvm",
+                    "--package=acvm_cli"
+                ],
+                "filter": {
+                    "name": "acvm",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'noir-profiler'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=noir-profiler",
+                    "--package=noir_profiler"
+                ],
+                "filter": {
+                    "name": "noir-profiler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'noir-profiler'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=noir-profiler",
+                    "--package=noir_profiler"
+                ],
+                "filter": {
+                    "name": "noir-profiler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

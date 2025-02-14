@@ -1,0 +1,53 @@
+[package]
+name = "ssa_fuzzer"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[package.metadata]
+cargo-fuzz = true
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+noirc_frontend.workspace = true
+noirc_errors.workspace = true
+noirc_evaluator.workspace = true
+noirc_driver.workspace = true
+noirc_abi.workspace = true
+nargo.workspace = true
+acvm.workspace = true
+bn254_blackbox_solver.workspace = true
+fxhash.workspace = true
+iter-extended.workspace = true
+thiserror.workspace = true
+num-bigint = "0.4"
+im.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with = "3.2.0"
+tracing.workspace = true
+chrono = "0.4.37"
+rayon.workspace = true
+cfg-if.workspace = true
+smallvec = { version = "1.13.2", features = ["serde"] }
+vec-collections = "0.4.3"
+env_logger = "0.11.6"
+log = "0.4"
+libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
+
+[dev-dependencies]
+proptest.workspace = true
+similar-asserts.workspace = true
+tracing-test = "0.2.5"
+num-traits.workspace = true
+test-case.workspace = true
+
+[features]
+bn254 = ["noirc_frontend/bn254"]
+bls12_381 = []

@@ -22,12 +22,12 @@ use super::{
     value::{Value, ValueId},
 };
 
-pub(crate) mod binary;
+pub mod binary;
 mod call;
 mod cast;
 mod constrain;
 
-pub(crate) use binary::{Binary, BinaryOp};
+pub use binary::{Binary, BinaryOp};
 use call::simplify_call;
 use cast::simplify_cast;
 use constrain::decompose_constrain;
@@ -1276,7 +1276,7 @@ impl ErrorType {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum ConstrainError {
+pub enum ConstrainError {
     // Static string errors are not handled inside the program as data for efficiency reasons.
     StaticString(String),
     // These errors are handled by the program as data.

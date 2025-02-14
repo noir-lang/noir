@@ -44,7 +44,13 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
         BinaryFieldOp::Add => MemoryValue::new_field(a + b),
         BinaryFieldOp::Sub => MemoryValue::new_field(a - b),
         BinaryFieldOp::Mul => MemoryValue::new_field(a * b),
-        BinaryFieldOp::Div => MemoryValue::new_field(a / b),
+        BinaryFieldOp::Div => {
+            if b.is_zero() {
+                return Err(BrilligArithmeticError::DivisionByZero);
+            } else {
+                MemoryValue::new_field(a / b)
+            }
+        }
         BinaryFieldOp::IntegerDiv => {
             if b.is_zero() {
                 return Err(BrilligArithmeticError::DivisionByZero);

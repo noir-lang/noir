@@ -12,12 +12,12 @@ use super::{
     types::{NumericType, Type},
 };
 
-pub(crate) type ValueId = Id<Value>;
+pub type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum Value {
+pub enum Value {
     /// This value was created due to an instruction
     ///
     /// * `instruction`: This is the instruction which defined it
