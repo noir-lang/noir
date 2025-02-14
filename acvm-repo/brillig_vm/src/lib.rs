@@ -2409,7 +2409,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn zero_division_regression() {
+    fn field_zero_division_regression() {
         let calldata: Vec<FieldElement> = vec![(1u128).into(), (0u128).into()];
 
         let opcodes = &[
