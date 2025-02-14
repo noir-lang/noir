@@ -226,19 +226,22 @@ fn find_variants(ssa: &Ssa) -> Variants {
         );
     }
 
-    let mut signature_to_functions_as_value: BTreeMap<Signature, Vec<FunctionId>> = BTreeMap::new();
+    let mut signature_to_functions_as_value: Variants = BTreeMap::new();
 
     for function_id in functions_as_values {
-        let signature = ssa.functions[&function_id].signature();
-        signature_to_functions_as_value.entry(signature).or_default().push(function_id);
+        let func = &ssa.functions[&function_id];
+        let signature = func.signature();
+        let runtime = func.runtime();
+        signature_to_functions_as_value.entry((signature, runtime)).or_default().push(function_id);
     }
 
     let mut variants: Variants = BTreeMap::new();
 
     for (dispatch_signature, caller_runtime) in dynamic_dispatches {
-        let target_fns =
-            signature_to_functions_as_value.get(&dispatch_signature).cloned().unwrap_or_default();
-        variants.insert((dispatch_signature, caller_runtime), target_fns);
+        let key = (dispatch_signature, caller_runtime);
+        let target_fns = signature_to_functions_as_value.get(&key).cloned().unwrap_or_default();
+
+        variants.insert(key, target_fns);
     }
 
     variants
@@ -530,14 +533,10 @@ mod tests {
         let src = "
           acir(inline) fn main f0 {
             b0(v0: u32):
-              v3 = call f1(f2, v0) -> u32
-              v5 = add v0, u32 1
-              v6 = eq v3, v5
-              constrain v3 == v5
-              v9 = call f4(f3, v0) -> u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
+              v13 = call f1(f3, v0) -> u32
+              v15 = call f1(f5, v0) -> u32
+              v24 = call f2(f4, v0) -> u32
+              v26 = call f2(f6, v0) -> u32
               return
           }
           brillig(inline) fn wrapper f1 {
@@ -545,19 +544,29 @@ mod tests {
               v2 = call v0(v1) -> u32
               return v2
           }
-          acir(inline) fn wrapper_acir f4 {
+          acir(inline) fn wrapper_acir f2 {
             b0(v0: function, v1: u32):
               v2 = call v0(v1) -> u32
               return v2
           }
-          brillig(inline) fn increment f2 {
+          brillig(inline) fn increment f3 {
             b0(v0: u32):
               v2 = add v0, u32 1
               return v2
           }
-          acir(inline) fn increment_acir f3 {
+          acir(inline) fn increment_acir f4 {
             b0(v0: u32):
               v2 = add v0, u32 1
+              return v2
+          }
+          brillig(inline) fn decrement f5 {
+            b0(v0: u32):
+              v2 = sub v0, u32 1
+              return v2
+          }
+          acir(inline) fn decrement_acir f6 {
+            b0(v0: u32):
+              v2 = sub v0, u32 1
               return v2
           }
         ";
@@ -569,5 +578,114 @@ mod tests {
         assert_eq!(applies.len(), 2);
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
         assert!(applies.iter().any(|f| f.runtime().is_brillig()));
+    }
+
+    #[test]
+    fn lambdas_separated_per_runtime() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0(v0: u32):
+              v1 = call f1(v0) -> u32
+              v2 = call f2(v0) -> u32
+              return v1, v2
+          }
+          brillig(inline) fn via_brillig f1 {
+            b0(v0: u32):
+              v2 = call f6(v0) -> u32
+              return v2
+          }
+          acir(inline) fn via_acir f2 {
+            b0(v0: u32):
+              v2 = call f3(v0) -> u32
+              return v2
+          }
+          acir(inline) fn times100 f3 {
+            b0(v0: u32):
+              v3 = call f4(v0, f5) -> u32
+              return v3
+          }
+          acir(inline) fn apply_twice f4 {
+            b0(v0: u32, v1: function):
+              v2 = call v1(v0) -> u32
+              v3 = call v1(v2) -> u32
+              return v3
+          }
+          acir(inline) fn lambda f5 {
+            b0(v0: u32):
+              v2 = mul v0, u32 10
+              return v2
+          }
+          brillig(inline) fn times100 f6 {
+            b0(v0: u32):
+              v3 = call f7(v0, f8) -> u32
+              return v3
+          }
+          brillig(inline) fn apply_twice f7 {
+            b0(v0: u32, v1: function):
+              v2 = call v1(v0) -> u32
+              v3 = call v1(v2) -> u32
+              return v3
+          }
+          brillig(inline) fn lambda f8 {
+            b0(v0: u32):
+              v2 = mul v0, u32 10
+              return v2
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // The lambdas called by the `apply` functions should all be the same runtime.
+        let expected = "
+          acir(inline) fn main f0 {
+            b0(v0: u32):
+              v2 = call f1(v0) -> u32
+              v4 = call f2(v0) -> u32
+              return v2, v4
+          }
+          brillig(inline) fn via_brillig f1 {
+            b0(v0: u32):
+              v2 = call f6(v0) -> u32
+              return v2
+          }
+          acir(inline) fn via_acir f2 {
+            b0(v0: u32):
+              v2 = call f3(v0) -> u32
+              return v2
+          }
+          acir(inline) fn times100 f3 {
+            b0(v0: u32):
+              v3 = call f4(v0, Field 5) -> u32
+              return v3
+          }
+          acir(inline) fn apply_twice f4 {
+            b0(v0: u32, v1: Field):
+              v3 = call f5(v0) -> u32
+              v4 = call f5(v3) -> u32
+              return v4
+          }
+          acir(inline) fn lambda f5 {
+            b0(v0: u32):
+              v2 = mul v0, u32 10
+              return v2
+          }
+          brillig(inline) fn times100 f6 {
+            b0(v0: u32):
+              v3 = call f7(v0, Field 8) -> u32
+              return v3
+          }
+          brillig(inline) fn apply_twice f7 {
+            b0(v0: u32, v1: Field):
+              v3 = call f8(v0) -> u32
+              v4 = call f8(v3) -> u32
+              return v4
+          }
+          brillig(inline) fn lambda f8 {
+            b0(v0: u32):
+              v2 = mul v0, u32 10
+              return v2
+          }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
