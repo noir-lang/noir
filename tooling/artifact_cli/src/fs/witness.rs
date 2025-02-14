@@ -32,7 +32,7 @@ pub fn read_witness_from_file(file_path: &Path) -> Result<WitnessMap<FieldElemen
         )));
     }
 
-    let input_string = std::fs::read_to_string(&file_path)
+    let input_string = std::fs::read_to_string(file_path)
         .map_err(|e| FilesystemError::InvalidInputFile(file_path.to_path_buf(), e.to_string()))?;
 
     let input_map = input_string

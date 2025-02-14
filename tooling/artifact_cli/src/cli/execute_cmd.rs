@@ -6,11 +6,13 @@ use clap::Args;
 use color_eyre::eyre::{self, bail};
 
 use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
-use noir_artifact_cli::{errors::CliError, fs::inputs::read_inputs_from_file, Artifact};
-use noirc_abi::{input_parser::InputValue, Abi};
-use noirc_artifacts::{
-    contract::ContractFunctionArtifact, debug::DebugArtifact, program::ProgramArtifact,
+use noir_artifact_cli::{
+    errors::CliError,
+    fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
+    Artifact,
 };
+use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_artifacts::debug::DebugArtifact;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
@@ -22,6 +24,17 @@ pub(crate) struct ExecuteCommand {
     /// optional return value in ABI format.
     #[clap(long, short)]
     prover_file: PathBuf,
+
+    /// Path to the directory where the output witness should be saved.
+    /// If empty then the results are discarded.
+    #[clap(long, short)]
+    output_dir: Option<PathBuf>,
+
+    /// Write the execution witness to named file
+    ///
+    /// Defaults to the name of the circuit being executed.
+    #[clap(long, short)]
+    witness_name: Option<String>,
 
     /// Name of the function to execute, if the artifact is a contract.
     #[clap(long)]
@@ -52,6 +65,7 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
 
     let circuit = match artifact {
         Artifact::Program(program) => Circuit {
+            name: None,
             abi: program.abi,
             bytecode: program.bytecode,
             debug_symbols: program.debug_symbols,
@@ -69,6 +83,7 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
             };
 
             Circuit {
+                name: Some(name.clone()),
                 abi: function.abi,
                 bytecode: function.bytecode,
                 debug_symbols: function.debug_symbols,
@@ -78,16 +93,14 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     };
 
     match execute(&circuit, &args) {
-        Ok(solved_witnesses) => {
-            todo!("save witness with program name");
-            todo!("check that the witness is not empty");
-            todo!("check that the witness is what was expected");
+        Ok(solved) => {
+            save_witness(circuit, args, solved)?;
         }
         Err(CliError::CircuitExecutionError(err)) => {
             show_diagnostic(circuit, err);
         }
         Err(e) => {
-            bail!("error executing circuit: {e}");
+            bail!("failed to execute the circuit: {e}");
         }
     }
     Ok(())
@@ -95,6 +108,7 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
 
 /// Parameters necessary to execute a circuit, display execution failures, etc.
 struct Circuit {
+    name: Option<String>,
     abi: Abi,
     bytecode: Program<FieldElement>,
     debug_symbols: noirc_errors::debug_info::ProgramDebugInfo,
@@ -110,6 +124,7 @@ struct SolvedWitnesses {
 /// Execute a circuit and return the output witnesses.
 fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, CliError> {
     let (input_map, expected_return) = read_inputs_from_file(&args.prover_file, &circuit.abi)?;
+
     let initial_witness = circuit.abi.encode(&input_map, None)?;
 
     // TODO: Build a custom foreign call executor that reads from the Oracle transcript,
@@ -151,4 +166,52 @@ fn show_diagnostic(circuit: Circuit, err: NargoError<FieldElement>) {
         };
         diagnostic.report(&debug_artifact, false);
     }
+}
+
+/// Print information about the witness and compare to expectations,
+/// returning errors if something isn't right.
+fn save_witness(
+    circuit: Circuit,
+    args: ExecuteCommand,
+    solved: SolvedWitnesses,
+) -> eyre::Result<()> {
+    let artifact = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let name = circuit
+        .name
+        .as_ref()
+        .map(|name| format!("{artifact}.{name}"))
+        .unwrap_or_else(|| artifact.to_string());
+
+    println!("[{}] Circuit witness successfully solved", name);
+
+    if let Some(ref witness_dir) = args.output_dir {
+        let witness_path = save_witness_to_dir(
+            solved.witness_stack,
+            &args.witness_name.unwrap_or_else(|| name.clone()),
+            witness_dir,
+        )?;
+        println!("[{}] Witness saved to {}", name, witness_path.display());
+    }
+
+    // Check that the circuit returned a non-empty result if the ABI expects a return value.
+    if let Some(ref expected) = circuit.abi.return_type {
+        if solved.actual_return.is_none() {
+            bail!("Missing return witness; expected a value of type {expected:?}");
+        }
+    }
+
+    // Check that if the prover file contained a `return` entry then that's what we got.
+    if let Some(expected) = solved.expected_return {
+        match solved.actual_return {
+            None => {
+                bail!("Missing return witness;\nexpected:\n{expected:?}");
+            }
+            Some(actual) if actual != expected => {
+                bail!("Unexpected return witness;\nexpected:\n{expected:?}\ngot:\n{actual:?}");
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
 }
