@@ -111,6 +111,48 @@ fn foo<T, U>(elements: [T], thing: U) where
 }
 ```
 
+## Invoking trait methods
+
+As seen in the previous section, the `area` method was invoked on a type `T` that had a where clause `T: Area`.
+
+To invoke `area` on a type that directly implements the trait `Area`, the trait must be in scope (imported):
+
+```rust
+use geometry::Rectangle;
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = rectangle.area(); // Error: the compiler doesn't know which `area` method this is
+}
+```
+
+The above program errors because there might be multiple traits with an `area` method, all implemented
+by `Rectangle`, and it's not clear which one should be used.
+
+To make the above program compile, the trait must be imported:
+
+```rust
+use geometry::Rectangle;
+use geometry::Area; // Bring the Area trait into scope
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = rectangle.area(); // OK: will use `area` from `geometry::Area`
+}
+```
+
+An error will also be produced if multiple traits with an `area` method are in scope. If both traits
+are needed in a file you can use the fully-qualified path to the trait:
+
+```rust
+use geometry::Rectangle;
+
+fn main() {
+    let rectangle = Rectangle { width: 1, height: 2};
+    let area = geometry::Area::area(rectangle);
+}
+```
+
 ## Generic Implementations
 
 You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
