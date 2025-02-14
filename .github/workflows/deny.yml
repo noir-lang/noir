@@ -9,10 +9,6 @@ on:
     paths: [Cargo.lock]
   merge_group:
 
-env:
-  RUSTFLAGS: -D warnings
-  CARGO_TERM_COLOR: always
-
 concurrency: deny-${{ github.head_ref || github.run_id }}
 
 jobs:
