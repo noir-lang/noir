@@ -20,7 +20,6 @@ fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
-num-traits.workspace = true
 im.workspace = true
 serde.workspace = true
 serde_json.workspace = true

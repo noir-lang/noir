@@ -441,8 +441,7 @@ pub(crate) fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            let limit = if bit_size == 128 { u128::MAX } else { 1 << bit_size };
-            if result >= limit {
+            if result != 0 && result.ilog2() >= bit_size {
                 return None;
             }
             result.into()
@@ -516,6 +515,31 @@ fn truncate(int: u128, bit_size: u32) -> u128 {
         let max = 1 << bit_size;
         int % max
     }
+}
+
+pub(crate) fn truncate_field<F: AcirField>(int: F, bit_size: u32) -> F {
+    if bit_size == 0 {
+        return F::zero();
+    }
+    let num_bytes = bit_size.div_ceil(8);
+    let mut be_bytes: Vec<u8> =
+        int.to_be_bytes().into_iter().rev().take(num_bytes as usize).rev().collect();
+
+    // We need to apply a mask to the largest byte to handle non-divisible bit sizes.
+    let mask = match bit_size % 8 {
+        0 => 0xff,
+        1 => 0x01,
+        2 => 0x03,
+        3 => 0x07,
+        4 => 0x0f,
+        5 => 0x1f,
+        6 => 0x3f,
+        7 => 0x7f,
+        _ => unreachable!("We cover the full range of x % 8"),
+    };
+    be_bytes[0] &= mask;
+
+    F::from_be_bytes_reduce(&be_bytes)
 }
 
 impl BinaryOp {
@@ -595,8 +619,12 @@ mod test {
     use proptest::prelude::*;
 
     use super::{
-        convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
+        convert_signed_integer_to_field_element, truncate_field,
+        try_convert_field_element_to_signed_integer,
     };
+    use acvm::{AcirField, FieldElement};
+    use num_bigint::BigUint;
+    use num_traits::One;
 
     proptest! {
         #[test]
@@ -608,5 +636,18 @@ mod test {
 
             prop_assert_eq!(int, recovered_int);
         }
+
+        #[test]
+        fn truncate_field_agrees_with_bigint_modulo(input: u128, bit_size in (0..=128u32)) {
+            let field = FieldElement::from(input);
+            let truncated_as_field = truncate_field(field, bit_size);
+
+            let integer_modulus = BigUint::from(2_u128).pow(bit_size);
+            let truncated_as_bigint = BigUint::from(input)
+                        .modpow(&BigUint::one(), &integer_modulus);
+            let truncated_as_bigint = FieldElement::from_be_bytes_reduce(&truncated_as_bigint.to_bytes_be());
+            prop_assert_eq!(truncated_as_field, truncated_as_bigint);
+        }
+
     }
 }
