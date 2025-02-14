@@ -16,7 +16,7 @@ use noirc_frontend::{
         CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
         Path, UseTree, Visitor,
     },
-    graph::CrateId,
+    graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
     node_interner::NodeInterner,
     usage_tracker::UsageTracker,
@@ -66,6 +66,7 @@ pub(crate) fn on_code_action_request(
                     byte_range,
                     args.crate_id,
                     args.def_maps,
+                    args.dependencies,
                     args.interner,
                     args.usage_tracker,
                 );
@@ -87,6 +88,7 @@ struct CodeActionFinder<'a> {
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &'a Vec<Dependency>,
     interner: &'a NodeInterner,
     usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
@@ -109,6 +111,7 @@ impl<'a> CodeActionFinder<'a> {
         byte_range: Range<usize>,
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+        dependencies: &'a Vec<Dependency>,
         interner: &'a NodeInterner,
         usage_tracker: &'a UsageTracker,
     ) -> Self {
@@ -131,6 +134,7 @@ impl<'a> CodeActionFinder<'a> {
             byte_range,
             module_id,
             def_maps,
+            dependencies,
             interner,
             usage_tracker,
             nesting: 0,
@@ -204,6 +208,7 @@ impl<'a> CodeActionFinder<'a> {
             defining_module,
             self.interner,
             self.def_maps,
+            self.dependencies,
         )
     }
 

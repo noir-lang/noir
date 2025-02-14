@@ -1188,6 +1188,7 @@ impl<'a> NodeFinder<'a> {
             defining_module,
             self.interner,
             self.def_maps,
+            self.dependencies,
         )
     }
 

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use noirc_frontend::{
     ast::ItemVisibility,
-    graph::CrateId,
+    graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         resolution::visibility::item_in_module_is_visible,
@@ -23,6 +23,7 @@ pub(super) fn module_def_id_is_visible(
     mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &Vec<Dependency>,
 ) -> bool {
     // First find out which module we need to check.
     // If a module is trying to be referenced, it's that module. Otherwise it's the module that contains the item.
@@ -35,6 +36,14 @@ pub(super) fn module_def_id_is_visible(
     // Then check if it's visible, and upwards
     while let Some(module_id) = target_module_id {
         if !item_in_module_is_visible(def_maps, current_module_id, module_id, visibility) {
+            return false;
+        }
+
+        // If the target module isn't in the same crate as `module_id` or isn't in one of its
+        // dependencies, then it's not visible.
+        if module_id.krate != current_module_id.krate
+            && dependencies.iter().all(|dep| dep.crate_id != module_id.krate)
+        {
             return false;
         }
 
