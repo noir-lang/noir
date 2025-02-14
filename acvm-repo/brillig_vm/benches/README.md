@@ -1,6 +1,6 @@
 # Benchmarks 
 
-To generate flamegraphs for the execution of a specific benchmar, execute the following commands:
+To generate flamegraphs for the execution of a specific benchmark, execute the following commands:
 
 ```shell
 ./scripts/benchmark_start.sh
