@@ -13,7 +13,6 @@ use crate::{
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
-    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -58,27 +57,13 @@ impl<'a> CodeActionFinder<'a> {
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let mut trait_reexport = None;
 
-        if !module_def_id_is_visible(
-            module_def_id,
-            self.module_id,
-            visibility,
-            None,
-            self.interner,
-            self.def_maps,
-        ) {
+        if !self.module_def_id_is_visible(module_def_id, visibility, None) {
             // If it's not, try to find a visible reexport of the trait
             // that is visible from the current module
             let Some((visible_module_id, name, _)) =
                 self.interner.get_trait_reexports(trait_id).iter().find(
                     |(module_id, _, visibility)| {
-                        module_def_id_is_visible(
-                            module_def_id,
-                            self.module_id,
-                            *visibility,
-                            Some(*module_id),
-                            self.interner,
-                            self.def_maps,
-                        )
+                        self.module_def_id_is_visible(module_def_id, *visibility, Some(*module_id))
                     },
                 )
             else {

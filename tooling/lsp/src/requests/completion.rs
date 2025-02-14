@@ -686,26 +686,20 @@ impl<'a> NodeFinder<'a> {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
                     let module_def_id = ModuleDefId::TraitId(trait_id);
-                    if !module_def_id_is_visible(
+                    if !self.module_def_id_is_visible(
                         module_def_id,
-                        self.module_id,
                         visibility,
                         None, // defining module
-                        self.interner,
-                        self.def_maps,
                     ) {
                         // Try to find a visible reexport of the trait
                         // that is visible from the current module
                         let Some((visible_module_id, name, _)) =
                             self.interner.get_trait_reexports(trait_id).iter().find(
                                 |(module_id, _, visibility)| {
-                                    module_def_id_is_visible(
+                                    self.module_def_id_is_visible(
                                         module_def_id,
-                                        self.module_id,
                                         *visibility,
                                         Some(*module_id),
-                                        self.interner,
-                                        self.def_maps,
                                     )
                                 },
                             )
@@ -1179,6 +1173,22 @@ impl<'a> NodeFinder<'a> {
         }
 
         Some(())
+    }
+
+    fn module_def_id_is_visible(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+        )
     }
 
     fn includes_span(&self, span: Span) -> bool {

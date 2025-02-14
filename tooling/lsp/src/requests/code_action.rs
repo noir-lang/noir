@@ -17,7 +17,7 @@ use noirc_frontend::{
         Path, UseTree, Visitor,
     },
     graph::CrateId,
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
+    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
     node_interner::NodeInterner,
     usage_tracker::UsageTracker,
 };
@@ -26,7 +26,10 @@ use noirc_frontend::{
     ParsedModule,
 };
 
-use crate::{use_segment_positions::UseSegmentPositions, utils, LspState};
+use crate::{
+    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
+    LspState,
+};
 
 use super::{process_request, to_lsp_location};
 
@@ -186,6 +189,22 @@ impl<'a> CodeActionFinder<'a> {
             disabled: None,
             data: None,
         }
+    }
+
+    fn module_def_id_is_visible(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+        )
     }
 
     fn includes_span(&self, span: Span) -> bool {

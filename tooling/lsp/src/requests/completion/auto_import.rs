@@ -5,7 +5,6 @@ use crate::{
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
-    visibility::module_def_id_is_visible,
 };
 
 use super::{
@@ -34,14 +33,7 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 }
 
-                if !module_def_id_is_visible(
-                    *module_def_id,
-                    self.module_id,
-                    *visibility,
-                    *defining_module,
-                    self.interner,
-                    self.def_maps,
-                ) {
+                if !self.module_def_id_is_visible(*module_def_id, *visibility, *defining_module) {
                     continue;
                 }
 
