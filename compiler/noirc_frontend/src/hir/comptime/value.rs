@@ -71,7 +71,7 @@ pub enum Value {
     ModuleDefinition(ModuleId),
     Type(Type),
     Zeroed(Type),
-    Expr(ExprValue),
+    Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
@@ -92,19 +92,19 @@ pub enum TypedExpr {
 
 impl Value {
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
-        Value::Expr(ExprValue::Expression(expr))
+        Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
 
     pub(crate) fn statement(statement: StatementKind) -> Self {
-        Value::Expr(ExprValue::Statement(statement))
+        Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
     pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(ExprValue::LValue(lvaue))
+        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
-        Value::Expr(ExprValue::Pattern(pattern))
+        Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
@@ -286,15 +286,32 @@ impl Value {
                     }
                 };
             }
-            Value::Expr(ExprValue::Expression(expr)) => expr,
-            Value::Expr(ExprValue::Statement(statement)) => {
-                ExpressionKind::Block(BlockExpression {
-                    statements: vec![Statement { kind: statement, span: location.span }],
-                })
+
+            Value::Expr(ref expr) => {
+                // We need to do some shenanigans to get around the borrow checker here due to using a boxed value.
+
+                // We first do whatever needs a reference to `expr` to avoid partially moving `self`.
+                if matches!(expr.as_ref(), ExprValue::Pattern(_)) {
+                    let typ = Type::Quoted(QuotedType::Expr);
+                    let value = self.display(elaborator.interner).to_string();
+                    return Err(InterpreterError::CannotInlineMacro { typ, value, location });
+                }
+
+                // Now drop this references and move `expr` out of `self` so we don't have to clone it.
+                let Value::Expr(expr) = self else {
+                    unreachable!("Ensured by outer match statement")
+                };
+
+                match *expr {
+                    ExprValue::Expression(expr) => expr,
+                    ExprValue::Statement(statement) => ExpressionKind::Block(BlockExpression {
+                        statements: vec![Statement { kind: statement, span: location.span }],
+                    }),
+                    ExprValue::LValue(lvalue) => lvalue.as_expression().kind,
+                    ExprValue::Pattern(_) => unreachable!("this case is handled above"),
+                }
             }
-            Value::Expr(ExprValue::LValue(lvalue)) => lvalue.as_expression().kind,
-            Value::Expr(ExprValue::Pattern(_))
-            | Value::TypedExpr(..)
+            Value::TypedExpr(..)
             | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -477,21 +494,21 @@ impl Value {
             }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
-            Value::Expr(ExprValue::Expression(expr)) => {
-                Token::InternedExpr(interner.push_expression_kind(expr))
-            }
-            Value::Expr(ExprValue::Statement(StatementKind::Expression(expr))) => {
-                Token::InternedExpr(interner.push_expression_kind(expr.kind))
-            }
-            Value::Expr(ExprValue::Statement(statement)) => {
-                Token::InternedStatement(interner.push_statement_kind(statement))
-            }
-            Value::Expr(ExprValue::LValue(lvalue)) => {
-                Token::InternedLValue(interner.push_lvalue(lvalue))
-            }
-            Value::Expr(ExprValue::Pattern(pattern)) => {
-                Token::InternedPattern(interner.push_pattern(pattern))
-            }
+            Value::Expr(expr) => match *expr {
+                ExprValue::Expression(expr) => {
+                    Token::InternedExpr(interner.push_expression_kind(expr))
+                }
+                ExprValue::Statement(StatementKind::Expression(expr)) => {
+                    Token::InternedExpr(interner.push_expression_kind(expr.kind))
+                }
+                ExprValue::Statement(statement) => {
+                    Token::InternedStatement(interner.push_statement_kind(statement))
+                }
+                ExprValue::LValue(lvalue) => Token::InternedLValue(interner.push_lvalue(lvalue)),
+                ExprValue::Pattern(pattern) => {
+                    Token::InternedPattern(interner.push_pattern(pattern))
+                }
+            },
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
