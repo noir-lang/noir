@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739550944119,
+  "lastUpdate": 1739555156682,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9174,95 +9174,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "b410f562e6a2580c1afb283812856da5d430ddd5",
-          "message": "feat(experimental): Implement zeroed for enums (#7252)",
-          "timestamp": "2025-02-03T12:41:45Z",
-          "tree_id": "d8273591c9090eedcbe62531dbeae0c309933277",
-          "url": "https://github.com/noir-lang/noir/commit/b410f562e6a2580c1afb283812856da5d430ddd5"
-        },
-        "date": 1738587852022,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.601,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.456,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.311,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "97073b2af2b8527c6332fe1f621adef6b9460ee6",
           "message": "feat(experimental): Parse match expressions (#7243)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
@@ -12773,6 +12684,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.04,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38eeee39a98a62747dcca3b31b409151761d4ef1",
+          "message": "fix(ssa): Do not deduplicate division by a zero constant (#7393)",
+          "timestamp": "2025-02-14T17:27:28Z",
+          "tree_id": "c5910078cee05fc0b1a1864a860c0ad430c69923",
+          "url": "https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1"
+        },
+        "date": 1739555155141,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.464,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.187,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.039,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 33.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.042,
             "unit": "s"
           }
         ]
