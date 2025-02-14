@@ -26,6 +26,13 @@ use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
 
+/// Options that affect Brillig code generation.
+#[derive(Default, Clone, Debug)]
+pub struct BrilligOptions {
+    pub enable_debug_trace: bool,
+    pub enable_debug_assertions: bool,
+}
+
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
 #[derive(Default)]
@@ -41,10 +48,10 @@ impl Brillig {
     pub(crate) fn compile(
         &mut self,
         func: &Function,
-        enable_debug_trace: bool,
+        options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
     ) {
-        let obj = convert_ssa_function(func, enable_debug_trace, globals);
+        let obj = convert_ssa_function(func, options, globals);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -52,13 +59,16 @@ impl Brillig {
     pub(crate) fn find_by_label(
         &self,
         function_label: Label,
+        options: &BrilligOptions,
     ) -> Option<Cow<BrilligArtifact<FieldElement>>> {
         match function_label.label_type {
             LabelType::Function(function_id, _) => {
                 self.ssa_function_to_brillig.get(&function_id).map(Cow::Borrowed)
             }
             // Procedures are compiled as needed
-            LabelType::Procedure(procedure_id) => Some(Cow::Owned(compile_procedure(procedure_id))),
+            LabelType::Procedure(procedure_id) => {
+                Some(Cow::Owned(compile_procedure(procedure_id, options)))
+            }
             LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
             _ => unreachable!("ICE: Expected a function or procedure label"),
         }
@@ -74,15 +84,15 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&self, enable_debug_trace: bool) -> Brillig {
-        self.to_brillig_with_globals(enable_debug_trace, HashMap::default())
+    pub(crate) fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+        self.to_brillig_with_globals(options, HashMap::default())
     }
 
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn to_brillig_with_globals(
         &self,
-        enable_debug_trace: bool,
+        options: &BrilligOptions,
         used_globals_map: HashMap<FunctionId, HashSet<ValueId>>,
     ) -> Brillig {
         // Collect all the function ids that are reachable from brillig
@@ -107,7 +117,7 @@ impl Ssa {
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
         let globals = (*self.functions[&self.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
-        brillig_globals.declare_globals(&globals_dfg, &mut brillig, enable_debug_trace);
+        brillig_globals.declare_globals(&globals_dfg, &mut brillig, options);
 
         for brillig_function_id in brillig_reachable_function_ids {
             let empty_allocations = HashMap::default();
@@ -116,7 +126,7 @@ impl Ssa {
                 .unwrap_or(&empty_allocations);
 
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, enable_debug_trace, globals_allocations);
+            brillig.compile(func, options, globals_allocations);
         }
 
         brillig

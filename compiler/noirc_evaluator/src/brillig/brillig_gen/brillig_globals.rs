@@ -7,7 +7,7 @@ use super::{
     BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
 };
 use crate::{
-    brillig::{brillig_ir::BrilligContext, Brillig, DataFlowGraph, FunctionId},
+    brillig::{brillig_ir::BrilligContext, Brillig, BrilligOptions, DataFlowGraph, FunctionId},
     ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
 };
 
@@ -70,7 +70,7 @@ impl BrilligGlobals {
         &mut self,
         globals_dfg: &DataFlowGraph,
         brillig: &mut Brillig,
-        enable_debug_trace: bool,
+        options: &BrilligOptions,
     ) {
         let mut entry_point_globals_map = HashMap::default();
         // We only need to generate globals for entry points
@@ -79,7 +79,7 @@ impl BrilligGlobals {
 
             let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
             let (artifact, brillig_globals, globals_size) =
-                convert_ssa_globals(enable_debug_trace, globals_dfg, &used_globals, entry_point);
+                convert_ssa_globals(options, globals_dfg, &used_globals, entry_point);
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
@@ -125,12 +125,12 @@ impl BrilligGlobals {
 }
 
 pub(crate) fn convert_ssa_globals(
-    enable_debug_trace: bool,
+    options: &BrilligOptions,
     globals_dfg: &DataFlowGraph,
     used_globals: &HashSet<ValueId>,
     entry_point: FunctionId,
 ) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>, usize) {
-    let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
+    let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
     // The global space does not have globals itself
     let empty_globals = HashMap::default();
     // We can use any ID here as this context is only going to be used for globals which does not differentiate
@@ -166,7 +166,9 @@ mod tests {
         FieldElement,
     };
 
-    use crate::brillig::{brillig_ir::registers::RegisterAllocator, GlobalSpace, LabelType, Ssa};
+    use crate::brillig::{
+        brillig_ir::registers::RegisterAllocator, BrilligOptions, GlobalSpace, LabelType, Ssa,
+    };
 
     #[test]
     fn entry_points_different_globals() {
@@ -199,7 +201,7 @@ mod tests {
         let mut ssa = ssa.dead_instruction_elimination();
 
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),
@@ -316,7 +318,7 @@ mod tests {
         let mut ssa = ssa.dead_instruction_elimination();
 
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),

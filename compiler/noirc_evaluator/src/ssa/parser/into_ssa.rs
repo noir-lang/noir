@@ -267,9 +267,10 @@ impl Translator {
                 };
                 self.builder.insert_constrain(lhs, rhs, assert_message);
             }
-            ParsedInstruction::DecrementRc { value } => {
+            ParsedInstruction::DecrementRc { value, original } => {
                 let value = self.translate_value(value)?;
-                self.builder.decrement_array_reference_count(value);
+                let original = self.translate_value(original)?;
+                self.builder.decrement_array_reference_count(value, original);
             }
             ParsedInstruction::EnableSideEffectsIf { condition } => {
                 let condition = self.translate_value(condition)?;
