@@ -1,49 +1,49 @@
 [workspace]
 
 members = [
-  # Compiler crates
-  "compiler/noirc_arena",
-  "compiler/noirc_evaluator",
-  "compiler/noirc_frontend",
-  "compiler/noirc_errors",
-  "compiler/noirc_driver",
-  "compiler/noirc_printable_type",
-  "compiler/fm",
-  "compiler/wasm",
-  # Crates related to tooling built on top of the Noir compiler
-  "tooling/lsp",
-  "tooling/debugger",
-  "tooling/fuzzer",
-  "tooling/nargo",
-  "tooling/nargo_fmt",
-  "tooling/nargo_cli",
-  "tooling/nargo_toml",
-  "tooling/noirc_artifacts",
-  "tooling/noirc_artifacts_info",
-  "tooling/noirc_abi",
-  "tooling/noirc_abi_wasm",
-  "tooling/acvm_cli",
-  "tooling/artifact_cli",
-  "tooling/profiler",
-  "tooling/inspector",
-  # ACVM
-  "acvm-repo/acir_field",
-  "acvm-repo/acir",
-  "acvm-repo/acvm",
-  "acvm-repo/acvm_js",
-  "acvm-repo/brillig",
-  "acvm-repo/brillig_vm",
-  "acvm-repo/blackbox_solver",
-  "acvm-repo/bn254_blackbox_solver",
-  # Utility crates
-  "utils/iter-extended",
+    # Compiler crates
+    "compiler/noirc_arena",
+    "compiler/noirc_evaluator",
+    "compiler/noirc_frontend",
+    "compiler/noirc_errors",
+    "compiler/noirc_driver",
+    "compiler/noirc_printable_type",
+    "compiler/fm",
+    "compiler/wasm",
+    # Crates related to tooling built on top of the Noir compiler
+    "tooling/lsp",
+    "tooling/debugger",
+    "tooling/fuzzer",
+    "tooling/nargo",
+    "tooling/nargo_fmt",
+    "tooling/nargo_cli",
+    "tooling/nargo_toml",
+    "tooling/noirc_artifacts",
+    "tooling/noirc_artifacts_info",
+    "tooling/noirc_abi",
+    "tooling/noirc_abi_wasm",
+    "tooling/acvm_cli",
+    "tooling/artifact_cli",
+    "tooling/profiler",
+    "tooling/inspector",
+    # ACVM
+    "acvm-repo/acir_field",
+    "acvm-repo/acir",
+    "acvm-repo/acvm",
+    "acvm-repo/acvm_js",
+    "acvm-repo/brillig",
+    "acvm-repo/brillig_vm",
+    "acvm-repo/blackbox_solver",
+    "acvm-repo/bn254_blackbox_solver",
+    # Utility crates
+    "utils/iter-extended",
 ]
 default-members = [
-  "tooling/nargo_cli",
-  "tooling/acvm_cli",
-  "tooling/artifact_cli",
-  "tooling/profiler",
-  "tooling/inspector",
+    "tooling/nargo_cli",
+    "tooling/acvm_cli",
+    "tooling/artifact_cli",
+    "tooling/profiler",
+    "tooling/inspector",
 ]
 resolver = "2"
 
@@ -97,10 +97,10 @@ noir_artifact_cli = { path = "tooling/artifact_cli" }
 
 # Arkworks
 ark-bn254 = { version = "^0.5.0", default-features = false, features = [
-  "curve",
+    "curve",
 ] }
 ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
-  "curve",
+    "curve",
 ] }
 ark-grumpkin = { version = "^0.5.0", default-features = false }
 ark-ec = { version = "^0.5.0", default-features = false }
@@ -163,8 +163,8 @@ color-eyre = "0.6.2"
 rand = "0.8.5"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
 proptest = { version = "1.6.0", default-features = false, features = [
-  "std",
-  "bit-set",
+    "std",
+    "bit-set",
 ] }
 proptest-derive = "0.5.0"
 rayon = "1.8.0"
