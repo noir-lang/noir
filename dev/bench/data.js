@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739550855962,
+  "lastUpdate": 1739550859908,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12791,100 +12791,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0c6c6371c6d0a19be3f4347678fab52f6c91f79a",
-          "message": "feat(experimental): Implement enum tag constants (#7183)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-01-31T16:07:47Z",
-          "tree_id": "01981f622b8d6472081c9cd3aa47b379af2402ef",
-          "url": "https://github.com/noir-lang/noir/commit/0c6c6371c6d0a19be3f4347678fab52f6c91f79a"
-        },
-        "date": 1738341164265,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.1,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "a9e985064303b0843cbf68fb5a9d41f9ade1e30d",
           "message": "fix: Add missing `is_empty` check for enums (#7257)",
@@ -16480,6 +16386,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e73f8cd669c13cdb792313b46dd4aa012c40a0ad"
         },
         "date": 1739550546595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 590.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2391a8ef05498bac0d7d601c4db79b0621ca3339",
+          "message": "chore: document traits required to be in scope (#7387)",
+          "timestamp": "2025-02-14T16:07:33Z",
+          "tree_id": "6ff9dca2db108617d962c68f17edbacc0b26da2e",
+          "url": "https://github.com/noir-lang/noir/commit/2391a8ef05498bac0d7d601c4db79b0621ca3339"
+        },
+        "date": 1739550858436,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
