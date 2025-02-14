@@ -26,3 +26,4 @@ const_format.workspace = true
 acir.workspace = true
 noirc_artifacts.workspace = true
 noirc_artifacts_info.workspace = true
+noir_artifact_cli.workspace = true

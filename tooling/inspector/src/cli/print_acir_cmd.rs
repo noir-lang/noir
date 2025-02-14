@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre;
-use noirc_artifacts::program::ProgramArtifact;
+use noir_artifact_cli::Artifact;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct PrintAcirCommand {
@@ -11,11 +11,21 @@ pub(crate) struct PrintAcirCommand {
 }
 
 pub(crate) fn run(args: PrintAcirCommand) -> eyre::Result<()> {
-    let file = std::fs::File::open(args.artifact.clone())?;
-    let artifact: ProgramArtifact = serde_json::from_reader(file)?;
+    let artifact = Artifact::read_from_file(&args.artifact)?;
 
-    println!("Compiled ACIR for main:");
-    println!("{}", artifact.bytecode);
+    match artifact {
+        Artifact::Program(program) => {
+            println!("Compiled ACIR for main:");
+            println!("{}", program.bytecode);
+        }
+        Artifact::Contract(contract) => {
+            println!("Compiled circuits for contract '{}':", contract.name);
+            for function in contract.functions {
+                println!("Compiled ACIR for function '{}':", function.name);
+                println!("{}", function.bytecode);
+            }
+        }
+    }
 
     Ok(())
 }

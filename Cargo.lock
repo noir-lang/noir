@@ -3221,6 +3221,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "const_format",
+ "noir_artifact_cli",
  "noirc_artifacts",
  "noirc_artifacts_info",
  "serde",
