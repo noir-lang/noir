@@ -142,7 +142,7 @@ mod test_as_typed_expr_2 {
         let func = method.as_typed_expr();
         quote { 
             pub fn bar() -> u32 {
-                /// Safety: test program
+                // Safety: test program
                 unsafe { $func([1, 2, 3, 0]) }
             }
         }
@@ -168,7 +168,7 @@ mod test_as_typed_expr_3 {
         let func = method.as_typed_expr();
         quote { 
             pub fn bar() -> u32 {
-                /// Safety: test program
+                // Safety: test program
                 comptime { $func(([1, 2, 3, 0], "a")) }
             }
         }
