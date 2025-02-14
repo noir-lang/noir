@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::flock::FileLock;
+
 /// Creates a unique folder name for a GitHub repo
 /// by using its URL and tag
 fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
@@ -21,6 +23,10 @@ fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = resolve_folder_name(base, tag);
 
     nargo_crates().join(folder_name)
+}
+
+pub(crate) fn lock_git_deps() -> std::io::Result<FileLock> {
+    FileLock::new(&nargo_crates().join(".package-cache"), "git dependencies cache")
 }
 
 /// XXX: I'd prefer to use a GitHub library however, there

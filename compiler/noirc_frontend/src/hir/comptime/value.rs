@@ -278,7 +278,7 @@ impl Value {
                         Ok(expr)
                     }
                     Err(mut errors) => {
-                        let error = errors.swap_remove(0);
+                        let error = Box::new(errors.swap_remove(0));
                         let file = location.file;
                         let rule = "an expression";
                         let tokens = tokens_to_string(tokens, elaborator.interner);
@@ -495,6 +495,7 @@ impl Value {
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
+            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => Token::UnquoteMarker(expr_id),
             Value::U1(bool) => Token::Bool(bool),
             Value::U8(value) => Token::Int((value as u128).into()),
             Value::U16(value) => Token::Int((value as u128).into()),
@@ -607,7 +608,7 @@ where
             Ok(expr)
         }
         Err(mut errors) => {
-            let error = errors.swap_remove(0);
+            let error = Box::new(errors.swap_remove(0));
             let file = location.file;
             let tokens = tokens_to_string(tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })

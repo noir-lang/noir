@@ -43,8 +43,8 @@ type HASH = [u8; 32];
 // Its overall size is the same as the `HASH`.
 type STATE = [u32; 8];
 
-// Deprecated in favour of `sha256_var`
 // docs:start:sha256
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
 // docs:end:sha256
 {
@@ -56,11 +56,13 @@ pub fn sha256_compression(_input: INT_BLOCK, _state: STATE) -> STATE {}
 
 // SHA-256 hash function
 #[no_predicates]
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
     sha256_var(msg, N as u64)
 }
 
 // Variable size SHA-256 hash
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
