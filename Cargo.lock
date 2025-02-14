@@ -799,6 +799,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "pprof",
+ "rand",
  "thiserror",
 ]
 

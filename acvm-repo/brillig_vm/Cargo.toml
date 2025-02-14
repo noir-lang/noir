@@ -25,6 +25,7 @@ thiserror.workspace = true
 [dev-dependencies]
 criterion.workspace = true
 pprof.workspace = true
+rand.workspace = true
 
 [[bench]]
 name = "criterion"
