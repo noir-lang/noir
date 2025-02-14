@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739561002770,
+  "lastUpdate": 1739561006472,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12636,100 +12636,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "b410f562e6a2580c1afb283812856da5d430ddd5",
-          "message": "feat(experimental): Implement zeroed for enums (#7252)",
-          "timestamp": "2025-02-03T12:41:45Z",
-          "tree_id": "d8273591c9090eedcbe62531dbeae0c309933277",
-          "url": "https://github.com/noir-lang/noir/commit/b410f562e6a2580c1afb283812856da5d430ddd5"
-        },
-        "date": 1738587944629,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 123.86,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "97073b2af2b8527c6332fe1f621adef6b9460ee6",
           "message": "feat(experimental): Parse match expressions (#7243)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
@@ -16250,6 +16156,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e895feb4e7b25530a22668bca597dfc78be92584"
         },
         "date": 1739560138425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 590.33,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.62,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "efb401108483c558d3064b482ebb7601a9d6d6fd",
+          "message": "chore: pull out refactored methods from u128 branch (#7385)",
+          "timestamp": "2025-02-14T18:58:23Z",
+          "tree_id": "6ecb75f5bba2310f1bb9931a504880b085fea9d2",
+          "url": "https://github.com/noir-lang/noir/commit/efb401108483c558d3064b482ebb7601a9d6d6fd"
+        },
+        "date": 1739561005095,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
