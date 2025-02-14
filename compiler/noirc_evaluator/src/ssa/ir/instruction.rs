@@ -606,7 +606,7 @@ impl Instruction {
                     BinaryOp::Div | BinaryOp::Mod => {
                         // Div and Mod require a predicate if the RHS may be zero.
                         dfg.get_numeric_constant(binary.rhs)
-                            .map(|rhs| !rhs.is_zero())
+                            .map(|rhs| rhs.is_zero())
                             .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
@@ -969,7 +969,7 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let truncated_field = truncate_field(numeric_constant, *max_bit_size);
+                    let truncated_field = truncate_field(numeric_constant, *bit_size);
                     SimplifiedTo(dfg.make_constant(truncated_field, typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
                     match &dfg[*instruction] {

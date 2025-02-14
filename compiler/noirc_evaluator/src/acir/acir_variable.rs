@@ -1566,10 +1566,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 }
 
+/// Returns an `F` representing the value `2**power`
+///
+/// # Panics
+///
+/// Panics if `2**power` exceeds `F::modulus()`.
 pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
+    if power >= F::max_num_bits() {
+        panic!("Field cannot represent this power of two");
+    }
     let full_bytes = power / 8;
     let extra_bits = power % 8;
-    let final_byte: u8 = match extra_bits % 8 {
+    let most_significant_byte: u8 = match extra_bits % 8 {
         0 => 0x01,
         1 => 0x02,
         2 => 0x04,
@@ -1581,14 +1589,9 @@ pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
         _ => unreachable!("We cover the full range of x % 8"),
     };
 
-    let mut bytes_le: Vec<u8> =
-        std::iter::repeat(0).take(full_bytes as usize).chain(std::iter::once(final_byte)).collect();
-
-    let bytes_be = {
-        // Reverse to get bytes in big endian.
-        bytes_le.reverse();
-        bytes_le
-    };
+    let bytes_be: Vec<u8> = std::iter::once(most_significant_byte)
+        .chain(std::iter::repeat(0).take(full_bytes as usize))
+        .collect();
 
     F::from_be_bytes_reduce(&bytes_be)
 }
@@ -1689,14 +1692,20 @@ mod test {
 
     use super::power_of_two;
 
+    #[test]
+    #[should_panic = "Field cannot represent this power of two"]
+    fn power_of_two_panics_on_overflow() {
+        power_of_two::<FieldElement>(FieldElement::max_num_bits());
+    }
+
     proptest! {
         #[test]
         fn power_of_two_agrees_with_generic_impl(bit_size in (0..=128u32)) {
-            let power_of_two_opt_general =
-            FieldElement::from(2_u128).pow(&FieldElement::from(bit_size));
+            let power_of_two_general =
+                FieldElement::from(2_u128).pow(&FieldElement::from(bit_size));
             let power_of_two_opt: FieldElement = power_of_two(bit_size);
 
-            prop_assert_eq!(power_of_two_opt, power_of_two_opt_general);
+            prop_assert_eq!(power_of_two_opt, power_of_two_general);
         }
 
     }

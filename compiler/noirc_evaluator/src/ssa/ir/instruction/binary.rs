@@ -508,6 +508,7 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
     }
 }
 
+/// Truncates `int` to fit within `bit_size` bits.
 fn truncate(int: u128, bit_size: u32) -> u128 {
     if bit_size == 128 {
         int
@@ -638,7 +639,7 @@ mod test {
         }
 
         #[test]
-        fn truncate_field_agrees_with_bigint_modulo(input: u128, bit_size in (0..=128u32)) {
+        fn truncate_field_agrees_with_bigint_modulo(input: u128, bit_size in (0..=253u32)) {
             let field = FieldElement::from(input);
             let truncated_as_field = truncate_field(field, bit_size);
 

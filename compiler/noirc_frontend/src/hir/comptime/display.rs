@@ -446,19 +446,25 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
-            Value::Expr(ExprValue::Expression(expr)) => {
-                let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                write!(f, "{}", expr)
-            }
-            Value::Expr(ExprValue::Statement(statement)) => {
-                write!(f, "{}", remove_interned_in_statement_kind(self.interner, statement.clone()))
-            }
-            Value::Expr(ExprValue::LValue(lvalue)) => {
-                write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
-            }
-            Value::Expr(ExprValue::Pattern(pattern)) => {
-                write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
-            }
+            Value::Expr(expr) => match expr.as_ref() {
+                ExprValue::Expression(expr) => {
+                    let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
+                    write!(f, "{}", expr)
+                }
+                ExprValue::Statement(statement) => {
+                    write!(
+                        f,
+                        "{}",
+                        remove_interned_in_statement_kind(self.interner, statement.clone())
+                    )
+                }
+                ExprValue::LValue(lvalue) => {
+                    write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
+                }
+                ExprValue::Pattern(pattern) => {
+                    write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
+                }
+            },
             Value::TypedExpr(TypedExpr::ExprId(id)) => {
                 let hir_expr = self.interner.expression(id);
                 let expr = hir_expr.to_display_ast(self.interner, Span::default());
