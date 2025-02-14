@@ -40,7 +40,10 @@ unconstrained fn two_nested_return_unconstrained() -> (Field, TReturn, Field, TR
 #[test]
 unconstrained fn two_nested_return() {
     OracleMock::mock("two_nested_return").returns((0, [1, 2, 3, 4, 5, 6], 7, [1, 2, 3, 4, 5, 6]));
-    assert_eq(two_nested_return_unconstrained(), (0, [[1, 2, 3], [4, 5, 6]], 7, [[1, 2, 3], [4, 5, 6]]));
+    assert_eq(
+        two_nested_return_unconstrained(),
+        (0, [[1, 2, 3], [4, 5, 6]], 7, [[1, 2, 3], [4, 5, 6]]),
+    );
 }
 
 #[oracle(foo_return)]
@@ -58,18 +61,20 @@ struct TestTypeFoo {
 
 #[test]
 unconstrained fn complexe_struct_return() {
-    OracleMock::mock("foo_return").returns(
-        (
-            0, [1, 2, 3, 4, 5, 6], 7, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], [1, 2, 3, 4, 5, 6]
-        )
-    );
+    OracleMock::mock("foo_return").returns((
+        0, [1, 2, 3, 4, 5, 6], 7,
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], [1, 2, 3, 4, 5, 6],
+    ));
     let foo_x = foo_return_unconstrained();
     assert_eq((foo_x.0, foo_x.1), (0, [[1, 2, 3], [4, 5, 6]]));
     assert_eq(foo_x.2.a, 7);
     assert_eq(
-        foo_x.2.b, [
-        [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]]
-    ]
+        foo_x.2.b,
+        [
+            [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]],
+            [[13, 14, 15], [16, 17, 18], [19, 20, 21], [22, 23, 24]],
+        ],
     );
     let a: TReturnElem = [1, 2, 3];
     let b: TReturnElem = [4, 5, 6];
