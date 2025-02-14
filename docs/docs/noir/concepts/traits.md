@@ -325,20 +325,6 @@ let x: Field = Default::default();
 let result = x + Default::default();
 ```
 
-:::warning
-
-```rust
-let _ = Default::default();
-```
-
-If type inference cannot select which impl to use because of an ambiguous `Self` type, an impl will be
-arbitrarily selected. This occurs most often when the result of a trait function call with no parameters
-is unused. To avoid this, when calling a trait function with no `self` or `Self` parameters or return type,
-always refer to it via the implementation type's namespace - e.g. `MyType::default()`.
-This is set to change to an error in future Noir versions.
-
-:::
-
 ## Default Method Implementations
 
 A trait can also have default implementations of its methods by giving a body to the desired functions.
