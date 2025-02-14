@@ -9,7 +9,9 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noir_artifact_cli::fs::artifact::read_program_from_file;
+use noir_artifact_cli::fs::artifact::{
+    read_program_from_file, save_contract_to_file, save_program_to_file,
+};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -21,7 +23,6 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::{save_contract_to_file, save_program_to_file};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
@@ -242,7 +243,8 @@ fn compile_programs(
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
+            .expect("failed to save program");
 
         Ok(((), warnings))
     };
@@ -293,7 +295,8 @@ fn save_contract(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         target_dir,
-    );
+    )
+    .expect("failed to save contract");
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
     }

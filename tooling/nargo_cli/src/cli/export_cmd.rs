@@ -1,5 +1,6 @@
 use nargo::errors::CompileError;
 use nargo::ops::report_errors;
+use noir_artifact_cli::fs::artifact::save_program_to_file;
 use noirc_errors::FileDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -19,7 +20,6 @@ use crate::errors::CliError;
 
 use super::check_cmd::check_crate_and_report_errors;
 
-use super::fs::program::save_program_to_file;
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Exports functions marked with #[export] attribute
@@ -97,7 +97,7 @@ fn compile_exported_functions(
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
-        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir);
+        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
 }
