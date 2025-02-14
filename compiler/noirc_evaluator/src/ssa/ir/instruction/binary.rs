@@ -510,12 +510,12 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
 }
 
 fn truncate(int: u128, bit_size: u32) -> u128 {
-    if bit_size == 128 { 
+    if bit_size == 128 {
         int
     } else {
         let max = 1 << bit_size;
-        int % max    
-     };
+        int % max
+    }
 }
 
 impl BinaryOp {
