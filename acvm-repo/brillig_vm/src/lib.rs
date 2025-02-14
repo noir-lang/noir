@@ -2408,9 +2408,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn field_zero_division_regression() {
-        let calldata: Vec<FieldElement> = vec![(1u128).into(), (0u128).into()];
+        let calldata: Vec<FieldElement> = vec![];
 
         let opcodes = &[
             Opcode::Const {
@@ -2438,9 +2437,6 @@ mod tests {
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
-        let VM { memory, .. } = vm;
-        let output_value = memory.read(MemoryAddress::direct(2));
-        assert_eq!(output_value.to_field(), (0u128).into());
+        assert_eq!(status, VMStatus::Failure {reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() }, call_stack: vec![2]} );
     }
 }
