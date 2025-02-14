@@ -1692,6 +1692,12 @@ mod test {
 
     use super::power_of_two;
 
+    #[test]
+    #[should_panic = "Field cannot represent this power of two"]
+    fn power_of_two_panics_on_overflow() {
+        power_of_two::<FieldElement>(FieldElement::max_num_bits());
+    }
+
     proptest! {
         #[test]
         fn power_of_two_agrees_with_generic_impl(bit_size in (0..=128u32)) {

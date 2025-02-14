@@ -99,9 +99,12 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
             // Retain the lower 'width' bits
             debug_assert!(*width <= 128, "We don't currently support uints larger than u128");
-            let truncated_uint = truncate_field(*f, *width).to_u128();
+            let mut uint_cast = f.to_u128();
+            if *width != 128 {
+                uint_cast &= (1 << width) - 1;
+            };
 
-            output.push_str(&truncated_uint.to_string());
+            output.push_str(&uint_cast.to_string());
         }
         (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
             let mut uint = f.to_u128(); // Interpret as uint
@@ -264,28 +267,6 @@ fn format_field_string<F: AcirField>(field: F) -> String {
         trimmed_field = "0".to_owned() + &trimmed_field;
     }
     "0x".to_owned() + &trimmed_field
-}
-
-fn truncate_field<F: AcirField>(int: F, bit_size: u32) -> F {
-    let num_bytes = bit_size.div_ceil(8);
-    let mut be_bytes: Vec<u8> =
-        int.to_be_bytes().into_iter().rev().take(num_bytes as usize).rev().collect();
-
-    // We need to apply a mask to the largest byte to handle non-divisible bit sizes.
-    let mask = match bit_size % 8 {
-        0 => 0xff,
-        1 => 0x01,
-        2 => 0x03,
-        3 => 0x07,
-        4 => 0x0f,
-        5 => 0x1f,
-        6 => 0x3f,
-        7 => 0x7f,
-        _ => unreachable!("We cover the full range of x % 8"),
-    };
-    be_bytes[0] &= mask;
-
-    F::from_be_bytes_reduce(&be_bytes)
 }
 
 #[cfg(test)]
