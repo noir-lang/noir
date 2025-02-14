@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739547146147,
+  "lastUpdate": 1739547152026,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12886,100 +12886,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "8d39337bc25bed77d03413ce02b90a2a30863ec1",
-          "message": "fix(ssa): Use number of SSA instructions for the Brillig unrolling bytecode size limit (#7242)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-01-31T14:03:50Z",
-          "tree_id": "276bf2ded89bdcde92140f04af040d5a237d80e9",
-          "url": "https://github.com/noir-lang/noir/commit/8d39337bc25bed77d03413ce02b90a2a30863ec1"
-        },
-        "date": 1738333562834,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.33,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5841122627ed7f786d24ea2fef3008126569fd55",
           "message": "fix(unrolling): Fetch original bytecode size from the original function (#7253)",
@@ -16625,6 +16531,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/38780375869ad2990f7bed54f740ae4d847b14fc"
         },
         "date": 1739545155199,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 590.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b6db0749aa0f8d0065b913dc15f9a617bed258c",
+          "message": "chore: box `ParserError`s in `InterpreterError` (#7373)",
+          "timestamp": "2025-02-14T15:09:03Z",
+          "tree_id": "a166514b6fab3af65f8e4ed69409ef5aa3334cf8",
+          "url": "https://github.com/noir-lang/noir/commit/2b6db0749aa0f8d0065b913dc15f9a617bed258c"
+        },
+        "date": 1739547150526,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
