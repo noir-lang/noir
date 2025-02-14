@@ -31,8 +31,11 @@ tracing-subscriber.workspace = true
 acir.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
+fm.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
 noirc_abi.workspace = true
 noirc_artifacts_info.workspace = true
 noirc_artifacts.workspace = true
+noirc_driver.workspace = true
+noirc_errors.workspace = true
 serde.workspace = true

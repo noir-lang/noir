@@ -1,17 +1,16 @@
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use acir::{circuit::Program, native_types::WitnessStack, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
-use nargo::{foreign_calls::DefaultForeignCallBuilder, PrintOutput};
-use noir_artifact_cli::{
-    errors::CliError,
-    fs::{self, inputs::read_inputs_from_file},
-    Artifact,
-};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
+use noir_artifact_cli::{errors::CliError, fs::inputs::read_inputs_from_file, Artifact};
 use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_artifacts::{
+    contract::ContractFunctionArtifact, debug::DebugArtifact, program::ProgramArtifact,
+};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
@@ -52,7 +51,12 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(&args.artifact)?;
 
     let circuit = match artifact {
-        Artifact::Program(program) => Circuit { abi: program.abi, bytecode: program.bytecode },
+        Artifact::Program(program) => Circuit {
+            abi: program.abi,
+            bytecode: program.bytecode,
+            debug_symbols: program.debug_symbols,
+            file_map: program.file_map,
+        },
         Artifact::Contract(contract) => {
             let names =
                 contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(",");
@@ -64,7 +68,12 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
                 bail!("unknown --contract-fn '{name}'; options: [{names}]");
             };
 
-            Circuit { abi: function.abi, bytecode: function.bytecode }
+            Circuit {
+                abi: function.abi,
+                bytecode: function.bytecode,
+                debug_symbols: function.debug_symbols,
+                file_map: contract.file_map,
+            }
         }
     };
 
@@ -75,7 +84,7 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
             todo!("check that the witness is what was expected");
         }
         Err(CliError::CircuitExecutionError(err)) => {
-            todo!("show error diagnostic")
+            show_diagnostic(circuit, err);
         }
         Err(e) => {
             bail!("error executing circuit: {e}");
@@ -88,6 +97,8 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
 struct Circuit {
     abi: Abi,
     bytecode: Program<FieldElement>,
+    debug_symbols: noirc_errors::debug_info::ProgramDebugInfo,
+    file_map: BTreeMap<fm::FileId, noirc_driver::DebugFile>,
 }
 
 struct SolvedWitnesses {
@@ -125,4 +136,19 @@ fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, 
     let (_, actual_return) = circuit.abi.decode(main_witness)?;
 
     Ok(SolvedWitnesses { expected_return, actual_return, witness_stack })
+}
+
+/// Print an error stack trace, if possible.
+fn show_diagnostic(circuit: Circuit, err: NargoError<FieldElement>) {
+    if let Some(diagnostic) = nargo::errors::try_to_diagnose_runtime_error(
+        &err,
+        &circuit.abi,
+        &circuit.debug_symbols.debug_infos,
+    ) {
+        let debug_artifact = DebugArtifact {
+            debug_symbols: circuit.debug_symbols.debug_infos,
+            file_map: circuit.file_map,
+        };
+        diagnostic.report(&debug_artifact, false);
+    }
 }
