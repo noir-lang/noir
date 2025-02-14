@@ -72,7 +72,8 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-
+    // Optional for backwards compatibility (it was missing).
+    pub names: Option<Vec<String>>,
     pub brillig_names: Vec<String>,
 }
 
@@ -84,6 +85,7 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
+            names: Some(func.names),
             brillig_names: func.brillig_names,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
         }
