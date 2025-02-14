@@ -1024,7 +1024,7 @@ impl<'a> NodeFinder<'a> {
         noir_function: &NoirFunction,
     ) {
         // First find the trait
-        let location = Location::new(noir_trait_impl.trait_name.span(), self.file);
+        let location = Location::new(noir_trait_impl.r#trait.span, self.file);
         let Some(ReferenceId::Trait(trait_id)) = self.interner.find_referenced(location) else {
             return;
         };
@@ -1286,7 +1286,11 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, _: Span) -> bool {
-        self.find_in_path(&noir_trait_impl.trait_name, RequestedItems::OnlyTypes);
+        let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ else {
+            return false;
+        };
+
+        self.find_in_path(trait_name, RequestedItems::OnlyTypes);
         noir_trait_impl.object_type.accept(self);
 
         self.type_parameters.clear();

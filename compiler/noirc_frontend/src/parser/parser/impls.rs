@@ -2,9 +2,9 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        Documented, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility,
-        NoirFunction, NoirTraitImpl, Path, TraitImplItem, TraitImplItemKind, TypeImpl,
-        UnresolvedGeneric, UnresolvedType, UnresolvedTypeData,
+        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
+        UnresolvedTypeData,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
     token::{Keyword, Token},
@@ -29,24 +29,10 @@ impl<'a> Parser<'a> {
         let type_span = self.span_since(type_span_start);
 
         if self.eat_keyword(Keyword::For) {
-            if let UnresolvedTypeData::Named(trait_name, trait_generics, _) = object_type.typ {
-                return Impl::TraitImpl(self.parse_trait_impl(
-                    generics,
-                    trait_generics,
-                    trait_name,
-                ));
-            } else {
-                self.push_error(
-                    ParserErrorReason::ExpectedTrait { found: object_type.typ.to_string() },
-                    self.current_token_span,
-                );
-
-                // Error, but we continue parsing the type and assume this is going to be a regular type impl
-                self.parse_type();
-            };
+            Impl::TraitImpl(self.parse_trait_impl(generics, object_type))
+        } else {
+            Impl::Impl(self.parse_type_impl(object_type, type_span, generics))
         }
-
-        self.parse_type_impl(object_type, type_span, generics)
     }
 
     /// TypeImpl = 'impl' Generics Type TypeImplBody
@@ -55,11 +41,10 @@ impl<'a> Parser<'a> {
         object_type: UnresolvedType,
         type_span: Span,
         generics: Vec<UnresolvedGeneric>,
-    ) -> Impl {
+    ) -> TypeImpl {
         let where_clause = self.parse_where_clause();
         let methods = self.parse_type_impl_body();
-
-        Impl::Impl(TypeImpl { object_type, type_span, generics, where_clause, methods })
+        TypeImpl { object_type, type_span, generics, where_clause, methods }
     }
 
     /// TypeImplBody = '{' TypeImplItem* '}'
@@ -107,23 +92,14 @@ impl<'a> Parser<'a> {
     fn parse_trait_impl(
         &mut self,
         impl_generics: Vec<UnresolvedGeneric>,
-        trait_generics: GenericTypeArgs,
-        trait_name: Path,
+        r#trait: UnresolvedType,
     ) -> NoirTraitImpl {
         let object_type = self.parse_type_or_error();
         let where_clause = self.parse_where_clause();
         let items = self.parse_trait_impl_body();
         let is_synthetic = false;
 
-        NoirTraitImpl {
-            impl_generics,
-            trait_name,
-            trait_generics,
-            object_type,
-            where_clause,
-            items,
-            is_synthetic,
-        }
+        NoirTraitImpl { impl_generics, r#trait, object_type, where_clause, items, is_synthetic }
     }
 
     /// TraitImplBody = '{' TraitImplItem* '}'
@@ -454,7 +430,12 @@ mod tests {
     fn parse_empty_trait_impl() {
         let src = "impl Foo for Field {}";
         let trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+
+        let UnresolvedTypeData::Named(trait_name, _, _) = trait_impl.r#trait.typ else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
         assert!(trait_impl.items.is_empty());
         assert!(trait_impl.impl_generics.is_empty());
@@ -464,7 +445,12 @@ mod tests {
     fn parse_empty_trait_impl_with_generics() {
         let src = "impl <T> Foo for Field {}";
         let trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+
+        let UnresolvedTypeData::Named(trait_name, _, _) = trait_impl.r#trait.typ else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
@@ -474,7 +460,12 @@ mod tests {
     fn parse_trait_impl_with_function() {
         let src = "impl Foo for Field { fn foo() {} }";
         let mut trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+
+        let UnresolvedTypeData::Named(trait_name, _, _) = trait_impl.r#trait.typ else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 
         let item = trait_impl.items.remove(0).item;
@@ -489,15 +480,26 @@ mod tests {
     fn parse_trait_impl_with_generic_type_args() {
         let src = "impl Foo<i32, X = Field> for Field { }";
         let trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
-        assert!(!trait_impl.trait_generics.is_empty());
+
+        let UnresolvedTypeData::Named(trait_name, trait_generics, _) = trait_impl.r#trait.typ
+        else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
+        assert!(!trait_generics.is_empty());
     }
 
     #[test]
     fn parse_trait_impl_with_type() {
         let src = "impl Foo for Field { type Foo = i32; }";
         let mut trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+
+        let UnresolvedTypeData::Named(trait_name, _, _) = trait_impl.r#trait.typ else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 
         let item = trait_impl.items.remove(0).item;
@@ -512,7 +514,12 @@ mod tests {
     fn parse_trait_impl_with_let() {
         let src = "impl Foo for Field { let x: Field = 1; }";
         let mut trait_impl = parse_trait_impl_no_errors(src);
-        assert_eq!(trait_impl.trait_name.to_string(), "Foo");
+
+        let UnresolvedTypeData::Named(trait_name, _, _) = trait_impl.r#trait.typ else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(trait_impl.items.len(), 1);
 
         let item = trait_impl.items.remove(0).item;

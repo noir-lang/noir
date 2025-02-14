@@ -21,7 +21,11 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        let location = Location::new(noir_trait_impl.trait_name.span(), self.file);
+        let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ else {
+            return;
+        };
+
+        let location = Location::new(trait_name.span(), self.file);
         let Some(ReferenceId::Trait(trait_id)) = self.interner.find_referenced(location) else {
             return;
         };

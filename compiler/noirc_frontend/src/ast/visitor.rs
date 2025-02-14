@@ -598,7 +598,7 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.trait_name.accept(visitor);
+        self.r#trait.accept(visitor);
         self.object_type.accept(visitor);
 
         for item in &self.items {

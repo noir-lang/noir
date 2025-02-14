@@ -495,6 +495,11 @@ impl Value {
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
+            Value::TraitConstraint(trait_id, generics) => {
+                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let typ = Type::TraitAsType(trait_id, name, generics);
+                Token::QuotedType(interner.push_quoted_type(typ))
+            }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => Token::UnquoteMarker(expr_id),
             Value::U1(bool) => Token::Bool(bool),
             Value::U8(value) => Token::Int((value as u128).into()),

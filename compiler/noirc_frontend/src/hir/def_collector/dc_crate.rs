@@ -21,8 +21,8 @@ use crate::node_interner::{
 };
 
 use crate::ast::{
-    ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
-    NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
@@ -83,8 +83,7 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_generics: GenericTypeArgs,
-    pub trait_path: Path,
+    pub r#trait: UnresolvedType,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
