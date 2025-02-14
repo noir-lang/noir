@@ -13,7 +13,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::errors::{RuntimeError, SsaReport};
+use crate::{
+    brillig::BrilligOptions,
+    errors::{RuntimeError, SsaReport},
+};
 use acvm::{
     acir::{
         circuit::{
@@ -54,7 +57,8 @@ pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
     pub ssa_logging: SsaLogging,
 
-    pub enable_brillig_logging: bool,
+    /// Options affecting Brillig code generation.
+    pub brillig_options: BrilligOptions,
 
     /// Pretty print benchmark times of each code generation pass
     pub print_codegen_timings: bool,
@@ -70,6 +74,11 @@ pub struct SsaEvaluatorOptions {
 
     /// Enable the missing Brillig call constraints check
     pub enable_brillig_constraints_check: bool,
+
+    /// Enable the lookback feature of the Brillig call constraints
+    /// check (prevents some rare false positives, leads to a slowdown
+    /// on large rollout functions)
+    pub enable_brillig_constraints_check_lookback: bool,
 
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
@@ -108,7 +117,7 @@ pub(crate) fn optimize_into_acir(
 
     let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(options.enable_brillig_logging, used_globals_map)
+        ssa.to_brillig_with_globals(&options.brillig_options, used_globals_map)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
@@ -138,14 +147,18 @@ pub(crate) fn optimize_into_acir(
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
-            || ssa.check_for_missing_brillig_constraints(),
+            || {
+                ssa.check_for_missing_brillig_constraints(
+                    options.enable_brillig_constraints_check_lookback,
+                )
+            },
         ));
     };
 
     drop(ssa_gen_span_guard);
 
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {
-        ssa.into_acir(&brillig, options.expression_width)
+        ssa.into_acir(&brillig, &options.brillig_options, options.expression_width)
     })?;
 
     Ok(ArtifactsAndWarnings(artifacts, ssa_level_warnings))
