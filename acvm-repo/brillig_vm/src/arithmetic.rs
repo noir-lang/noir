@@ -23,14 +23,14 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let a = *lhs.expect_field().map_err(|err| {
+    let a = lhs.expect_field().map_err(|err| {
         let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
         BrilligArithmeticError::MismatchedLhsBitSize {
             lhs_bit_size: value_bit_size,
             op_bit_size: expected_bit_size,
         }
     })?;
-    let b = *rhs.expect_field().map_err(|err| {
+    let b = rhs.expect_field().map_err(|err| {
         let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
         BrilligArithmeticError::MismatchedRhsBitSize {
             rhs_bit_size: value_bit_size,
