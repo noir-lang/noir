@@ -18,13 +18,13 @@ noirc_printable_type.workspace = true
 toml.workspace = true
 serde_json = "1.0"
 serde.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
 num-traits = "0.2"
 
 [dev-dependencies]
-strum.workspace = true
-strum_macros.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true
 

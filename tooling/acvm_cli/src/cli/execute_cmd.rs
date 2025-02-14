@@ -11,8 +11,9 @@ use nargo::PrintOutput;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
-use noir_artifact_cli::fs::inputs::read_inputs_from_file;
-use noir_artifact_cli::fs::witness::{create_output_witness_string, save_witness_to_dir};
+use noir_artifact_cli::fs::witness::{
+    create_output_witness_string, read_witness_from_file, save_witness_to_dir,
+};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -46,9 +47,9 @@ pub(crate) struct ExecuteCommand {
 
 fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let bytecode = read_bytecode_from_file(&args.working_directory, &args.bytecode)?;
-    let circuit_inputs = read_inputs_from_file(&args.working_directory, &args.input_witness)?;
+    let input_witness = read_witness_from_file(&args.working_directory.join(&args.input_witness))?;
     let output_witness =
-        execute_program_from_witness(circuit_inputs, &bytecode, args.pedantic_solving)?;
+        execute_program_from_witness(input_witness, &bytecode, args.pedantic_solving)?;
     assert_eq!(output_witness.length(), 1, "ACVM CLI only supports a witness stack of size 1");
     let output_witness_string = create_output_witness_string(
         &output_witness.peek().expect("Should have a witness stack item").witness,

@@ -29,9 +29,9 @@ pub fn read_bytecode_from_file(
 ) -> Result<Vec<u8>, FilesystemError> {
     let file_path = work_dir.join(file_name);
     if !file_path.exists() {
-        return Err(FilesystemError::MissingBytecodeFile(file_name.to_owned(), file_path));
+        return Err(FilesystemError::MissingBytecodeFile(file_path.clone()));
     }
-    let bytecode: Vec<u8> = std::fs::read(file_path)
-        .map_err(|_| FilesystemError::InvalidBytecodeFile(file_name.to_owned()))?;
+    let bytecode: Vec<u8> = std::fs::read(&file_path)
+        .map_err(|e| FilesystemError::InvalidBytecodeFile(file_path, e.to_string()))?;
     Ok(bytecode)
 }

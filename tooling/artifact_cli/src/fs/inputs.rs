@@ -1,43 +1,55 @@
-use acir::{
-    native_types::{Witness, WitnessMap},
-    AcirField, FieldElement,
+use noirc_abi::{
+    input_parser::{Format, InputValue},
+    Abi, InputMap, MAIN_RETURN_NAME,
 };
-use toml::Table;
+use std::{collections::BTreeMap, path::Path};
+use strum::IntoEnumIterator;
 
-use crate::errors::{CliError, FilesystemError};
-use std::path::Path;
+use crate::errors::CliError;
 
-/// Returns the circuit's parameters parsed from a TOML file at the given location
+/// Returns the circuit's parameters and its return value, if one exists.
+///
+/// The file is is expected to contain ABI encoded inputs in TOML or JSON format.
 pub fn read_inputs_from_file(
-    work_dir: &Path,
-    file_name: &str,
-) -> Result<WitnessMap<FieldElement>, CliError> {
-    let file_path = work_dir.join(file_name);
+    file_path: &Path,
+    abi: &Abi,
+) -> Result<(InputMap, Option<InputValue>), CliError> {
+    use crate::errors::FilesystemError::{InvalidInputFile, MissingInputFile};
+    use CliError::FilesystemError;
+
+    if abi.is_empty() {
+        return Ok((BTreeMap::new(), None));
+    }
+
     if !file_path.exists() {
-        return Err(CliError::FilesystemError(FilesystemError::MissingTomlFile(
-            file_name.to_owned(),
-            file_path,
-        )));
-    }
-
-    let input_string = std::fs::read_to_string(file_path)
-        .map_err(|_| FilesystemError::InvalidTomlFile(file_name.to_owned()))?;
-
-    let input_map = input_string
-        .parse::<Table>()
-        .map_err(|_| FilesystemError::InvalidTomlFile(file_name.to_owned()))?;
-
-    let mut witnesses: WitnessMap<FieldElement> = WitnessMap::new();
-
-    for (key, value) in input_map.into_iter() {
-        let index =
-            Witness(key.trim().parse().map_err(|_| CliError::WitnessIndexError(key.clone()))?);
-        if !value.is_str() {
-            return Err(CliError::WitnessValueError(key.clone()));
+        if abi.parameters.is_empty() {
+            // Reading a return value from the `Prover.toml` is optional,
+            // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
+            return Ok((BTreeMap::new(), None));
+        } else {
+            return Err(FilesystemError(MissingInputFile(file_path.to_path_buf())));
         }
-        let field = FieldElement::from_hex(value.as_str().unwrap()).unwrap();
-        witnesses.insert(index, field);
     }
 
-    Ok(witnesses)
+    let Some(ext) = file_path.extension().and_then(|e| e.to_str()) else {
+        return Err(FilesystemError(InvalidInputFile(
+            file_path.to_path_buf(),
+            "cannot determine input format".to_string(),
+        )));
+    };
+
+    let Some(format) = Format::iter().find(|fmt| fmt.ext() == ext) else {
+        return Err(FilesystemError(InvalidInputFile(
+            file_path.to_path_buf(),
+            format!("unknown input format: {ext}"),
+        )));
+    };
+
+    let inputs = std::fs::read_to_string(file_path)
+        .map_err(|e| FilesystemError(InvalidInputFile(file_path.to_path_buf(), e.to_string())))?;
+
+    let mut inputs = format.parse(&inputs, abi)?;
+    let return_value = inputs.remove(MAIN_RETURN_NAME);
+
+    Ok((inputs, return_value))
 }
