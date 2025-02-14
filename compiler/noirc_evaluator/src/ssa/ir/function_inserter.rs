@@ -79,6 +79,13 @@ impl<'f> FunctionInserter<'f> {
         (instruction, self.function.dfg.get_instruction_call_stack_id(id))
     }
 
+    /// Get an instruction, map all its values, and replace it with the resolved instruction.
+    pub(crate) fn map_instruction_in_place(&mut self, id: InstructionId) {
+        let mut instruction = self.function.dfg[id].clone();
+        instruction.map_values_mut(|id| self.resolve(id));
+        self.function.dfg.set_instruction(id, instruction);
+    }
+
     /// Maps a terminator in place, replacing any ValueId in the terminator with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
@@ -250,5 +257,23 @@ impl<'f> FunctionInserter<'f> {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);
         }
+    }
+
+    /// Merge the internal mapping into the given mapping
+    /// The merge is guaranteed to be coherent because ambiguous cases are prevented
+    pub(crate) fn extract_mapping(&self, mapping: &mut HashMap<ValueId, ValueId>) {
+        for (k, v) in &self.values {
+            if mapping.contains_key(k) {
+                unreachable!("cannot merge key");
+            }
+            if mapping.contains_key(v) {
+                unreachable!("cannot merge value");
+            }
+            mapping.insert(*k, *v);
+        }
+    }
+
+    pub(crate) fn set_mapping(&mut self, mapping: HashMap<ValueId, ValueId>) {
+        self.values = mapping;
     }
 }
