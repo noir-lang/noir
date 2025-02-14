@@ -265,14 +265,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Check if condition is true
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     return self.set_program_counter(*destination);
                 }
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     return self.increment_program_counter();
                 }
                 self.set_program_counter(*destination)
@@ -340,7 +340,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));

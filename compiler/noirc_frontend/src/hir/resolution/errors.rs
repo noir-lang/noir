@@ -128,6 +128,8 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { span: Span },
+    #[error("\"as trait path\" not yet implemented")]
+    AsTraitPathNotYetImplemented { span: Span },
     #[error("Invalid syntax in macro call")]
     InvalidSyntaxInMacroCall { span: Span },
     #[error("Macros must be comptime functions")]
@@ -544,6 +546,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnquoteUsedOutsideQuote { span } => {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
+                    "".into(),
+                    *span,
+                )
+            },
+            ResolverError::AsTraitPathNotYetImplemented { span } => {
+                Diagnostic::simple_error(
+                    "\"as trait path\" not yet implemented".into(),
                     "".into(),
                     *span,
                 )
