@@ -14,6 +14,7 @@ use noir_artifact_cli::{
 use noirc_abi::{input_parser::InputValue, Abi};
 use noirc_artifacts::debug::DebugArtifact;
 
+/// Execute a binary program or a circuit artifact.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
