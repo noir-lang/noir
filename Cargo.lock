@@ -3269,6 +3269,7 @@ dependencies = [
  "im",
  "inferno",
  "nargo",
+ "noir_artifact_cli",
  "noirc_abi",
  "noirc_artifacts",
  "noirc_driver",

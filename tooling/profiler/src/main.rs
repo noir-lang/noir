@@ -5,7 +5,6 @@
 
 mod cli;
 mod flamegraph;
-mod fs;
 mod gates_provider;
 mod opcode_formatter;
 

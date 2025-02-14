@@ -4,10 +4,10 @@ use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
+use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_artifacts::debug::DebugArtifact;
 
 use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
-use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
 use crate::opcode_formatter::format_acir_opcode;
 
