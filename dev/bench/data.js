@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739555427094,
+  "lastUpdate": 1739559998432,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9140,95 +9140,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "97073b2af2b8527c6332fe1f621adef6b9460ee6",
-          "message": "feat(experimental): Parse match expressions (#7243)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-02-03T12:54:39Z",
-          "tree_id": "c0f565e801eae97f46068eb3ea13d7134f979762",
-          "url": "https://github.com/noir-lang/noir/commit/97073b2af2b8527c6332fe1f621adef6b9460ee6"
-        },
-        "date": 1738588538857,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.599,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.008,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.453,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -12728,6 +12639,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.042,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e895feb4e7b25530a22668bca597dfc78be92584",
+          "message": "feat: require safety comments instead of safety doc comments (#7295)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-14T18:42:54Z",
+          "tree_id": "eb7c49325c4006a8e20af214ba74540d57d5dc17",
+          "url": "https://github.com/noir-lang/noir/commit/e895feb4e7b25530a22668bca597dfc78be92584"
+        },
+        "date": 1739559996976,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.303,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.464,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 0.039,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 32.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
             "unit": "s"
           }
         ]
