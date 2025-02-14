@@ -15,11 +15,11 @@ use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 pub(crate) struct OpcodesFlamegraphCommand {
     /// The path to the artifact JSON file
     #[clap(long, short)]
-    artifact_path: String,
+    artifact_path: PathBuf,
 
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
-    output: String,
+    output: PathBuf,
 
     /// Whether to skip brillig functions
     #[clap(long, short, action)]
@@ -28,9 +28,9 @@ pub(crate) struct OpcodesFlamegraphCommand {
 
 pub(crate) fn run(args: OpcodesFlamegraphCommand) -> eyre::Result<()> {
     run_with_generator(
-        &PathBuf::from(args.artifact_path),
+        &args.artifact_path,
         &InfernoFlamegraphGenerator { count_name: "opcodes".to_string() },
-        &PathBuf::from(args.output),
+        &args.output,
         args.skip_brillig,
     )
 }

@@ -15,11 +15,11 @@ use crate::opcode_formatter::format_acir_opcode;
 pub(crate) struct GatesFlamegraphCommand {
     /// The path to the artifact JSON file
     #[clap(long, short)]
-    artifact_path: String,
+    artifact_path: PathBuf,
 
     /// Path to the noir backend binary
     #[clap(long, short)]
-    backend_path: String,
+    backend_path: PathBuf,
 
     /// Command to get a gates report from the backend. Defaults to "gates"
     #[clap(long, short = 'g', default_value = "gates")]
@@ -30,7 +30,7 @@ pub(crate) struct GatesFlamegraphCommand {
 
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
-    output: String,
+    output: PathBuf,
 
     /// The output name for the flamegraph svg files
     #[clap(long, short = 'f')]
@@ -39,14 +39,14 @@ pub(crate) struct GatesFlamegraphCommand {
 
 pub(crate) fn run(args: GatesFlamegraphCommand) -> eyre::Result<()> {
     run_with_provider(
-        &PathBuf::from(args.artifact_path),
+        &args.artifact_path,
         &BackendGatesProvider {
-            backend_path: PathBuf::from(args.backend_path),
+            backend_path: args.backend_path,
             gates_command: args.backend_gates_command,
             extra_args: args.backend_extra_args,
         },
         &InfernoFlamegraphGenerator { count_name: "gates".to_string() },
-        &PathBuf::from(args.output),
+        &args.output,
         args.output_filename,
     )
 }
