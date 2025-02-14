@@ -32,8 +32,8 @@ im.workspace = true
 acir.workspace = true
 nargo.workspace = true
 noirc_errors.workspace = true
-noirc_abi.workspace = true
 noirc_evaluator.workspace = true
+noir_artifact_cli.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
@@ -43,4 +43,3 @@ tracing-appender = "0.2.3"
 noirc_abi.workspace = true
 noirc_driver.workspace = true
 tempfile.workspace = true
-
