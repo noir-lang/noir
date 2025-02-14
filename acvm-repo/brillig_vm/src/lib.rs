@@ -2406,4 +2406,45 @@ mod tests {
 
         assert_eq!(output_value.to_field(), FieldElement::from(1u128));
     }
+
+    #[test]
+    fn field_zero_division_regression() {
+        let calldata: Vec<FieldElement> = vec![];
+
+        let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(1u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(0u64),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::direct(2),
+                op: BinaryFieldOp::Div,
+                lhs: MemoryAddress::direct(0),
+                rhs: MemoryAddress::direct(1),
+            },
+        ];
+        let solver = StubbedBlackBoxSolver::default();
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(
+            status,
+            VMStatus::Failure {
+                reason: FailureReason::RuntimeError {
+                    message: "Attempted to divide by zero".into()
+                },
+                call_stack: vec![2]
+            }
+        );
+    }
 }

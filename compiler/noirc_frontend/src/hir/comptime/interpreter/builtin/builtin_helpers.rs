@@ -523,7 +523,7 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
+        let error = Box::new(errors.swap_remove(0));
         let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
