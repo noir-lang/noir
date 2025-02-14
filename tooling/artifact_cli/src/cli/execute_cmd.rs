@@ -14,21 +14,23 @@ use noir_artifact_cli::{
 use noirc_abi::{input_parser::InputValue, Abi};
 use noirc_artifacts::debug::DebugArtifact;
 
+use super::parse_and_normalize_path;
+
 /// Execute a binary program or a circuit artifact.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
-    #[clap(long, short)]
+    #[clap(long, short, value_parser = parse_and_normalize_path)]
     artifact: PathBuf,
 
     /// Path to the Prover.toml file which contains the inputs and the
     /// optional return value in ABI format.
-    #[clap(long, short)]
+    #[clap(long, short, value_parser = parse_and_normalize_path)]
     prover_file: PathBuf,
 
     /// Path to the directory where the output witness should be saved.
     /// If empty then the results are discarded.
-    #[clap(long, short)]
+    #[clap(long, short, value_parser = parse_and_normalize_path)]
     output_dir: Option<PathBuf>,
 
     /// Write the execution witness to named file

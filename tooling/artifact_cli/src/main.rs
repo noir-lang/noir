@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
-//#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
