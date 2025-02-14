@@ -92,19 +92,19 @@ pub enum TypedExpr {
 
 impl Value {
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
-        Value::Expr(ExprValue::Expression(expr))
+        Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
 
     pub(crate) fn statement(statement: StatementKind) -> Self {
-        Value::Expr(ExprValue::Statement(statement))
+        Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
     pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(ExprValue::LValue(lvaue))
+        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
-        Value::Expr(ExprValue::Pattern(pattern))
+        Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
