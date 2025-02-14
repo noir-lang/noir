@@ -61,7 +61,7 @@ where
     Event: EventInterface,
 {
     |e: Event| {
-        /// Safety: testing context
+        // Safety: testing context
         unsafe {
             func(context.a);
         }

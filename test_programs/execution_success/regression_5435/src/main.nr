@@ -3,7 +3,7 @@ fn main(input: Field, enable: bool) {
         let hash = no_predicate_function(input);
         // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,
         // resulting in execution failure.
-        /// Safety: testing context
+        // Safety: testing context
         unsafe { fail(hash) };
     }
 }
