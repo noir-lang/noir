@@ -274,8 +274,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn to_be_bytes(self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-        self.0.serialize_uncompressed(&mut bytes).unwrap();
+        let mut bytes = self.to_le_bytes();
         bytes.reverse();
         bytes
     }
