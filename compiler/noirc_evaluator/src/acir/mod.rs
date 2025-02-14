@@ -51,7 +51,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{AcirContext, AcirType, AcirVar};
+use acir_variable::{power_of_two, AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -2122,7 +2122,8 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = self.acir_context.add_constant(2_u128.pow(bit_size));
+                    let integer_modulus = power_of_two::<FieldElement>(bit_size);
+                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
                 }
             }
