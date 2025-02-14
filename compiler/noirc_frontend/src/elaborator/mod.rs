@@ -1462,11 +1462,12 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::Named(trait_path, _, _) => trait_path.last_ident(),
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
-                    if let Type::TraitAsType(_, name, _) = typ {
-                        Ident::new(name.as_ref().clone(), trait_impl.r#trait.span)
+                    let name = if let Type::TraitAsType(_, name, _) = typ {
+                        name.to_string()
                     } else {
-                        Ident::new(typ.to_string(), trait_impl.r#trait.span)
-                    }
+                        typ.to_string()
+                    };
+                    Ident::new(name, trait_impl.r#trait.span)
                 }
                 _ => {
                     // We don't error in this case because an error will be produced later on when
@@ -1976,7 +1977,7 @@ impl<'context> Elaborator<'context> {
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
-        // Event though the trait type of an impl is `UnresolvedType`, only a couple of types are actually
+        // Even though the trait type of an impl is `UnresolvedType`, only a couple of types are actually
         // valid for a trait impl, namely named types and resolved types that point to a trait constraint.
         enum TraitType {
             Named(Path, GenericTypeArgs),
