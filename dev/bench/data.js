@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739559998432,
+  "lastUpdate": 1739560000874,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4205,105 +4205,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "97073b2af2b8527c6332fe1f621adef6b9460ee6",
-          "message": "feat(experimental): Parse match expressions (#7243)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-02-03T12:54:39Z",
-          "tree_id": "c0f565e801eae97f46068eb3ea13d7134f979762",
-          "url": "https://github.com/noir-lang/noir/commit/97073b2af2b8527c6332fe1f621adef6b9460ee6"
-        },
-        "date": 1738588541256,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.939,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.819,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.553,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.488,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.036,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 75.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.022,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 69.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.524,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 25.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.288,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.042,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.64,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.072,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -9131,6 +9032,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.622,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e895feb4e7b25530a22668bca597dfc78be92584",
+          "message": "feat: require safety comments instead of safety doc comments (#7295)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-14T18:42:54Z",
+          "tree_id": "eb7c49325c4006a8e20af214ba74540d57d5dc17",
+          "url": "https://github.com/noir-lang/noir/commit/e895feb4e7b25530a22668bca597dfc78be92584"
+        },
+        "date": 1739559998701,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.97,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.819,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.679,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 1.994,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.406,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.996,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.946,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 7.138,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 1.626,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 68.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 69.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.098,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.636,
             "unit": "s"
           }
         ]
