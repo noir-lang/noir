@@ -2437,6 +2437,14 @@ mod tests {
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
-        assert_eq!(status, VMStatus::Failure {reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() }, call_stack: vec![2]} );
+        assert_eq!(
+            status,
+            VMStatus::Failure {
+                reason: FailureReason::RuntimeError {
+                    message: "Attempted to divide by zero".into()
+                },
+                call_stack: vec![2]
+            }
+        );
     }
 }
