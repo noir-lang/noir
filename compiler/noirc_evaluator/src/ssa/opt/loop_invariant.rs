@@ -881,8 +881,6 @@ mod test {
           b2():
               return
           b3():
-              v6 = mul v0, v1
-              constrain v6 == u32 6
               v8 = sub v2, u32 1
               jmp b1(v8)
         }
@@ -894,17 +892,15 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
             jmp b1(u32 1)
           b1(v2: u32):
-            v6 = lt v2, u32 4
-            jmpif v6 then: b3, else: b2
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == u32 6
-            v8 = unchecked_sub v2, u32 1
-            jmp b1(v8)
+            v6 = unchecked_sub v2, u32 1
+            jmp b1(v6)
         }
         ";
 
