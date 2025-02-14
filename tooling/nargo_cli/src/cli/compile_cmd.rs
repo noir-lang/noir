@@ -9,6 +9,7 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -20,7 +21,7 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
+use super::fs::program::{save_contract_to_file, save_program_to_file};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
@@ -181,7 +182,7 @@ fn compile_programs(
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
-        read_program_from_file(program_artifact_path)
+        read_program_from_file(&program_artifact_path)
             .ok()
             .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
             .map(|p| p.into())

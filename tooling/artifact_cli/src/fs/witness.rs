@@ -70,7 +70,7 @@ pub fn save_witness_to_dir(
     witnesses: WitnessStack<FieldElement>,
     witness_name: &str,
     witness_dir: &Path,
-) -> Result<PathBuf, FilesystemError> {
+) -> Result<PathBuf, CliError> {
     std::fs::create_dir_all(witness_dir)?;
 
     let witness_path = witness_dir.join(witness_name).with_extension("gz");

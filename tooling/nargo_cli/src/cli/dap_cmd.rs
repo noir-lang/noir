@@ -6,7 +6,7 @@ use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_abi::input_parser::Format;
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 
@@ -20,7 +20,6 @@ use dap::types::Capabilities;
 use serde_json::Value;
 
 use super::debug_cmd::compile_bin_package_for_debugging;
-use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
 use noir_debugger::errors::{DapError, LoadError};
@@ -125,11 +124,13 @@ fn load_and_compile_project(
 
     let compiled_program = nargo::ops::transform_program(compiled_program, expression_width);
 
-    let (inputs_map, _) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &compiled_program.abi)
-            .map_err(|_| {
-                LoadError::Generic(format!("Failed to read program inputs from {}", prover_name))
-            })?;
+    let (inputs_map, _) = read_inputs_from_file(
+        &package.root_dir.join(prover_name).with_extension("toml"),
+        &compiled_program.abi,
+    )
+    .map_err(|e| {
+        LoadError::Generic(format!("Failed to read program inputs from {prover_name}: {e}"))
+    })?;
     let initial_witness = compiled_program
         .abi
         .encode(&inputs_map, None)
