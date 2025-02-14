@@ -228,7 +228,6 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
-            || matches!(instruction, Instruction::Binary(_))
             || self.can_be_deduplicated_from_loop_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
@@ -315,7 +314,11 @@ impl<'f> LoopInvariantContext<'f> {
     ) -> bool {
         if !matches!(
             binary.operator,
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } | BinaryOp::Sub { .. }
+            BinaryOp::Add { .. }
+                | BinaryOp::Mul { .. }
+                | BinaryOp::Sub { .. }
+                | BinaryOp::Div
+                | BinaryOp::Mod
         ) {
             return false;
         }
@@ -330,7 +333,15 @@ impl<'f> LoopInvariantContext<'f> {
             induction_vars.get(&binary.lhs),
             induction_vars.get(&binary.rhs),
         ) {
-            (Some((lhs, _)), None, None, Some((_, upper_bound))) => (lhs, *upper_bound),
+            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    // If we have a Div/Mod operation we want to make sure that the
+                    // lower bound is not zero.
+                    (lhs, *lower_bound)
+                } else {
+                    (lhs, *upper_bound)
+                }
+            }
             (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
                 if matches!(binary.operator, BinaryOp::Sub { .. }) {
                     // If we are subtracting and the induction variable is on the lhs,
@@ -898,6 +909,103 @@ mod test {
         ";
 
         let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_unsafe_div() {
+        // This test is similar to `nested_loop_invariant_code_motion`, the operation
+        // in question we are trying to hoist is `v9 = div i32 10, v0`.
+        // Check that the lower bound of the outer loop it checked and that we not
+        // hoist an operation that can potentially error with a division by zero.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 0)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_safe_div() {
+        // This test is identical to `do_not_hoist_unsafe_div`, except the loop
+        // in this test starts with a lower bound of `1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v6 = div i32 10, v0
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v8 = lt v1, i32 4
+            jmpif v8 then: b6, else: b5
+          b5():
+            v9 = unchecked_add v0, i32 1
+            jmp b1(v9)
+          b6():
+            constrain v6 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
