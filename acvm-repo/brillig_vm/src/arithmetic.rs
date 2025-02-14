@@ -1,6 +1,9 @@
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, IntegerBitSize};
+use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use acir::AcirField;
 use num_bigint::BigUint;
+use num_traits::{CheckedDiv, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
 use crate::memory::{MemoryTypeError, MemoryValue};
 
@@ -20,24 +23,20 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let a = match lhs {
-        MemoryValue::Field(a) => a,
-        MemoryValue::Integer(_, bit_size) => {
-            return Err(BrilligArithmeticError::MismatchedLhsBitSize {
-                lhs_bit_size: bit_size.into(),
-                op_bit_size: F::max_num_bits(),
-            });
+    let a = *lhs.expect_field().map_err(|err| {
+        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
+        BrilligArithmeticError::MismatchedLhsBitSize {
+            lhs_bit_size: value_bit_size,
+            op_bit_size: expected_bit_size,
         }
-    };
-    let b = match rhs {
-        MemoryValue::Field(b) => b,
-        MemoryValue::Integer(_, bit_size) => {
-            return Err(BrilligArithmeticError::MismatchedRhsBitSize {
-                rhs_bit_size: bit_size.into(),
-                op_bit_size: F::max_num_bits(),
-            });
+    })?;
+    let b = *rhs.expect_field().map_err(|err| {
+        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
+        BrilligArithmeticError::MismatchedRhsBitSize {
+            rhs_bit_size: value_bit_size,
+            op_bit_size: expected_bit_size,
         }
-    };
+    })?;
 
     Ok(match op {
         // Perform addition, subtraction, multiplication, and division based on the BinaryOp variant.
@@ -69,130 +68,205 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     rhs: MemoryValue<F>,
     bit_size: IntegerBitSize,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let lhs = lhs.expect_integer_with_bit_size(bit_size).map_err(|err| match err {
-        MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
-            BrilligArithmeticError::MismatchedLhsBitSize {
-                lhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
+    match op {
+        BinaryIntOp::Add
+        | BinaryIntOp::Sub
+        | BinaryIntOp::Mul
+        | BinaryIntOp::Div
+        | BinaryIntOp::And
+        | BinaryIntOp::Or
+        | BinaryIntOp::Xor => match (lhs, rhs, bit_size) {
+            (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
+                evaluate_binary_int_op_u1(op, lhs, rhs).map(MemoryValue::U1)
             }
-        }
-    })?;
-
-    let rhs_bit_size = if op == &BinaryIntOp::Shl || op == &BinaryIntOp::Shr {
-        IntegerBitSize::U8
-    } else {
-        bit_size
-    };
-
-    let rhs = rhs.expect_integer_with_bit_size(rhs_bit_size).map_err(|err| match err {
-        MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
-            BrilligArithmeticError::MismatchedRhsBitSize {
-                rhs_bit_size: value_bit_size,
-                op_bit_size: expected_bit_size,
+            (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U8)
             }
-        }
-    })?;
+            (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U16)
+            }
+            (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U32)
+            }
+            (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U64)
+            }
+            (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
+                evaluate_binary_int_op_arith(op, lhs, rhs).map(MemoryValue::U128)
+            }
+            (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                    rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                })
+            }
+            _ => unreachable!("Invalid arguments are covered by the two arms above."),
+        },
 
-    let result = if bit_size == IntegerBitSize::U128 {
-        evaluate_binary_int_op_128(op, lhs, rhs)?
-    } else {
-        evaluate_binary_int_op_generic(op, lhs, rhs, bit_size)?
-    };
-
-    Ok(match op {
         BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
-            MemoryValue::new_integer(result, IntegerBitSize::U1)
+            match (lhs, rhs, bit_size) {
+                (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
+                    Ok(MemoryValue::U1(evaluate_binary_int_op_cmp(op, lhs, rhs)))
+                }
+                (lhs, _, _) if lhs.bit_size() != BitSize::Integer(bit_size) => {
+                    Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                        lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                        op_bit_size: bit_size.into(),
+                    })
+                }
+                (_, rhs, _) if rhs.bit_size() != BitSize::Integer(bit_size) => {
+                    Err(BrilligArithmeticError::MismatchedRhsBitSize {
+                        rhs_bit_size: rhs.bit_size().to_u32::<F>(),
+                        op_bit_size: bit_size.into(),
+                    })
+                }
+                _ => unreachable!("Invalid arguments are covered by the two arms above."),
+            }
         }
-        _ => MemoryValue::new_integer(result, bit_size),
-    })
+
+        BinaryIntOp::Shl | BinaryIntOp::Shr => {
+            let rhs = rhs.expect_u8().map_err(
+                |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+                    BrilligArithmeticError::MismatchedRhsBitSize {
+                        rhs_bit_size: value_bit_size,
+                        op_bit_size: expected_bit_size,
+                    }
+                },
+            )?;
+
+            match (lhs, bit_size) {
+                (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
+                    let result = if rhs == 0 { lhs } else { false };
+                    Ok(MemoryValue::U1(result))
+                }
+                (MemoryValue::U8(lhs), IntegerBitSize::U8) => {
+                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U16(lhs), IntegerBitSize::U16) => {
+                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U32(lhs), IntegerBitSize::U32) => {
+                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U64(lhs), IntegerBitSize::U64) => {
+                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
+                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                }
+                _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                    op_bit_size: bit_size.into(),
+                }),
+            }
+        }
+    }
 }
 
-fn evaluate_binary_int_op_128(
+fn evaluate_binary_int_op_u1(
     op: &BinaryIntOp,
-    lhs: u128,
-    rhs: u128,
-) -> Result<u128, BrilligArithmeticError> {
+    lhs: bool,
+    rhs: bool,
+) -> Result<bool, BrilligArithmeticError> {
     let result = match op {
-        BinaryIntOp::Add => lhs.wrapping_add(rhs),
-        BinaryIntOp::Sub => lhs.wrapping_sub(rhs),
-        BinaryIntOp::Mul => lhs.wrapping_mul(rhs),
+        BinaryIntOp::Equals => lhs == rhs,
+        BinaryIntOp::LessThan => !lhs & rhs,
+        BinaryIntOp::LessThanEquals => lhs <= rhs,
+        BinaryIntOp::And | BinaryIntOp::Mul => lhs & rhs,
+        BinaryIntOp::Or => lhs | rhs,
+        BinaryIntOp::Xor | BinaryIntOp::Add | BinaryIntOp::Sub => lhs ^ rhs,
         BinaryIntOp::Div => {
-            if rhs == 0 {
+            if !rhs {
                 return Err(BrilligArithmeticError::DivisionByZero);
             } else {
-                lhs / rhs
+                lhs
             }
         }
-        BinaryIntOp::Equals => (lhs == rhs) as u128,
-        BinaryIntOp::LessThan => (lhs < rhs) as u128,
-        BinaryIntOp::LessThanEquals => (lhs <= rhs) as u128,
-        BinaryIntOp::And => lhs & rhs,
-        BinaryIntOp::Or => lhs | rhs,
-        BinaryIntOp::Xor => lhs ^ rhs,
-        BinaryIntOp::Shl => {
-            if rhs >= 128 {
-                0
-            } else {
-                lhs.wrapping_shl(rhs as u32)
-            }
-        }
-        BinaryIntOp::Shr => {
-            if rhs >= 128 {
-                0
-            } else {
-                lhs.wrapping_shr(rhs as u32)
-            }
-        }
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     };
     Ok(result)
 }
 
-fn evaluate_binary_int_op_generic(
+fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
+    match op {
+        BinaryIntOp::Equals => lhs == rhs,
+        BinaryIntOp::LessThan => lhs < rhs,
+        BinaryIntOp::LessThanEquals => lhs <= rhs,
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
+    }
+}
+
+fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
-    lhs: u128,
-    rhs: u128,
-    bit_size: IntegerBitSize,
-) -> Result<u128, BrilligArithmeticError> {
-    assert!(bit_size != IntegerBitSize::U128, "use the other function");
-    let bit_size: u32 = bit_size.into();
-    let bit_modulo = 1 << bit_size;
-    let result = match op {
-        // Perform addition, subtraction, and multiplication, applying a modulo operation to keep the result within the bit size.
-        BinaryIntOp::Add => (lhs + rhs) % bit_modulo,
-        BinaryIntOp::Sub => (bit_modulo + lhs - rhs) % bit_modulo,
-        BinaryIntOp::Mul => (lhs * rhs) % bit_modulo,
-        // Perform unsigned division using the modulo operation on a and b.
-        BinaryIntOp::Div => {
-            if rhs == 0 {
-                return Err(BrilligArithmeticError::DivisionByZero);
-            } else {
-                lhs / rhs
-            }
-        }
-        // Perform a == operation, returning 0 or 1
-        BinaryIntOp::Equals => (lhs == rhs) as u128,
-        // Perform a < operation, returning 0 or 1
-        BinaryIntOp::LessThan => (lhs < rhs) as u128,
-        // Perform a <= operation, returning 0 or 1
-        BinaryIntOp::LessThanEquals => (lhs <= rhs) as u128,
-        // Perform bitwise AND, OR, XOR, left shift, and right shift operations, applying a modulo operation to keep the result within the bit size.
-        BinaryIntOp::And => lhs & rhs,
-        BinaryIntOp::Or => lhs | rhs,
-        BinaryIntOp::Xor => lhs ^ rhs,
+    lhs: T,
+    rhs: u8,
+) -> T {
+    match op {
         BinaryIntOp::Shl => {
-            if rhs >= (bit_size as u128) {
-                0
+            let rhs_usize: usize = rhs as usize;
+            #[allow(unused_qualifications)]
+            if rhs_usize >= 8 * std::mem::size_of::<T>() {
+                T::zero()
             } else {
-                (lhs << rhs) % bit_modulo
+                lhs << rhs.into()
             }
         }
         BinaryIntOp::Shr => {
-            if rhs >= (bit_size as u128) {
-                0
+            let rhs_usize: usize = rhs as usize;
+            #[allow(unused_qualifications)]
+            if rhs_usize >= 8 * std::mem::size_of::<T>() {
+                T::zero()
             } else {
-                lhs >> rhs
+                lhs >> rhs.into()
             }
         }
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
+    }
+}
+
+fn evaluate_binary_int_op_arith<
+    T: WrappingAdd
+        + WrappingSub
+        + WrappingMul
+        + CheckedDiv
+        + BitAnd<Output = T>
+        + BitOr<Output = T>
+        + BitXor<Output = T>,
+>(
+    op: &BinaryIntOp,
+    lhs: T,
+    rhs: T,
+) -> Result<T, BrilligArithmeticError> {
+    let result = match op {
+        BinaryIntOp::Add => lhs.wrapping_add(&rhs),
+        BinaryIntOp::Sub => lhs.wrapping_sub(&rhs),
+        BinaryIntOp::Mul => lhs.wrapping_mul(&rhs),
+        BinaryIntOp::Div => lhs.checked_div(&rhs).ok_or(BrilligArithmeticError::DivisionByZero)?,
+        BinaryIntOp::And => lhs & rhs,
+        BinaryIntOp::Or => lhs | rhs,
+        BinaryIntOp::Xor => lhs ^ rhs,
+        _ => unreachable!("Operator not handled by this function: {op:?}"),
     };
     Ok(result)
 }

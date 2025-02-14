@@ -21,6 +21,7 @@ use black_box::{evaluate_black_box, BrilligBigIntSolver};
 
 // Re-export `brillig`.
 pub use acir::brillig;
+use memory::MemoryTypeError;
 pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
 
 mod arithmetic;
@@ -107,7 +108,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     pub fn new(
         calldata: Vec<F>,
         bytecode: &'a [Opcode<F>],
-        foreign_call_results: Vec<ForeignCallResult<F>>,
         black_box_solver: &'a B,
         profiling_active: bool,
     ) -> Self {
@@ -117,7 +117,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             calldata,
             program_counter: 0,
             foreign_call_counter: 0,
-            foreign_call_results,
+            foreign_call_results: Vec::new(),
             bytecode,
             status: VMStatus::InProgress,
             memory: Memory::default(),
@@ -249,7 +249,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::Not { destination, source, bit_size } => {
                 if let Err(error) = self.process_not(*source, *destination, *bit_size) {
-                    self.fail(error)
+                    self.fail(error.to_string())
                 } else {
                     self.increment_program_counter()
                 }
@@ -776,63 +776,91 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         source: MemoryAddress,
         destination: MemoryAddress,
         op_bit_size: IntegerBitSize,
-    ) -> Result<(), String> {
-        let (value, bit_size) = self
-            .memory
-            .read(source)
-            .extract_integer()
-            .ok_or("Not opcode source is not an integer")?;
+    ) -> Result<(), MemoryTypeError> {
+        let value = self.memory.read(source);
 
-        if bit_size != op_bit_size {
-            return Err(format!(
-                "Not opcode source bit size {} does not match expected bit size {}",
-                bit_size, op_bit_size
-            ));
-        }
-
-        let negated_value = if let IntegerBitSize::U128 = bit_size {
-            !value
-        } else {
-            let bit_size: u32 = bit_size.into();
-            let mask = if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size as u128) - 1 };
-            (!value) & mask
+        let negated_value = match op_bit_size {
+            IntegerBitSize::U1 => MemoryValue::U1(!value.expect_u1()?),
+            IntegerBitSize::U8 => MemoryValue::U8(!value.expect_u8()?),
+            IntegerBitSize::U16 => MemoryValue::U16(!value.expect_u16()?),
+            IntegerBitSize::U32 => MemoryValue::U32(!value.expect_u32()?),
+            IntegerBitSize::U64 => MemoryValue::U64(!value.expect_u64()?),
+            IntegerBitSize::U128 => MemoryValue::U128(!value.expect_u128()?),
         };
-        self.memory.write(destination, MemoryValue::new_integer(negated_value, bit_size));
+        self.memory.write(destination, negated_value);
         Ok(())
     }
 
     /// Casts a value to a different bit size.
     fn cast(&self, target_bit_size: BitSize, source_value: MemoryValue<F>) -> MemoryValue<F> {
+        use MemoryValue::*;
+
         match (source_value, target_bit_size) {
-            // Field to field, no op
-            (MemoryValue::Field(_), BitSize::Field) => source_value,
             // Field downcast to u128
-            (MemoryValue::Field(field), BitSize::Integer(IntegerBitSize::U128)) => {
-                MemoryValue::Integer(field.to_u128(), IntegerBitSize::U128)
-            }
+            (Field(field), BitSize::Integer(IntegerBitSize::U128)) => U128(field.to_u128()),
             // Field downcast to arbitrary bit size
-            (MemoryValue::Field(field), BitSize::Integer(target_bit_size)) => {
+            (Field(field), BitSize::Integer(target_bit_size)) => {
                 let as_u128 = field.to_u128();
-                let target_bit_size_u32: u32 = target_bit_size.into();
-                let mask = (1_u128 << target_bit_size_u32) - 1;
-                MemoryValue::Integer(as_u128 & mask, target_bit_size)
+                match target_bit_size {
+                    IntegerBitSize::U1 => U1(as_u128 & 0x01 == 1),
+                    IntegerBitSize::U8 => U8(as_u128 as u8),
+                    IntegerBitSize::U16 => U16(as_u128 as u16),
+                    IntegerBitSize::U32 => U32(as_u128 as u32),
+                    IntegerBitSize::U64 => U64(as_u128 as u64),
+                    IntegerBitSize::U128 => unreachable!(),
+                }
             }
-            // Integer upcast to field
-            (MemoryValue::Integer(integer, _), BitSize::Field) => {
-                MemoryValue::new_field(integer.into())
-            }
-            // Integer upcast to integer
-            (MemoryValue::Integer(integer, source_bit_size), BitSize::Integer(target_bit_size))
-                if source_bit_size <= target_bit_size =>
-            {
-                MemoryValue::Integer(integer, target_bit_size)
-            }
-            // Integer downcast
-            (MemoryValue::Integer(integer, _), BitSize::Integer(target_bit_size)) => {
-                let target_bit_size_u32: u32 = target_bit_size.into();
-                let mask = (1_u128 << target_bit_size_u32) - 1;
-                MemoryValue::Integer(integer & mask, target_bit_size)
-            }
+
+            (U1(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value.into()),
+            (U1(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value.into()),
+            (U1(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
+            (U1(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
+            (U1(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
+            (U1(value), BitSize::Field) => Field(value.into()),
+
+            (U8(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
+            (U8(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value.into()),
+            (U8(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
+            (U8(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
+            (U8(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
+            (U8(value), BitSize::Field) => Field((value as u128).into()),
+
+            (U16(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
+            (U16(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
+            (U16(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
+            (U16(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
+            (U16(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
+            (U16(value), BitSize::Field) => Field((value as u128).into()),
+
+            (U32(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
+            (U32(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
+            (U32(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
+            (U32(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
+            (U32(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
+            (U32(value), BitSize::Field) => Field((value as u128).into()),
+
+            (U64(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
+            (U64(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
+            (U64(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
+            (U64(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value as u32),
+            (U64(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
+            (U64(value), BitSize::Field) => Field((value as u128).into()),
+
+            (U128(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
+            (U128(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
+            (U128(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
+            (U128(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value as u32),
+            (U128(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value as u64),
+            (U128(value), BitSize::Field) => Field(value.into()),
+
+            // no ops
+            (Field(_), BitSize::Field) => source_value,
+            (U1(_), BitSize::Integer(IntegerBitSize::U1)) => source_value,
+            (U8(_), BitSize::Integer(IntegerBitSize::U8)) => source_value,
+            (U16(_), BitSize::Integer(IntegerBitSize::U16)) => source_value,
+            (U32(_), BitSize::Integer(IntegerBitSize::U32)) => source_value,
+            (U64(_), BitSize::Integer(IntegerBitSize::U64)) => source_value,
+            (U128(_), BitSize::Integer(IntegerBitSize::U128)) => source_value,
         }
     }
 }
@@ -857,7 +885,7 @@ mod tests {
 
         // Start VM
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
@@ -908,7 +936,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -977,7 +1005,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1050,7 +1078,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1111,7 +1139,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1128,10 +1156,9 @@ mod tests {
 
         let VM { memory, .. } = vm;
 
-        let (negated_value, _) = memory
-            .read(MemoryAddress::direct(1))
-            .extract_integer()
-            .expect("Expected integer as the output of Not");
+        let MemoryValue::U128(negated_value) = memory.read(MemoryAddress::direct(1)) else {
+            panic!("Expected integer as the output of Not");
+        };
         assert_eq!(negated_value, !1_u128);
     }
 
@@ -1158,7 +1185,7 @@ mod tests {
             Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1224,7 +1251,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1321,7 +1348,7 @@ mod tests {
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false);
 
         // Calldata copy
         let status = vm.process_opcode();
@@ -1451,7 +1478,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(vec![], opcodes, vec![], &solver, false);
+        let mut vm = VM::new(vec![], opcodes, &solver, false);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1678,7 +1705,7 @@ mod tests {
         opcodes: &'a [Opcode<F>],
         solver: &'a StubbedBlackBoxSolver,
     ) -> VM<'a, F, StubbedBlackBoxSolver> {
-        let mut vm = VM::new(calldata, opcodes, vec![], solver, false);
+        let mut vm = VM::new(calldata, opcodes, solver, false);
         brillig_execute(&mut vm);
         assert_eq!(vm.call_stack, vec![]);
         vm
@@ -2366,7 +2393,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, vec![], &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false);
 
         vm.process_opcode();
         vm.process_opcode();

@@ -900,7 +900,6 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Expression(expr_id) => expr_id,
             HirStatement::Let(let_stmt) => let_stmt.expression,
             HirStatement::Assign(assign_stmt) => assign_stmt.expression,
-            HirStatement::Constrain(constr_stmt) => constr_stmt.0,
             HirStatement::Semi(semi_expr) => semi_expr,
             HirStatement::For(for_loop) => for_loop.block,
             HirStatement::Loop(block) => block,
@@ -4346,4 +4345,28 @@ fn call_function_alias_type() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_if_without_else_type_mismatch() {
+    let src = r#"
+    fn main() {
+        if true { 
+            1 
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
+        panic!("Expected a Context error");
+    };
+    assert!(matches!(**err, TypeCheckError::TypeMismatch { .. }));
+}
+
+#[test]
+fn does_not_stack_overflow_on_many_comments_in_a_row() {
+    let src = "//\n".repeat(10_000);
+    assert_no_errors(&src);
 }

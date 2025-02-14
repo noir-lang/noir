@@ -9,13 +9,10 @@ use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use im::HashMap;
+use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use tracing::trace;
-
-/// The number of instructions that have to be passed to stop
-/// following a Brillig call, with assumption it wouldn't get constrained
-const BRILLIG_CONSTRAINT_SEARCH_DEPTH: usize = 1000;
 
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
@@ -42,7 +39,10 @@ impl Ssa {
 
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
-    pub(crate) fn check_for_missing_brillig_constraints(&mut self) -> Vec<SsaReport> {
+    pub(crate) fn check_for_missing_brillig_constraints(
+        &mut self,
+        enable_lookback: bool,
+    ) -> Vec<SsaReport> {
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
@@ -56,7 +56,8 @@ impl Ssa {
                 let function_to_process = &self.functions[&fid];
                 match function_to_process.runtime() {
                     RuntimeType::Acir { .. } => {
-                        let mut context = DependencyContext::default();
+                        let mut context =
+                            DependencyContext { enable_lookback, ..Default::default() };
                         context.build(function_to_process, &self.functions);
                         context.collect_warnings(function_to_process)
                     }
@@ -114,9 +115,14 @@ struct DependencyContext {
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
     // Maintains count of calls being tracked
     tracking_count: usize,
-    // Map of block indices to Brillig call ids that should not be
-    // followed after meeting them
-    search_limits: HashMap<usize, InstructionId>,
+    // Opt-in to use the lookback feature (tracking the argument values
+    // of a Brillig call before the call happens if their usage precedes
+    // it). Can prevent certain false positives, at the cost of
+    // slowing down checking large functions considerably
+    enable_lookback: bool,
+    // Code locations of brillig calls already visited (we don't
+    // need to recheck calls happening in the same unrolled functions)
+    visited_locations: HashSet<(FunctionId, Location)>,
 }
 
 /// Structure keeping track of value ids descending from Brillig calls'
@@ -263,12 +269,11 @@ impl BrilligTaintedIds {
         }
 
         // Along with it, one of the argument descendants should be constrained
-        // (skipped if there were no arguments, or if an actual result and not a
-        // descendant has been constrained _alone_, e.g. against a constant)
+        // (skipped if there were no arguments, or if a result descendant
+        // has been constrained _alone_, e.g. against a constant)
         if !results_involved.is_empty()
             && (self.arguments.is_empty()
-                || (constrained_values.len() == 1
-                    && self.root_results.intersection(constrained_values).next().is_some())
+                || (constrained_values.len() == 1)
                 || self.arguments.intersection(constrained_values).next().is_some())
         {
             // Remember the partial constraint, clearing the sets
@@ -319,11 +324,20 @@ impl DependencyContext {
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
         // flow graph before the calls themselves
-        function.dfg[block].instructions().iter().enumerate().for_each(
-            |(block_index, instruction)| {
-                if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
-                    if let Value::Function(callee) = &function.dfg[*func] {
-                        if all_functions[&callee].runtime().is_brillig() {
+        function.dfg[block].instructions().iter().for_each(|instruction| {
+            if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
+                if let Value::Function(callee) = &function.dfg[*func] {
+                    if all_functions[&callee].runtime().is_brillig() {
+                        // Skip already visited locations (happens often in unrolled functions)
+                        let call_stack = function.dfg.get_instruction_call_stack(*instruction);
+                        let location = call_stack.last();
+
+                        // If there is no call stack (happens for tests), consider unvisited
+                        let visited = location
+                            .map(|loc| self.visited_locations.contains(&(*callee, *loc)))
+                            .unwrap_or_default();
+
+                        if !visited {
                             let results = function.dfg.instruction_results(*instruction);
                             let current_tainted =
                                 BrilligTaintedIds::new(function, arguments, results);
@@ -351,21 +365,19 @@ impl DependencyContext {
                                         .or_default()
                                         .push(*instruction);
                                 });
+                            }
 
-                                // Set the constraint search limit for the call
-                                self.search_limits.insert(
-                                    block_index + BRILLIG_CONSTRAINT_SEARCH_DEPTH,
-                                    *instruction,
-                                );
+                            if let Some(location) = location {
+                                self.visited_locations.insert((*callee, *location));
                             }
                         }
                     }
                 }
-            },
-        );
+            }
+        });
 
         //Then, go over the instructions
-        for (block_index, instruction) in function.dfg[block].instructions().iter().enumerate() {
+        for instruction in function.dfg[block].instructions().iter() {
             let mut arguments = Vec::new();
 
             // Collect non-constant instruction arguments
@@ -375,29 +387,25 @@ impl DependencyContext {
                 }
             });
 
-            // Start tracking calls when their argument value ids first appear,
-            // or when their instruction id comes up (in case there were
-            // no non-constant arguments)
-            for argument in &arguments {
-                if let Some(calls) = self.call_arguments.get(argument) {
-                    for call in calls {
-                        if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                            tainted_ids.tracking = true;
-                            self.tracking_count += 1;
+            // If the lookback feature is enabled, start tracking calls when
+            // their argument value ids first appear, or when their
+            // instruction id comes up (in case there were no non-constant arguments)
+            if self.enable_lookback {
+                for argument in &arguments {
+                    if let Some(calls) = self.call_arguments.get(argument) {
+                        for call in calls {
+                            if let Some(tainted_ids) = self.tainted.get_mut(call) {
+                                tainted_ids.tracking = true;
+                                self.tracking_count += 1;
+                            }
                         }
                     }
                 }
             }
             if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
-                tainted_ids.tracking = true;
-                self.tracking_count += 1;
-            }
-
-            // Stop tracking calls when their search limit is hit
-            if let Some(call) = self.search_limits.get(&block_index) {
-                if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                    tainted_ids.tracking = false;
-                    self.tracking_count -= 1;
+                if !tainted_ids.tracking {
+                    tainted_ids.tracking = true;
+                    self.tracking_count += 1;
                 }
             }
 
@@ -485,7 +493,7 @@ impl DependencyContext {
                                     self.update_children(&arguments, &results);
                                 }
                             },
-                            Value::Function(callee) => match all_functions[&callee].runtime() {
+                            Value::Function(callee) => match all_functions[callee].runtime() {
                                 // Only update tainted sets for non-Brillig calls, as
                                 // the chained Brillig case should already be covered
                                 RuntimeType::Acir(..) => {
@@ -598,7 +606,14 @@ impl DependencyContext {
             }
         }
 
-        self.tainted.retain(|_, tainted_ids| !tainted_ids.check_constrained());
+        self.tainted.retain(|_, tainted_ids| {
+            if tainted_ids.check_constrained() {
+                self.tracking_count -= 1;
+                false
+            } else {
+                true
+            }
+        });
     }
 
     /// Process ArrayGet instruction for tracked Brillig calls
@@ -663,10 +678,11 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
+        let returns = function.returns();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()
-            .chain(function.returns())
+            .chain(returns)
             .filter(|id| function.dfg.get_numeric_constant(**id).is_none())
             .map(|value_id| function.dfg.resolve(*value_id));
 
@@ -954,7 +970,7 @@ mod test {
                 v5 = add v4, Field 2
                 return
         }
-        
+
         brillig(inline) fn br f1 {
           b0(v0: Field, v1: Field):
             v2 = add v0, v1
@@ -1021,8 +1037,8 @@ mod test {
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
             constrain v6 == v20
-            dec_rc v4
-            dec_rc v5
+            dec_rc v4 v4
+            dec_rc v5 v5
             return
         }
 
@@ -1034,7 +1050,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1065,7 +1081,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1095,7 +1111,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1124,7 +1140,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1179,7 +1195,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1208,7 +1224,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 2);
     }
 
@@ -1240,7 +1256,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1267,7 +1283,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 1);
     }
 
@@ -1296,7 +1312,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1352,7 +1368,7 @@ mod test {
             constrain v32 == v35
             return v30, v31, v32
         }
-        
+
         brillig(inline) fn foo f2 {
           b0(v0: Field):
             return Field 4, u8 2, v0
@@ -1367,7 +1383,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 
@@ -1393,7 +1409,7 @@ mod test {
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
-        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }

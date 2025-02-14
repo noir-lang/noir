@@ -501,6 +501,7 @@ impl Value {
             Value::UnresolvedType(typ) => {
                 Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
             }
+            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => Token::UnquoteMarker(expr_id),
             Value::U1(bool) => Token::Bool(bool),
             Value::U8(value) => Token::Int((value as u128).into()),
             Value::U16(value) => Token::Int((value as u128).into()),

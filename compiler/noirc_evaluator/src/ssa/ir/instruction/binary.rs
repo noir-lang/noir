@@ -570,6 +570,24 @@ impl BinaryOp {
             BinaryOp::Shr => |x, y| Some(x >> y),
         }
     }
+
+    pub(crate) fn into_unchecked(self) -> Self {
+        match self {
+            BinaryOp::Add { .. } => BinaryOp::Add { unchecked: true },
+            BinaryOp::Sub { .. } => BinaryOp::Sub { unchecked: true },
+            BinaryOp::Mul { .. } => BinaryOp::Mul { unchecked: true },
+            _ => self,
+        }
+    }
+
+    pub(crate) fn is_unchecked(self) -> bool {
+        match self {
+            BinaryOp::Add { unchecked }
+            | BinaryOp::Sub { unchecked }
+            | BinaryOp::Mul { unchecked } => unchecked,
+            _ => true,
+        }
+    }
 }
 
 #[cfg(test)]

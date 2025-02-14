@@ -9,16 +9,17 @@ use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo::PrintOutput;
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::PackageSelection;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
 use noirc_artifacts::debug::DebugArtifact;
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::compile_cmd::compile_workspace_full;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
-use super::{NargoConfig, PackageOptions};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
 
@@ -46,14 +47,18 @@ pub(crate) struct ExecuteCommand {
     oracle_resolver: Option<String>,
 }
 
-pub(crate) fn run(args: ExecuteCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
+impl WorkspaceCommand for ExecuteCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
+
+    fn lock_type(&self) -> LockType {
+        // Compiles artifacts.
+        LockType::Exclusive
+    }
+}
+
+pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
     let target_dir = &workspace.target_directory_path();
 
     // Compile the full workspace in order to generate any build artifacts.

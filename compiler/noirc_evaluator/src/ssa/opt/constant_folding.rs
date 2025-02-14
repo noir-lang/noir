@@ -34,7 +34,7 @@ use crate::{
     brillig::{
         brillig_gen::gen_brillig_for,
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
-        Brillig,
+        Brillig, BrilligOptions,
     },
     ssa::{
         ir::{
@@ -590,7 +590,9 @@ impl<'brillig> Context<'brillig> {
             }
         }
 
-        let Ok(generated_brillig) = gen_brillig_for(func, brillig_arguments, brillig) else {
+        let Ok(generated_brillig) =
+            gen_brillig_for(func, brillig_arguments, brillig, &BrilligOptions::default())
+        else {
             return EvaluationResult::CannotEvaluate;
         };
 
@@ -600,12 +602,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         let bytecode = &generated_brillig.byte_code;
-        let foreign_call_results = Vec::new();
         let pedantic_solving = true;
         let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
         let profiling_active = false;
-        let mut vm =
-            VM::new(calldata, bytecode, foreign_call_results, &black_box_solver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active);
         let vm_status: VMStatus<_> = vm.process_opcodes();
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
             return EvaluationResult::CannotEvaluate;
@@ -632,10 +632,7 @@ impl<'brillig> Context<'brillig> {
                 let memory = memory_values[*memory_index];
                 *memory_index += 1;
 
-                let field_value = match memory {
-                    MemoryValue::Field(field_value) => field_value,
-                    MemoryValue::Integer(u128_value, _) => u128_value.into(),
-                };
+                let field_value = memory.to_field();
                 dfg.make_constant(field_value, typ)
             }
             Type::Array(types, length) => {
@@ -808,15 +805,18 @@ mod test {
 
     use noirc_frontend::monomorphization::ast::InlineType;
 
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            function::RuntimeType,
-            map::Id,
-            types::{NumericType, Type},
+    use crate::{
+        brillig::BrilligOptions,
+        ssa::{
+            function_builder::FunctionBuilder,
+            ir::{
+                function::RuntimeType,
+                map::Id,
+                types::{NumericType, Type},
+            },
+            opt::assert_normalized_ssa_equals,
+            Ssa,
         },
-        opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -1294,7 +1294,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1323,7 +1323,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1352,7 +1352,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1381,7 +1381,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1411,7 +1411,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1441,12 +1441,12 @@ mod test {
                 v2 = array_get v0, index u32 0 -> Field
                 v4 = array_get v0, index u32 1 -> Field
                 v5 = add v2, v4
-                dec_rc v0
+                dec_rc v0 v0
                 return v5
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
             acir(inline) fn main f0 {
@@ -1480,7 +1480,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let mut ssa = ssa.dead_instruction_elimination();
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         let expected = "
         g0 = Field 2
@@ -1522,7 +1522,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let mut ssa = ssa.dead_instruction_elimination();
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         let expected = "
         g0 = Field 2
