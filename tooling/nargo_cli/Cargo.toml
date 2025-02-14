@@ -37,6 +37,7 @@ nargo = { workspace = true, features = ["rpc"] }
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
+noir_artifact_cli.workspace = true
 noir_debugger.workspace = true
 noirc_driver = { workspace = true, features = ["bn254"] }
 noirc_frontend = { workspace = true, features = ["bn254"] }
