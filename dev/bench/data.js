@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739555423286,
+  "lastUpdate": 1739555427094,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12737,100 +12737,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a9e985064303b0843cbf68fb5a9d41f9ade1e30d",
-          "message": "fix: Add missing `is_empty` check for enums (#7257)",
-          "timestamp": "2025-01-31T21:14:07Z",
-          "tree_id": "b0efbf49a0d8efb8459d4697bcb6f9ef3248c92f",
-          "url": "https://github.com/noir-lang/noir/commit/a9e985064303b0843cbf68fb5a9d41f9ade1e30d"
-        },
-        "date": 1738359421316,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.44,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -16455,6 +16361,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 536.63,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38eeee39a98a62747dcca3b31b409151761d4ef1",
+          "message": "fix(ssa): Do not deduplicate division by a zero constant (#7393)",
+          "timestamp": "2025-02-14T17:27:28Z",
+          "tree_id": "c5910078cee05fc0b1a1864a860c0ad430c69923",
+          "url": "https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1"
+        },
+        "date": 1739555425006,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.05,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 651.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 590.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 536.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1230,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 529.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 536.58,
             "unit": "MB"
           }
         ]
