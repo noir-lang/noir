@@ -318,6 +318,18 @@ jobs:
           ./compilation_report.sh 1 ${{ matrix.project.num_runs }}
         env:
           FLAGS: ${{ matrix.project.flags }}
+        
+      - name: Check compilation time limit
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_report.json)
+          TIME_LIMIT=80
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Compilation took: "$TIME"s".
+            exit 1
+          fi
 
       - name: Generate execution report
         working-directory: ./test-repo/${{ matrix.project.path }}
@@ -326,6 +338,19 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/execution_report.sh ./execution_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_time.sh ./parse_time.sh
           ./execution_report.sh 1 ${{ matrix.project.num_runs }}
+    
+      - name: Check execution time limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/execution_report.json)
+          TIME_LIMIT=60
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "$TIME_LIMIT"; then
+            # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding timeout..."
+            echo "Timeout: "$TIME_LIMIT"s"
+            echo "Execution took: "$TIME"s".
+            exit 1
+          fi
 
       - name: Move compilation report
         id: compilation_report
@@ -416,11 +441,36 @@ jobs:
         env:
           FLAGS: ${{ matrix.project.flags }}
 
+      - name: Check compilation memory limit
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/compilation_memory_report.json)
+          MEMORY_LIMIT=6000
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Compilation took: "$MEMORY"MB".
+            exit 1
+          fi
+
       - name: Generate execution memory report
         working-directory: ./test-repo/${{ matrix.project.path }}
         if: ${{ !matrix.project.cannot_execute }}
         run: |
           ./memory_report.sh 1 1
+
+      - name: Check execution memory limit
+        if: ${{ !matrix.project.cannot_execute }}
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/memory_report.json)
+          MEMORY_LIMIT=1300
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Execution took: "$MEMORY"MB".
+            exit 1
+          fi
 
       - name: Move compilation report
         id: compilation_mem_report
@@ -442,7 +492,6 @@ jobs:
       - name: Move execution report
         id: execution_mem_report
         if: ${{ !matrix.project.cannot_execute }}
-        shell: bash
         run: |
           PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
@@ -503,6 +552,7 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
           comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
@@ -552,6 +602,7 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
           comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
@@ -601,6 +652,7 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
           comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
@@ -651,6 +703,32 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
           comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
+
+  # This is a job which depends on all test jobs and reports the overall status.
+  # This allows us to add/remove test jobs without having to update the required workflows.
+  reports-end:
+    name: End
+    runs-on: ubuntu-22.04
+    # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
+    if: ${{ always() }}
+    needs:
+      - upload_compilation_report
+      - upload_compilation_memory_report
+      - upload_execution_report
+      - upload_execution_memory_report
+     
+    steps:
+        - name: Report overall success
+          run: |
+            if [[ $FAIL == true ]]; then
+                exit 1
+            else
+                exit 0
+            fi
+          env:
+            # We treat any skipped or failing jobs as a failure for the workflow as a whole.
+            FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}

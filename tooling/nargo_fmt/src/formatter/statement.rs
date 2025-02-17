@@ -24,14 +24,14 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for a let statement could come before a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
+                formatter.format_outer_doc_comments_checking_safety();
             }
 
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
 
             // Or doc comments could come after a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
+                formatter.format_outer_doc_comments_checking_safety();
             }
         }));
 
@@ -407,12 +407,12 @@ mod tests {
     }
 
     #[test]
-    fn format_let_statement_with_unsafe() {
+    fn format_let_statement_with_unsafe_comment() {
         let src = " fn foo() { 
-        /// Safety: some doc
+        // Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
-    /// Safety: some doc
+    // Safety: some comment
     let x = unsafe { 1 };
 }
 ";
@@ -420,14 +420,12 @@ mod tests {
     }
 
     #[test]
-    fn format_let_statement_with_unsafe_and_comment_before_it() {
+    fn format_let_statement_with_unsafe_doc_comment() {
         let src = " fn foo() { 
-        // Some comment
-        /// Safety: some doc
+        /// Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
-    // Some comment
-    /// Safety: some doc
+    // Safety: some comment
     let x = unsafe { 1 };
 }
 ";
