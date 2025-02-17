@@ -16,18 +16,20 @@ pub fn read_inputs_from_file(
     use crate::errors::FilesystemError::{InvalidInputFile, MissingInputFile};
     use CliError::FilesystemError;
 
-    if abi.is_empty() {
+    let has_params = !abi.parameters.is_empty();
+    let has_return = abi.return_type.is_some();
+    let has_file = file_path.exists();
+
+    if !has_params && !has_return {
         return Ok((BTreeMap::new(), None));
     }
-
-    if !file_path.exists() {
-        if abi.parameters.is_empty() {
-            // Reading a return value from the `Prover.toml` is optional,
-            // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
-            return Ok((BTreeMap::new(), None));
-        } else {
-            return Err(FilesystemError(MissingInputFile(file_path.to_path_buf())));
-        }
+    if !has_params && !has_file {
+        // Reading a return value from the `Prover.toml` is optional,
+        // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
+        return Ok((BTreeMap::new(), None));
+    }
+    if has_params && !has_file {
+        return Err(FilesystemError(MissingInputFile(file_path.to_path_buf())));
     }
 
     let Some(ext) = file_path.extension().and_then(|e| e.to_str()) else {
