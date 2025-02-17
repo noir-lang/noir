@@ -16,7 +16,7 @@ When writing firmware for a battery-powered microcontroller, you think of cpu cy
 
 > Code is written to create applications that perform specific tasks within specific constraints
 
-And these constraints differ depending on where the compiled code is execute.
+And these constraints differ depending on where the compiled code is executed.
 
 ### The Ethereum Virtual Machine (EVM)
 

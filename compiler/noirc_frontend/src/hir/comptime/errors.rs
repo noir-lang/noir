@@ -150,7 +150,7 @@ pub enum InterpreterError {
         location: Location,
     },
     FailedToParseMacro {
-        error: ParserError,
+        error: Box<ParserError>,
         tokens: String,
         rule: &'static str,
         file: FileId,
@@ -539,7 +539,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
 
-                let mut diagnostic = CustomDiagnostic::from(error);
+                let mut diagnostic = CustomDiagnostic::from(error.as_ref());
                 // Swap the parser's primary note to become the secondary note so that it is
                 // more clear this error originates from failing to parse a macro.
                 let secondary = std::mem::take(&mut diagnostic.message);

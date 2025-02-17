@@ -10,8 +10,8 @@ global POW64_B: Field = (U128::one() << 64).to_integer();
 
 #[test]
 fn test_be_and_le_bits() {
-    assert_eq(BITS_BE_13, [1,1,0,1]);
-    assert_eq(BITS_LE_13, [1,0,1,1]);
+    assert_eq(BITS_BE_13, [1, 1, 0, 1]);
+    assert_eq(BITS_LE_13, [1, 0, 1, 1]);
 }
 
 #[test]

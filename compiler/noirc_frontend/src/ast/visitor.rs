@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
         ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
+    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression,
 };
@@ -222,6 +222,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_match_expression(&mut self, _: &MatchExpression, _: Span) -> bool {
+        true
+    }
+
     fn visit_tuple(&mut self, _: &[Expression], _: Span) -> bool {
         true
     }
@@ -290,7 +294,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_constrain_statement(&mut self, _: &ConstrainStatement) -> bool {
+    fn visit_constrain_statement(&mut self, _: &ConstrainExpression) -> bool {
         true
     }
 
@@ -851,6 +855,9 @@ impl Expression {
             ExpressionKind::MethodCall(method_call_expression) => {
                 method_call_expression.accept(self.span, visitor);
             }
+            ExpressionKind::Constrain(constrain) => {
+                constrain.accept(visitor);
+            }
             ExpressionKind::Constructor(constructor_expression) => {
                 constructor_expression.accept(self.span, visitor);
             }
@@ -865,6 +872,9 @@ impl Expression {
             }
             ExpressionKind::If(if_expression) => {
                 if_expression.accept(self.span, visitor);
+            }
+            ExpressionKind::Match(match_expression) => {
+                match_expression.accept(self.span, visitor);
             }
             ExpressionKind::Tuple(expressions) => {
                 if visitor.visit_tuple(expressions, self.span) {
@@ -1073,6 +1083,22 @@ impl IfExpression {
     }
 }
 
+impl MatchExpression {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_match_expression(self, span) {
+            self.accept_children(visitor);
+        }
+    }
+
+    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+        self.expression.accept(visitor);
+        for (pattern, branch) in &self.rules {
+            pattern.accept(visitor);
+            branch.accept(visitor);
+        }
+    }
+}
+
 impl Lambda {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_lambda(self, span) {
@@ -1125,9 +1151,6 @@ impl Statement {
             StatementKind::Let(let_statement) => {
                 let_statement.accept(visitor);
             }
-            StatementKind::Constrain(constrain_statement) => {
-                constrain_statement.accept(visitor);
-            }
             StatementKind::Expression(expression) => {
                 expression.accept(visitor);
             }
@@ -1176,7 +1199,7 @@ impl LetStatement {
     }
 }
 
-impl ConstrainStatement {
+impl ConstrainExpression {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_constrain_statement(self) {
             self.accept_children(visitor);

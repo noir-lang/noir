@@ -33,7 +33,11 @@ echo "[workspace]" > Nargo.toml
 echo "members = [" >> Nargo.toml
 
 collect_dirs compile_success_empty
+collect_dirs compile_success_contract
+collect_dirs compile_success_no_bug
+collect_dirs compile_success_with_bug
 collect_dirs execution_success
+collect_dirs noir_test_success
 
 echo "]" >> Nargo.toml
 

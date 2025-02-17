@@ -3,6 +3,7 @@ mod tests {
     use acvm::acir::circuit::ExpressionWidth;
 
     use crate::{
+        brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
             opt::assert_normalized_ssa_equals, optimize_all, Ssa, SsaBuilder, SsaEvaluatorOptions,
@@ -13,11 +14,12 @@ mod tests {
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         let options = &SsaEvaluatorOptions {
             ssa_logging: SsaLogging::None,
-            enable_brillig_logging: false,
+            brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
             expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
+            enable_brillig_constraints_check_lookback: false,
             enable_brillig_constraints_check: false,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: i32::MAX,

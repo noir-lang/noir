@@ -1,17 +1,12 @@
 use acvm::{
     acir::{
-        brillig::Opcode as BrilligOpcode,
         circuit::{
-            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-            opcodes::{
-                AcirFunctionId, BlockId, BlockType, ConstantOrWitnessEnum, FunctionInput, MemOp,
-            },
+            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
             AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
         },
         native_types::{Expression, Witness},
         AcirField, BlackBoxFunc,
     },
-    brillig_vm::{MemoryValue, VMStatus, VM},
     BlackBoxFunctionSolver,
 };
 use fxhash::FxHashMap as HashMap;
@@ -20,7 +15,6 @@ use num_bigint::BigUint;
 use std::cmp::Ordering;
 use std::{borrow::Cow, hash::Hash};
 
-use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::ir::{
     call_stack::CallStack, instruction::Endian, types::NumericType, types::Type as SsaType,
@@ -110,7 +104,7 @@ impl From<NumericType> for AcirType {
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
 pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
-    blackbox_solver: B,
+    pub(super) blackbox_solver: B,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
 
@@ -123,10 +117,10 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// For example, If one was to add two Variables together,
     /// then the `acir_ir` will be populated to assert this
     /// addition.
-    acir_ir: GeneratedAcir<F>,
+    pub(super) acir_ir: GeneratedAcir<F>,
 
     /// The BigIntContext, used to generate identifiers for BigIntegers
-    big_int_ctx: BigIntContext,
+    pub(super) big_int_ctx: BigIntContext,
 
     expression_width: ExpressionWidth,
 
@@ -549,12 +543,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         &mut self,
         lhs: AcirVar,
         rhs: AcirVar,
+        predicate: AcirVar,
         assert_message: Option<AssertionPayload<F>>,
     ) -> Result<(), RuntimeError> {
         let diff_var = self.sub_var(lhs, rhs)?;
 
-        let one = self.add_constant(F::one());
-        let _ = self.inv_var(diff_var, one)?;
+        let _ = self.inv_var(diff_var, predicate)?;
         if let Some(payload) = assert_message {
             self.acir_ir
                 .assertion_payloads
@@ -613,7 +607,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             }
             NumericType::Signed { bit_size } => {
                 let (quotient_var, _remainder_var) =
-                    self.signed_division_var(lhs, rhs, bit_size)?;
+                    self.signed_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
         }
@@ -1032,8 +1026,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         leading: AcirVar,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let max_power_of_two =
-            self.add_constant(F::from(2_u128).pow(&F::from(max_bit_size as u128 - 1)));
+        let max_power_of_two = self.add_constant(power_of_two::<F>(max_bit_size - 1));
 
         let intermediate = self.sub_var(max_power_of_two, lhs)?;
         let intermediate = self.mul_var(intermediate, leading)?;
@@ -1050,6 +1043,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), RuntimeError> {
         // We derive the signed division from the unsigned euclidean division.
         // note that this is not euclidean division!
@@ -1062,8 +1056,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
 
         // 2^{max_bit size-1}
-        let max_power_of_two =
-            self.add_constant(F::from(2_u128).pow(&F::from(bit_size as u128 - 1)));
+        let max_power_of_two = self.add_constant(power_of_two::<F>(bit_size - 1));
         let zero = self.add_constant(F::zero());
         let one = self.add_constant(F::one());
 
@@ -1079,7 +1072,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Performs the division using the unsigned values of lhs and rhs
         let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, one)?;
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, predicate)?;
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
@@ -1117,7 +1110,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         };
 
         let (_, remainder_var) = match numeric_type {
-            NumericType::Signed { bit_size } => self.signed_division_var(lhs, rhs, bit_size)?,
+            NumericType::Signed { bit_size } => {
+                self.signed_division_var(lhs, rhs, bit_size, predicate)?
+            }
             _ => self.euclidean_division_var(lhs, rhs, bit_size, predicate)?,
         };
         Ok(remainder_var)
@@ -1167,7 +1162,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
-        let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
+        let divisor = self.add_constant(power_of_two::<F>(rhs));
         let one = self.add_constant(F::one());
 
         //  Computes lhs = 2^{rhs} * q + r
@@ -1260,7 +1255,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < F::max_num_bits());
 
-        let two_max_bits = self.add_constant(F::from(2_u128).pow(&F::from(max_bits as u128)));
+        let two_max_bits = self.add_constant(power_of_two::<F>(max_bits));
         let diff = self.sub_var(lhs, rhs)?;
         let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
@@ -1310,291 +1305,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         let one = self.add_constant(F::one());
         self.sub_var(one, comparison) // comparison_negated
-    }
-
-    /// Calls a Blackbox function on the given inputs and returns a given set of outputs
-    /// to represent the result of the blackbox function.
-    pub(crate) fn black_box_function(
-        &mut self,
-        name: BlackBoxFunc,
-        mut inputs: Vec<AcirValue>,
-        mut output_count: usize,
-    ) -> Result<Vec<AcirVar>, RuntimeError> {
-        // Separate out any arguments that should be constants
-        let (constant_inputs, constant_outputs) = match name {
-            BlackBoxFunc::Poseidon2Permutation => {
-                // The last argument is the state length, which must be a constant
-                let state_len = match inputs.pop() {
-                    Some(state_len) => state_len.into_var()?,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "poseidon_2_permutation call".to_string(),
-                            arg: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                let state_len = match self.vars[&state_len].as_constant() {
-                    Some(state_len) => state_len,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                (vec![*state_len], Vec::new())
-            }
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv => {
-                assert_eq!(inputs.len(), 4, "ICE - bigint operation requires 4 inputs");
-                let const_inputs = vecmap(inputs, |i| {
-                    let var = i.into_var()?;
-                    match self.vars[&var].as_constant() {
-                        Some(const_var) => Ok(const_var),
-                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "big integer".to_string(),
-                            call_stack: self.get_call_stack(),
-                        })),
-                    }
-                });
-                inputs = Vec::new();
-                output_count = 0;
-                let mut field_inputs = Vec::new();
-                for i in const_inputs {
-                    field_inputs.push(*i?);
-                }
-                if field_inputs[1] != field_inputs[3] {
-                    return Err(RuntimeError::BigIntModulus { call_stack: self.get_call_stack() });
-                }
-
-                let result_id = self.big_int_ctx.new_big_int(field_inputs[1]);
-                (
-                    vec![field_inputs[0], field_inputs[2]],
-                    vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()],
-                )
-            }
-            BlackBoxFunc::BigIntToLeBytes => {
-                let const_inputs = vecmap(inputs, |i| {
-                    let var = i.into_var()?;
-                    match self.vars[&var].as_constant() {
-                        Some(const_var) => Ok(const_var),
-                        None => Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "big integer".to_string(),
-                            call_stack: self.get_call_stack(),
-                        })),
-                    }
-                });
-                inputs = Vec::new();
-                let mut field_inputs = Vec::new();
-                for i in const_inputs {
-                    field_inputs.push(*i?);
-                }
-                let bigint = self.big_int_ctx.get(field_inputs[0]);
-                let modulus = self.big_int_ctx.modulus(bigint.modulus_id::<F>());
-                let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
-                output_count = bytes_len as usize;
-                assert!(bytes_len == 32);
-                (field_inputs, vec![])
-            }
-            BlackBoxFunc::BigIntFromLeBytes => {
-                let invalid_input = "ICE - bigint operation requires 2 inputs";
-                assert_eq!(inputs.len(), 2, "{invalid_input}");
-                let mut modulus = Vec::new();
-                match inputs.pop().expect(invalid_input) {
-                    AcirValue::Array(values) => {
-                        for value in values {
-                            modulus.push(*self.vars[&value.into_var()?].as_constant().ok_or(
-                                RuntimeError::InternalError(InternalError::NotAConstant {
-                                    name: "big integer".to_string(),
-                                    call_stack: self.get_call_stack(),
-                                }),
-                            )?);
-                        }
-                    }
-                    _ => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "big_int_from_le_bytes".to_owned(),
-                            arg: "modulus".to_owned(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                }
-                let big_modulus = BigUint::from_bytes_le(&vecmap(&modulus, |b| b.to_u128() as u8));
-                output_count = 0;
-
-                let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
-                let result_id = self.big_int_ctx.new_big_int(F::from(modulus_id as u128));
-                (modulus, vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()])
-            }
-            BlackBoxFunc::AES128Encrypt => {
-                let invalid_input = "aes128_encrypt - operation requires a plaintext to encrypt";
-                let input_size: usize = match inputs.first().expect(invalid_input) {
-                    AcirValue::Array(values) => Ok::<usize, RuntimeError>(values.len()),
-                    AcirValue::DynamicArray(dyn_array) => Ok::<usize, RuntimeError>(dyn_array.len),
-                    _ => {
-                        return Err(RuntimeError::InternalError(InternalError::General {
-                            message: "aes128_encrypt requires an array of inputs".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                }?;
-                output_count = input_size + (16 - input_size % 16);
-                (vec![], vec![])
-            }
-            BlackBoxFunc::RecursiveAggregation => {
-                let proof_type_var = match inputs.pop() {
-                    Some(domain_var) => domain_var.into_var()?,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "verify proof".to_string(),
-                            arg: "proof type".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                let proof_type_constant = match self.vars[&proof_type_var].as_constant() {
-                    Some(proof_type_constant) => proof_type_constant,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "proof type".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }))
-                    }
-                };
-
-                (vec![*proof_type_constant], Vec::new())
-            }
-            _ => (vec![], vec![]),
-        };
-        let inputs = self.prepare_inputs_for_black_box_func(inputs, name)?;
-        // Call Black box with `FunctionInput`
-        let mut results = vecmap(&constant_outputs, |c| self.add_constant(*c));
-        let outputs = self.acir_ir.call_black_box(
-            name,
-            &inputs,
-            constant_inputs,
-            constant_outputs,
-            output_count,
-        )?;
-
-        // Convert `Witness` values which are now constrained to be the output of the
-        // black box function call into `AcirVar`s.
-        //
-        // We do not apply range information on the output of the black box function.
-        // See issue #1439
-        results.extend(vecmap(&outputs, |witness_index| {
-            self.add_data(AcirVarData::Witness(*witness_index))
-        }));
-        Ok(results)
-    }
-
-    fn prepare_inputs_for_black_box_func(
-        &mut self,
-        inputs: Vec<AcirValue>,
-        name: BlackBoxFunc,
-    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        // Allow constant inputs for most blackbox, but:
-        // - EmbeddedCurveAdd requires all-or-nothing constant inputs
-        // - Poseidon2Permutation requires witness input
-        let allow_constant_inputs = matches!(
-            name,
-            BlackBoxFunc::MultiScalarMul
-                | BlackBoxFunc::Keccakf1600
-                | BlackBoxFunc::Blake2s
-                | BlackBoxFunc::Blake3
-                | BlackBoxFunc::AND
-                | BlackBoxFunc::XOR
-                | BlackBoxFunc::AES128Encrypt
-                | BlackBoxFunc::EmbeddedCurveAdd
-        );
-        // Convert `AcirVar` to `FunctionInput`
-        let mut inputs =
-            self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
-        if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
-        }
-        Ok(inputs)
-    }
-
-    /// Black box function calls expect their inputs to be in a specific data structure (FunctionInput).
-    ///
-    /// This function will convert `AcirVar` into `FunctionInput` for a blackbox function call.
-    fn prepare_inputs_for_black_box_func_call(
-        &mut self,
-        inputs: Vec<AcirValue>,
-        allow_constant_inputs: bool,
-    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        let mut witnesses = Vec::new();
-        for input in inputs {
-            let mut single_val_witnesses = Vec::new();
-            for (input, typ) in self.flatten(input)? {
-                let num_bits = typ.bit_size::<F>();
-                match self.vars[&input].as_constant() {
-                    Some(constant) if allow_constant_inputs => {
-                        single_val_witnesses.push(
-                            FunctionInput::constant(*constant, num_bits).map_err(
-                                |invalid_input_bit_size| {
-                                    RuntimeError::InvalidBlackBoxInputBitSize {
-                                        value: invalid_input_bit_size.value,
-                                        num_bits: invalid_input_bit_size.value_num_bits,
-                                        max_num_bits: invalid_input_bit_size.max_bits,
-                                        call_stack: self.get_call_stack(),
-                                    }
-                                },
-                            )?,
-                        );
-                    }
-                    _ => {
-                        let witness_var = self.get_or_create_witness_var(input)?;
-                        let witness = self.var_to_witness(witness_var)?;
-                        single_val_witnesses.push(FunctionInput::witness(witness, num_bits));
-                    }
-                }
-            }
-            witnesses.push(single_val_witnesses);
-        }
-        Ok(witnesses)
-    }
-
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
-        &mut self,
-        inputs: Vec<Vec<FunctionInput<F>>>,
-    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        let mut has_constant = false;
-        let mut has_witness = false;
-        let mut result = inputs.clone();
-        for (i, input) in inputs.iter().enumerate() {
-            if input[0].is_constant() {
-                has_constant = true;
-            } else {
-                has_witness = true;
-            }
-            if i % 3 == 2 {
-                if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
-                    for j in i - 2..i + 1 {
-                        if let ConstantOrWitnessEnum::Constant(constant) = inputs[j][0].input() {
-                            let constant = self.add_constant(constant);
-                            let witness_var = self.get_or_create_witness_var(constant)?;
-                            let witness = self.var_to_witness(witness_var)?;
-                            result[j] =
-                                vec![FunctionInput::witness(witness, inputs[j][0].num_bits())];
-                        }
-                    }
-                }
-                has_constant = false;
-                has_witness = false;
-            }
-        }
-        Ok(result)
     }
 
     /// Returns a vector of `AcirVar`s constrained to be the decomposition of the given input
@@ -1703,263 +1413,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let id = AcirVar(self.vars.len());
         self.vars.insert(id, data);
         id
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn brillig_call(
-        &mut self,
-        predicate: AcirVar,
-        generated_brillig: &GeneratedBrillig<F>,
-        inputs: Vec<AcirValue>,
-        outputs: Vec<AcirType>,
-        attempt_execution: bool,
-        unsafe_return_values: bool,
-        brillig_function_index: BrilligFunctionId,
-        brillig_stdlib_func: Option<BrilligStdlibFunc>,
-    ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let predicate = self.var_to_expression(predicate)?;
-        if predicate.is_zero() {
-            // If the predicate has a constant value of zero, the brillig call will never be executed.
-            // We can then immediately zero out all of its outputs as this is the value which would be written
-            // if we waited until runtime to resolve this call.
-            let outputs_var = vecmap(outputs, |output| match output {
-                AcirType::NumericType(_) => {
-                    let var = self.add_constant(F::zero());
-                    AcirValue::Var(var, output.clone())
-                }
-                AcirType::Array(element_types, size) => {
-                    self.zeroed_array_output(&element_types, size)
-                }
-            });
-
-            return Ok(outputs_var);
-        }
-        // Remove "always true" predicates.
-        let predicate = if predicate == Expression::one() { None } else { Some(predicate) };
-
-        let brillig_inputs: Vec<BrilligInputs<F>> =
-            try_vecmap(inputs, |i| -> Result<_, InternalError> {
-                match i {
-                    AcirValue::Var(var, _) => {
-                        Ok(BrilligInputs::Single(self.var_to_expression(var)?))
-                    }
-                    AcirValue::Array(vars) => {
-                        let mut var_expressions: Vec<Expression<F>> = Vec::new();
-                        for var in vars {
-                            self.brillig_array_input(&mut var_expressions, var)?;
-                        }
-                        Ok(BrilligInputs::Array(var_expressions))
-                    }
-                    AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
-                        Ok(BrilligInputs::MemoryArray(block_id))
-                    }
-                }
-            })?;
-
-        // Optimistically try executing the brillig now, if we can complete execution they just return the results.
-        // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        //
-        // We do _not_ want to do this in the situation where the `main` function is unconstrained, as if execution succeeds
-        // the entire program will be replaced with witness constraints to its outputs.
-        if attempt_execution {
-            if let Some(brillig_outputs) =
-                self.execute_brillig(&generated_brillig.byte_code, &brillig_inputs, &outputs)
-            {
-                return Ok(brillig_outputs);
-            }
-        }
-
-        // Otherwise we must generate ACIR for it and execute at runtime.
-        let mut brillig_outputs = Vec::new();
-        let outputs_var = vecmap(outputs, |output| match output {
-            AcirType::NumericType(_) => {
-                let witness_index = self.acir_ir.next_witness_index();
-                brillig_outputs.push(BrilligOutputs::Simple(witness_index));
-                let var = self.add_data(AcirVarData::Witness(witness_index));
-                AcirValue::Var(var, output.clone())
-            }
-            AcirType::Array(element_types, size) => {
-                let (acir_value, witnesses) = self.brillig_array_output(&element_types, size);
-                brillig_outputs.push(BrilligOutputs::Array(witnesses));
-                acir_value
-            }
-        });
-
-        self.acir_ir.brillig_call(
-            predicate,
-            generated_brillig,
-            brillig_inputs,
-            brillig_outputs,
-            brillig_function_index,
-            brillig_stdlib_func,
-        );
-
-        fn range_constraint_value<G: AcirField, C: BlackBoxFunctionSolver<G>>(
-            context: &mut AcirContext<G, C>,
-            value: &AcirValue,
-        ) -> Result<(), RuntimeError> {
-            match value {
-                AcirValue::Var(var, typ) => {
-                    let numeric_type = match typ {
-                        AcirType::NumericType(numeric_type) => numeric_type,
-                        _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
-                    };
-                    context.range_constrain_var(*var, numeric_type, None)?;
-                }
-                AcirValue::Array(values) => {
-                    for value in values {
-                        range_constraint_value(context, value)?;
-                    }
-                }
-                AcirValue::DynamicArray(_) => {
-                    unreachable!("Brillig opcodes cannot return dynamic arrays")
-                }
-            }
-            Ok(())
-        }
-
-        // This is a hack to ensure that if we're compiling a brillig entrypoint function then
-        // we don't also add a number of range constraints.
-        if !unsafe_return_values {
-            for output_var in &outputs_var {
-                range_constraint_value(self, output_var)?;
-            }
-        }
-        Ok(outputs_var)
-    }
-
-    fn brillig_array_input(
-        &mut self,
-        var_expressions: &mut Vec<Expression<F>>,
-        input: AcirValue,
-    ) -> Result<(), InternalError> {
-        match input {
-            AcirValue::Var(var, _) => {
-                var_expressions.push(self.var_to_expression(var)?);
-            }
-            AcirValue::Array(vars) => {
-                for var in vars {
-                    self.brillig_array_input(var_expressions, var)?;
-                }
-            }
-            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
-                for i in 0..len {
-                    // We generate witnesses corresponding to the array values
-                    let index_var = self.add_constant(i);
-
-                    let value_read_var = self.read_from_memory(block_id, &index_var)?;
-                    let value_read = AcirValue::Var(value_read_var, AcirType::field());
-
-                    self.brillig_array_input(var_expressions, value_read)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
-        let mut array_values = im::Vector::new();
-        for _ in 0..size {
-            for element_type in element_types {
-                match element_type {
-                    AcirType::Array(nested_element_types, nested_size) => {
-                        let nested_acir_value =
-                            self.zeroed_array_output(nested_element_types, *nested_size);
-                        array_values.push_back(nested_acir_value);
-                    }
-                    AcirType::NumericType(_) => {
-                        let var = self.add_constant(F::zero());
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                    }
-                }
-            }
-        }
-        AcirValue::Array(array_values)
-    }
-
-    /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    /// A singular array of witnesses is collected for a top level array, by deflattening the assigned witnesses at each level.
-    fn brillig_array_output(
-        &mut self,
-        element_types: &[AcirType],
-        size: usize,
-    ) -> (AcirValue, Vec<Witness>) {
-        let mut witnesses = Vec::new();
-        let mut array_values = im::Vector::new();
-        for _ in 0..size {
-            for element_type in element_types {
-                match element_type {
-                    AcirType::Array(nested_element_types, nested_size) => {
-                        let (nested_acir_value, mut nested_witnesses) =
-                            self.brillig_array_output(nested_element_types, *nested_size);
-                        witnesses.append(&mut nested_witnesses);
-                        array_values.push_back(nested_acir_value);
-                    }
-                    AcirType::NumericType(_) => {
-                        let witness_index = self.acir_ir.next_witness_index();
-                        witnesses.push(witness_index);
-                        let var = self.add_data(AcirVarData::Witness(witness_index));
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                    }
-                }
-            }
-        }
-        (AcirValue::Array(array_values), witnesses)
-    }
-
-    fn execute_brillig(
-        &mut self,
-        code: &[BrilligOpcode<F>],
-        inputs: &[BrilligInputs<F>],
-        outputs_types: &[AcirType],
-    ) -> Option<Vec<AcirValue>> {
-        let mut memory = (execute_brillig(code, &self.blackbox_solver, inputs)?).into_iter();
-
-        let outputs_var = vecmap(outputs_types.iter(), |output| match output {
-            AcirType::NumericType(_) => {
-                let var = self.add_data(AcirVarData::Const(
-                    memory.next().expect("Missing return data").to_field(),
-                ));
-                AcirValue::Var(var, output.clone())
-            }
-            AcirType::Array(element_types, size) => {
-                self.brillig_constant_array_output(element_types, *size, &mut memory)
-            }
-        });
-
-        Some(outputs_var)
-    }
-
-    /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn brillig_constant_array_output(
-        &mut self,
-        element_types: &[AcirType],
-        size: usize,
-        memory_iter: &mut impl Iterator<Item = MemoryValue<F>>,
-    ) -> AcirValue {
-        let mut array_values = im::Vector::new();
-        for _ in 0..size {
-            for element_type in element_types {
-                match element_type {
-                    AcirType::Array(nested_element_types, nested_size) => {
-                        let nested_acir_value = self.brillig_constant_array_output(
-                            nested_element_types,
-                            *nested_size,
-                            memory_iter,
-                        );
-                        array_values.push_back(nested_acir_value);
-                    }
-                    AcirType::NumericType(_) => {
-                        let memory_value =
-                            memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                    }
-                }
-            }
-        }
-        AcirValue::Array(array_values)
     }
 
     /// Returns a Variable that is constrained to be the result of reading
@@ -2113,6 +1566,36 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 }
 
+/// Returns an `F` representing the value `2**power`
+///
+/// # Panics
+///
+/// Panics if `2**power` exceeds `F::modulus()`.
+pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
+    if power >= F::max_num_bits() {
+        panic!("Field cannot represent this power of two");
+    }
+    let full_bytes = power / 8;
+    let extra_bits = power % 8;
+    let most_significant_byte: u8 = match extra_bits % 8 {
+        0 => 0x01,
+        1 => 0x02,
+        2 => 0x04,
+        3 => 0x08,
+        4 => 0x10,
+        5 => 0x20,
+        6 => 0x40,
+        7 => 0x80,
+        _ => unreachable!("We cover the full range of x % 8"),
+    };
+
+    let bytes_be: Vec<u8> = std::iter::once(most_significant_byte)
+        .chain(std::iter::repeat(0).take(full_bytes as usize))
+        .collect();
+
+    F::from_be_bytes_reduce(&bytes_be)
+}
+
 /// Enum representing the possible values that a
 /// Variable can be given.
 #[derive(Debug, Eq, Clone)]
@@ -2202,66 +1685,28 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWid
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
 
-/// Attempts to execute the provided [`Brillig`][`acvm::acir::brillig`] bytecode
-///
-/// Returns the finished state of the Brillig VM if execution can complete.
-///
-/// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
-    code: &[BrilligOpcode<F>],
-    blackbox_solver: &B,
-    inputs: &[BrilligInputs<F>],
-) -> Option<Vec<MemoryValue<F>>> {
-    // Set input values
-    let mut calldata: Vec<F> = Vec::new();
+#[cfg(test)]
+mod test {
+    use acvm::{AcirField, FieldElement};
+    use proptest::prelude::*;
 
-    // Each input represents a constant or array of constants.
-    // Iterate over each input and push it into registers and/or memory.
-    for input in inputs {
-        match input {
-            BrilligInputs::Single(expr) => {
-                calldata.push(*expr.to_const()?);
-            }
-            BrilligInputs::Array(expr_arr) => {
-                // Attempt to fetch all array input values
-                for expr in expr_arr.iter() {
-                    calldata.push(*expr.to_const()?);
-                }
-            }
-            BrilligInputs::MemoryArray(_) => {
-                return None;
-            }
-        }
+    use super::power_of_two;
+
+    #[test]
+    #[should_panic = "Field cannot represent this power of two"]
+    fn power_of_two_panics_on_overflow() {
+        power_of_two::<FieldElement>(FieldElement::max_num_bits());
     }
 
-    // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let profiling_active = false;
-    let mut vm = VM::new(calldata, code, Vec::new(), blackbox_solver, profiling_active);
+    proptest! {
+        #[test]
+        fn power_of_two_agrees_with_generic_impl(bit_size in (0..=128u32)) {
+            let power_of_two_general =
+                FieldElement::from(2_u128).pow(&FieldElement::from(bit_size));
+            let power_of_two_opt: FieldElement = power_of_two(bit_size);
 
-    // Run the Brillig VM on these inputs, bytecode, etc!
-    let vm_status = vm.process_opcodes();
-
-    // Check the status of the Brillig VM.
-    // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-    // If it's finished then we can omit the opcode and just write in the return values.
-    match vm_status {
-        VMStatus::Finished { return_data_offset, return_data_size } => Some(
-            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
-        ),
-        VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
-        VMStatus::Failure { .. } => {
-            // TODO: Return an error stating that the brillig function failed.
-            None
+            prop_assert_eq!(power_of_two_opt, power_of_two_general);
         }
-        VMStatus::ForeignCallWait { .. } => {
-            // If execution can't complete then keep the opcode
 
-            // TODO: We could bake in all the execution up to this point by replacing the inputs
-            // such that they initialize the registers/memory to the current values and then discard
-            // any opcodes prior to the one which performed this foreign call.
-            //
-            // Seems overkill for now however.
-            None
-        }
     }
 }

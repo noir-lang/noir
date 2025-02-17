@@ -7,8 +7,8 @@ use super::{
     BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
 };
 use crate::brillig::{
-    brillig_ir::BrilligContext, called_functions_vec, Brillig, DataFlowGraph, FunctionId,
-    Instruction, Value,
+    brillig_ir::BrilligContext, called_functions_vec, Brillig, BrilligOptions, DataFlowGraph,
+    FunctionId, Instruction, Value,
 };
 
 /// Context structure for generating Brillig globals
@@ -92,6 +92,13 @@ impl BrilligGlobals {
             );
         }
 
+        // NB: Temporary fix to override entry point analysis
+        let merged_set =
+            used_globals.values().flat_map(|set| set.iter().copied()).collect::<HashSet<_>>();
+        for set in used_globals.values_mut() {
+            *set = merged_set.clone();
+        }
+
         Self { used_globals, brillig_entry_points, ..Default::default() }
     }
 
@@ -142,7 +149,7 @@ impl BrilligGlobals {
         &mut self,
         globals_dfg: &DataFlowGraph,
         brillig: &mut Brillig,
-        enable_debug_trace: bool,
+        options: &BrilligOptions,
     ) {
         // Map for fetching the correct entry point globals when compiling any function
         let mut inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>> =
@@ -158,7 +165,7 @@ impl BrilligGlobals {
 
             let used_globals = self.used_globals.remove(&entry_point).unwrap_or_default();
             let (artifact, brillig_globals, globals_size) =
-                convert_ssa_globals(enable_debug_trace, globals_dfg, &used_globals, entry_point);
+                convert_ssa_globals(options, globals_dfg, &used_globals, entry_point);
 
             entry_point_globals_map.insert(entry_point, brillig_globals);
 
@@ -210,12 +217,12 @@ impl BrilligGlobals {
 }
 
 pub(crate) fn convert_ssa_globals(
-    enable_debug_trace: bool,
+    options: &BrilligOptions,
     globals_dfg: &DataFlowGraph,
     used_globals: &HashSet<ValueId>,
     entry_point: FunctionId,
 ) -> (BrilligArtifact<FieldElement>, HashMap<ValueId, BrilligVariable>, usize) {
-    let mut brillig_context = BrilligContext::new_for_global_init(enable_debug_trace, entry_point);
+    let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
     // The global space does not have globals itself
     let empty_globals = HashMap::default();
     // We can use any ID here as this context is only going to be used for globals which does not differentiate
@@ -251,7 +258,9 @@ mod tests {
         FieldElement,
     };
 
-    use crate::brillig::{brillig_ir::registers::RegisterAllocator, GlobalSpace, LabelType, Ssa};
+    use crate::brillig::{
+        brillig_ir::registers::RegisterAllocator, BrilligOptions, GlobalSpace, LabelType, Ssa,
+    };
 
     #[test]
     fn entry_points_different_globals() {
@@ -284,7 +293,7 @@ mod tests {
         let mut ssa = ssa.dead_instruction_elimination();
 
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),
@@ -303,10 +312,11 @@ mod tests {
             if func_id.to_u32() == 1 {
                 assert_eq!(
                     artifact.byte_code.len(),
-                    1,
+                    2,
                     "Expected just a `Return`, but got more than a single opcode"
                 );
-                assert!(matches!(&artifact.byte_code[0], Opcode::Return));
+                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
+                // assert!(matches!(&artifact.byte_code[0], Opcode::Return));
             } else if func_id.to_u32() == 2 {
                 assert_eq!(
                     artifact.byte_code.len(),
@@ -401,7 +411,7 @@ mod tests {
         let mut ssa = ssa.dead_instruction_elimination();
 
         let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(false, used_globals_map);
+        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
 
         assert_eq!(
             brillig.globals.len(),
@@ -420,17 +430,17 @@ mod tests {
             if func_id.to_u32() == 1 {
                 assert_eq!(
                     artifact.byte_code.len(),
-                    2,
+                    30,
                     "Expected enough opcodes to initialize the globals"
                 );
-                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-                    panic!("First opcode is expected to be `Const`");
-                };
-                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-                assert!(matches!(bit_size, BitSize::Field));
-                assert_eq!(*value, FieldElement::from(1u128));
-
-                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+                // TODO: Bring this back (https://github.com/noir-lang/noir/issues/7306)
+                // let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                //     panic!("First opcode is expected to be `Const`");
+                // };
+                // assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                // assert!(matches!(bit_size, BitSize::Field));
+                // assert_eq!(*value, FieldElement::from(1u128));
+                // assert!(matches!(&artifact.byte_code[1], Opcode::Return));
             } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
                 // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
                 // to have the same globals initialized.
