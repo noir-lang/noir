@@ -3182,6 +3182,7 @@ name = "noir_greybox_fuzzer"
 version = "1.0.0-beta.1"
 dependencies = [
  "acvm",
+ "build-data",
  "fm",
  "noir_fuzzer",
  "noirc_abi",

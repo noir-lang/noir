@@ -33,9 +33,11 @@ pub struct FuzzExecutionConfig {
 /// Folder configuration for fuzzing
 pub struct FuzzFolderConfig {
     /// Corpus folder
-    pub corpus_folder: Option<String>,
+    pub corpus_dir: Option<String>,
     /// Minimized corpus folder
-    pub minimized_corpus_folder: Option<String>,
+    pub minimized_corpus_dir: Option<String>,
+    /// Fuzzing failure folder
+    pub fuzzing_failure_dir: Option<String>,
 }
 
 pub enum FuzzingRunStatus {
@@ -151,8 +153,10 @@ where
                             .build_with_base(base)
                     };
                     // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                    let inner_executor =
-                        build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                    let inner_executor = build_foreign_call_executor(
+                        if show_output { PrintOutput::Stdout } else { PrintOutput::None },
+                        layers::Unhandled,
+                    );
 
                     let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
                     execute_program(
@@ -193,8 +197,10 @@ where
                                 .build_with_base(base)
                         };
                         // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                        let inner_executor =
-                            build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                        let inner_executor = build_foreign_call_executor(
+                            if show_output { PrintOutput::Stdout } else { PrintOutput::None },
+                            layers::Unhandled,
+                        );
 
                         let mut foreign_call_executor =
                             TestForeignCallExecutor::new(inner_executor);
@@ -237,8 +243,8 @@ where
                         failure_reason: fuzzing_harness.failure_reason(),
                     },
                     FuzzedExecutorFolderConfiguration {
-                        corpus_folder: fuzz_folder_config.corpus_folder.clone(),
-                        minimized_corpus_folder: fuzz_folder_config.minimized_corpus_folder.clone(),
+                        corpus_dir: fuzz_folder_config.corpus_dir.clone(),
+                        minimized_corpus_dir: fuzz_folder_config.minimized_corpus_dir.clone(),
                     },
                 );
 
@@ -269,8 +275,10 @@ where
                                 .build_with_base(base)
                         };
                         // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                        let inner_executor =
-                            build_foreign_call_executor(PrintOutput::None, layers::Unhandled);
+                        let inner_executor = build_foreign_call_executor(
+                            if show_output { PrintOutput::Stdout } else { PrintOutput::None },
+                            layers::Unhandled,
+                        );
 
                         let mut foreign_call_executor =
                             TestForeignCallExecutor::new(inner_executor);

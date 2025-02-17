@@ -265,9 +265,9 @@ pub struct FuzzedExecutorFailureConfiguration {
 
 pub struct FuzzedExecutorFolderConfiguration {
     /// Corpus folder. If given, the corpus is stored here
-    pub corpus_folder: Option<String>,
+    pub corpus_dir: Option<String>,
     /// Minimized corpus folder. If given, fuzzed executor performs minimization of the corpus instead of fuzzing and tries to save the results into this folder
-    pub minimized_corpus_folder: Option<String>,
+    pub minimized_corpus_dir: Option<String>,
 }
 /// An executor for Noir programs which which provides fuzzing support
 ///
@@ -309,13 +309,13 @@ pub struct FuzzedExecutor<E, F> {
     failure_configuration: FuzzedExecutorFailureConfiguration,
 
     /// Corpus folder
-    corpus_folder: PathBuf,
+    corpus_dir: PathBuf,
 
     /// If this is set, perform minimization of the corpus
     minimize_corpus: bool,
 
     /// Corpus with the minimized
-    minimized_corpus_folder: PathBuf,
+    minimized_corpus_dir: PathBuf,
 
     /// Execution metric
     metrics: Metrics,
@@ -376,12 +376,12 @@ impl<
             function_name: function_name.to_string(),
             num_threads: fuzz_execution_config.num_threads,
             failure_configuration,
-            corpus_folder: PathBuf::from(
-                folder_configuration.corpus_folder.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
+            corpus_dir: PathBuf::from(
+                folder_configuration.corpus_dir.unwrap_or(DEFAULT_CORPUS_FOLDER.to_string()),
             ),
-            minimize_corpus: folder_configuration.minimized_corpus_folder.is_some(),
-            minimized_corpus_folder: PathBuf::from(
-                folder_configuration.minimized_corpus_folder.unwrap_or_default(),
+            minimize_corpus: folder_configuration.minimized_corpus_dir.is_some(),
+            minimized_corpus_dir: PathBuf::from(
+                folder_configuration.minimized_corpus_dir.unwrap_or_default(),
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
@@ -434,7 +434,7 @@ impl<
 
         // Initialize the starting corpus
         let mut corpus = Corpus::new(
-            &self.corpus_folder,
+            &self.corpus_dir,
             &self.package_name,
             &self.function_name,
             &self.acir_program.abi,
@@ -464,7 +464,7 @@ impl<
 
         let minimized_corpus = if self.minimize_corpus {
             Some(Corpus::new(
-                &self.minimized_corpus_folder,
+                &self.minimized_corpus_dir,
                 &self.package_name,
                 &self.function_name,
                 &self.acir_program.abi,

@@ -30,11 +30,15 @@ pub(crate) struct FuzzCommand {
 
     /// If given, load/store fuzzer corpus from this folder
     #[arg(long)]
-    corpus_folder: Option<String>,
+    corpus_dir: Option<String>,
 
     /// If given, perform corpus minimization instead of fuzzing and store results in the given folder
     #[arg(long)]
-    minimized_corpus_folder: Option<String>,
+    minimized_corpus_dir: Option<String>,
+
+    /// If given, store the failing input in the given folder
+    #[arg(long)]
+    fuzzing_failure_dir: Option<String>,
     /// List all available harnesses that match the name
     #[clap(long)]
     list_all: bool,
@@ -126,8 +130,9 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
     }
 
     let fuzz_folder_config = FuzzFolderConfig {
-        corpus_folder: args.corpus_folder,
-        minimized_corpus_folder: args.minimized_corpus_folder,
+        corpus_dir: args.corpus_dir,
+        minimized_corpus_dir: args.minimized_corpus_dir,
+        fuzzing_failure_dir: args.fuzzing_failure_dir,
     };
     let fuzz_execution_config =
         FuzzExecutionConfig { timeout: args.timeout.unwrap_or(0), num_threads: args.num_threads };
@@ -242,6 +247,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         // Display the latest report
         display_fuzzing_report_and_store(
             root_path.clone(),
+            fuzz_folder_config.fuzzing_failure_dir.clone(),
             file_manager,
             package,
             compile_options,
@@ -310,6 +316,7 @@ fn get_fuzzing_harnesses_in_package(
 
 fn display_fuzzing_report_and_store(
     root_path: Option<PathBuf>,
+    fuzzing_failure_folder: Option<String>,
     file_manager: &FileManager,
     package: &Package,
     compile_options: &CompileOptions,
@@ -317,6 +324,12 @@ fn display_fuzzing_report_and_store(
 ) -> Result<(), CliError> {
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
+    let fuzzing_failure_path =
+        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.clone().unwrap_or_default());
+    if !fuzzing_failure_path.exists() {
+        std::fs::create_dir_all(&fuzzing_failure_path)
+            .expect("Failed to create fuzzing failure directory");
+    }
 
     for (fuzzing_harness_name, test_status) in fuzzing_report {
         write!(writer, "[").expect("Failed to write to stderr");
@@ -404,7 +417,7 @@ fn display_fuzzing_report_and_store(
                         + "-"
                         + fuzzing_harness_name;
                     write_inputs_to_file(
-                        root_path.clone().unwrap_or_default(),
+                        fuzzing_failure_path.clone(),
                         &file_name,
                         Format::Toml,
                         abi,
@@ -416,7 +429,7 @@ fn display_fuzzing_report_and_store(
                         .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                         .expect("Failed to set color");
                     let mut full_path_of_example =
-                        PathBuf::from(root_path.clone().unwrap_or_default()).join(file_name);
+                        PathBuf::from(fuzzing_failure_path.clone()).join(file_name);
                     full_path_of_example.set_extension(PathBuf::from("toml"));
                     writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
                         .expect("Failed to write to stderr");
