@@ -309,8 +309,8 @@ impl<'a> FunctionContext<'a> {
             match numeric_type {
                 NumericType::NativeField => -value,
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    assert!(bit_size < 128);
-                    let base = 1_u128 << bit_size;
+                    // The math here is a bit convoluted to avoid overflowing for u128
+                    let base = (2_u128.pow(bit_size - 1) - 1) * 2 + 1;
                     FieldElement::from(base) - value
                 }
             }
