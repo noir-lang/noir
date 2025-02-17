@@ -186,7 +186,7 @@ impl InputValue {
 
 /// The different formats that are supported when parsing
 /// the initial witness values
-#[derive(strum_macros::EnumIter)]
+#[derive(strum_macros::EnumIter, Debug, Clone, PartialEq, Eq)]
 pub enum Format {
     Json,
     Toml,
@@ -197,6 +197,14 @@ impl Format {
         match self {
             Format::Json => "json",
             Format::Toml => "toml",
+        }
+    }
+
+    pub fn from_ext(ext: &str) -> Option<Self> {
+        match ext {
+            "json" => Some(Self::Json),
+            "toml" => Some(Self::Toml),
+            _ => None,
         }
     }
 }
@@ -443,8 +451,9 @@ fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
 mod test {
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
+    use strum::IntoEnumIterator;
 
-    use super::{parse_str_to_field, parse_str_to_signed};
+    use super::{parse_str_to_field, parse_str_to_signed, Format};
 
     fn big_uint_from_field(field: FieldElement) -> BigUint {
         BigUint::from_bytes_be(&field.to_be_bytes())
@@ -520,6 +529,14 @@ mod test {
             FieldElement::from(65535_i128)
         );
         assert!(parse_str_to_signed("-32769", 16, "arg_name").is_err());
+    }
+
+    #[test]
+    fn test_from_ext() {
+        for fmt in Format::iter() {
+            assert_eq!(Format::from_ext(fmt.ext()), Some(fmt));
+        }
+        assert_eq!(Format::from_ext("invalid extension"), None);
     }
 }
 

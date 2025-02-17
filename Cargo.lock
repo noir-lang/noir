@@ -3174,7 +3174,6 @@ dependencies = [
  "noirc_errors",
  "serde",
  "serde_json",
- "strum",
  "thiserror",
  "toml",
  "tracing-subscriber",

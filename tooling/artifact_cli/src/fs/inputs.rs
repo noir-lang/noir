@@ -3,7 +3,6 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
 };
 use std::{collections::BTreeMap, path::Path};
-use strum::IntoEnumIterator;
 
 use crate::errors::CliError;
 
@@ -38,7 +37,7 @@ pub fn read_inputs_from_file(
         )));
     };
 
-    let Some(format) = Format::iter().find(|fmt| fmt.ext() == ext) else {
+    let Some(format) = Format::from_ext(ext) else {
         return Err(FilesystemError(InvalidInputFile(
             file_path.to_path_buf(),
             format!("unknown input format: {ext}"),
