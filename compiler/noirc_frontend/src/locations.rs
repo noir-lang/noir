@@ -55,6 +55,13 @@ impl<'a> ReferencesTracker<'a> {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct AutoImportEntry {
+    pub module_def_id: ModuleDefId,
+    pub visibility: ItemVisibility,
+    pub defining_module: Option<ModuleId>,
+}
+
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
@@ -381,13 +388,11 @@ impl NodeInterner {
         }
 
         let entry = self.auto_import_names.entry(name).or_default();
-        entry.push((module_def_id, visibility, defining_module));
+        entry.push(AutoImportEntry { module_def_id, visibility, defining_module });
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn get_auto_import_names(
-        &self,
-    ) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>> {
+    pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<AutoImportEntry>> {
         &self.auto_import_names
     }
 }

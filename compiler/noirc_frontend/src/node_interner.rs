@@ -24,6 +24,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
+use crate::locations::AutoImportEntry;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -254,8 +255,7 @@ pub struct NodeInterner {
     // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) auto_import_names:
-        HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>>,
+    pub(crate) auto_import_names: HashMap<String, Vec<AutoImportEntry>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making

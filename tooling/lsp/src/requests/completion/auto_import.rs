@@ -31,19 +31,21 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility, defining_module) in entries {
-                if self.suggested_module_def_ids.contains(module_def_id) {
+            for entry in entries {
+                let module_def_id = entry.module_def_id;
+                if self.suggested_module_def_ids.contains(&module_def_id) {
                     continue;
                 }
 
-                let mut defining_module = defining_module.as_ref().cloned();
+                let visibility = entry.visibility;
+                let mut defining_module = entry.defining_module.as_ref().cloned();
                 let mut intermediate_name = None;
 
                 let is_visible =
-                    self.module_def_id_is_visible(*module_def_id, *visibility, defining_module);
+                    self.module_def_id_is_visible(module_def_id, visibility, defining_module);
                 if !is_visible {
                     if let Some((parent_module_reexport, reexport_name)) =
-                        self.get_parent_module_reexport(*module_def_id)
+                        self.get_parent_module_reexport(module_def_id)
                     {
                         defining_module = Some(parent_module_reexport);
                         intermediate_name = Some(reexport_name);
@@ -53,7 +55,7 @@ impl<'a> NodeFinder<'a> {
                 }
 
                 let completion_items = self.module_def_id_completion_items(
-                    *module_def_id,
+                    module_def_id,
                     name.clone(),
                     function_completion_kind,
                     FunctionKind::Any,
@@ -64,7 +66,7 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 };
 
-                self.suggested_module_def_ids.insert(*module_def_id);
+                self.suggested_module_def_ids.insert(module_def_id);
 
                 for mut completion_item in completion_items {
                     let module_full_path = if let Some(defining_module) = defining_module {
@@ -76,7 +78,7 @@ impl<'a> NodeFinder<'a> {
                         )
                     } else {
                         let Some(module_full_path) = relative_module_full_path(
-                            *module_def_id,
+                            module_def_id,
                             self.module_id,
                             current_module_parent_id,
                             self.interner,

@@ -40,15 +40,17 @@ impl<'a> CodeActionFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility, defining_module) in entries {
-                let mut defining_module = defining_module.as_ref().cloned();
+            for entry in entries {
+                let module_def_id = entry.module_def_id;
+                let visibility = entry.visibility;
+                let mut defining_module = entry.defining_module.as_ref().cloned();
                 let mut intermediate_name = None;
 
                 let is_visible =
-                    self.module_def_id_is_visible(*module_def_id, *visibility, defining_module);
+                    self.module_def_id_is_visible(module_def_id, visibility, defining_module);
                 if !is_visible {
                     if let Some((parent_module_reexport, reexport_name)) =
-                        self.get_parent_module_reexport(*module_def_id)
+                        self.get_parent_module_reexport(module_def_id)
                     {
                         defining_module = Some(parent_module_reexport);
                         intermediate_name = Some(reexport_name);
@@ -66,7 +68,7 @@ impl<'a> CodeActionFinder<'a> {
                     )
                 } else {
                     let Some(module_full_path) = relative_module_full_path(
-                        *module_def_id,
+                        module_def_id,
                         self.module_id,
                         current_module_parent_id,
                         self.interner,
