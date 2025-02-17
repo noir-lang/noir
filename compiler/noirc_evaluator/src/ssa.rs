@@ -189,6 +189,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             "`static_assert` and `assert_constant`",
         )?
         .run_pass(Ssa::purity_analysis, "Purity Analysis")
+        // TODO(BSN-2273): Uncomment this, once bug is fixed.
         // .run_pass(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion")
         .try_run_pass(
             |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
@@ -210,10 +211,12 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         )
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
-        .run_pass(Ssa::fold_constants, "Constant Folding")
+        // TODO(BSN-2273): Uncomment this, once bug is fixed.
+        // .run_pass(Ssa::fold_constants, "Constant Folding")
         .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
-        .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
+        // TODO(BSN-2273): Uncomment this, once bug is fixed.
+        // .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")
         .run_pass(Ssa::check_u128_mul_overflow, "Check u128 mul overflow")
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")

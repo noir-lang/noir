@@ -51,6 +51,7 @@ impl Ssa {
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling
+            // TODO(BSN-2273): Uncomment this, once bug is fixed.
             // function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             let _ = function.unroll_loops_iteratively();

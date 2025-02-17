@@ -1,0 +1,6 @@
+[package]
+name = "double_loops"
+type = "bin"
+authors = [""]
+
+[dependencies]
