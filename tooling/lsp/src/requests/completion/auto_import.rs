@@ -4,7 +4,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    modules::{get_parent_module, relative_module_full_path, relative_module_id_path},
+    modules::{get_parent_module_reexport, relative_module_full_path, relative_module_id_path},
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
@@ -121,17 +121,13 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    /// Finds a visible reexport for the parent module of the given ModuleDefId.
     fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<(ModuleId, Ident)> {
-        let parent_module = get_parent_module(self.interner, module_def_id)?;
-        let (parent_module_reexport, name, _) = self
-            .interner
-            .get_reexports(ModuleDefId::ModuleId(parent_module))
-            .iter()
-            .find(|(module_id, _, visibility)| {
-                self.module_def_id_is_visible(ModuleDefId::ModuleId(*module_id), *visibility, None)
-            })?;
-
-        Some((*parent_module_reexport, name.clone()))
+        get_parent_module_reexport(
+            module_def_id,
+            self.module_id,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
     }
 }

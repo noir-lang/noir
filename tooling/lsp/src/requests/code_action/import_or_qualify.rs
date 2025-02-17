@@ -41,13 +41,25 @@ impl<'a> CodeActionFinder<'a> {
             }
 
             for (module_def_id, visibility, defining_module) in entries {
-                if !self.module_def_id_is_visible(*module_def_id, *visibility, *defining_module) {
-                    continue;
+                let mut defining_module = defining_module.as_ref().cloned();
+                let mut intermediate_name = None;
+
+                let is_visible =
+                    self.module_def_id_is_visible(*module_def_id, *visibility, defining_module);
+                if !is_visible {
+                    if let Some((parent_module_reexport, reexport_name)) =
+                        self.get_parent_module_reexport(*module_def_id)
+                    {
+                        defining_module = Some(parent_module_reexport);
+                        intermediate_name = Some(reexport_name);
+                    } else {
+                        continue;
+                    }
                 }
 
                 let module_full_path = if let Some(defining_module) = defining_module {
                     relative_module_id_path(
-                        *defining_module,
+                        defining_module,
                         &self.module_id,
                         current_module_parent_id,
                         self.interner,
@@ -67,7 +79,11 @@ impl<'a> CodeActionFinder<'a> {
                 let full_path = if defining_module.is_some()
                     || !matches!(module_def_id, ModuleDefId::ModuleId(..))
                 {
-                    format!("{}::{}", module_full_path, name)
+                    if let Some(reexport_name) = &intermediate_name {
+                        format!("{}::{}::{}", module_full_path, reexport_name, name)
+                    } else {
+                        format!("{}::{}", module_full_path, name)
+                    }
                 } else {
                     module_full_path.clone()
                 };
@@ -288,6 +304,43 @@ mod foo {
 }
 
 fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_via_reexport() {
+        let title = "Import aztec::protocol_types::SomeStruct";
+
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStr>|<uct
+}"#;
+
+        let expected = r#"use aztec::protocol_types::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStruct
+}"#;
 
         assert_code_action(title, src, expected).await;
     }

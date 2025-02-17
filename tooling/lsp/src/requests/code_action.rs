@@ -13,8 +13,8 @@ use lsp_types::{
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
-        Path, UseTree, Visitor,
+        CallExpression, ConstructorExpression, Ident, ItemVisibility, MethodCallExpression,
+        NoirTraitImpl, Path, UseTree, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
@@ -27,8 +27,8 @@ use noirc_frontend::{
 };
 
 use crate::{
-    use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
-    LspState,
+    modules::get_parent_module_reexport, use_segment_positions::UseSegmentPositions, utils,
+    visibility::module_def_id_is_visible, LspState,
 };
 
 use super::{process_request, to_lsp_location};
@@ -206,6 +206,16 @@ impl<'a> CodeActionFinder<'a> {
             self.module_id,
             visibility,
             defining_module,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
+    }
+
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<(ModuleId, Ident)> {
+        get_parent_module_reexport(
+            module_def_id,
+            self.module_id,
             self.interner,
             self.def_maps,
             self.dependencies,
