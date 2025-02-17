@@ -267,6 +267,19 @@ app.use(cors())
 
 :::
 
+## Foreign Calls
+
+When making foreign calls, you need to ensure that:
+
+1. The function is marked with the `unconstrained` keyword
+2. The function is properly defined in your backend implementation
+
+```rust
+unconstrained fn get_price() -> Field {
+    // Foreign call implementation
+}
+```
+
 ## Conclusion
 
 Hopefully by the end of this guide, you should be able to:
