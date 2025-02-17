@@ -351,5 +351,11 @@
   { "Value": { "variable_id": 5, "value": { "kind": "Int", "i": 1, "type_id": 1 } } },
   { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 1, "type_id": 1 } } },
   { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 2, "type_id": 1 } } },
-  { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 3, "type_id": 1 } } }
+  { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 3, "type_id": 1 } } },
+  { "Step": { "path_id": 0, "line": 4 } },
+  { "Value": { "variable_id": 5, "value": { "kind": "Int", "i": 1, "type_id": 1 } } },
+  { "Value": { "variable_id": 0, "value": { "kind": "Int", "i": 1, "type_id": 1 } } },
+  { "Value": { "variable_id": 1, "value": { "kind": "Int", "i": 2, "type_id": 1 } } },
+  { "Value": { "variable_id": 2, "value": { "kind": "Int", "i": 3, "type_id": 1 } } },
+  { "Event": { "kind": 9, "content": "Failed to solve program: 'Failed to solve brillig function'" } }
 ]
