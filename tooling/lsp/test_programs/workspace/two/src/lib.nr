@@ -109,3 +109,7 @@ enum Color {
 fn test_enum() -> Color {
     Color::Red(1)
 }
+
+fn negative_integer() -> i32 {
+    -8
+}

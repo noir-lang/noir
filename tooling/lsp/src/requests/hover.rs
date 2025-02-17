@@ -470,4 +470,12 @@ mod hover_tests {
                 .await;
         assert_eq!(&hover_text, "    Field\n---\nvalue of literal: `123 (0x7b)`");
     }
+
+    #[test]
+    async fn hover_on_negative_integer_literal() {
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 113, character: 5 })
+                .await;
+        assert_eq!(&hover_text, "    i32\n---\nvalue of literal: `-8 (-0x08)`");
+    }
 }
