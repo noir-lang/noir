@@ -25,9 +25,8 @@ fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
 
 proptest::prop_compose! {
     pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
-        let width = (bit_size % 128).clamp(1, 128);
-        // The math here is a bit convoluted to avoid overflowing for width = 128
-        let max_value = (2u128.pow(width - 1) - 1) * 2 + 1;
+        let width = (bit_size % 128).clamp(1, 127);
+        let max_value = 2u128.pow(width) - 1;
         FieldElement::from(value.clamp(0, max_value))
     }
 }

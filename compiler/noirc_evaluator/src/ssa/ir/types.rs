@@ -66,7 +66,7 @@ impl NumericType {
         match self {
             NumericType::Unsigned { bit_size } => {
                 // The math here is a bit convoluted to avoid overflowing for u128
-                let max = (2u128.pow(bit_size - 1) - 1) * 2 + 1;
+                let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
                 if negative {
                     return Some(format!("0..={}", max));
                 }
