@@ -43,19 +43,10 @@ pub(crate) struct ExecuteCommand {
     #[clap(long)]
     contract_fn: Option<String>,
 
-    /// Part to the Oracle.toml file which contains the Oracle transcript,
-    /// which is a list of responses captured during an earlier execution,
-    /// which can replayed via mocks.
-    ///
-    /// Note that a transcript might be invalid if the inputs change and
-    /// the circuit takes a different path during execution.
-    #[clap(long, conflicts_with = "oracle_resolver")]
-    oracle_file: Option<String>,
-
     /// JSON RPC url to solve oracle calls.
     ///
     /// This is to facilitate new executions, as opposed to replays.
-    #[clap(long, conflicts_with = "oracle_file")]
+    #[clap(long)]
     oracle_resolver: Option<String>,
 
     /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
