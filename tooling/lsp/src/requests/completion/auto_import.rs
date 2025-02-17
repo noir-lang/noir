@@ -1,4 +1,4 @@
-use noirc_frontend::{hir::def_map::ModuleDefId, node_interner::Reexport};
+use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleDefId, node_interner::Reexport};
 
 use crate::{
     modules::{get_ancestor_module_reexport, module_def_id_relative_path},
@@ -43,7 +43,9 @@ impl<'a> NodeFinder<'a> {
                 let is_visible =
                     self.module_def_id_is_visible(module_def_id, visibility, defining_module);
                 if !is_visible {
-                    if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
+                    if let Some(reexport) =
+                        self.get_ancestor_module_reexport(module_def_id, visibility)
+                    {
                         defining_module = Some(reexport.module_id);
                         intermediate_name = Some(reexport.name);
                     } else {
@@ -101,9 +103,14 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<Reexport> {
+    fn get_ancestor_module_reexport(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+    ) -> Option<Reexport> {
         get_ancestor_module_reexport(
             module_def_id,
+            visibility,
             self.module_id,
             self.interner,
             self.def_maps,

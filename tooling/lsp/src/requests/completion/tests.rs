@@ -3308,4 +3308,26 @@ fn main() {
             apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
+
+    #[test]
+    async fn does_not_autocomplete_nested_type_via_parent_module_reexport_if_it_is_not_visible() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let items = get_completions(src).await;
+        assert_eq!(items.len(), 0);
+    }
 }

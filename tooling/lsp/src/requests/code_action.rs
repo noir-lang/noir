@@ -212,9 +212,14 @@ impl<'a> CodeActionFinder<'a> {
         )
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<Reexport> {
+    fn get_ancestor_module_reexport(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+    ) -> Option<Reexport> {
         get_ancestor_module_reexport(
             module_def_id,
+            visibility,
             self.module_id,
             self.interner,
             self.def_maps,

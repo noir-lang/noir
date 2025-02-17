@@ -76,7 +76,9 @@ impl<'a> CodeActionFinder<'a> {
                     module_id: reexport.module_id,
                     name: reexport.name.clone(),
                 });
-            } else if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
+            } else if let Some(reexport) =
+                self.get_ancestor_module_reexport(module_def_id, visibility)
+            {
                 trait_reexport = Some(TraitReexport {
                     module_id: reexport.module_id,
                     name: trait_.name.clone(),
