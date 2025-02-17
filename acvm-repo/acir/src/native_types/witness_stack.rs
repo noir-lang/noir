@@ -12,6 +12,9 @@ use super::WitnessMap;
 enum SerializationError {
     #[error(transparent)]
     Deflate(#[from] std::io::Error),
+
+    #[error(transparent)]
+    BincodeError(#[from] bincode::Error),
 }
 
 #[derive(Debug, Error)]
@@ -61,7 +64,7 @@ impl<F: Serialize> TryFrom<WitnessStack<F>> for Vec<u8> {
     type Error = WitnessStackError;
 
     fn try_from(val: WitnessStack<F>) -> Result<Self, Self::Error> {
-        let buf = bincode::serialize(&val).unwrap();
+        let buf = bincode::serialize(&val).map_err(|e| WitnessStackError(e.into()))?;
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf_c = Vec::new();
         deflater.read_to_end(&mut buf_c).map_err(|err| WitnessStackError(err.into()))?;
@@ -76,7 +79,8 @@ impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
         let mut deflater = GzDecoder::new(bytes);
         let mut buf_d = Vec::new();
         deflater.read_to_end(&mut buf_d).map_err(|err| WitnessStackError(err.into()))?;
-        let witness_stack = bincode::deserialize(&buf_d).unwrap();
+        let witness_stack =
+            bincode::deserialize(&buf_d).map_err(|e| WitnessStackError(e.into()))?;
         Ok(witness_stack)
     }
 }
