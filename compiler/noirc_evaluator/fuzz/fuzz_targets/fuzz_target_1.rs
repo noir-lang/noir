@@ -55,6 +55,13 @@ enum Instructions {
         lhs: u32,
         rhs: u32,
     },
+    Mod {
+        lhs: u32,
+        rhs: u32,
+    },
+    Not {
+        lhs: u32,
+    },
 }
 
 fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
@@ -71,7 +78,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
 
     let mut acir_builder = FuzzerBuilder::new_acir();
     let mut brillig_builder = FuzzerBuilder::new_brillig();
-    let type_ = Type::unsigned(64);
+    let type_ = Type::unsigned(8);
     acir_builder.insert_variables(type_.clone());
     brillig_builder.insert_variables(type_.clone());
 
@@ -193,6 +200,27 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
                 let rhs_id = u32_to_id(rhs);
                 let acir_result = acir_builder.insert_xor_instruction(lhs_id, rhs_id);
                 let brillig_result = brillig_builder.insert_xor_instruction(lhs_id, rhs_id);
+                acir_witnesses_indeces.push(id_to_int(acir_result));
+                brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
+            Instructions::Mod { lhs, rhs } => {
+                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
+                    continue;
+                }
+                let lhs_id = u32_to_id(lhs);
+                let rhs_id = u32_to_id(rhs);
+                let acir_result = acir_builder.insert_mod_instruction(lhs_id, rhs_id);
+                let brillig_result = brillig_builder.insert_mod_instruction(lhs_id, rhs_id);
+                acir_witnesses_indeces.push(id_to_int(acir_result));
+                brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
+            Instructions::Not { lhs } => {
+                if !index_presented(lhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
+                    continue;
+                }
+                let lhs_id = u32_to_id(lhs);
+                let acir_result = acir_builder.insert_not_instruction(lhs_id);
+                let brillig_result = brillig_builder.insert_not_instruction(lhs_id);
                 acir_witnesses_indeces.push(id_to_int(acir_result));
                 brillig_witnesses_indeces.push(id_to_int(brillig_result));
             }

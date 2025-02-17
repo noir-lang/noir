@@ -75,6 +75,11 @@ impl FuzzerBuilder {
         return result;
     }
 
+    pub fn insert_not_instruction(&mut self, lhs: Id<Value>) -> Id<Value> {
+        let result = self.builder.insert_not(lhs);
+        return result;
+    }
+
     pub fn insert_eq_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         let res1 = self.builder.insert_binary(lhs, BinaryOp::Eq, rhs);
         let result = self.builder.insert_cast(res1, self.numeric_type.clone());
