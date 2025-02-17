@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739568263724,
+  "lastUpdate": 1739802917849,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4055,105 +4055,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "05dc3433ceeb3a395673b9b8431cfdbdc762249f",
-          "message": "feat: infer lambda parameter types from return type and let type (#7267)",
-          "timestamp": "2025-02-04T19:06:21Z",
-          "tree_id": "311394340c49acc4c1c0734c9c8e72c0236c2b2c",
-          "url": "https://github.com/noir-lang/noir/commit/05dc3433ceeb3a395673b9b8431cfdbdc762249f"
-        },
-        "date": 1738697321323,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.03,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.846,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.4,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.571,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.566,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.076,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 68.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.038,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 67.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.546,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 28.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.9,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.02,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.38,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 1.976,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8981,6 +8882,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.494,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "582f56e6b6ea43ab79b08aacfe7f1ba67a097f26",
+          "message": "feat: while statement (#7280)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-02-17T14:12:58Z",
+          "tree_id": "07d00a3112cf89a5f403bac527552d1dd43ac77b",
+          "url": "https://github.com/noir-lang/noir/commit/582f56e6b6ea43ab79b08aacfe7f1ba67a097f26"
+        },
+        "date": 1739802915729,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.01,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.838,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.638,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.258,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.266,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.036,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.764,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.826,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 1.476,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.924,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 71.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 68.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.488,
             "unit": "s"
           }
         ]
