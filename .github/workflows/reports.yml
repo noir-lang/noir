@@ -282,7 +282,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJson( needs.benchmark-projects-list.outputs.libraries )}}
+        project: ${{ fromJson( needs.benchmark-projects-list.outputs.projects )}}
 
     name: External repo compilation and execution reports - ${{ matrix.project.repo }}/${{ matrix.project.path }}
     steps:
