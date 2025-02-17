@@ -205,9 +205,9 @@ pub(crate) fn get_ancestor_module_reexport(
     // If we can find one, we need to check if ModuleDefId is actually visible from the grandparent module
     if !module_def_id_is_visible(
         module_def_id,
-        grandparent_module_reexport.module_id,
+        current_module_id,
         visibility,
-        None,
+        Some(grandparent_module_reexport.module_id),
         interner,
         def_maps,
         dependencies,
