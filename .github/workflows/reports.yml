@@ -20,7 +20,7 @@ jobs:
       - name: Build list of projects
         id: get_bench_projects
         run: |
-          PROJECTS=$(yq '.projects' ./.github/benchmark_projects.yml)
+          PROJECTS=$(yq ./.github/benchmark_projects.yml -o json | jq -c '.projects')
           echo "projects=$PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
