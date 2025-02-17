@@ -11,7 +11,7 @@ jobs:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
     outputs:
-      projects: ${{ steps.get_bench_projects.outputs.libraries }}
+      projects: ${{ steps.get_bench_projects.outputs.projects }}
 
     steps:
       - name: Checkout
