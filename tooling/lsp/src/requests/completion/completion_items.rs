@@ -412,7 +412,7 @@ impl<'a> NodeFinder<'a> {
         let module_full_path = if let Some(reexport_data) = trait_reexport {
             relative_module_id_path(
                 reexport_data.module_id,
-                &self.module_id,
+                self.module_id,
                 current_module_parent_id,
                 self.interner,
             )

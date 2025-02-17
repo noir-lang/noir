@@ -8,7 +8,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
@@ -102,29 +102,18 @@ impl<'a> CodeActionFinder<'a> {
 
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let current_module_parent_id = self.module_id.parent(self.def_maps);
-        let module_full_path = if let Some(trait_reexport) = &trait_reexport {
-            relative_module_id_path(
-                trait_reexport.module_id,
-                &self.module_id,
-                current_module_parent_id,
-                self.interner,
-            )
-        } else {
-            let Some(path) = relative_module_full_path(
-                module_def_id,
-                self.module_id,
-                current_module_parent_id,
-                self.interner,
-            ) else {
-                return;
-            };
-            path
-        };
+        let defining_module = trait_reexport.map(|reexport| reexport.module_id);
 
-        let full_path = if let Some(intermediate_name) = intermediate_name {
-            format!("{}::{}::{}", module_full_path, intermediate_name, trait_name)
-        } else {
-            format!("{}::{}", module_full_path, trait_name)
+        let Some(full_path) = module_def_id_relative_path(
+            module_def_id,
+            &trait_name.0.contents,
+            self.module_id,
+            current_module_parent_id,
+            defining_module,
+            &intermediate_name,
+            self.interner,
+        ) else {
+            return;
         };
 
         let title = format!("Import {}", full_path);

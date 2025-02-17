@@ -1,13 +1,10 @@
 use lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::{
-    ast::{Ident, Path},
-    hir::def_map::ModuleDefId,
-};
+use noirc_frontend::ast::{Ident, Path};
 
 use crate::{
     byte_span_to_range,
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::module_def_id_relative_path,
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
@@ -59,35 +56,16 @@ impl<'a> CodeActionFinder<'a> {
                     }
                 }
 
-                let module_full_path = if let Some(defining_module) = defining_module {
-                    relative_module_id_path(
-                        defining_module,
-                        &self.module_id,
-                        current_module_parent_id,
-                        self.interner,
-                    )
-                } else {
-                    let Some(module_full_path) = relative_module_full_path(
-                        module_def_id,
-                        self.module_id,
-                        current_module_parent_id,
-                        self.interner,
-                    ) else {
-                        continue;
-                    };
-                    module_full_path
-                };
-
-                let full_path = if defining_module.is_some()
-                    || !matches!(module_def_id, ModuleDefId::ModuleId(..))
-                {
-                    if let Some(reexport_name) = &intermediate_name {
-                        format!("{}::{}::{}", module_full_path, reexport_name, name)
-                    } else {
-                        format!("{}::{}", module_full_path, name)
-                    }
-                } else {
-                    module_full_path.clone()
+                let Some(full_path) = module_def_id_relative_path(
+                    module_def_id,
+                    name,
+                    self.module_id,
+                    current_module_parent_id,
+                    defining_module,
+                    &intermediate_name,
+                    self.interner,
+                ) else {
+                    continue;
                 };
 
                 self.push_import_code_action(&full_path);
