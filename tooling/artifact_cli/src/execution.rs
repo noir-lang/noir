@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use acir::{native_types::WitnessStack, FieldElement};
 use acvm::BlackBoxFunctionSolver;
@@ -79,8 +79,8 @@ pub fn save_and_check_witness(
     circuit: &CompiledProgram,
     results: ExecutionResults,
     circuit_name: &str,
-    witness_dir: Option<&PathBuf>,
-    witness_name: Option<&String>,
+    witness_dir: Option<&Path>,
+    witness_name: Option<&str>,
 ) -> Result<(), CliError> {
     println!("[{}] Circuit witness successfully solved", circuit_name);
     // Save first, so that we can potentially look at the output if the expectations fail.
@@ -95,10 +95,10 @@ pub fn save_witness(
     witness_stack: &WitnessStack<FieldElement>,
     circuit_name: &str,
     witness_dir: &Path,
-    witness_name: Option<&String>,
+    witness_name: Option<&str>,
 ) -> Result<(), CliError> {
-    let witness_name = witness_name.cloned().unwrap_or_else(|| circuit_name.to_string());
-    let witness_path = save_witness_to_dir(witness_stack, &witness_name, witness_dir)?;
+    let witness_name = witness_name.unwrap_or(circuit_name);
+    let witness_path = save_witness_to_dir(witness_stack, witness_name, witness_dir)?;
     println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
     Ok(())
 }

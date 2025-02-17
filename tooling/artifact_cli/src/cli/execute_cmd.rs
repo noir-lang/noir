@@ -88,8 +88,8 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
                 &circuit,
                 results,
                 &circuit_name,
-                args.output_dir.as_ref(),
-                args.witness_name.as_ref(),
+                args.output_dir.as_deref(),
+                args.witness_name.as_deref(),
             )?;
         }
         Err(CliError::CircuitExecutionError(err)) => {
