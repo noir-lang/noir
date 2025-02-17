@@ -309,7 +309,6 @@ impl<'a> FunctionContext<'a> {
             match numeric_type {
                 NumericType::NativeField => -value,
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    // The math here is a bit convoluted to avoid overflowing for u128
                     let base = if bit_size == 128 { u128::MAX } else { 2_u128.pow(bit_size) - 1 };
                     FieldElement::from(base) - value
                 }
