@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use log;
 use env_logger;
 
-#[derive(Arbitrary, Debug)]
+#[derive(Arbitrary, Debug, Clone)]
 enum Instructions {
     Add {
         lhs: u32,
@@ -39,6 +39,22 @@ enum Instructions {
         lhs: u32,
         rhs: u32,
     },
+    Lt {
+        lhs: u32,
+        rhs: u32,
+    },
+    And {
+        lhs: u32,
+        rhs: u32,
+    },
+    Or {
+        lhs: u32,
+        rhs: u32,
+    },
+    Xor {
+        lhs: u32,
+        rhs: u32,
+    },
 }
 
 fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
@@ -55,7 +71,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
 
     let mut acir_builder = FuzzerBuilder::new_acir();
     let mut brillig_builder = FuzzerBuilder::new_brillig();
-    let type_ = Type::field();
+    let type_ = Type::unsigned(64);
     acir_builder.insert_variables(type_.clone());
     brillig_builder.insert_variables(type_.clone());
 
@@ -73,9 +89,10 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
     let mut initial_witness = WitnessMap::new();
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);
-        let value = FieldElement::from(i + 1);
+        let value = FieldElement::from(i);
         initial_witness.insert(witness, value);
     }
+    log::debug!("instructions: {:?}", methods.clone());
 
 
     for method in methods {
@@ -124,7 +141,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
                 acir_witnesses_indeces.push(id_to_int(acir_result));
                 brillig_witnesses_indeces.push(id_to_int(brillig_result));
             }
-            /*Instructions::Lt { lhs, rhs } => {
+            Instructions::Lt { lhs, rhs } => {
                 if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
                     continue;
                 }
@@ -134,7 +151,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
                 let brillig_result = brillig_builder.insert_lt_instruction(lhs_id, rhs_id);
                 acir_witnesses_indeces.push(id_to_int(acir_result));
                 brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }*/
+            }
             Instructions::Eq { lhs, rhs } => {
                 if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
                     continue;
@@ -143,6 +160,39 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
                 let rhs_id = u32_to_id(rhs);
                 let acir_result = acir_builder.insert_eq_instruction(lhs_id, rhs_id);
                 let brillig_result = brillig_builder.insert_eq_instruction(lhs_id, rhs_id);
+                acir_witnesses_indeces.push(id_to_int(acir_result));
+                brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
+            Instructions::And { lhs, rhs } => {
+                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
+                    continue;
+                }
+                let lhs_id = u32_to_id(lhs);
+                let rhs_id = u32_to_id(rhs);
+                let acir_result = acir_builder.insert_and_instruction(lhs_id, rhs_id);
+                let brillig_result = brillig_builder.insert_and_instruction(lhs_id, rhs_id);
+                acir_witnesses_indeces.push(id_to_int(acir_result));
+                brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
+            Instructions::Or { lhs, rhs } => {
+                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
+                    continue;
+                }
+                let lhs_id = u32_to_id(lhs);
+                let rhs_id = u32_to_id(rhs);
+                let acir_result = acir_builder.insert_or_instruction(lhs_id, rhs_id);
+                let brillig_result = brillig_builder.insert_or_instruction(lhs_id, rhs_id);
+                acir_witnesses_indeces.push(id_to_int(acir_result));
+                brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
+            Instructions::Xor { lhs, rhs } => {
+                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
+                    continue;
+                }
+                let lhs_id = u32_to_id(lhs);
+                let rhs_id = u32_to_id(rhs);
+                let acir_result = acir_builder.insert_xor_instruction(lhs_id, rhs_id);
+                let brillig_result = brillig_builder.insert_xor_instruction(lhs_id, rhs_id);
                 acir_witnesses_indeces.push(id_to_int(acir_result));
                 brillig_witnesses_indeces.push(id_to_int(brillig_result));
             }
