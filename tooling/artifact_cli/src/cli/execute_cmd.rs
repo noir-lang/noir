@@ -21,7 +21,7 @@ use super::parse_and_normalize_path;
 pub(crate) struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
     #[clap(long, short, value_parser = parse_and_normalize_path)]
-    artifact: PathBuf,
+    artifact_path: PathBuf,
 
     /// Path to the Prover.toml file which contains the inputs and the
     /// optional return value in ABI format.
@@ -55,7 +55,7 @@ pub(crate) struct ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
-    let artifact = Artifact::read_from_file(&args.artifact)?;
+    let artifact = Artifact::read_from_file(&args.artifact_path)?;
 
     let circuit = match artifact {
         Artifact::Program(program) => Circuit {
@@ -169,7 +169,7 @@ fn save_witness(
     args: ExecuteCommand,
     solved: SolvedWitnesses,
 ) -> eyre::Result<()> {
-    let artifact = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let artifact = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
     let name = circuit
         .name
         .as_ref()
