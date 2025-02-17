@@ -90,16 +90,8 @@ impl<'a> CodeActionFinder<'a> {
                     module_full_path.clone()
                 };
 
-                let qualify_prefix = if let ModuleDefId::ModuleId(..) = module_def_id {
-                    let mut segments: Vec<_> = module_full_path.split("::").collect();
-                    segments.pop();
-                    segments.join("::")
-                } else {
-                    module_full_path
-                };
-
                 self.push_import_code_action(&full_path);
-                self.push_qualify_code_action(ident, &qualify_prefix, &full_path);
+                self.push_qualify_code_action(ident, &full_path);
             }
         }
     }
@@ -123,7 +115,7 @@ impl<'a> CodeActionFinder<'a> {
         self.code_actions.push(code_action);
     }
 
-    fn push_qualify_code_action(&mut self, ident: &Ident, prefix: &str, full_path: &str) {
+    fn push_qualify_code_action(&mut self, ident: &Ident, full_path: &str) {
         let Some(range) = byte_span_to_range(
             self.files,
             self.file,
@@ -131,6 +123,10 @@ impl<'a> CodeActionFinder<'a> {
         ) else {
             return;
         };
+
+        let mut prefix = full_path.split("::").collect::<Vec<_>>();
+        prefix.pop();
+        let prefix = prefix.join("::");
 
         let title = format!("Qualify as {}", full_path);
         let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
@@ -342,6 +338,41 @@ mod aztec {
 
 fn main() {
     SomeStruct
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_qualify_via_reexport() {
+        let title = "Qualify as aztec::protocol_types::SomeStruct";
+
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStr>|<uct
+}"#;
+
+        let expected = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    aztec::protocol_types::SomeStruct
 }"#;
 
         assert_code_action(title, src, expected).await;
