@@ -3255,4 +3255,57 @@ fn main() {
             apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
         assert_eq!(changed, expected);
     }
+
+    #[test]
+    async fn autocompletes_nested_type_via_parent_module_reexport() {
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                pub struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru>|<
+}"#;
+
+        let mut items = get_completions(src).await;
+        assert_eq!(items.len(), 1);
+
+        let item = items.remove(0);
+        assert_eq!(
+            item.label_details,
+            Some(CompletionItemLabelDetails {
+                detail: Some("(use aztec::protocol_types::nested::SomeStruct)".to_string()),
+                description: Some("SomeStruct".to_string()),
+            })
+        );
+
+        let expected = r#"use aztec::protocol_types::nested::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub mod nested {
+                pub struct SomeStruct {}
+            }
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStru
+}"#;
+
+        let changed =
+            apply_text_edits(&src.replace(">|<", ""), &item.additional_text_edits.unwrap());
+        assert_eq!(changed, expected);
+    }
 }

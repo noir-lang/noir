@@ -166,14 +166,14 @@ pub(crate) fn module_full_path(
     segments.join("::")
 }
 
-/// Finds a visible reexport for the parent module of the given ModuleDefId.
-pub(crate) fn get_parent_module_reexport<'a>(
+/// Finds a visible reexport for any ancestor module of the given ModuleDefId,
+pub(crate) fn get_ancestor_module_reexport(
     module_def_id: ModuleDefId,
     current_module_id: ModuleId,
-    interner: &'a NodeInterner,
+    interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     dependencies: &[Dependency],
-) -> Option<&'a Reexport> {
+) -> Option<Reexport> {
     let parent_module = get_parent_module(interner, module_def_id)?;
     let reexport =
         interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
@@ -186,9 +186,26 @@ pub(crate) fn get_parent_module_reexport<'a>(
                 def_maps,
                 dependencies,
             )
-        })?;
+        });
+    if let Some(reexport) = reexport {
+        return Some(reexport.clone());
+    }
 
-    Some(reexport)
+    // Try searching in the parent's parent module.
+    let mut grandparent_module_reexport = get_ancestor_module_reexport(
+        ModuleDefId::ModuleId(parent_module),
+        current_module_id,
+        interner,
+        def_maps,
+        dependencies,
+    )?;
+
+    // If we can find one we need to adjust the exported name a bit.
+    let parent_module_name = &interner.try_module_attributes(&parent_module)?.name;
+    grandparent_module_reexport.name.0.contents =
+        format!("{}::{}", grandparent_module_reexport.name.0.contents, parent_module_name);
+
+    Some(grandparent_module_reexport)
 }
 
 /// Returns the relative path to reach `module_def_id` named `name` starting from `current_module_id`.

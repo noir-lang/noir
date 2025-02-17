@@ -961,7 +961,14 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            interner.register_module(mod_id, visibility, mod_name.0.contents.clone());
+            let parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            interner.register_module(
+                mod_id,
+                location,
+                visibility,
+                mod_name.0.contents.clone(),
+                parent_module_id,
+            );
         }
     }
 

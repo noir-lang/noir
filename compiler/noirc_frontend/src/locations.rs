@@ -333,9 +333,12 @@ impl NodeInterner {
     pub(crate) fn register_module(
         &mut self,
         id: ModuleId,
+        location: Location,
         visibility: ItemVisibility,
         name: String,
+        parent_module_id: ModuleId,
     ) {
+        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 

@@ -1,7 +1,7 @@
 use noirc_frontend::{hir::def_map::ModuleDefId, node_interner::Reexport};
 
 use crate::{
-    modules::{get_parent_module_reexport, module_def_id_relative_path},
+    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
@@ -45,7 +45,7 @@ impl<'a> NodeFinder<'a> {
                 if !is_visible {
                     if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
                         defining_module = Some(reexport.module_id);
-                        intermediate_name = Some(reexport.name.clone());
+                        intermediate_name = Some(reexport.name);
                     } else {
                         continue;
                     }
@@ -101,8 +101,8 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<&Reexport> {
-        get_parent_module_reexport(
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<Reexport> {
+        get_ancestor_module_reexport(
             module_def_id,
             self.module_id,
             self.interner,

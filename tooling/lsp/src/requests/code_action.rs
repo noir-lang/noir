@@ -27,7 +27,7 @@ use noirc_frontend::{
 };
 
 use crate::{
-    modules::get_parent_module_reexport, use_segment_positions::UseSegmentPositions, utils,
+    modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions, utils,
     visibility::module_def_id_is_visible, LspState,
 };
 
@@ -212,8 +212,8 @@ impl<'a> CodeActionFinder<'a> {
         )
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<&Reexport> {
-        get_parent_module_reexport(
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<Reexport> {
+        get_ancestor_module_reexport(
             module_def_id,
             self.module_id,
             self.interner,

@@ -648,7 +648,7 @@ pub struct InternedPattern(noirc_arena::Index);
 /// }
 /// ```
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Reexport {
     pub module_id: ModuleId,
     pub name: Ident,

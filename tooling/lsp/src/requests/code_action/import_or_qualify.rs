@@ -50,7 +50,7 @@ impl<'a> CodeActionFinder<'a> {
                 if !is_visible {
                     if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
                         defining_module = Some(reexport.module_id);
-                        intermediate_name = Some(reexport.name.clone());
+                        intermediate_name = Some(reexport.name);
                     } else {
                         continue;
                     }
