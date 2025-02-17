@@ -183,15 +183,14 @@ fn update_function_calls(
 
             let func_value = &function.dfg[func_id];
             let Value::Function(func_id) = func_value else { continue };
-
-            if let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) {
-                new_functions_map.insert(*func_id, *new_id);
-                let new_function_value_id = function.dfg.import_function(*new_id);
-                function.dfg[instruction_id] =
-                    Instruction::Call { func: new_function_value_id, arguments: arguments.clone() };
-            } else {
+            let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
-            }
+            };
+
+            new_functions_map.insert(*func_id, *new_id);
+            let new_function_value_id = function.dfg.import_function(*new_id);
+            function.dfg[instruction_id] =
+                Instruction::Call { func: new_function_value_id, arguments: arguments.clone() };
         }
     }
 }
@@ -227,7 +226,7 @@ pub(crate) fn get_brillig_entry_points(
                 build_entry_points_map_recursive(
                     functions,
                     *func_id,
-                    called_function,
+                    *func_id,
                     &mut brillig_entry_points,
                     im::HashSet::new(),
                 );
@@ -243,7 +242,7 @@ pub(crate) fn get_brillig_entry_points(
         build_entry_points_map_recursive(
             functions,
             main_id,
-            &functions[&main_id],
+            main_id,
             &mut brillig_entry_points,
             im::HashSet::new(),
         );
@@ -256,15 +255,16 @@ pub(crate) fn get_brillig_entry_points(
 fn build_entry_points_map_recursive(
     functions: &BTreeMap<FunctionId, Function>,
     entry_point: FunctionId,
-    called_function: &Function,
+    called_function: FunctionId,
     brillig_entry_points: &mut BTreeMap<FunctionId, BTreeSet<FunctionId>>,
     mut explored_functions: im::HashSet<FunctionId>,
 ) {
-    if explored_functions.insert(called_function.id()).is_some() {
+    if explored_functions.insert(called_function).is_some() {
         return;
     }
 
-    let inner_calls = called_functions_vec(called_function).into_iter().collect::<HashSet<_>>();
+    let inner_calls: HashSet<FunctionId> =
+        called_functions_vec(&functions[&called_function]).into_iter().collect();
 
     for inner_call in inner_calls {
         if let Some(inner_calls) = brillig_entry_points.get_mut(&entry_point) {
@@ -274,7 +274,7 @@ fn build_entry_points_map_recursive(
         build_entry_points_map_recursive(
             functions,
             entry_point,
-            &functions[&inner_call],
+            inner_call,
             brillig_entry_points,
             explored_functions.clone(),
         );
