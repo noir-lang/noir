@@ -276,7 +276,7 @@ jobs:
           overwrite: true
 
   external_repo_compilation_and_execution_report:
-    needs: [build-nargo]
+    needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
@@ -393,7 +393,7 @@ jobs:
           overwrite: true
 
   external_repo_memory_report:
-    needs: [build-nargo]
+    needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
