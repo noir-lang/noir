@@ -84,6 +84,7 @@ name = "acvm_cli"
 version = "0.40.0"
 dependencies = [
  "acir",
+ "acvm",
  "bn254_blackbox_solver",
  "clap",
  "color-eyre",
@@ -93,6 +94,7 @@ dependencies = [
  "paste",
  "proptest",
  "rand",
+ "toml",
  "tracing-appender",
  "tracing-subscriber",
 ]

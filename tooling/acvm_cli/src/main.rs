@@ -10,6 +10,8 @@ use std::env;
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 
+mod fs;
+
 fn main() {
     // Setup tracing
     if let Ok(log_dir) = env::var("ACVM_LOG_DIR") {
