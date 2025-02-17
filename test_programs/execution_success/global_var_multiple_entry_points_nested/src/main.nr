@@ -2,7 +2,7 @@ global TWO: Field = 2;
 global THREE: Field = 3;
 
 fn main(x: Field, y: pub Field) {
-    /// Safety: testing context
+    // Safety: testing context
     unsafe {
         entry_point_one(x, y);
         entry_point_two(x, y);
