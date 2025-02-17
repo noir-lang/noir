@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739803126298,
+  "lastUpdate": 1739803132188,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12422,100 +12422,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d5d6cb7c8520ab3fa635db2b4f690fa333e78e59",
-          "message": "fix(ssa): Unused functions removals post folding constant Brillig calls (#7265)",
-          "timestamp": "2025-02-04T09:12:48Z",
-          "tree_id": "129308947d84d7b1ceea18dce6cbedf5f0863785",
-          "url": "https://github.com/noir-lang/noir/commit/d5d6cb7c8520ab3fa635db2b4f690fa333e78e59"
-        },
-        "date": 1738662043715,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.22,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.26,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15965,6 +15871,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 315.3,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "582f56e6b6ea43ab79b08aacfe7f1ba67a097f26",
+          "message": "feat: while statement (#7280)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-02-17T14:12:58Z",
+          "tree_id": "07d00a3112cf89a5f403bac527552d1dd43ac77b",
+          "url": "https://github.com/noir-lang/noir/commit/582f56e6b6ea43ab79b08aacfe7f1ba67a097f26"
+        },
+        "date": 1739803129936,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 216.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.79,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 186.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 434.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 373.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-merge",
+            "value": 319.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1040,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 311.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 319.34,
             "unit": "MB"
           }
         ]
