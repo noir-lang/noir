@@ -88,7 +88,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
 
         let package_name = package.name.clone().into();
         let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
-        let witness_path = save_witness_to_dir(results.witness_stack, witness_name, target_dir)?;
+        let witness_path = save_witness_to_dir(&results.witness_stack, witness_name, target_dir)?;
         println!("[{}] Witness saved to {}", package.name, witness_path.display());
 
         // Sanity checks on the return value after the witness has been saved, so it can be inspected if necessary.

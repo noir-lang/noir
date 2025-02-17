@@ -67,7 +67,7 @@ pub fn create_output_witness_string(
 
 /// Write `witness.gz` to the output directory.
 pub fn save_witness_to_dir(
-    witnesses: WitnessStack<FieldElement>,
+    witnesses: &WitnessStack<FieldElement>,
     witness_name: &str,
     witness_dir: &Path,
 ) -> Result<PathBuf, CliError> {

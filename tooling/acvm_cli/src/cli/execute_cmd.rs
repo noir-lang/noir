@@ -56,7 +56,7 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     )?;
     if args.output_witness.is_some() {
         save_witness_to_dir(
-            output_witness,
+            &output_witness,
             &args.output_witness.unwrap(),
             &args.working_directory,
         )?;

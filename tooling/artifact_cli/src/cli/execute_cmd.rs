@@ -1,18 +1,15 @@
 use std::path::PathBuf;
 
-use acir::{native_types::WitnessStack, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
-use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, PrintOutput};
 use noir_artifact_cli::{
     errors::CliError,
-    fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
+    execution::{self, ExecutionResults},
     Artifact,
 };
-use noirc_abi::input_parser::InputValue;
-use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
@@ -86,11 +83,17 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     };
 
     match execute(&circuit, &args) {
-        Ok(solved) => {
-            save_witness(circuit, &args, &circuit_name, solved)?;
+        Ok(results) => {
+            execution::save_and_check_witness(
+                &circuit,
+                results,
+                &circuit_name,
+                args.output_dir.as_ref(),
+                args.witness_name.as_ref(),
+            )?;
         }
         Err(CliError::CircuitExecutionError(err)) => {
-            show_diagnostic(circuit, err);
+            execution::show_diagnostic(circuit, err);
         }
         Err(e) => {
             bail!("failed to execute the circuit: {e}");
@@ -99,18 +102,8 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-struct SolvedWitnesses {
-    expected_return: Option<InputValue>,
-    actual_return: Option<InputValue>,
-    witness_stack: WitnessStack<FieldElement>,
-}
-
 /// Execute a circuit and return the output witnesses.
-fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<SolvedWitnesses, CliError> {
-    let (input_map, expected_return) = read_inputs_from_file(&args.prover_file, &circuit.abi)?;
-
-    let initial_witness = circuit.abi.encode(&input_map, None)?;
-
+fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<ExecutionResults, CliError> {
     // TODO: Build a custom foreign call executor that reads from the Oracle transcript,
     // and use it as a base for the default executor; see `DefaultForeignCallBuilder::build_with_base`
     let mut foreign_call_executor = DefaultForeignCallBuilder {
@@ -122,71 +115,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<SolvedWit
     }
     .build();
 
-    let witness_stack = nargo::ops::execute_program(
-        &circuit.program,
-        initial_witness,
-        &Bn254BlackBoxSolver(args.pedantic_solving),
-        &mut foreign_call_executor,
-    )?;
+    let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
 
-    let main_witness =
-        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-
-    let (_, actual_return) = circuit.abi.decode(main_witness)?;
-
-    Ok(SolvedWitnesses { expected_return, actual_return, witness_stack })
-}
-
-/// Print an error stack trace, if possible.
-fn show_diagnostic(circuit: CompiledProgram, err: NargoError<FieldElement>) {
-    if let Some(diagnostic) =
-        nargo::errors::try_to_diagnose_runtime_error(&err, &circuit.abi, &circuit.debug)
-    {
-        let debug_artifact =
-            DebugArtifact { debug_symbols: circuit.debug, file_map: circuit.file_map };
-
-        diagnostic.report(&debug_artifact, false);
-    }
-}
-
-/// Print information about the witness and compare to expectations,
-/// returning errors if something isn't right.
-fn save_witness(
-    circuit: CompiledProgram,
-    args: &ExecuteCommand,
-    circuit_name: &str,
-    solved: SolvedWitnesses,
-) -> eyre::Result<()> {
-    println!("[{}] Circuit witness successfully solved", circuit_name);
-
-    if let Some(ref witness_dir) = args.output_dir {
-        let witness_path = save_witness_to_dir(
-            solved.witness_stack,
-            &args.witness_name.clone().unwrap_or_else(|| circuit_name.to_string()),
-            witness_dir,
-        )?;
-        println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
-    }
-
-    // Check that the circuit returned a non-empty result if the ABI expects a return value.
-    if let Some(ref expected) = circuit.abi.return_type {
-        if solved.actual_return.is_none() {
-            bail!("Missing return witness; expected a value of type {expected:?}");
-        }
-    }
-
-    // Check that if the prover file contained a `return` entry then that's what we got.
-    if let Some(expected) = solved.expected_return {
-        match solved.actual_return {
-            None => {
-                bail!("Missing return witness;\nexpected:\n{expected:?}");
-            }
-            Some(actual) if actual != expected => {
-                bail!("Unexpected return witness;\nexpected:\n{expected:?}\ngot:\n{actual:?}");
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
+    execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.prover_file)
 }

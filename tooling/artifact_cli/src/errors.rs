@@ -1,6 +1,10 @@
 use acir::FieldElement;
 use nargo::NargoError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_abi::{
+    errors::{AbiError, InputParserError},
+    input_parser::InputValue,
+    AbiReturnType,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -61,4 +65,10 @@ pub enum CliError {
 
     #[error("Failed to serialize output witness: {0}")]
     OutputWitnessSerializationFailed(#[from] toml::ser::Error),
+
+    #[error("Unexpected return value: expected {expected:?}; got {actual:?}")]
+    UnexpectedReturn { expected: InputValue, actual: Option<InputValue> },
+
+    #[error("Missing return witnesses; expected {expected:?}")]
+    MissingReturn { expected: AbiReturnType },
 }
