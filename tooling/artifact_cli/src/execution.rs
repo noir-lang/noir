@@ -62,12 +62,14 @@ where
 }
 
 /// Print an error stack trace, if possible.
-pub fn show_diagnostic(circuit: CompiledProgram, err: NargoError<FieldElement>) {
+pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>) {
     if let Some(diagnostic) =
-        nargo::errors::try_to_diagnose_runtime_error(&err, &circuit.abi, &circuit.debug)
+        nargo::errors::try_to_diagnose_runtime_error(err, &circuit.abi, &circuit.debug)
     {
-        let debug_artifact =
-            DebugArtifact { debug_symbols: circuit.debug, file_map: circuit.file_map };
+        let debug_artifact = DebugArtifact {
+            debug_symbols: circuit.debug.clone(),
+            file_map: circuit.file_map.clone(),
+        };
 
         diagnostic.report(&debug_artifact, false);
     }

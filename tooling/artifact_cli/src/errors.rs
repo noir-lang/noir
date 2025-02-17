@@ -71,4 +71,10 @@ pub enum CliError {
 
     #[error("Missing return witnesses; expected {expected:?}")]
     MissingReturn { expected: AbiReturnType },
+
+    #[error("Missing contract function name; options: {names:?}")]
+    MissingContractFn { names: Vec<String> },
+
+    #[error("Unknown contract function '{name}'; options: {names:?}")]
+    UnknownContractFn { name: String, names: Vec<String> },
 }
