@@ -2,7 +2,7 @@
 //
 // The features being tested is using assert on brillig
 fn main(x: Field) {
-    /// Safety: testing context
+    // Safety: testing context
     assert(1 == unsafe { conditional(x as bool) });
 }
 
