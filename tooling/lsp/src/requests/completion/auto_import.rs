@@ -1,7 +1,10 @@
-use noirc_frontend::hir::def_map::ModuleDefId;
+use noirc_frontend::{
+    ast::Ident,
+    hir::def_map::{ModuleDefId, ModuleId},
+};
 
 use crate::{
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::{get_parent_module, relative_module_full_path, relative_module_id_path},
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
@@ -33,8 +36,20 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 }
 
-                if !self.module_def_id_is_visible(*module_def_id, *visibility, *defining_module) {
-                    continue;
+                let mut defining_module = defining_module.as_ref().cloned();
+                let mut intermediate_name = None;
+
+                let is_visible =
+                    self.module_def_id_is_visible(*module_def_id, *visibility, defining_module);
+                if !is_visible {
+                    if let Some((parent_module_reexport, reexport_name)) =
+                        self.get_parent_module_reexport(*module_def_id)
+                    {
+                        defining_module = Some(parent_module_reexport);
+                        intermediate_name = Some(reexport_name);
+                    } else {
+                        continue;
+                    }
                 }
 
                 let completion_items = self.module_def_id_completion_items(
@@ -54,7 +69,7 @@ impl<'a> NodeFinder<'a> {
                 for mut completion_item in completion_items {
                     let module_full_path = if let Some(defining_module) = defining_module {
                         relative_module_id_path(
-                            *defining_module,
+                            defining_module,
                             &self.module_id,
                             current_module_parent_id,
                             self.interner,
@@ -74,7 +89,11 @@ impl<'a> NodeFinder<'a> {
                     let full_path = if defining_module.is_some()
                         || !matches!(module_def_id, ModuleDefId::ModuleId(..))
                     {
-                        format!("{}::{}", module_full_path, name)
+                        if let Some(reexport_name) = &intermediate_name {
+                            format!("{}::{}::{}", module_full_path, reexport_name, name)
+                        } else {
+                            format!("{}::{}", module_full_path, name)
+                        }
                     } else {
                         module_full_path
                     };
@@ -100,5 +119,19 @@ impl<'a> NodeFinder<'a> {
                 }
             }
         }
+    }
+
+    /// Finds a visible reexport for the parent module of the given ModuleDefId.
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<(ModuleId, Ident)> {
+        let parent_module = get_parent_module(self.interner, module_def_id)?;
+        let (parent_module_reexport, name, _) = self
+            .interner
+            .get_reexports(ModuleDefId::ModuleId(parent_module))
+            .iter()
+            .find(|(module_id, _, visibility)| {
+                self.module_def_id_is_visible(ModuleDefId::ModuleId(*module_id), *visibility, None)
+            })?;
+
+        Some((*parent_module_reexport, name.clone()))
     }
 }

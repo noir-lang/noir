@@ -23,7 +23,7 @@ pub(super) fn module_def_id_is_visible(
     mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
-    dependencies: &Vec<Dependency>,
+    dependencies: &[Dependency],
 ) -> bool {
     // First find out which module we need to check.
     // If a module is trying to be referenced, it's that module. Otherwise it's the module that contains the item.

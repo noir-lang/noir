@@ -2278,8 +2278,15 @@ impl NodeInterner {
         self.reexports.entry(module_def_id).or_default().push((module_id, name, visibility));
     }
 
+    pub fn get_reexports(
+        &self,
+        module_def_id: ModuleDefId,
+    ) -> &[(ModuleId, Ident, ItemVisibility)] {
+        self.reexports.get(&module_def_id).map_or(&[], |exports| exports)
+    }
+
     pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[(ModuleId, Ident, ItemVisibility)] {
-        self.reexports.get(&ModuleDefId::TraitId(trait_id)).map_or(&[], |exports| exports)
+        self.get_reexports(ModuleDefId::TraitId(trait_id))
     }
 }
 
