@@ -1,5 +1,5 @@
 fn main() {
-    /// Safety: test code
+    // Safety: test code
     unsafe {
         check_loop();
     }
