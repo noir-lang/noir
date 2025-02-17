@@ -113,8 +113,8 @@ struct DependencyContext {
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
     // Map of argument value ids to the Brillig call ids employing them
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
-    // Maintains count of calls being tracked
-    tracking_count: usize,
+    // The set of calls currently being tracked
+    tracking: HashSet<(FunctionId, InstructionId)>,
     // Opt-in to use the lookback feature (tracking the argument values
     // of a Brillig call before the call happens if their usage precedes
     // it). Can prevent certain false positives, at the cost of
@@ -396,7 +396,7 @@ impl DependencyContext {
                         for call in calls {
                             if let Some(tainted_ids) = self.tainted.get_mut(call) {
                                 tainted_ids.tracking = true;
-                                self.tracking_count += 1;
+                                self.tracking.insert((function.id(), *instruction));
                             }
                         }
                     }
@@ -405,12 +405,12 @@ impl DependencyContext {
             if let Some(tainted_ids) = self.tainted.get_mut(instruction) {
                 if !tainted_ids.tracking {
                     tainted_ids.tracking = true;
-                    self.tracking_count += 1;
+                    self.tracking.insert((function.id(), *instruction));
                 }
             }
 
             // We can skip over instructions while nothing is being tracked
-            if self.tracking_count > 0 {
+            if !self.tracking.is_empty() {
                 let mut results = Vec::new();
 
                 // Collect non-constant instruction results
@@ -606,9 +606,9 @@ impl DependencyContext {
             }
         }
 
-        self.tainted.retain(|_, tainted_ids| {
+        self.tainted.retain(|call, tainted_ids| {
             if tainted_ids.check_constrained() {
-                self.tracking_count -= 1;
+                self.tracking.remove(&(function.id(), *call));
                 false
             } else {
                 true
