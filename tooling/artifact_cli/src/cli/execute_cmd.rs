@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 
-use acir::{circuit::Program, native_types::WitnessStack, FieldElement};
+use acir::{native_types::WitnessStack, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
@@ -11,8 +11,9 @@ use noir_artifact_cli::{
     fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
     Artifact,
 };
-use noirc_abi::{input_parser::InputValue, Abi};
+use noirc_abi::input_parser::InputValue;
 use noirc_artifacts::debug::DebugArtifact;
+use noirc_driver::CompiledProgram;
 
 use super::parse_and_normalize_path;
 
@@ -65,15 +66,10 @@ pub(crate) struct ExecuteCommand {
 
 pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(&args.artifact)?;
+    let artifact_name = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
-    let circuit = match artifact {
-        Artifact::Program(program) => Circuit {
-            name: None,
-            abi: program.abi,
-            bytecode: program.bytecode,
-            debug_symbols: program.debug_symbols,
-            file_map: program.file_map,
-        },
+    let (circuit, circuit_name): (CompiledProgram, String) = match artifact {
+        Artifact::Program(program) => (program.into(), artifact_name.to_string()),
         Artifact::Contract(contract) => {
             let names =
                 contract.functions.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(",");
@@ -81,23 +77,17 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
             let Some(ref name) = args.contract_fn else {
                 bail!("--contract-fn missing; options: [{names}]");
             };
-            let Some(function) = contract.functions.into_iter().find(|f| f.name == *name) else {
+            let Some(program) = contract.function_as_compiled_program(name) else {
                 bail!("unknown --contract-fn '{name}'; options: [{names}]");
             };
 
-            Circuit {
-                name: Some(name.clone()),
-                abi: function.abi,
-                bytecode: function.bytecode,
-                debug_symbols: function.debug_symbols,
-                file_map: contract.file_map,
-            }
+            (program, format!("{artifact_name}::{name}"))
         }
     };
 
     match execute(&circuit, &args) {
         Ok(solved) => {
-            save_witness(circuit, args, solved)?;
+            save_witness(circuit, &args, &circuit_name, solved)?;
         }
         Err(CliError::CircuitExecutionError(err)) => {
             show_diagnostic(circuit, err);
@@ -109,15 +99,6 @@ pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-/// Parameters necessary to execute a circuit, display execution failures, etc.
-struct Circuit {
-    name: Option<String>,
-    abi: Abi,
-    bytecode: Program<FieldElement>,
-    debug_symbols: noirc_errors::debug_info::ProgramDebugInfo,
-    file_map: BTreeMap<fm::FileId, noirc_driver::DebugFile>,
-}
-
 struct SolvedWitnesses {
     expected_return: Option<InputValue>,
     actual_return: Option<InputValue>,
@@ -125,7 +106,7 @@ struct SolvedWitnesses {
 }
 
 /// Execute a circuit and return the output witnesses.
-fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, CliError> {
+fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<SolvedWitnesses, CliError> {
     let (input_map, expected_return) = read_inputs_from_file(&args.prover_file, &circuit.abi)?;
 
     let initial_witness = circuit.abi.encode(&input_map, None)?;
@@ -142,7 +123,7 @@ fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, 
     .build();
 
     let witness_stack = nargo::ops::execute_program(
-        &circuit.bytecode,
+        &circuit.program,
         initial_witness,
         &Bn254BlackBoxSolver(args.pedantic_solving),
         &mut foreign_call_executor,
@@ -157,16 +138,13 @@ fn execute(circuit: &Circuit, args: &ExecuteCommand) -> Result<SolvedWitnesses, 
 }
 
 /// Print an error stack trace, if possible.
-fn show_diagnostic(circuit: Circuit, err: NargoError<FieldElement>) {
-    if let Some(diagnostic) = nargo::errors::try_to_diagnose_runtime_error(
-        &err,
-        &circuit.abi,
-        &circuit.debug_symbols.debug_infos,
-    ) {
-        let debug_artifact = DebugArtifact {
-            debug_symbols: circuit.debug_symbols.debug_infos,
-            file_map: circuit.file_map,
-        };
+fn show_diagnostic(circuit: CompiledProgram, err: NargoError<FieldElement>) {
+    if let Some(diagnostic) =
+        nargo::errors::try_to_diagnose_runtime_error(&err, &circuit.abi, &circuit.debug)
+    {
+        let debug_artifact =
+            DebugArtifact { debug_symbols: circuit.debug, file_map: circuit.file_map };
+
         diagnostic.report(&debug_artifact, false);
     }
 }
@@ -174,26 +152,20 @@ fn show_diagnostic(circuit: Circuit, err: NargoError<FieldElement>) {
 /// Print information about the witness and compare to expectations,
 /// returning errors if something isn't right.
 fn save_witness(
-    circuit: Circuit,
-    args: ExecuteCommand,
+    circuit: CompiledProgram,
+    args: &ExecuteCommand,
+    circuit_name: &str,
     solved: SolvedWitnesses,
 ) -> eyre::Result<()> {
-    let artifact = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
-    let name = circuit
-        .name
-        .as_ref()
-        .map(|name| format!("{artifact}.{name}"))
-        .unwrap_or_else(|| artifact.to_string());
-
-    println!("[{}] Circuit witness successfully solved", name);
+    println!("[{}] Circuit witness successfully solved", circuit_name);
 
     if let Some(ref witness_dir) = args.output_dir {
         let witness_path = save_witness_to_dir(
             solved.witness_stack,
-            &args.witness_name.unwrap_or_else(|| name.clone()),
+            &args.witness_name.clone().unwrap_or_else(|| circuit_name.to_string()),
             witness_dir,
         )?;
-        println!("[{}] Witness saved to {}", name, witness_path.display());
+        println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
     }
 
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
