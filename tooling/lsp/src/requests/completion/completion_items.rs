@@ -395,15 +395,15 @@ impl<'a> NodeFinder<'a> {
         let (trait_id, trait_reexport) = trait_info?;
 
         let trait_name = if let Some(trait_reexport) = trait_reexport {
-            trait_reexport.name
+            trait_reexport.name.clone()
         } else {
             let trait_ = self.interner.get_trait(trait_id);
-            &trait_.name
+            trait_.name.clone()
         };
 
         let module_data =
             &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-        if !module_data.scope().find_name(trait_name).is_none() {
+        if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }
 
@@ -411,7 +411,7 @@ impl<'a> NodeFinder<'a> {
         let current_module_parent_id = self.module_id.parent(self.def_maps);
         let module_full_path = if let Some(reexport_data) = trait_reexport {
             relative_module_id_path(
-                *reexport_data.module_id,
+                reexport_data.module_id,
                 &self.module_id,
                 current_module_parent_id,
                 self.interner,

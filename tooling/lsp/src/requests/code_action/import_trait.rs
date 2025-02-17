@@ -56,32 +56,43 @@ impl<'a> CodeActionFinder<'a> {
         let visibility = trait_.visibility;
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let mut trait_reexport = None;
+        let mut intermediate_name = None;
 
         if !self.module_def_id_is_visible(module_def_id, visibility, None) {
             // If it's not, try to find a visible reexport of the trait
             // that is visible from the current module
-            let Some((visible_module_id, name, _)) =
+            if let Some((visible_module_id, name, _)) =
                 self.interner.get_trait_reexports(trait_id).iter().find(
                     |(module_id, _, visibility)| {
                         self.module_def_id_is_visible(module_def_id, *visibility, Some(*module_id))
                     },
                 )
-            else {
+            {
+                trait_reexport =
+                    Some(TraitReexport { module_id: *visible_module_id, name: name.clone() });
+            } else if let Some((parent_module_reexport, reexport_name)) =
+                self.get_parent_module_reexport(module_def_id)
+            {
+                trait_reexport = Some(TraitReexport {
+                    module_id: parent_module_reexport,
+                    name: trait_.name.clone(),
+                });
+                intermediate_name = Some(reexport_name);
+            } else {
                 return;
-            };
-            trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+            }
         }
 
         let trait_name = if let Some(trait_reexport) = &trait_reexport {
-            trait_reexport.name
+            trait_reexport.name.clone()
         } else {
-            &trait_.name
+            trait_.name.clone()
         };
 
         // Check if the trait is currently imported. If yes, no need to suggest anything
         let module_data =
             &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-        if !module_data.scope().find_name(trait_name).is_none() {
+        if !module_data.scope().find_name(&trait_name).is_none() {
             return;
         }
 
@@ -89,7 +100,7 @@ impl<'a> CodeActionFinder<'a> {
         let current_module_parent_id = self.module_id.parent(self.def_maps);
         let module_full_path = if let Some(trait_reexport) = &trait_reexport {
             relative_module_id_path(
-                *trait_reexport.module_id,
+                trait_reexport.module_id,
                 &self.module_id,
                 current_module_parent_id,
                 self.interner,
@@ -106,7 +117,11 @@ impl<'a> CodeActionFinder<'a> {
             path
         };
 
-        let full_path = format!("{}::{}", module_full_path, trait_name);
+        let full_path = if let Some(intermediate_name) = intermediate_name {
+            format!("{}::{}::{}", module_full_path, intermediate_name, trait_name)
+        } else {
+            format!("{}::{}", module_full_path, trait_name)
+        };
 
         let title = format!("Import {}", full_path);
 
@@ -384,6 +399,57 @@ mod moo {
 
     pub use nested::Foo as Baz;
     pub use nested::Foo as Qux;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foobar();
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_trait_via_module_reexport() {
+        let title = "Import moo::another::Foo";
+
+        let src = r#"mod moo {
+    mod nested {
+        pub mod another {
+            pub trait Foo {
+                fn foobar(self);
+            }
+
+            impl Foo for Field {
+                fn foobar(self) {}
+            }
+        }
+    }
+
+    pub use nested::another;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foo>|<bar();
+}"#;
+
+        let expected = r#"use moo::another::Foo;
+
+mod moo {
+    mod nested {
+        pub mod another {
+            pub trait Foo {
+                fn foobar(self);
+            }
+
+            impl Foo for Field {
+                fn foobar(self) {}
+            }
+        }
+    }
+
+    pub use nested::another;
 }
 
 fn main() {

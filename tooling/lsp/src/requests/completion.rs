@@ -707,7 +707,10 @@ impl<'a> NodeFinder<'a> {
                             continue;
                         };
 
-                        trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+                        trait_reexport = Some(TraitReexport {
+                            module_id: *visible_module_id,
+                            name: name.clone(),
+                        });
                     }
                 }
 
