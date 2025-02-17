@@ -110,11 +110,11 @@ struct DependencyContext {
     side_effects_condition: Option<ValueId>,
     // Map of Brillig call ids to sets of the value ids descending
     // from their arguments and results
-    tainted: BTreeMap<(FunctionId, InstructionId), BrilligTaintedIds>,
+    tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
     // Map of argument value ids to the Brillig call ids employing them
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
     // The set of calls currently being tracked
-    tracking: HashSet<(FunctionId, InstructionId)>,
+    tracking: HashSet<InstructionId>,
     // Opt-in to use the lookback feature (tracking the argument values
     // of a Brillig call before the call happens if their usage precedes
     // it). Can prevent certain false positives, at the cost of
@@ -355,7 +355,7 @@ impl DependencyContext {
 
                             if !wrapped_call_found {
                                 // Record the current call, remember the argument values involved
-                                self.tainted.insert((function.id(), *instruction), current_tainted);
+                                self.tainted.insert(*instruction, current_tainted);
                                 arguments.iter().for_each(|value| {
                                     self.call_arguments
                                         .entry(*value)
@@ -391,15 +391,15 @@ impl DependencyContext {
                 for argument in &arguments {
                     if let Some(calls) = self.call_arguments.get(argument) {
                         for call in calls {
-                            if self.tainted.get(&(function.id(), *call)).is_some() {
-                                self.tracking.insert((function.id(), *call));
+                            if self.tainted.get(call).is_some() {
+                                self.tracking.insert(*call);
                             }
                         }
                     }
                 }
             }
-            if self.tainted.get(&(function.id(), *instruction)).is_some() {
-                self.tracking.insert((function.id(), *instruction));
+            if self.tainted.get(instruction).is_some() {
+                self.tracking.insert(*instruction);
             }
 
             // We can skip over instructions while nothing is being tracked
@@ -550,11 +550,11 @@ impl DependencyContext {
         let warnings: Vec<SsaReport> = self
             .tainted
             .keys()
-            .map(|(_, brillig_call)| {
+            .map(|brillig_call| {
                 trace!(
                     "tainted structure for {:?}: {:?}",
                     brillig_call,
-                    self.tainted[&(function.id(), *brillig_call)]
+                    self.tainted[brillig_call]
                 );
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
                     call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
