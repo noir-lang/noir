@@ -1,23 +1,14 @@
-use std::path::PathBuf;
+use std::path::Path;
 
-use acvm::acir::native_types::WitnessStack;
-use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::PrintOutput;
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
-use noir_artifact_cli::fs::inputs::read_inputs_from_file;
-use noir_artifact_cli::fs::witness::save_witness_to_dir;
-use noirc_abi::input_parser::InputValue;
-use noirc_abi::InputMap;
-use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::compile_cmd::compile_workspace_full;
@@ -60,8 +51,6 @@ impl WorkspaceCommand for ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
-    let target_dir = &workspace.target_directory_path();
-
     // Compile the full workspace in order to generate any build artifacts.
     compile_workspace_full(&workspace, &args.compile_options)?;
 
@@ -69,118 +58,60 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
         let program: CompiledProgram = read_program_from_file(&program_artifact_path)?.into();
-        let abi = program.abi.clone();
+        let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
 
-        let results = execute_program_and_decode(
+        execute_program_and_save_witness(
+            &args,
+            &workspace,
+            package.name.to_string(),
             program,
-            package,
-            &args.prover_name,
-            args.oracle_resolver.as_deref(),
-            Some(workspace.root_dir.clone()),
-            Some(package.name.to_string()),
-            args.compile_options.pedantic_solving,
+            &prover_file,
         )?;
-
-        println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(ref return_value) = results.actual_return {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
-        }
-
-        let package_name = package.name.clone().into();
-        let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
-        let witness_path = save_witness_to_dir(&results.witness_stack, witness_name, target_dir)?;
-        println!("[{}] Witness saved to {}", package.name, witness_path.display());
-
-        // Sanity checks on the return value after the witness has been saved, so it can be inspected if necessary.
-        if let Some(expected) = results.expected_return {
-            if results.actual_return.as_ref() != Some(&expected) {
-                return Err(CliError::UnexpectedReturn { expected, actual: results.actual_return });
-            }
-        }
-        // We can expect that if the circuit returns something, it should be non-empty after execution.
-        if let Some(ref expected) = abi.return_type {
-            if results.actual_return.is_none() {
-                return Err(CliError::MissingReturn { expected: expected.clone() });
-            }
-        }
     }
     Ok(())
 }
 
-fn execute_program_and_decode(
-    program: CompiledProgram,
-    package: &Package,
-    prover_name: &str,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
-    pedantic_solving: bool,
-) -> Result<ExecutionResults, CliError> {
-    // Parse the initial witness values from Prover.toml
-    let (inputs_map, expected_return) = read_inputs_from_file(
-        &package.root_dir.join(prover_name).with_extension("toml"),
-        &program.abi,
-    )?;
-    let witness_stack = execute_program(
-        &program,
-        &inputs_map,
-        foreign_call_resolver_url,
-        root_path,
-        package_name,
-        pedantic_solving,
-    )?;
-    // Get the entry point witness for the ABI
-    let main_witness =
-        &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-    let (_, actual_return) = program.abi.decode(main_witness)?;
+fn execute_program_and_save_witness(
+    args: &ExecuteCommand,
+    workspace: &Workspace,
+    package_name: String,
+    compiled_program: CompiledProgram,
+    prover_file: &Path,
+) -> Result<(), CliError> {
+    let blackbox_solver = Bn254BlackBoxSolver(args.compile_options.pedantic_solving);
 
-    Ok(ExecutionResults { expected_return, actual_return, witness_stack })
-}
+    let mut foreign_call_executor = DefaultForeignCallBuilder {
+        output: PrintOutput::Stdout,
+        enable_mocks: false,
+        resolver_url: args.oracle_resolver.clone(),
+        root_path: Some(workspace.root_dir.to_path_buf()),
+        package_name: Some(package_name.clone()),
+    }
+    .build();
 
-struct ExecutionResults {
-    expected_return: Option<InputValue>,
-    actual_return: Option<InputValue>,
-    witness_stack: WitnessStack<FieldElement>,
-}
+    match noir_artifact_cli::execution::execute(
+        &compiled_program,
+        &blackbox_solver,
+        &mut foreign_call_executor,
+        prover_file,
+    ) {
+        Ok(results) => {
+            let witness_name = args.witness_name.as_ref().unwrap_or(&package_name);
 
-pub(crate) fn execute_program(
-    compiled_program: &CompiledProgram,
-    inputs_map: &InputMap,
-    foreign_call_resolver_url: Option<&str>,
-    root_path: Option<PathBuf>,
-    package_name: Option<String>,
-    pedantic_solving: bool,
-) -> Result<WitnessStack<FieldElement>, CliError> {
-    let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
-
-    let solved_witness_stack_err = nargo::ops::execute_program(
-        &compiled_program.program,
-        initial_witness,
-        &Bn254BlackBoxSolver(pedantic_solving),
-        &mut DefaultForeignCallBuilder {
-            output: PrintOutput::Stdout,
-            enable_mocks: false,
-            resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-            root_path,
-            package_name,
+            noir_artifact_cli::execution::save_and_check_witness(
+                &compiled_program,
+                results,
+                &package_name,
+                Some(&workspace.target_directory_path()),
+                Some(witness_name),
+            )?;
         }
-        .build(),
-    );
-    match solved_witness_stack_err {
-        Ok(solved_witness_stack) => Ok(solved_witness_stack),
-        Err(err) => {
-            let debug_artifact = DebugArtifact {
-                debug_symbols: compiled_program.debug.clone(),
-                file_map: compiled_program.file_map.clone(),
-            };
-
-            if let Some(diagnostic) =
-                try_to_diagnose_runtime_error(&err, &compiled_program.abi, &compiled_program.debug)
-            {
-                diagnostic.report(&debug_artifact, false);
-            }
-
-            Err(CliError::NargoError(err))
+        Err(noir_artifact_cli::errors::CliError::CircuitExecutionError(err)) => {
+            noir_artifact_cli::execution::show_diagnostic(compiled_program, err);
+        }
+        Err(e) => {
+            return Err(e.into());
         }
     }
+    Ok(())
 }
