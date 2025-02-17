@@ -42,7 +42,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{unwrap_rc, Value};
+use super::value::{unwrap_rc, Closure, Value};
 
 mod builtin;
 mod foreign;
@@ -264,7 +264,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn call_closure(
         &mut self,
-        closure: HirLambda,
+        lambda: HirLambda,
         environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
         function_scope: Option<FuncId>,
@@ -275,7 +275,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
-        let result = self.call_closure_inner(closure, environment, arguments, call_location);
+        let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
         self.current_function = old_function;
         self.elaborator.replace_module(old_module);
@@ -1369,9 +1369,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 Ok(result)
             }
-            Value::Closure(closure, env, _, function_scope, module_scope) => {
-                self.call_closure(closure, env, arguments, function_scope, module_scope, location)
-            }
+            Value::Closure(closure) => self.call_closure(
+                closure.lambda,
+                closure.env,
+                arguments,
+                closure.function_scope,
+                closure.module_scope,
+                location,
+            ),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1560,12 +1565,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
-        let environment =
+        let env =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        let module = self.elaborator.module_id();
-        Ok(Value::Closure(lambda, environment, typ, self.current_function, module))
+        let module_scope = self.elaborator.module_id();
+        let closure =
+            Closure { lambda, env, typ, function_scope: self.current_function, module_scope };
+        Ok(Value::Closure(Box::new(closure)))
     }
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
