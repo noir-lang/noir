@@ -20,11 +20,11 @@ pub(super) fn hover_from_visitor(
     let file_id = file_id?;
     let file = args.files.get_file(file_id)?;
     let source = file.source();
-    let (parsed_moduled, _errors) = parse_program(source);
+    let (parsed_module, _errors) = parse_program(source);
     let byte_index = utils::position_to_byte_index(args.files, file_id, &position)?;
 
     let mut finder = HoverFinder::new(args.files, file_id, args.interner, byte_index);
-    parsed_moduled.accept(&mut finder);
+    parsed_module.accept(&mut finder);
     finder.hover
 }
 
