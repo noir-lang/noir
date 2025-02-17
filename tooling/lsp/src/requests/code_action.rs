@@ -13,12 +13,12 @@ use lsp_types::{
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
-        CallExpression, ConstructorExpression, Ident, ItemVisibility, MethodCallExpression,
-        NoirTraitImpl, Path, UseTree, Visitor,
+        CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
+        Path, UseTree, Visitor,
     },
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
-    node_interner::NodeInterner,
+    node_interner::{NodeInterner, Reexport},
     usage_tracker::UsageTracker,
 };
 use noirc_frontend::{
@@ -212,7 +212,7 @@ impl<'a> CodeActionFinder<'a> {
         )
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<(ModuleId, Ident)> {
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<&Reexport> {
         get_parent_module_reexport(
             module_def_id,
             self.module_id,

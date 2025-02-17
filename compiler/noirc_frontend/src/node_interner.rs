@@ -271,7 +271,7 @@ pub struct NodeInterner {
     /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
     /// In LSP this is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
-    reexports: HashMap<ModuleDefId, Vec<(ModuleId, Ident, ItemVisibility)>>,
+    reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -636,6 +636,24 @@ pub struct InternedUnresolvedTypeData(noirc_arena::Index);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedPattern(noirc_arena::Index);
+
+/// Captures a reexport that happens inside a module. For example:
+///
+/// ```noir
+/// mod moo {
+/// //  ^^^ module_id
+///
+///   pub use foo::bar as baz;
+/// //^^^ visibility      ^^^ name
+/// }
+/// ```
+///
+#[derive(Debug)]
+pub struct Reexport {
+    pub module_id: ModuleId,
+    pub name: Ident,
+    pub visibility: ItemVisibility,
+}
 
 impl Default for NodeInterner {
     fn default() -> Self {
@@ -2275,17 +2293,18 @@ impl NodeInterner {
         name: Ident,
         visibility: ItemVisibility,
     ) {
-        self.reexports.entry(module_def_id).or_default().push((module_id, name, visibility));
+        self.reexports.entry(module_def_id).or_default().push(Reexport {
+            module_id,
+            name,
+            visibility,
+        });
     }
 
-    pub fn get_reexports(
-        &self,
-        module_def_id: ModuleDefId,
-    ) -> &[(ModuleId, Ident, ItemVisibility)] {
-        self.reexports.get(&module_def_id).map_or(&[], |exports| exports)
+    pub fn get_reexports(&self, module_def_id: ModuleDefId) -> &[Reexport] {
+        self.reexports.get(&module_def_id).map_or(&[], |reexport| reexport)
     }
 
-    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[(ModuleId, Ident, ItemVisibility)] {
+    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[Reexport] {
         self.get_reexports(ModuleDefId::TraitId(trait_id))
     }
 }

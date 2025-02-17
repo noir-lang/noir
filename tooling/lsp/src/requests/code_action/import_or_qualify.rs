@@ -49,11 +49,9 @@ impl<'a> CodeActionFinder<'a> {
                 let is_visible =
                     self.module_def_id_is_visible(module_def_id, visibility, defining_module);
                 if !is_visible {
-                    if let Some((parent_module_reexport, reexport_name)) =
-                        self.get_parent_module_reexport(module_def_id)
-                    {
-                        defining_module = Some(parent_module_reexport);
-                        intermediate_name = Some(reexport_name);
+                    if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
+                        defining_module = Some(reexport.module_id);
+                        intermediate_name = Some(reexport.name.clone());
                     } else {
                         continue;
                     }

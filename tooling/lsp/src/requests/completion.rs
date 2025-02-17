@@ -686,30 +686,29 @@ impl<'a> NodeFinder<'a> {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
                     let module_def_id = ModuleDefId::TraitId(trait_id);
-                    if !self.module_def_id_is_visible(
+                    let is_visible = self.module_def_id_is_visible(
                         module_def_id,
                         visibility,
                         None, // defining module
-                    ) {
+                    );
+                    if !is_visible {
                         // Try to find a visible reexport of the trait
                         // that is visible from the current module
-                        let Some((visible_module_id, name, _)) =
-                            self.interner.get_trait_reexports(trait_id).iter().find(
-                                |(module_id, _, visibility)| {
-                                    self.module_def_id_is_visible(
-                                        module_def_id,
-                                        *visibility,
-                                        Some(*module_id),
-                                    )
-                                },
-                            )
+                        let Some(reexport) =
+                            self.interner.get_trait_reexports(trait_id).iter().find(|reexport| {
+                                self.module_def_id_is_visible(
+                                    module_def_id,
+                                    reexport.visibility,
+                                    Some(reexport.module_id),
+                                )
+                            })
                         else {
                             continue;
                         };
 
                         trait_reexport = Some(TraitReexport {
-                            module_id: *visible_module_id,
-                            name: name.clone(),
+                            module_id: reexport.module_id,
+                            name: reexport.name.clone(),
                         });
                     }
                 }

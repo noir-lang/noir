@@ -61,23 +61,25 @@ impl<'a> CodeActionFinder<'a> {
         if !self.module_def_id_is_visible(module_def_id, visibility, None) {
             // If it's not, try to find a visible reexport of the trait
             // that is visible from the current module
-            if let Some((visible_module_id, name, _)) =
-                self.interner.get_trait_reexports(trait_id).iter().find(
-                    |(module_id, _, visibility)| {
-                        self.module_def_id_is_visible(module_def_id, *visibility, Some(*module_id))
-                    },
-                )
-            {
-                trait_reexport =
-                    Some(TraitReexport { module_id: *visible_module_id, name: name.clone() });
-            } else if let Some((parent_module_reexport, reexport_name)) =
-                self.get_parent_module_reexport(module_def_id)
+            if let Some(reexport) =
+                self.interner.get_trait_reexports(trait_id).iter().find(|reexport| {
+                    self.module_def_id_is_visible(
+                        module_def_id,
+                        reexport.visibility,
+                        Some(reexport.module_id),
+                    )
+                })
             {
                 trait_reexport = Some(TraitReexport {
-                    module_id: parent_module_reexport,
+                    module_id: reexport.module_id,
+                    name: reexport.name.clone(),
+                });
+            } else if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
+                trait_reexport = Some(TraitReexport {
+                    module_id: reexport.module_id,
                     name: trait_.name.clone(),
                 });
-                intermediate_name = Some(reexport_name);
+                intermediate_name = Some(reexport.name.clone());
             } else {
                 return;
             }

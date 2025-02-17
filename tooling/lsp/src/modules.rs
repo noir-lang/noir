@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
-    ast::Ident,
     graph::{CrateId, Dependency},
     hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    node_interner::{NodeInterner, ReferenceId},
+    node_interner::{NodeInterner, Reexport, ReferenceId},
 };
 
 use crate::visibility::module_def_id_is_visible;
@@ -167,22 +166,20 @@ pub(crate) fn module_full_path(
 }
 
 /// Finds a visible reexport for the parent module of the given ModuleDefId.
-pub(crate) fn get_parent_module_reexport(
+pub(crate) fn get_parent_module_reexport<'a>(
     module_def_id: ModuleDefId,
     current_module_id: ModuleId,
-    interner: &NodeInterner,
+    interner: &'a NodeInterner,
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     dependencies: &[Dependency],
-) -> Option<(ModuleId, Ident)> {
+) -> Option<&'a Reexport> {
     let parent_module = get_parent_module(interner, module_def_id)?;
-    let (parent_module_reexport, name, _) = interner
-        .get_reexports(ModuleDefId::ModuleId(parent_module))
-        .iter()
-        .find(|(module_id, _, visibility)| {
+    let reexport =
+        interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
             module_def_id_is_visible(
-                ModuleDefId::ModuleId(*module_id),
+                ModuleDefId::ModuleId(reexport.module_id),
                 current_module_id,
-                *visibility,
+                reexport.visibility,
                 None,
                 interner,
                 def_maps,
@@ -190,5 +187,5 @@ pub(crate) fn get_parent_module_reexport(
             )
         })?;
 
-    Some((*parent_module_reexport, name.clone()))
+    Some(reexport)
 }

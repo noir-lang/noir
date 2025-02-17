@@ -1,7 +1,4 @@
-use noirc_frontend::{
-    ast::Ident,
-    hir::def_map::{ModuleDefId, ModuleId},
-};
+use noirc_frontend::{hir::def_map::ModuleDefId, node_interner::Reexport};
 
 use crate::{
     modules::{get_parent_module_reexport, relative_module_full_path, relative_module_id_path},
@@ -44,11 +41,9 @@ impl<'a> NodeFinder<'a> {
                 let is_visible =
                     self.module_def_id_is_visible(module_def_id, visibility, defining_module);
                 if !is_visible {
-                    if let Some((parent_module_reexport, reexport_name)) =
-                        self.get_parent_module_reexport(module_def_id)
-                    {
-                        defining_module = Some(parent_module_reexport);
-                        intermediate_name = Some(reexport_name);
+                    if let Some(reexport) = self.get_parent_module_reexport(module_def_id) {
+                        defining_module = Some(reexport.module_id);
+                        intermediate_name = Some(reexport.name.clone());
                     } else {
                         continue;
                     }
@@ -123,7 +118,7 @@ impl<'a> NodeFinder<'a> {
         }
     }
 
-    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<(ModuleId, Ident)> {
+    fn get_parent_module_reexport(&self, module_def_id: ModuleDefId) -> Option<&Reexport> {
         get_parent_module_reexport(
             module_def_id,
             self.module_id,
