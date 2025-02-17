@@ -8,7 +8,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::PrintOutput;
 
-use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
+use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
 use noir_artifact_cli::fs::witness::{
@@ -80,7 +80,8 @@ pub(crate) fn execute_program_from_witness(
 ) -> Result<WitnessStack<FieldElement>, CliError> {
     let program: Program<FieldElement> =
         Program::deserialize_program(bytecode).map_err(CliError::CircuitDeserializationError)?;
-    execute_program(
+
+    nargo::ops::execute_program(
         &program,
         inputs_map,
         &Bn254BlackBoxSolver(pedantic_solving),
