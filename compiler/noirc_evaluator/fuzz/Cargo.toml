@@ -13,6 +13,8 @@ noirc_evaluator = { path = "../" }
 acvm = { path = "../../../acvm-repo/acvm" }
 log = "0.4"
 env_logger = "0.11.6"
+fxhash = "0.2.1"
+fastrand = "2.3.0"
 
 [dependencies.ssa_fuzzer]
 path = "../ssa_fuzzer"

@@ -12,12 +12,14 @@ use ssa_fuzzer::runner::run_and_compare;
 use noirc_evaluator::ssa::ir::types::Type;
 use acvm::acir::native_types::Witness;
 use acvm::acir::native_types::WitnessMap;
-use acvm::FieldElement;
+use acvm::{FieldElement, AcirField};
 use std::fmt::Debug;
 use log;
 use env_logger;
+use fxhash;
+use fastrand;
 
-#[derive(Arbitrary, Debug, Clone)]
+#[derive(Arbitrary, Debug, Clone, Hash)]
 enum Instructions {
     Add {
         lhs: u32,
@@ -72,13 +74,25 @@ fn both_indeces_presented(first_index: u32, second_index: u32, acir_witnesses_in
     index_presented(first_index, acir_witnesses_indeces, brillig_witnesses_indeces) && index_presented(second_index, acir_witnesses_indeces, brillig_witnesses_indeces)
 }
 
+fn get_witness_map(seed: u64) -> WitnessMap<FieldElement> {
+    let mut witness_map = WitnessMap::new();
+    let mut rng = fastrand::Rng::with_seed(seed);
+    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+        let witness = Witness(i);
+        let value = FieldElement::from(rng.u64(..));
+        witness_map.insert(witness, value);
+    }
+    witness_map
+}
+
 libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
     // Initialize logger once
     let _ = env_logger::try_init();
+    let seed = fxhash::hash64(&methods);
 
     let mut acir_builder = FuzzerBuilder::new_acir();
     let mut brillig_builder = FuzzerBuilder::new_brillig();
-    let type_ = Type::unsigned(8);
+    let type_ = Type::unsigned(64);
     acir_builder.insert_variables(type_.clone());
     brillig_builder.insert_variables(type_.clone());
 
@@ -88,17 +102,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
         acir_witnesses_indeces.push(i);
         brillig_witnesses_indeces.push(i);
     }
-
-    if let Ok(seed) = std::env::var("RUST_FUZZER_SEED") {
-        log::debug!("Current seed: {}", seed);
-    }
-
-    let mut initial_witness = WitnessMap::new();
-    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
-        let witness = Witness(i);
-        let value = FieldElement::from(i);
-        initial_witness.insert(witness, value);
-    }
+    let mut initial_witness = get_witness_map(seed);
     log::debug!("instructions: {:?}", methods.clone());
 
 
