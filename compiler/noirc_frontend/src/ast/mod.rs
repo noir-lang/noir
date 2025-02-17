@@ -384,7 +384,11 @@ impl UnresolvedTypeData {
         use {IntType::*, UnresolvedTypeData::Integer};
         match token {
             Signed(num_bits) => {
-                Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+                if num_bits == 128 {
+                    Err(InvalidIntegerBitSizeError(128))
+                } else {
+                    Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+                }
             }
             Unsigned(num_bits) => {
                 Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
