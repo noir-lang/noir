@@ -56,6 +56,8 @@ impl<'a> CodeActionFinder<'a> {
         let visibility = trait_.visibility;
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let mut trait_reexport = None;
+
+        // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
         let mut intermediate_name = None;
 
         if !self.module_def_id_is_visible(module_def_id, visibility, None) {

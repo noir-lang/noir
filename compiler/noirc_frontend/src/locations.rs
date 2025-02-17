@@ -55,10 +55,27 @@ impl<'a> ReferencesTracker<'a> {
     }
 }
 
+/// A `ModuleDefId` captured to be offered in LSP's auto-import feature.
+///
+/// The name of the item is stored in the key of the `auto_import_names` map in the `NodeInterner`.
 #[derive(Debug, Copy, Clone)]
 pub struct AutoImportEntry {
+    /// The item to import.
     pub module_def_id: ModuleDefId,
+    /// The item's visibility.
     pub visibility: ItemVisibility,
+    /// If the item is available via a re-export, this contains the module where it's defined.
+    /// For example:
+    ///
+    /// ```noir
+    /// mod foo { // <- this is the defining module
+    ///     mod bar {
+    ///         pub struct Baz {} // This is the item
+    ///     }
+    ///     
+    ///     pub use bar::Baz; // Here's the visibility
+    /// }
+    /// ```
     pub defining_module: Option<ModuleId>,
 }
 

@@ -44,6 +44,8 @@ impl<'a> CodeActionFinder<'a> {
                 let module_def_id = entry.module_def_id;
                 let visibility = entry.visibility;
                 let mut defining_module = entry.defining_module.as_ref().cloned();
+
+                // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
                 let mut intermediate_name = None;
 
                 let is_visible =
