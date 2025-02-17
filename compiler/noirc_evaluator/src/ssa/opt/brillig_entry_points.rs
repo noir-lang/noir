@@ -144,8 +144,9 @@ fn build_functions_to_clone(
     functions_to_clone_map
 }
 
-// Clones new functions and returns a mapping representing the calls to update.
-// Returns a map of (entry point, callee function) -> new callee function id.
+/// Clones new functions and returns a mapping representing the calls to update.
+///
+///  Returns a map of (entry point, callee function) -> new callee function id.
 fn build_calls_to_update(
     ssa: &mut Ssa,
     functions_to_clone_map: HashMap<FunctionId, Vec<(Function, FunctionId)>>,
@@ -280,6 +281,8 @@ fn build_entry_points_map_recursive(
     }
 }
 
+/// Builds a mapping from a [`FunctionId`] to the set of [`FunctionId`s][`FunctionId`] of all the brillig entrypoints
+/// from which this function is reachable.
 pub(crate) fn build_inner_call_to_entry_points(
     brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
 ) -> HashMap<FunctionId, Vec<FunctionId>> {
