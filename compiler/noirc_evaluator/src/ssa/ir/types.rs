@@ -65,7 +65,8 @@ impl NumericType {
     ) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
-                let max = 2u128.pow(bit_size) - 1;
+                // The math here is a bit convoluted to avoid overflowing for u128
+                let max = (2u128.pow(bit_size - 1) - 1) * 2 + 1;
                 if negative {
                     return Some(format!("0..={}", max));
                 }
