@@ -15,7 +15,7 @@ use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
         layers,
-        logger::{ForeignCallLog, LogForeignCallExecutor},
+        logging::{ForeignCallLog, LoggingForeignCallExecutor},
         print::PrintOutput,
         ForeignCallError, ForeignCallExecutor,
     },
@@ -76,7 +76,7 @@ where
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
                 let foreign_call_executor = build_foreign_call_executor(output, layers::Unhandled);
                 let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
-                let mut foreign_call_executor = LogForeignCallExecutor::new(
+                let mut foreign_call_executor = LoggingForeignCallExecutor::new(
                     foreign_call_executor,
                     foreign_call_log.print_output(),
                 );

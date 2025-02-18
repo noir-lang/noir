@@ -2,7 +2,7 @@ use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use thiserror::Error;
 
 pub mod layers;
-pub mod logger;
+pub mod logging;
 pub mod mocker;
 pub mod print;
 

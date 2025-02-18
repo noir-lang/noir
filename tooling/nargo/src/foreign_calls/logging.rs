@@ -9,18 +9,18 @@ use crate::PrintOutput;
 use super::{ForeignCallError, ForeignCallExecutor};
 
 /// Log foreign calls during the execution, for testing purposes.
-pub struct LogForeignCallExecutor<'a, E> {
+pub struct LoggingForeignCallExecutor<'a, E> {
     pub executor: E,
     pub output: PrintOutput<'a>,
 }
 
-impl<'a, E> LogForeignCallExecutor<'a, E> {
+impl<'a, E> LoggingForeignCallExecutor<'a, E> {
     pub fn new(executor: E, output: PrintOutput<'a>) -> Self {
         Self { executor, output }
     }
 }
 
-impl<'a, E, F> ForeignCallExecutor<F> for LogForeignCallExecutor<'a, E>
+impl<'a, E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<'a, E>
 where
     F: AcirField + Serialize,
     E: ForeignCallExecutor<F>,
