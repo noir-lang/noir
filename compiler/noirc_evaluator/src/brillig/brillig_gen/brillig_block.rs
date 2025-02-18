@@ -67,7 +67,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
             if let Value::NumericConstant { constant, typ } = dfg[*value] {
-                if hoisted_global_constants.contains_key((constant, typ)) {
+                if hoisted_global_constants.contains_key(&(constant, typ)) {
                     continue;
                 }
             }
