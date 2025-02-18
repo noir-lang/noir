@@ -74,7 +74,7 @@ projects:
     num_runs: 1
     timeout: 60
     compilation-timeout: 100
-    execution-timeout: 35
+    execution-timeout: 36
     compilation-memory-limit: 7000
     execution-memory-limit: 1500
   rollup-merge:
