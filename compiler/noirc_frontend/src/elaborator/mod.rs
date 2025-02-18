@@ -2010,7 +2010,8 @@ impl<'context> Elaborator<'context> {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
                     let span = trait_impl.r#trait.span;
                     let Type::TraitAsType(trait_id, _, trait_generics) = typ else {
-                        self.push_err(ResolverError::ExpectedTrait { span });
+                        let found = typ.to_string();
+                        self.push_err(ResolverError::ExpectedTrait { span, found });
                         continue;
                     };
 
@@ -2036,7 +2037,9 @@ impl<'context> Elaborator<'context> {
                     (Some(trait_id), trait_generics, span)
                 }
                 _ => {
-                    self.push_err(ResolverError::ExpectedTrait { span: trait_impl.r#trait.span });
+                    let span = trait_impl.r#trait.span;
+                    let found = trait_impl.r#trait.typ.to_string();
+                    self.push_err(ResolverError::ExpectedTrait { span, found });
                     continue;
                 }
             };

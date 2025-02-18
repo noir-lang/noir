@@ -180,8 +180,8 @@ pub enum ResolverError {
     },
     #[error("`loop` statements are not yet implemented")]
     LoopNotYetSupported { span: Span },
-    #[error("Expected a trait")]
-    ExpectedTrait { span: Span },
+    #[error("Expected a trait but found {found}")]
+    ExpectedTrait { found: String, span: Span },
 }
 
 impl ResolverError {
@@ -689,9 +689,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *span)
 
             }
-            ResolverError::ExpectedTrait { span  } => {
+            ResolverError::ExpectedTrait { found, span  } => {
                 Diagnostic::simple_error(
-                    "Expected a trait".to_string(), 
+                    format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
 
