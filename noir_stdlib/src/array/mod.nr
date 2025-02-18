@@ -263,4 +263,28 @@ mod test {
         let concatenated_arr = arr1.concat(arr2);
         assert_eq(concatenated_arr, [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
     }
+
+    #[test]
+    fn concat_zero_length_with_something() {
+        let arr1 = [];
+        let arr2 = [1];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_something_with_zero_length() {
+        let arr1 = [1];
+        let arr2 = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_zero_lengths() {
+        let arr1: [Field; 0] = [];
+        let arr2: [Field; 0] = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, []);
+    }
 }
