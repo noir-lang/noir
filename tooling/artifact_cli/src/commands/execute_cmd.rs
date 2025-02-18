@@ -41,7 +41,7 @@ pub struct ExecuteCommand {
     pub contract_fn: Option<String>,
 
     /// Part to the Oracle.toml file which contains the Oracle transcript,
-    /// which is a list of responses captured during an earlier execution
+    /// which is a list of responses captured during an earlier execution.
     ///
     /// Note that a transcript might be invalid if the inputs change and
     /// the circuit takes a different path during execution.
@@ -109,7 +109,9 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 /// Execute a circuit and return the output witnesses.
 fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<ExecutionResults, CliError> {
     // TODO: Build a custom foreign call executor that reads from the Oracle transcript,
-    // and use it as a base for the default executor; see `DefaultForeignCallBuilder::build_with_base`
+    // and use it as a base for the default executor. Using it as the innermost rather
+    // than top layer so that any extra `print` added for debugging is handled by the
+    // default, rather than trying to match it to the transcript.
     let mut foreign_call_executor = DefaultForeignCallBuilder {
         output: PrintOutput::Stdout,
         enable_mocks: false,
