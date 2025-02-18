@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 7b7d960d51027b549ec9627ba2822fb87100a022
+define: &AZ_COMMIT 5a47e21a19e7bd3e4add8a25ef713851e60052b6
 
 projects:
   private-kernel-inner:
