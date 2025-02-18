@@ -1,4 +1,4 @@
-use acir::brillig::{BlackBoxOp, HeapArray, HeapVector, IntegerBitSize};
+use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
     aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
@@ -29,7 +29,7 @@ fn read_heap_array<'a, F: AcirField>(
 fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     let mut result = Vec::with_capacity(inputs.len());
     for &input in inputs {
-        result.push(input.try_into().unwrap());
+        result.push(input.expect_u8().unwrap());
     }
     result
 }
@@ -81,7 +81,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::Keccakf1600 { input, output } => {
             let state_vec: Vec<u64> = read_heap_array(memory, input)
                 .iter()
-                .map(|&memory_value| memory_value.try_into().unwrap())
+                .map(|&memory_value| memory_value.expect_u64().unwrap())
                 .collect();
             let state: [u64; 25] = state_vec.try_into().unwrap();
 
@@ -145,18 +145,18 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let points: Vec<F> = read_heap_vector(memory, points)
                 .iter()
                 .enumerate()
-                .map(|(i, &x)| {
+                .map(|(i, x)| {
                     if i % 3 == 2 {
-                        let is_infinite: bool = x.try_into().unwrap();
-                        F::from(is_infinite as u128)
+                        let is_infinite: bool = x.expect_u1().unwrap();
+                        F::from(is_infinite)
                     } else {
-                        *x.extract_field().unwrap()
+                        x.expect_field().unwrap()
                     }
                 })
                 .collect();
             let scalars: Vec<F> = read_heap_vector(memory, scalars)
                 .iter()
-                .map(|x| *x.extract_field().unwrap())
+                .map(|x| x.expect_field().unwrap())
                 .collect();
             let mut scalars_lo = Vec::with_capacity(scalars.len() / 2);
             let mut scalars_hi = Vec::with_capacity(scalars.len() / 2);
@@ -187,12 +187,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             input1_infinite,
             input2_infinite,
         } => {
-            let input1_x = *memory.read(*input1_x).extract_field().unwrap();
-            let input1_y = *memory.read(*input1_y).extract_field().unwrap();
-            let input1_infinite: bool = memory.read(*input1_infinite).try_into().unwrap();
-            let input2_x = *memory.read(*input2_x).extract_field().unwrap();
-            let input2_y = *memory.read(*input2_y).extract_field().unwrap();
-            let input2_infinite: bool = memory.read(*input2_infinite).try_into().unwrap();
+            let input1_x = memory.read(*input1_x).expect_field().unwrap();
+            let input1_y = memory.read(*input1_y).expect_field().unwrap();
+            let input1_infinite: bool = memory.read(*input1_infinite).expect_u1().unwrap();
+            let input2_x = memory.read(*input2_x).expect_field().unwrap();
+            let input2_y = memory.read(*input2_y).expect_field().unwrap();
+            let input2_infinite: bool = memory.read(*input2_infinite).expect_u1().unwrap();
             let (x, y, infinite) = solver.ec_add(
                 &input1_x,
                 &input1_y,
@@ -212,32 +212,32 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
-            let lhs = memory.read(*lhs).try_into().unwrap();
-            let rhs = memory.read(*rhs).try_into().unwrap();
+            let lhs = memory.read(*lhs).expect_u32().unwrap();
+            let rhs = memory.read(*rhs).expect_u32().unwrap();
 
             let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntAdd)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntSub { lhs, rhs, output } => {
-            let lhs = memory.read(*lhs).try_into().unwrap();
-            let rhs = memory.read(*rhs).try_into().unwrap();
+            let lhs = memory.read(*lhs).expect_u32().unwrap();
+            let rhs = memory.read(*rhs).expect_u32().unwrap();
 
             let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntSub)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntMul { lhs, rhs, output } => {
-            let lhs = memory.read(*lhs).try_into().unwrap();
-            let rhs = memory.read(*rhs).try_into().unwrap();
+            let lhs = memory.read(*lhs).expect_u32().unwrap();
+            let rhs = memory.read(*rhs).expect_u32().unwrap();
 
             let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntMul)?;
             memory.write(*output, new_id.into());
             Ok(())
         }
         BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
-            let lhs = memory.read(*lhs).try_into().unwrap();
-            let rhs = memory.read(*rhs).try_into().unwrap();
+            let lhs = memory.read(*lhs).expect_u32().unwrap();
+            let rhs = memory.read(*rhs).expect_u32().unwrap();
 
             let new_id = bigint_solver.bigint_op(lhs, rhs, BlackBoxFunc::BigIntDiv)?;
             memory.write(*output, new_id.into());
@@ -245,9 +245,9 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
             let input = read_heap_vector(memory, inputs);
-            let input: Vec<u8> = input.iter().map(|&x| x.try_into().unwrap()).collect();
+            let input: Vec<u8> = input.iter().map(|x| x.expect_u8().unwrap()).collect();
             let modulus = read_heap_vector(memory, modulus);
-            let modulus: Vec<u8> = modulus.iter().map(|&x| x.try_into().unwrap()).collect();
+            let modulus: Vec<u8> = modulus.iter().map(|x| x.expect_u8().unwrap()).collect();
 
             let new_id = bigint_solver.bigint_from_bytes(&input, &modulus)?;
             memory.write(*output, new_id.into());
@@ -255,7 +255,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::BigIntToLeBytes { input, output } => {
-            let input: u32 = memory.read(*input).try_into().unwrap();
+            let input: u32 = memory.read(*input).expect_u32().unwrap();
             let bytes = bigint_solver.bigint_to_bytes(input)?;
             let mut values = Vec::new();
             for i in 0..32 {
@@ -270,8 +270,8 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         }
         BlackBoxOp::Poseidon2Permutation { message, output, len } => {
             let input = read_heap_vector(memory, message);
-            let input: Vec<F> = input.iter().map(|x| *x.extract_field().unwrap()).collect();
-            let len = memory.read(*len).try_into().unwrap();
+            let input: Vec<F> = input.iter().map(|x| x.expect_field().unwrap()).collect();
+            let len = memory.read(*len).expect_u32().unwrap();
             let result = solver.poseidon2_permutation(&input, len)?;
             let mut values = Vec::new();
             for i in result {
@@ -290,7 +290,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 ));
             }
             for (i, &input) in inputs.iter().enumerate() {
-                message[i] = input.try_into().unwrap();
+                message[i] = input.expect_u32().unwrap();
             }
             let mut state = [0; 8];
             let values = read_heap_array(memory, hash_values);
@@ -301,7 +301,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 ));
             }
             for (i, &value) in values.iter().enumerate() {
-                state[i] = value.try_into().unwrap();
+                state[i] = value.expect_u32().unwrap();
             }
 
             sha256_compression(&mut state, &message);
@@ -311,17 +311,14 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } => {
-            let input: F = *memory.read(*input).extract_field().expect("ToRadix input not a field");
-            let radix = memory
-                .read(*radix)
-                .expect_integer_with_bit_size(IntegerBitSize::U32)
-                .expect("ToRadix opcode's radix bit size does not match expected bit size 32");
+            let input: F = memory.read(*input).expect_field().expect("ToRadix input not a field");
+            let MemoryValue::U32(radix) = memory.read(*radix) else {
+                panic!("ToRadix opcode's radix bit size does not match expected bit size 32")
+            };
             let num_limbs = memory.read(*num_limbs).to_usize();
-            let output_bits = !memory
-                .read(*output_bits)
-                .expect_integer_with_bit_size(IntegerBitSize::U1)
-                .expect("ToRadix opcode's output_bits size does not match expected bit size 1")
-                .is_zero();
+            let MemoryValue::U1(output_bits) = memory.read(*output_bits) else {
+                panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
+            };
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
             let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
@@ -349,13 +346,10 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             for i in (0..num_limbs).rev() {
                 let limb = &input % &radix;
                 if output_bits {
-                    limbs[i] = MemoryValue::new_integer(
-                        if limb.is_zero() { 0 } else { 1 },
-                        IntegerBitSize::U1,
-                    );
+                    limbs[i] = MemoryValue::U1(!limb.is_zero());
                 } else {
                     let limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::new_integer(limb as u128, IntegerBitSize::U8);
+                    limbs[i] = MemoryValue::U8(limb);
                 };
                 input /= &radix;
             }

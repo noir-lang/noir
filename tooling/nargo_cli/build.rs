@@ -193,6 +193,8 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
     // Check whether the test case is non-deterministic
     nargo.arg("--check-non-determinism");
+    // Allow more bytecode in exchange to catch illegal states.
+    nargo.arg("--enable-brillig-debug-assertions");
 
     if force_brillig.0 {{
         nargo.arg("--force-brillig");

@@ -396,6 +396,7 @@ fn toml_to_workspace(
                     selected_package_index: Some(0),
                     members: vec![member],
                     is_assumed: false,
+                    target_dir: None,
                 },
             }
         }
@@ -448,6 +449,7 @@ fn toml_to_workspace(
                 members,
                 selected_package_index,
                 is_assumed: false,
+                target_dir: None,
             }
         }
     };
@@ -514,6 +516,8 @@ pub enum PackageSelection {
 }
 
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
+///
+/// As a side effect it downloads project dependencies as well.
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
     package_selection: PackageSelection,
@@ -521,7 +525,6 @@ pub fn resolve_workspace_from_toml(
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
-
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }

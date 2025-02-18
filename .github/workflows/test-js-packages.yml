@@ -637,6 +637,7 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
           comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50

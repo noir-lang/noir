@@ -207,9 +207,9 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        /// Safety: `sorted` array is checked to be:
-        /// a. a permutation of `input`'s elements
-        /// b. satisfying the predicate `ordering`
+        // Safety: `sorted` array is checked to be:
+        // a. a permutation of `input`'s elements
+        // b. satisfying the predicate `ordering`
         unsafe {
             let sorted = quicksort::quicksort(self, ordering);
 
