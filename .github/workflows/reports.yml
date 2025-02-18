@@ -423,6 +423,7 @@ jobs:
           ref: ${{ matrix.ref }}
 
       - name: Generate compilation memory report
+        id: compilation_mem_report
         working-directory: ./test-repo/${{ matrix.path }}
         run: |
           mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
@@ -446,6 +447,7 @@ jobs:
           overwrite: true
 
       - name: Generate execution memory report
+        id: execution_mem_report
         working-directory: ./test-repo/${{ matrix.path }}
         if: ${{ !matrix.cannot_execute }}
         run: |
@@ -455,15 +457,6 @@ jobs:
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           # Rename the memory report as the execution report is about to write to the same file
           mv memory_report.json ./memory_report_$PACKAGE_NAME.jso
-          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
-      - name: Move execution report
-        id: execution_mem_report
-        if: ${{ !matrix.cannot_execute }}
-        run: |
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv ./test-repo/${{ matrix.path }}/memory_report.json ./memory_report_$PACKAGE_NAME.json
           echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Upload execution memory report
