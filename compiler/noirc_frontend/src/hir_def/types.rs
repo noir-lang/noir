@@ -473,6 +473,10 @@ impl DataType {
         matches!(&self.body, TypeBody::Struct(_))
     }
 
+    pub fn is_enum(&self) -> bool {
+        matches!(&self.body, TypeBody::Enum(_))
+    }
+
     /// Retrieve the fields of this type with no modifications.
     /// Returns None if this is not a struct type.
     pub fn fields_raw(&self) -> Option<&[StructField]> {
@@ -555,6 +559,21 @@ impl DataType {
         }))
     }
 
+    /// Retrieve the given variant at the given variant index of this type.
+    /// Returns None if this is not an enum type or `variant_index` is out of bounds.
+    pub fn get_variant(
+        &self,
+        variant_index: usize,
+        generic_args: &[Type],
+    ) -> Option<(String, Vec<Type>)> {
+        let substitutions = self.get_fields_substitutions(generic_args);
+        let variant = self.variants_raw()?.get(variant_index)?;
+
+        let name = variant.name.to_string();
+        let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
+        Some((name, args))
+    }
+
     fn get_fields_substitutions(
         &self,
         generic_args: &[Type],
@@ -589,6 +608,15 @@ impl DataType {
     /// Returns None if this is not an enum type.
     pub fn get_variants_as_written(&self) -> Option<Vec<EnumVariant>> {
         Some(self.variants_raw()?.to_vec())
+    }
+
+    /// Returns the name and raw parameters of the variant at the given variant index.
+    /// This will not substitute any generic arguments so a generic variant like `X`
+    /// in `enum Foo<T> { X(T) }` will return a `("X", Vec<T>)` pair.
+    ///
+    /// Returns None if this is not an enum type or the given variant index is out of bounds.
+    pub fn get_variant_as_written(&self, variant_index: usize) -> Option<&EnumVariant> {
+        self.variants_raw()?.get(variant_index)
     }
 
     /// Returns the field at the given index. Panics if no field exists at the given index or this
@@ -2581,6 +2609,10 @@ impl Type {
                     return Cow::Owned(typ.follow_bindings_shallow().into_owned());
                 }
                 Cow::Borrowed(self)
+            }
+            Type::Alias(alias_def, generics) => {
+                let typ = alias_def.borrow().get_type(generics);
+                Cow::Owned(typ.follow_bindings_shallow().into_owned())
             }
             other => Cow::Borrowed(other),
         }

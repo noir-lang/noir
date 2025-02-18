@@ -180,6 +180,8 @@ pub enum ResolverError {
     },
     #[error("`loop` statements are not yet implemented")]
     LoopNotYetSupported { span: Span },
+    #[error("Strings and format strings cannot be used in a match pattern")]
+    CantMatchOnStrings { span: Span },
 }
 
 impl ResolverError {
@@ -681,11 +683,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { span  } => {
-                Diagnostic::simple_error(
-                    "`loop` statements are not yet implemented".to_string(), 
-                    String::new(),
-                    *span)
-
+                let msg = "`loop` statements are not yet implemented".to_string();
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            ResolverError::CantMatchOnStrings { span  } => {
+                let msg = "Strings and format strings cannot be used in a match pattern";
+                Diagnostic::simple_error(msg.to_string(), String::new(), *span)
             }
         }
     }
