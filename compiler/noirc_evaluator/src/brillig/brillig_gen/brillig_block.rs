@@ -127,9 +127,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         let mut new_hoisted_constants = HashMap::default();
-        for (constant, typ) in hoisted_global_constants {
-            let constant = *constant;
-            let typ = *typ;
+        for (constant, typ) in hoisted_global_constants.iter().copied() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
             self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
             if new_hoisted_constants.insert((constant, typ), new_variable).is_some() {
