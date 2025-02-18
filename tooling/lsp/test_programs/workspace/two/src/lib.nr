@@ -7,7 +7,7 @@ pub fn function_two() {
 use one::subone;
 
 fn use_struct() {
-    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 2 };
+    let _ = subone::SubOneStruct { some_field: 0, some_other_field: 123 };
 }
 
 use one::subone::SomeTrait;
@@ -108,4 +108,8 @@ enum Color {
 
 fn test_enum() -> Color {
     Color::Red(1)
+}
+
+fn negative_integer() -> i32 {
+    -8
 }
