@@ -310,6 +310,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_while_statement(&mut self, _condition: &Expression, _body: &Expression) -> bool {
+        true
+    }
+
     fn visit_comptime_statement(&mut self, _: &Statement) -> bool {
         true
     }
@@ -1163,6 +1167,12 @@ impl Statement {
             StatementKind::Loop(block, _) => {
                 if visitor.visit_loop_statement(block) {
                     block.accept(visitor);
+                }
+            }
+            StatementKind::While(while_) => {
+                if visitor.visit_while_statement(&while_.condition, &while_.body) {
+                    while_.condition.accept(visitor);
+                    while_.body.accept(visitor);
                 }
             }
             StatementKind::Comptime(statement) => {

@@ -131,8 +131,8 @@ pub(crate) fn optimize_into_acir(
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
     // It could happen that we inlined all calls to a given brillig function.
     // In that case it's unused so we can remove it. This is what we check next.
-    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
-    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
+    .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (4th)")
+    .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (3rd)")
     .finish();
 
     if !options.skip_underconstrained_check {
@@ -217,6 +217,12 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (1st)")
         .run_pass(Ssa::simplify_cfg, "Simplifying (3rd):")
         .run_pass(Ssa::array_set_optimization, "Array Set Optimizations")
+        // The Brillig globals pass expected that we have the used globals map set for each function.
+        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
+        .run_pass(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())
 }
 
