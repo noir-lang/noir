@@ -580,7 +580,7 @@ impl DependencyContext {
 
         // Don't update sets for the calls not yet being tracked
         for call in &self.tracking {
-            if let Some(tainted_ids) = self.tainted.get_mut(&call) {
+            if let Some(tainted_ids) = self.tainted.get_mut(call) {
                 tainted_ids.update_children(&parents, children);
             }
         }
@@ -598,7 +598,7 @@ impl DependencyContext {
 
         // Skip untracked calls
         for call in &self.tracking {
-            if let Some(tainted_ids) = self.tainted.get_mut(&call) {
+            if let Some(tainted_ids) = self.tainted.get_mut(call) {
                 tainted_ids.store_partial_constraints(&constrained_values);
             }
         }
@@ -628,7 +628,7 @@ impl DependencyContext {
             if let Some(index) = value.try_to_u32() {
                 // Skip untracked calls
                 for call in &self.tracking {
-                    if let Some(tainted_ids) = self.tainted.get_mut(&call) {
+                    if let Some(tainted_ids) = self.tainted.get_mut(call) {
                         tainted_ids.process_array_get(array, index as usize, element_results);
                     }
                 }
