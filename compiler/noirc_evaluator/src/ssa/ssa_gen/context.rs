@@ -13,8 +13,8 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{BinaryOp, ConstrainError};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -356,7 +356,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for bit-shifts, because we will convert them to field multiplication
+    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for:
+    /// - bit-shifts, because we will convert them to field multiplication
+    /// - when multiplying two u128: the overflow will be checking during acir-gen, but we also need to do an
+    ///   extra check because the result might wrap around the field maximum value and end up in a valid u128 value
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
     /// an unsigned value representing the signed integer.
@@ -409,8 +412,16 @@ impl<'a> FunctionContext<'a> {
                 let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
 
                 match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
+                    BinaryOpKind::Add | BinaryOpKind::Subtract => {
                         // Overflow check is deferred to acir-gen
+                        return result;
+                    }
+                    BinaryOpKind::Multiply => {
+                        // Overflow check is deferred to acir-gen
+                        if matches!(result_type, NumericType::Unsigned { bit_size: 128 }) {
+                            self.check_u128_mul_overflow(lhs, rhs);
+                        }
+
                         return result;
                     }
                     BinaryOpKind::ShiftLeft => {
@@ -434,6 +445,68 @@ impl<'a> FunctionContext<'a> {
             }
             NumericType::NativeField => result,
         }
+    }
+
+    /// Checks that multiplying two u128 doesn't overflow because both operands are greater or equal than 2^64.
+    /// If both are, then the result is surely greater or equal than 2^128 so it would overflow.
+    /// The operands can still overflow if just one of them is less than 2^64, but in that case the result
+    /// will be less than 2^192 so it fits in a Field value, and acir will check that it fits in a u128.
+    fn check_u128_mul_overflow(&mut self, lhs: ValueId, rhs: ValueId) {
+        let lhs_value = self.builder.current_function.dfg.get_numeric_constant(lhs);
+        let rhs_value = self.builder.current_function.dfg.get_numeric_constant(rhs);
+
+        // If lhs is less than 2^64 then the condition trivially holds.
+        if let Some(value) = lhs_value {
+            if value.to_u128() < (1_u128 << 64) {
+                return;
+            }
+        }
+
+        // Same goes for rhs
+        if let Some(value) = rhs_value {
+            if value.to_u128() < (1_u128 << 64) {
+                return;
+            }
+        }
+
+        let u128 = NumericType::unsigned(128);
+
+        // This mask keeps the high-end bits of a u128 value.
+        let mask = 0xffffffffffffffff0000000000000000_u128;
+        let mask = self.builder.numeric_constant(mask, u128);
+
+        let res = if lhs_value.is_some() && rhs_value.is_some() {
+            // If both values are known at compile time, at this point we know it overflows
+            self.builder.numeric_constant(FieldElement::one(), u128)
+        } else if lhs_value.is_some() {
+            // If only the left-hand side is known we just need to check that the right-hand side
+            // isn't greater than 2^64
+            self.builder.insert_binary(rhs, BinaryOp::And, mask)
+        } else if rhs_value.is_some() {
+            // Same goes for the other side
+            self.builder.insert_binary(lhs, BinaryOp::And, mask)
+        } else {
+            // Here we do:
+            //
+            // lhs_masked = lhs & mask
+            // rhs_masked = rhs & mask
+            // res = lhs_masked * rhs_masked
+            // assert_eq(res, 0, "attempt to multiply with overflow")
+            //
+            // which is equivalent to checking that either of them is less than 2^64
+
+            let lhs_masked = self.builder.insert_binary(lhs, BinaryOp::And, mask);
+            let rhs_masked = self.builder.insert_binary(rhs, BinaryOp::And, mask);
+
+            self.builder.insert_binary(lhs_masked, BinaryOp::Mul { unchecked: true }, rhs_masked)
+        };
+
+        let zero = self.builder.numeric_constant(FieldElement::zero(), u128);
+        self.builder.insert_constrain(
+            res,
+            zero,
+            Some(ConstrainError::StaticString("attempt to multiply with overflow".to_string())),
+        );
     }
 
     /// Overflow checks for bit-shift
