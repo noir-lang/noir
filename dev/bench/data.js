@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739890085463,
+  "lastUpdate": 1739893450562,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3935,105 +3935,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9ae3c6c4f0c1f6c2fda14478cd35184c3ecf033a",
-          "message": "feat: `assert` and `assert_eq` are now expressions (#7313)",
-          "timestamp": "2025-02-06T17:37:29Z",
-          "tree_id": "9045f1f6f0b7d5516171abe7aa992a122d99640c",
-          "url": "https://github.com/noir-lang/noir/commit/9ae3c6c4f0c1f6c2fda14478cd35184c3ecf033a"
-        },
-        "date": 1738864547817,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.918,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.866,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.694,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.01,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.768,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.024,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.742,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 25.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.656,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.054,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 72.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 65.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.794,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8821,6 +8722,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.524,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64890c0d7420adb32d3867e51dd194e48b87bb32",
+          "message": "fix(ssa): Accurately mark binary ops for hoisting and check Div/Mod against induction variable lower bound (#7396)",
+          "timestamp": "2025-02-18T15:25:07Z",
+          "tree_id": "4051ba62d2feefb2ee415328d71ee01696034f3b",
+          "url": "https://github.com/noir-lang/noir/commit/64890c0d7420adb32d3867e51dd194e48b87bb32"
+        },
+        "date": 1739893448900,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.739,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.607,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.126,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.322,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.95,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.056,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.975,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 94.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 90.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.959,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.472,
             "unit": "s"
           }
         ]
