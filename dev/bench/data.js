@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739907657370,
+  "lastUpdate": 1739907673476,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12167,75 +12167,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "60afb1e0c06e72fe76b99084038d4f62f007a7b4",
-          "message": "chore: add timeouts to reports CI (#7317)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-02-07T15:12:31Z",
-          "tree_id": "97a32d37379462d17d62c6c238c46bc0597385b3",
-          "url": "https://github.com/noir-lang/noir/commit/60afb1e0c06e72fe76b99084038d4f62f007a7b4"
-        },
-        "date": 1738942447812,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15535,6 +15466,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/119bf620005b52362e3aca9321b69e96e8a42fc0"
         },
         "date": 1739904391674,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9b03217ff4b7f8eb13a43466bf9b2d761944c6f7",
+          "message": "feat(LSP): auto-import via visible reexport (#7409)",
+          "timestamp": "2025-02-18T18:54:21Z",
+          "tree_id": "844eaf6ba89dae9f1af3a8c8858f77a5dcc799f1",
+          "url": "https://github.com/noir-lang/noir/commit/9b03217ff4b7f8eb13a43466bf9b2d761944c6f7"
+        },
+        "date": 1739907671894,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
