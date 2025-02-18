@@ -10,7 +10,7 @@ use crate::{
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData,
+        StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -767,6 +767,11 @@ fn remove_interned_in_statement_kind(
         StatementKind::Loop(block, span) => {
             StatementKind::Loop(remove_interned_in_expression(interner, block), span)
         }
+        StatementKind::While(while_) => StatementKind::While(WhileStatement {
+            condition: remove_interned_in_expression(interner, while_.condition),
+            body: remove_interned_in_expression(interner, while_.body),
+            while_keyword_span: while_.while_keyword_span,
+        }),
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
         }
