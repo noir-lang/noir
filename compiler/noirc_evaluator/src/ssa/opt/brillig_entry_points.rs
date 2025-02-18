@@ -198,7 +198,6 @@ fn update_function_calls(
 /// Returns a map of Brillig entry points to all functions called in that entry point.
 /// This includes any nested calls as well, as we want to be able to associate
 /// any Brillig function with the appropriate global allocations.
-/// TODO: return a BTreeMap
 pub(crate) fn get_brillig_entry_points(
     functions: &BTreeMap<FunctionId, Function>,
     main_id: FunctionId,
