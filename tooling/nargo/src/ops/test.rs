@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use acvm::{
     acir::{
         brillig::ForeignCallResult,
@@ -12,12 +10,15 @@ use noirc_abi::Abi;
 use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
 use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
 use noirc_frontend::hir::{def_map::TestFunction, Context};
-use serde::Serialize;
-use serde_json::json;
 
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{layers, print::PrintOutput, ForeignCallError, ForeignCallExecutor},
+    foreign_calls::{
+        layers,
+        logger::{ForeignCallLog, LogForeignCallExecutor},
+        print::PrintOutput,
+        ForeignCallError, ForeignCallExecutor,
+    },
     NargoError,
 };
 
@@ -68,7 +69,7 @@ where
                     std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
                         .is_ok_and(|var| &var == "true");
 
-                let mut foreign_call_log = ForeignCallLog::from_env();
+                let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
 
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
@@ -300,80 +301,5 @@ where
             }
             other => other,
         }
-    }
-}
-
-/// Log foreign calls during the execution, for testing purposes.
-struct LogForeignCallExecutor<'a, E> {
-    executor: E,
-    output: PrintOutput<'a>,
-}
-
-impl<'a, E> LogForeignCallExecutor<'a, E> {
-    fn new(executor: E, output: PrintOutput<'a>) -> Self {
-        Self { executor, output }
-    }
-}
-
-impl<'a, E, F> ForeignCallExecutor<F> for LogForeignCallExecutor<'a, E>
-where
-    F: AcirField + Serialize,
-    E: ForeignCallExecutor<F>,
-{
-    fn execute(
-        &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        let result = self.executor.execute(foreign_call);
-        if let Ok(ref result) = result {
-            let log_item = || {
-                let json = json!({"call": foreign_call, "result": result});
-                serde_json::to_string(&json).expect("failed to serialize foreign call")
-            };
-            match &mut self.output {
-                PrintOutput::None => (),
-                PrintOutput::Stdout => println!("{}", log_item()),
-                PrintOutput::String(s) => {
-                    s.push_str(&log_item());
-                    s.push('\n');
-                }
-            }
-        }
-        result
-    }
-}
-
-/// Log foreign calls to stdout as soon as soon as they are made, or buffer them and write to a file at the end.
-enum ForeignCallLog {
-    None,
-    Stdout,
-    File(PathBuf, String),
-}
-
-impl ForeignCallLog {
-    /// Instantiate based on `NARGO_TEST_FOREIGN_CALL_LOG`.
-    fn from_env() -> Self {
-        match std::env::var("NARGO_TEST_FOREIGN_CALL_LOG") {
-            Err(_) => Self::None,
-            Ok(s) if s == "stdout" => Self::Stdout,
-            Ok(s) => Self::File(PathBuf::from(s), String::new()),
-        }
-    }
-
-    /// Create a [PrintOutput] based on the log setting.
-    fn print_output(&mut self) -> PrintOutput {
-        match self {
-            ForeignCallLog::None => PrintOutput::None,
-            ForeignCallLog::Stdout => PrintOutput::Stdout,
-            ForeignCallLog::File(_, s) => PrintOutput::String(s),
-        }
-    }
-
-    /// Any final logging.
-    fn write_log(self) -> std::io::Result<()> {
-        if let ForeignCallLog::File(path, contents) = self {
-            std::fs::write(path, contents)?;
-        }
-        Ok(())
     }
 }
