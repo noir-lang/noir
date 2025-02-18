@@ -141,7 +141,6 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         let vm = VM::new(
             calldata,
             brillig_bytecode,
-            vec![],
             bb_solver,
             profiling_active,
             with_branch_to_feature_map,

@@ -37,7 +37,7 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{FunctionId, GlobalSpace, ProcedureId};
+use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -95,20 +95,30 @@ pub(crate) struct BrilligContext<F, Registers> {
     /// Whether this context can call procedures or not.
     /// This is used to prevent a procedure from calling another procedure.
     can_call_procedures: bool,
+    /// Insert extra assertions that we expect to be true, at the cost of larger bytecode size.
+    enable_debug_assertions: bool,
 
     globals_memory_size: Option<usize>,
 }
 
+impl<F, R> BrilligContext<F, R> {
+    /// Enable the insertion of bytecode with extra assertions during testing.
+    pub(crate) fn enable_debug_assertions(&self) -> bool {
+        self.enable_debug_assertions
+    }
+}
+
 /// Regular brillig context to codegen user defined functions
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext<F, Stack> {
+    pub(crate) fn new(options: &BrilligOptions) -> BrilligContext<F, Stack> {
         BrilligContext {
             obj: BrilligArtifact::default(),
             registers: Stack::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
-            debug_show: DebugShow::new(enable_debug_trace),
+            debug_show: DebugShow::new(options.enable_debug_trace),
+            enable_debug_assertions: options.enable_debug_assertions,
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -201,8 +211,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 /// Special brillig context to codegen compiler intrinsic shared procedures
 impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
     pub(crate) fn new_for_procedure(
-        enable_debug_trace: bool,
         procedure_id: ProcedureId,
+        options: &BrilligOptions,
     ) -> BrilligContext<F, ScratchSpace> {
         let mut obj = BrilligArtifact::default();
         obj.procedure = Some(procedure_id);
@@ -212,7 +222,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
-            debug_show: DebugShow::new(enable_debug_trace),
+            debug_show: DebugShow::new(options.enable_debug_trace),
+            enable_debug_assertions: options.enable_debug_assertions,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -222,7 +233,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
 /// Special brillig context to codegen global values initialization
 impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     pub(crate) fn new_for_global_init(
-        enable_debug_trace: bool,
+        options: &BrilligOptions,
         entry_point: FunctionId,
     ) -> BrilligContext<F, GlobalSpace> {
         BrilligContext {
@@ -231,7 +242,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             context_label: Label::globals_init(entry_point),
             current_section: 0,
             next_section: 1,
-            debug_show: DebugShow::new(enable_debug_trace),
+            debug_show: DebugShow::new(options.enable_debug_trace),
+            enable_debug_assertions: options.enable_debug_assertions,
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -273,6 +285,7 @@ pub(crate) mod tests {
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+    use crate::brillig::BrilligOptions;
     use crate::ssa::ir::function::FunctionId;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};
@@ -318,7 +331,8 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn create_context(id: FunctionId) -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true);
+        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(id));
         context
     }
@@ -328,6 +342,10 @@ pub(crate) mod tests {
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
     ) -> GeneratedBrillig<FieldElement> {
+        let options = BrilligOptions {
+            enable_debug_trace: false,
+            enable_debug_assertions: context.enable_debug_assertions,
+        };
         let artifact = context.artifact();
         let mut entry_point_artifact = BrilligContext::new_entry_point_artifact(
             arguments,
@@ -335,6 +353,7 @@ pub(crate) mod tests {
             FunctionId::test_new(0),
             false,
             0,
+            &options,
         );
         entry_point_artifact.link_with(&artifact);
         while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()
@@ -342,7 +361,7 @@ pub(crate) mod tests {
             let LabelType::Procedure(procedure_id) = unresolved_fn_label.label_type else {
                 panic!("Test functions cannot be linked with other functions");
             };
-            let procedure_artifact = compile_procedure(procedure_id);
+            let procedure_artifact = compile_procedure(procedure_id, &options);
             entry_point_artifact.link_with(&procedure_artifact);
         }
         entry_point_artifact.finish()
@@ -353,8 +372,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm =
-            VM::new(calldata, bytecode, vec![], &DummyBlackBoxSolver, profiling_active, None);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
@@ -377,7 +395,8 @@ pub(crate) mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let mut context = BrilligContext::new(true);
+        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let mut context = BrilligContext::new(&options);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
@@ -428,16 +447,22 @@ pub(crate) mod tests {
         });
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::ForeignCallWait {
+                function: "make_number_sequence".to_string(),
+                inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
+            }
+        );
+
         let number_sequence: Vec<FieldElement> =
             (0_usize..12_usize).map(FieldElement::from).collect();
-        let mut vm = VM::new(
-            vec![],
-            &bytecode,
-            vec![ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] }],
-            &DummyBlackBoxSolver,
-            false,
-            None,
-        );
+        let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
+        vm.resolve_foreign_call(response);
+
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }

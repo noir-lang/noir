@@ -8,18 +8,20 @@ use nargo::{
     insert_all_files_for_workspace_into_file_manager,
     ops::FuzzingRunStatus,
     package::{CrateName, Package},
-    parse_all, prepare_package, FuzzExecutionConfig, FuzzFolderConfig,
+    parse_all, prepare_package,
+    workspace::Workspace,
+    FuzzExecutionConfig, FuzzFolderConfig,
 };
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::PackageSelection;
 use noirc_abi::input_parser::{json::serialize_to_json, Format};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{check_crate, CompileOptions};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::{fs::inputs::write_inputs_to_file, NargoConfig, PackageOptions};
+use super::{fs::inputs::write_inputs_to_file, LockType, PackageOptions, WorkspaceCommand};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -69,19 +71,20 @@ pub(crate) struct FuzzCommand {
     #[arg(long)]
     timeout: Option<u64>,
 }
+impl WorkspaceCommand for FuzzCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
+    fn lock_type(&self) -> LockType {
+        // Reads the code to compile fuzzing harnesses in memory, but doesn't save artifacts.
+        LockType::None
+    }
+}
+pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliError> {
+    let mut file_manager = workspace.new_file_manager();
+    insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
+    let parsed_files = parse_all(&file_manager);
 
-pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
-
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
     let pattern = match &args.fuzzing_harness_name {
         Some(name) => {
             let names = vec![name.to_string()];
@@ -100,7 +103,7 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
             .install(|| {
                 workspace.into_iter().par_bridge().map(|package| {
                     let harnesses = list_harnesses(
-                        &workspace_file_manager,
+                        &file_manager,
                         &parsed_files,
                         package,
                         &pattern,
@@ -137,14 +140,11 @@ pub(crate) fn run(args: FuzzCommand, config: NargoConfig) -> Result<(), CliError
     let fuzz_execution_config =
         FuzzExecutionConfig { timeout: args.timeout.unwrap_or(0), num_threads: args.num_threads };
 
-    // // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-    // // Default is 2MB.
-    // let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
         .into_iter()
         .map(|package| {
             run_fuzzers::<Bn254BlackBoxSolver>(
-                &workspace_file_manager,
+                &file_manager,
                 &parsed_files,
                 package,
                 &pattern,

@@ -23,6 +23,8 @@ toml.workspace = true
 url.workspace = true
 noirc_driver.workspace = true
 semver = "1.0.20"
+fs2 = "0.4.3"
+tracing.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -186,16 +186,11 @@ impl<F: AcirField> GeneratedAcir<F> {
         inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
         constant_outputs: Vec<F>,
-        output_count: usize,
-    ) -> Result<Vec<Witness>, InternalError> {
+        outputs: Vec<Witness>,
+    ) -> Result<(), InternalError> {
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
-        intrinsics_check_outputs(func_name, output_count);
-
-        let outputs = vecmap(0..output_count, |_| self.next_witness_index());
-
-        // clone is needed since outputs is moved when used in blackbox function.
-        let outputs_clone = outputs.clone();
+        intrinsics_check_outputs(func_name, outputs.len());
 
         let black_box_func_call = match func_name {
             BlackBoxFunc::AES128Encrypt => BlackBoxFuncCall::AES128Encrypt {
@@ -347,7 +342,7 @@ impl<F: AcirField> GeneratedAcir<F> {
 
         self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
-        Ok(outputs_clone)
+        Ok(())
     }
 
     /// Takes an input expression and returns witnesses that are constrained to be limbs
@@ -361,13 +356,13 @@ impl<F: AcirField> GeneratedAcir<F> {
         limb_count: u32,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        let radix_big = BigUint::from(radix);
-        let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+        let radix_range = 2..=256;
         assert!(
-            radix_range.contains(&radix_big),
+            radix_range.contains(&radix),
             "ICE: Radix must be in the range 2..=256, but found: {:?}",
             radix
         );
+        let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
             radix_big,

@@ -43,8 +43,8 @@ type HASH = [u8; 32];
 // Its overall size is the same as the `HASH`.
 type STATE = [u32; 8];
 
-// Deprecated in favour of `sha256_var`
 // docs:start:sha256
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn sha256<let N: u32>(input: [u8; N]) -> HASH
 // docs:end:sha256
 {
@@ -56,11 +56,13 @@ pub fn sha256_compression(_input: INT_BLOCK, _state: STATE) -> STATE {}
 
 // SHA-256 hash function
 #[no_predicates]
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn digest<let N: u32>(msg: [u8; N]) -> HASH {
     sha256_var(msg, N as u64)
 }
 
 // Variable size SHA-256 hash
+#[deprecated("sha256 is being deprecated from the stdlib, use https://github.com/noir-lang/sha256 instead")]
 pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let message_size = message_size as u32;
     let num_blocks = N / BLOCK_SIZE;
@@ -74,7 +76,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     let mut msg_byte_ptr = 0;
     for i in 0..num_blocks {
         let msg_start = BLOCK_SIZE * i;
-        /// Safety: the msg_block is checked below in verify_msg_block
+        // Safety: the msg_block is checked below in verify_msg_block
         let (new_msg_block, new_msg_byte_ptr) =
             unsafe { build_msg_block(msg, message_size, msg_start) };
 
@@ -105,7 +107,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
     // or our message cannot be evenly split into blocks.
     if modulo != 0 {
         let msg_start = BLOCK_SIZE * num_blocks;
-        /// Safety: the msg_block is checked below in verify_msg_block
+        // Safety: the msg_block is checked below in verify_msg_block
         let (new_msg_block, new_msg_byte_ptr) =
             unsafe { build_msg_block(msg, message_size, msg_start) };
 
@@ -148,7 +150,7 @@ pub fn sha256_var<let N: u32>(msg: [u8; N], message_size: u64) -> HASH {
         msg_byte_ptr = 0;
     }
 
-    /// Safety: the msg_len is checked below in verify_msg_len
+    // Safety: the msg_len is checked below in verify_msg_len
     msg_block = unsafe { attach_len_to_msg_block(msg_block, msg_byte_ptr, message_size) };
 
     if !is_unconstrained() {
@@ -802,7 +804,7 @@ mod tests {
         ];
         assert_eq(input.len(), 22);
 
-        /// Safety: testing context
+        // Safety: testing context
         let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 0) };
         assert_eq(msg_byte_ptr, input.len());
         assert_eq(msg_block[0], make_item(input[0], input[1], input[2], input[3]));
@@ -820,7 +822,7 @@ mod tests {
             108, 97, 105, 110, 59, 32, 99, 104, 97, 114, 115, 101, 116,
         ];
         assert_eq(input.len(), 68);
-        /// Safety: test context
+        // Safety: test context
         let (msg_block, msg_byte_ptr) = unsafe { build_msg_block(input, input.len(), 64) };
         assert_eq(msg_byte_ptr, 4);
         assert_eq(msg_block[0], make_item(input[64], input[65], input[66], input[67]));
@@ -834,7 +836,7 @@ mod tests {
             1919905082, 1131376244, 1701737517, 1417244773, 978151789, 1697470053, 1920166255,
             1849316213, 1651139939,
         ];
-        /// Safety: testing context
+        // Safety: testing context
         let msg_block = unsafe { attach_len_to_msg_block(input, 1, 448) };
         assert_eq(msg_block[0], ((1 << 7) as u32) * 256 * 256 * 256);
         assert_eq(msg_block[1], 0);
