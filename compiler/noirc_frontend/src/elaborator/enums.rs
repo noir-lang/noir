@@ -340,8 +340,8 @@ impl Elaborator<'_> {
                     }
                     Err(error) => {
                         self.push_err(error);
-                        // Foo::Bar pattern of length at least 2 not found...
-                        // default to defining a variable of the same name?
+                        // Default to defining a variable of the same name although this could
+                        // cause further match warnings/errors (e.g. redundant cases).
                         let id = self.fresh_match_variable(expected_type.clone(), location);
                         Pattern::Binding(id)
                     }
@@ -465,7 +465,7 @@ impl Elaborator<'_> {
                 (actual_type, Vec::new(), variant_index)
             }
             PathResolutionItem::Method(_type_id, _type_turbofish, func_id) => {
-                // TODO: Take type_turbofish into account when instantiating the function's type
+                // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(&func_id);
                 let Some(variant_index) = meta.enum_variant_index else { todo!("not a variant") };
 
