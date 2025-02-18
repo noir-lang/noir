@@ -5,7 +5,6 @@ use acvm_blackbox_solver::{
     sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
 };
 use num_bigint::BigUint;
-use num_traits::Zero;
 
 use crate::memory::MemoryValue;
 use crate::Memory;
@@ -320,39 +319,115 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
             };
 
-            let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
-
-            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
-
             assert!(
-                radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
+                (2..=256).contains(&radix),
                 "Radix out of the valid range [2,256]. Value: {}",
                 radix
             );
 
             assert!(
-                num_limbs >= 1 || input == BigUint::from(0u32),
+                num_limbs >= 1 || input.is_zero(),
                 "Input value {} is not zero but number of limbs is zero.",
                 input
             );
 
             assert!(
-                !output_bits || radix == BigUint::from(2u32),
+                !output_bits || radix == 2,
                 "Radix {} is not equal to 2 and bit mode is activated.",
                 radix
             );
 
-            for i in (0..num_limbs).rev() {
-                let limb = &input % &radix;
-                if output_bits {
-                    limbs[i] = MemoryValue::U1(!limb.is_zero());
-                } else {
-                    let limb: u8 = limb.try_into().unwrap();
-                    limbs[i] = MemoryValue::U8(limb);
-                };
-                input /= &radix;
-            }
+            // TODO: raise an error if we cannot fit `input` into `num_limbs`.
+            let limbs = match radix {
+                256 => {
+                    let bytes_le = input.to_be_bytes().into_iter().rev();
+                    // We only take as many bytes as specified by `num_limbs`.
+                    let lowest_bytes_le = bytes_le.take(num_limbs);
+                    let lowest_bytes_be = lowest_bytes_le.rev();
+
+                    lowest_bytes_be.map(MemoryValue::U8).collect()
+                }
+                2 => {
+                    let bytes_le = input.to_be_bytes().into_iter().rev();
+                    // We now decompose each byte into a number of bits but
+                    // only take as many bits as specified by `num_limbs`.
+                    let lowest_bits_le = bytes_le
+                        .flat_map(|limb| {
+                            [
+                                MemoryValue::U1(((limb & 0x80) >> 7) == 1),
+                                MemoryValue::U1(((limb & 0x40) >> 6) == 1),
+                                MemoryValue::U1(((limb & 0x20) >> 5) == 1),
+                                MemoryValue::U1(((limb & 0x10) >> 4) == 1),
+                                MemoryValue::U1(((limb & 0x08) >> 3) == 1),
+                                MemoryValue::U1(((limb & 0x04) >> 2) == 1),
+                                MemoryValue::U1(((limb & 0x02) >> 1) == 1),
+                                MemoryValue::U1((limb & 0x01) == 1),
+                            ]
+                            .into_iter()
+                        })
+                        .take(num_limbs);
+                    // We need to collect in order to reverse due to `flat_map`
+                    let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
+
+                    // Reverse to get bytes in big endian form again.
+                    lowest_bytes_le.into_iter().rev().collect()
+                }
+                16 => {
+                    let bytes_le = input.to_be_bytes().into_iter().rev();
+                    // We now decompose each byte into a number of nibbles but
+                    // only take as many nibbles as specified by `num_limbs`.
+                    //
+                    // Note that brillig does not have a u4 type so these are represented as u8s
+                    let lowest_bits_le = bytes_le
+                        .flat_map(|limb| {
+                            [MemoryValue::U8((limb & 0xf0) >> 4), MemoryValue::U8(limb & 0x0f)]
+                                .into_iter()
+                        })
+                        .take(num_limbs);
+                    // We need to collect in order to reverse due to `flat_map`
+                    let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
+
+                    // Reverse to get bytes in big endian form again.
+                    lowest_bytes_le.into_iter().rev().collect()
+                }
+                4 => {
+                    let bytes_le = input.to_be_bytes().into_iter().rev();
+                    // We now decompose each byte into a number of 2 bits pairs but
+                    // only take as many pairs as specified by `num_limbs`.
+                    //
+                    // Note that brillig does not have a u2 type so these are represented as u8s
+                    let lowest_bytes_le = bytes_le
+                        .flat_map(|limb| {
+                            [
+                                MemoryValue::U8((limb & 0xc0) >> 6),
+                                MemoryValue::U8((limb & 0x30) >> 4),
+                                MemoryValue::U8((limb & 0x0c) >> 2),
+                                MemoryValue::U8(limb & 0x03),
+                            ]
+                            .into_iter()
+                        })
+                        .take(num_limbs);
+                    // We need to collect in order to reverse due to `flat_map`
+                    let lowest_bytes_le: Vec<_> = lowest_bytes_le.collect();
+
+                    // Reverse to get bytes in big endian form again.
+                    lowest_bytes_le.into_iter().rev().collect()
+                }
+                _ => {
+                    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+                    let radix = BigUint::from(radix);
+
+                    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
+                    for i in (0..num_limbs).rev() {
+                        let limb = &input % &radix;
+                        let limb: u8 = limb.try_into().unwrap();
+                        limbs[i] = MemoryValue::U8(limb);
+
+                        input /= &radix;
+                    }
+                    limbs
+                }
+            };
 
             memory.write_slice(memory.read_ref(*output_pointer), &limbs);
 
