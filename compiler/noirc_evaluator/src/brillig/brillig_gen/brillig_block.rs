@@ -107,8 +107,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
-        let mut new_hoisted_constants = HashMap::default();
-
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
                 continue;
@@ -128,6 +126,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
+        let mut new_hoisted_constants = HashMap::default();
         for (constant, typ) in hoisted_global_constants {
             let constant = *constant;
             let typ = *typ;
