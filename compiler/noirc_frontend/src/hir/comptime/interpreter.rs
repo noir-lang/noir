@@ -535,6 +535,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
+            HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
@@ -1516,7 +1517,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
             value => {
-                let location = self.elaborator.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&if_.condition);
                 let typ = value.get_type().into_owned();
                 return Err(InterpreterError::NonBoolUsedInIf { typ, location });
             }
@@ -1571,6 +1572,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
             HirStatement::Loop(expression) => self.evaluate_loop(expression),
+            HirStatement::While(condition, block) => self.evaluate_while(condition, block),
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
@@ -1799,6 +1801,55 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             counter += 1;
             if in_lsp && counter == 10_000 {
                 let location = self.elaborator.interner.expr_location(&expr);
+                result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
+                break;
+            }
+        }
+
+        self.in_loop = was_in_loop;
+        result
+    }
+
+    fn evaluate_while(&mut self, condition: ExprId, block: ExprId) -> IResult<Value> {
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let in_lsp = self.elaborator.interner.is_in_lsp_mode();
+        let mut counter = 0;
+        let mut result = Ok(Value::Unit);
+
+        loop {
+            let condition = match self.evaluate(condition)? {
+                Value::Bool(value) => value,
+                value => {
+                    let location = self.elaborator.interner.expr_location(&condition);
+                    let typ = value.get_type().into_owned();
+                    return Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                }
+            };
+            if !condition {
+                break;
+            }
+
+            self.push_scope();
+
+            let must_break = match self.evaluate(block) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
+                Err(error) => {
+                    result = Err(error);
+                    true
+                }
+            };
+
+            self.pop_scope();
+
+            if must_break {
+                break;
+            }
+
+            counter += 1;
+            if in_lsp && counter == 10_000 {
+                let location = self.elaborator.interner.expr_location(&block);
                 result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
                 break;
             }

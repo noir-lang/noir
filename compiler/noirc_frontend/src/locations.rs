@@ -55,6 +55,30 @@ impl<'a> ReferencesTracker<'a> {
     }
 }
 
+/// A `ModuleDefId` captured to be offered in LSP's auto-import feature.
+///
+/// The name of the item is stored in the key of the `auto_import_names` map in the `NodeInterner`.
+#[derive(Debug, Copy, Clone)]
+pub struct AutoImportEntry {
+    /// The item to import.
+    pub module_def_id: ModuleDefId,
+    /// The item's visibility.
+    pub visibility: ItemVisibility,
+    /// If the item is available via a re-export, this contains the module where it's defined.
+    /// For example:
+    ///
+    /// ```noir
+    /// mod foo { // <- this is the defining module
+    ///     mod bar {
+    ///         pub struct Baz {} // This is the item
+    ///     }
+    ///     
+    ///     pub use bar::Baz; // Here's the visibility
+    /// }
+    /// ```
+    pub defining_module: Option<ModuleId>,
+}
+
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
@@ -309,9 +333,12 @@ impl NodeInterner {
     pub(crate) fn register_module(
         &mut self,
         id: ModuleId,
+        location: Location,
         visibility: ItemVisibility,
         name: String,
+        parent_module_id: ModuleId,
     ) {
+        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
@@ -381,13 +408,11 @@ impl NodeInterner {
         }
 
         let entry = self.auto_import_names.entry(name).or_default();
-        entry.push((module_def_id, visibility, defining_module));
+        entry.push(AutoImportEntry { module_def_id, visibility, defining_module });
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn get_auto_import_names(
-        &self,
-    ) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>> {
+    pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<AutoImportEntry>> {
         &self.auto_import_names
     }
 }

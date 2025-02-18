@@ -18,8 +18,7 @@ impl<'a> Formatter<'a> {
         self.write_keyword(Keyword::Impl);
         self.format_generics(trait_impl.impl_generics);
         self.write_space();
-        self.format_path(trait_impl.trait_name);
-        self.format_generic_type_args(trait_impl.trait_generics);
+        self.format_type(trait_impl.r#trait);
         self.write_space();
         self.write_keyword(Keyword::For);
         self.write_space();

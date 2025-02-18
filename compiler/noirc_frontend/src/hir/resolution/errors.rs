@@ -102,6 +102,8 @@ pub enum ResolverError {
     LoopInConstrainedFn { span: Span },
     #[error("`loop` must have at least one `break` in it")]
     LoopWithoutBreak { span: Span },
+    #[error("`while` is only allowed in unconstrained functions")]
+    WhileInConstrainedFn { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
@@ -178,6 +180,8 @@ pub enum ResolverError {
     },
     #[error("`loop` statements are not yet implemented")]
     LoopNotYetSupported { span: Span },
+    #[error("Expected a trait but found {found}")]
+    ExpectedTrait { found: String, span: Span },
 }
 
 impl ResolverError {
@@ -442,7 +446,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::LoopInConstrainedFn { span } => {
                 Diagnostic::simple_error(
-                    "loop is only allowed in unconstrained functions".into(),
+                    "`loop` is only allowed in unconstrained functions".into(),
                     "Constrained code must always have a known number of loop iterations".into(),
                     *span,
                 )
@@ -451,6 +455,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "`loop` must have at least one `break` in it".into(),
                     "Infinite loops are disallowed".into(),
+                    *span,
+                )
+            },
+            ResolverError::WhileInConstrainedFn { span } => {
+                Diagnostic::simple_error(
+                    "`while` is only allowed in unconstrained functions".into(),
+                    "Constrained code must always have a known number of loop iterations".into(),
                     *span,
                 )
             },
@@ -672,8 +683,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { span  } => {
+                let msg = "`loop` statements are not yet implemented".to_string();
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            ResolverError::ExpectedTrait { found, span  } => {
                 Diagnostic::simple_error(
-                    "`loop` statements are not yet implemented".to_string(), 
+                    format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
 
