@@ -358,7 +358,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for:
     /// - bit-shifts, because we will convert them to field multiplication
-    /// - when multiplying two u128: the overflow will be checking during acir-gen, but we also need to do an
+    /// - when multiplying two u128: the overflow will be checked during acir-gen, but we also need to do an
     ///   extra check because the result might wrap around the field maximum value and end up in a valid u128 value
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
