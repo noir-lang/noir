@@ -11,9 +11,9 @@ use nargo::PrintOutput;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noir_artifact_cli::errors::CliError;
 use noir_artifact_cli::fs::artifact::read_bytecode_from_file;
-use noir_artifact_cli::fs::witness::{
-    create_output_witness_string, read_witness_from_file, save_witness_to_dir,
-};
+use noir_artifact_cli::fs::witness::save_witness_to_dir;
+
+use crate::fs::witness::{create_output_witness_string, read_witness_from_file};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]

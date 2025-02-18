@@ -5,12 +5,12 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
-use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
-use noir_artifact_cli::{
+use crate::{
     errors::CliError,
     fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
     Artifact,
 };
+use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
 use noirc_abi::{input_parser::InputValue, Abi};
 use noirc_artifacts::debug::DebugArtifact;
 
@@ -18,10 +18,10 @@ use super::parse_and_normalize_path;
 
 /// Execute a binary program or a circuit artifact.
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ExecuteCommand {
+pub struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
     #[clap(long, short, value_parser = parse_and_normalize_path)]
-    artifact: PathBuf,
+    artifact_path: PathBuf,
 
     /// Path to the Prover.toml file which contains the inputs and the
     /// optional return value in ABI format.
@@ -43,19 +43,8 @@ pub(crate) struct ExecuteCommand {
     #[clap(long)]
     contract_fn: Option<String>,
 
-    /// Part to the Oracle.toml file which contains the Oracle transcript,
-    /// which is a list of responses captured during an earlier execution,
-    /// which can replayed via mocks.
-    ///
-    /// Note that a transcript might be invalid if the inputs change and
-    /// the circuit takes a different path during execution.
-    #[clap(long, conflicts_with = "oracle_resolver")]
-    oracle_file: Option<String>,
-
     /// JSON RPC url to solve oracle calls.
-    ///
-    /// This is to facilitate new executions, as opposed to replays.
-    #[clap(long, conflicts_with = "oracle_file")]
+    #[clap(long)]
     oracle_resolver: Option<String>,
 
     /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
@@ -63,8 +52,8 @@ pub(crate) struct ExecuteCommand {
     pedantic_solving: bool,
 }
 
-pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
-    let artifact = Artifact::read_from_file(&args.artifact)?;
+pub fn run(args: ExecuteCommand) -> eyre::Result<()> {
+    let artifact = Artifact::read_from_file(&args.artifact_path)?;
 
     let circuit = match artifact {
         Artifact::Program(program) => Circuit {
@@ -178,7 +167,7 @@ fn save_witness(
     args: ExecuteCommand,
     solved: SolvedWitnesses,
 ) -> eyre::Result<()> {
-    let artifact = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let artifact = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
     let name = circuit
         .name
         .as_ref()
