@@ -2014,13 +2014,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let condition = Box::new(self.expr(cond)?);
                 let consequence = Box::new(self.expr(body)?);
                 let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
-
-                Ok(ast::Expression::If(ast::If {
-                    condition,
-                    consequence,
-                    alternative,
-                    typ: ast::Type::Unit, // TODO
-                }))
+                let location = self.interner.expr_location(&expr_id);
+                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) => {
                 let variable_to_match = match self.lookup_local(variable_to_match) {

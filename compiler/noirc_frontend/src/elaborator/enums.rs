@@ -301,10 +301,10 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(x, negative)) => {
+            ExpressionKind::Literal(Literal::Integer(value, negative)) => {
                 let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
                 unify_with_expected_type(self, &actual);
-                Pattern::Int(SignedField::new(x, negative))
+                Pattern::Int(SignedField::new(value, negative))
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);
