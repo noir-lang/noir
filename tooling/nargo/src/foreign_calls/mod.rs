@@ -2,6 +2,7 @@ use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use thiserror::Error;
 
 pub mod layers;
+pub mod logging;
 pub mod mocker;
 pub mod print;
 
@@ -83,4 +84,7 @@ pub enum ForeignCallError {
 
     #[error("Assert message resolved after an unsatisfied constrain. {0}")]
     ResolvedAssertMessage(String),
+
+    #[error("Failed to replay oracle transcript: {0}")]
+    TranscriptError(String),
 }

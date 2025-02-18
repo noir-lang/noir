@@ -1,5 +1,5 @@
 use acir::FieldElement;
-use nargo::NargoError;
+use nargo::{foreign_calls::logging::TranscriptError, NargoError};
 use noirc_abi::{
     errors::{AbiError, InputParserError},
     input_parser::InputValue,
@@ -38,6 +38,10 @@ pub enum CliError {
     /// Error related to ABI input deserialization
     #[error("Failed to deserialize inputs")]
     InputDeserializationError(#[from] InputParserError),
+
+    /// Error related to oracle transcript deserialization
+    #[error(transparent)]
+    TranscriptError(#[from] TranscriptError),
 
     /// Error related to ABI encoding
     #[error(transparent)]
