@@ -820,7 +820,7 @@ impl<'a> FunctionContext<'a> {
         typ: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(x) => self.checked_numeric_constant(x.field, x.is_negative, typ),
+            Constructor::Int(value) => self.checked_numeric_constant(value.field, value.is_negative, typ),
             other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }
