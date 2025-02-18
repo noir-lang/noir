@@ -417,11 +417,12 @@ impl<'a> FunctionContext<'a> {
                         return result;
                     }
                     BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to acir-gen
+                        // Part of the overflow check is done here for u128
                         if matches!(result_type, NumericType::Unsigned { bit_size: 128 }) {
                             self.check_u128_mul_overflow(lhs, rhs);
                         }
 
+                        // Overflow check is also done in acir-gen
                         return result;
                     }
                     BinaryOpKind::ShiftLeft => {
