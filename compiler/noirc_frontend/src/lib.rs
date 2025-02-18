@@ -29,7 +29,7 @@ pub mod hir_def;
 pub use lexer::token;
 
 // Parser API
-pub use parser::{parse_program, ParsedModule};
+pub use parser::{parse_program, parse_program_with_dummy_file, ParsedModule};
 
 // Type API
 pub use hir_def::types::*;

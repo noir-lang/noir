@@ -13,7 +13,7 @@ use crate::{
 };
 use acvm::AcirField;
 
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use super::parse_many::separated_by_comma_until_right_paren;
 use super::pattern::SelfPattern;
@@ -24,7 +24,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) generics: UnresolvedGenerics,
     pub(crate) parameters: Vec<Param>,
     pub(crate) body: Option<BlockExpression>,
-    pub(crate) span: Span,
+    pub(crate) location: Location,
     pub(crate) where_clause: Vec<UnresolvedTraitConstraint>,
     pub(crate) return_type: FunctionReturnType,
     pub(crate) return_visibility: Visibility,
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn parse_function_definition(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
         is_comptime: bool,
         is_unconstrained: bool,
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
             generics: func.generics,
             parameters: func.parameters,
             body: func.body.unwrap_or_else(empty_body),
-            span: func.span,
+            location: func.location,
             where_clause: func.where_clause,
             return_type: func.return_type,
             return_visibility: func.return_visibility,
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
     ) -> FunctionDefinitionWithOptionalBody {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return empty_function(self.previous_token_span);
+            return empty_function(self.previous_token_location);
         };
 
         let generics = self.parse_generics();
@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
             None => {
                 self.push_error(
                     ParserErrorReason::MissingParametersForFunctionDefinition,
-                    name.span(),
+                    name.location(),
                 );
                 Vec::new()
             }
@@ -109,15 +109,18 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (FunctionReturnType::Default(self.span_at_previous_token_end()), Visibility::Private)
+            (
+                FunctionReturnType::Default(self.location_at_previous_token_end()),
+                Visibility::Private,
+            )
         };
 
         let where_clause = self.parse_where_clause();
 
-        let body_start_span = self.current_token_span;
+        let body_start_location = self.current_token_location;
         let body = if self.eat_semicolons() {
             if !allow_optional_body {
-                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_span);
+                self.push_error(ParserErrorReason::ExpectedFunctionBody, body_start_location);
             }
 
             None
@@ -130,7 +133,7 @@ impl<'a> Parser<'a> {
             generics,
             parameters,
             body,
-            span: self.span_since(body_start_span),
+            location: self.location_since(body_start_location),
             where_clause,
             return_type,
             return_visibility,
@@ -154,7 +157,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function_parameter(&mut self, allow_self: bool) -> Option<Param> {
         loop {
-            let start_span = self.current_token_span;
+            let start_location = self.current_token_location;
 
             let pattern_or_self = if allow_self {
                 self.parse_pattern_or_self()
@@ -175,49 +178,51 @@ impl<'a> Parser<'a> {
             };
 
             return Some(match pattern_or_self {
-                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_span),
+                PatternOrSelf::Pattern(pattern) => self.pattern_param(pattern, start_location),
                 PatternOrSelf::SelfPattern(self_pattern) => self.self_pattern_param(self_pattern),
             });
         }
     }
 
-    fn pattern_param(&mut self, pattern: Pattern, start_span: Span) -> Param {
+    fn pattern_param(&mut self, pattern: Pattern, start_location: Location) -> Param {
         let (visibility, typ) = if !self.eat_colon() {
             self.push_error(
                 ParserErrorReason::MissingTypeForFunctionParameter,
-                Span::from(pattern.span().start()..self.current_token_span.end()),
+                pattern.location().merge(self.current_token_location),
             );
 
             let visibility = Visibility::Private;
-            let typ = UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() };
+            let typ =
+                UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
             (visibility, typ)
         } else {
             (self.parse_visibility(), self.parse_type_or_error())
         };
 
-        Param { visibility, pattern, typ, span: self.span_since(start_span) }
+        Param { visibility, pattern, typ, location: self.location_since(start_location) }
     }
 
     fn self_pattern_param(&mut self, self_pattern: SelfPattern) -> Param {
-        let ident_span = self.previous_token_span;
-        let ident = Ident::new("self".to_string(), ident_span);
-        let path = Path::from_single("Self".to_owned(), ident_span);
+        let ident_location = self.previous_token_location;
+        let ident = Ident::new("self".to_string(), ident_location);
+        let path = Path::from_single("Self".to_owned(), ident_location);
         let no_args = GenericTypeArgs::default();
-        let mut self_type = UnresolvedTypeData::Named(path, no_args, true).with_span(ident_span);
+        let mut self_type =
+            UnresolvedTypeData::Named(path, no_args, true).with_location(ident_location);
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
-            self_type =
-                UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(ident_span);
+            self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+                .with_location(ident_location);
         } else if self_pattern.mutable {
-            pattern = Pattern::Mutable(Box::new(pattern), ident_span, true);
+            pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
         }
 
         Param {
             visibility: Visibility::Private,
             pattern,
             typ: self_type,
-            span: self.span_since(ident_span),
+            location: self.location_since(ident_location),
         }
     }
 
@@ -256,17 +261,20 @@ impl<'a> Parser<'a> {
         Visibility::Private
     }
 
-    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Span)>) -> Attributes {
+    fn validate_attributes(&mut self, attributes: Vec<(Attribute, Location)>) -> Attributes {
         let mut function = None;
         let mut secondary = Vec::new();
 
-        for (index, (attribute, span)) in attributes.into_iter().enumerate() {
+        for (index, (attribute, location)) in attributes.into_iter().enumerate() {
             match attribute {
                 Attribute::Function(attr) => {
                     if function.is_none() {
                         function = Some((attr, index));
                     } else {
-                        self.push_error(ParserErrorReason::MultipleFunctionAttributesFound, span);
+                        self.push_error(
+                            ParserErrorReason::MultipleFunctionAttributesFound,
+                            location,
+                        );
                     }
                 }
                 Attribute::Secondary(attr) => secondary.push(attr),
@@ -277,15 +285,16 @@ impl<'a> Parser<'a> {
     }
 }
 
-fn empty_function(span: Span) -> FunctionDefinitionWithOptionalBody {
+fn empty_function(location: Location) -> FunctionDefinitionWithOptionalBody {
+    let span = Span::from(location.span.end()..location.span.end());
     FunctionDefinitionWithOptionalBody {
         name: Ident::default(),
         generics: Vec::new(),
         parameters: Vec::new(),
         body: None,
-        span: Span::from(span.end()..span.end()),
+        location: Location::new(span, location.file),
         where_clause: Vec::new(),
-        return_type: FunctionReturnType::Default(Span::default()),
+        return_type: FunctionReturnType::Default(Location::dummy()),
         return_visibility: Visibility::Private,
     }
 }
@@ -298,20 +307,18 @@ fn empty_body() -> BlockExpression {
 mod tests {
     use crate::{
         ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_function_no_error(src: &str) -> NoirFunction {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -405,7 +412,7 @@ mod tests {
     #[test]
     fn parse_function_unclosed_parentheses() {
         let src = "fn foo(x: i32,";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -422,7 +429,7 @@ mod tests {
                         ^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MultipleFunctionAttributesFound));
     }
@@ -434,7 +441,7 @@ mod tests {
                 ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::ExpectedFunctionBody));
     }
@@ -446,7 +453,7 @@ mod tests {
                ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -464,7 +471,7 @@ mod tests {
                ^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -482,7 +489,7 @@ mod tests {
                   ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(noir_function) = &module.items[0].kind else {
             panic!("Expected function");
@@ -509,7 +516,7 @@ mod tests {
            ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
     }

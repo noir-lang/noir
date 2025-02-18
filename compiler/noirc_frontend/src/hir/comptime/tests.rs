@@ -48,7 +48,7 @@ pub(crate) fn with_interpreter<T>(
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    let (module, errors) = parse_program(src);
+    let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 

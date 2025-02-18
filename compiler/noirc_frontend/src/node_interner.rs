@@ -6,7 +6,8 @@ use std::marker::Copy;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::Located;
+use noirc_errors::{Location, Span};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -704,8 +705,8 @@ impl NodeInterner {
     }
 
     /// Stores the span for an interned expression.
-    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
-        self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    pub fn push_expr_location(&mut self, expr_id: ExprId, location: Location) {
+        self.id_to_location.insert(expr_id.into(), location);
     }
 
     /// Interns a HIR Function.
@@ -734,7 +735,7 @@ impl NodeInterner {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
-            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
+            location: unresolved_trait.trait_def.location,
             generics,
             visibility: ItemVisibility::Private,
             self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
@@ -779,7 +780,7 @@ impl NodeInterner {
         self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            Location::new(typ.type_alias_def.span, typ.file_id),
+            typ.type_alias_def.location,
             Type::Error,
             generics,
         )));
@@ -1071,8 +1072,8 @@ impl NodeInterner {
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
-        let span = self.function_meta(func_id).name.location.span;
-        crate::ast::Ident(Spanned::from(span, name))
+        let location = self.function_meta(func_id).name.location;
+        crate::ast::Ident(Located::from(location, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -1689,7 +1690,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), (Span, FileId)> {
+    ) -> Result<(), (Location, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
@@ -1741,7 +1742,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err((existing_impl.ident.span(), existing_impl.file));
+            return Err((existing_impl.ident.location(), existing_impl.file));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -2128,8 +2129,8 @@ impl NodeInterner {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
-    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
-        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 

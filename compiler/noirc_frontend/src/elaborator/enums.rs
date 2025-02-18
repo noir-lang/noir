@@ -66,13 +66,13 @@ impl Elaborator<'_> {
         self_type: &Type,
     ) {
         let name = &variant.name;
-        let location = Location::new(variant.name.span(), self.file);
+        let location = variant.name.location();
 
         let global_id = self.interner.push_empty_global(
             name.clone(),
             type_id.local_module_id(),
             type_id.krate(),
-            self.file,
+            name.location().file,
             Vec::new(),
             false,
             false,
@@ -118,7 +118,7 @@ impl Elaborator<'_> {
     ) {
         let name_string = variant.name.to_string();
         let datatype_ref = datatype.borrow();
-        let location = Location::new(variant.name.span(), self.file);
+        let location = variant.name.location();
 
         let id = self.interner.push_empty_fn();
 
@@ -167,7 +167,7 @@ impl Elaborator<'_> {
             function_body: FunctionBody::Resolved,
             source_crate: self.crate_id,
             source_module: type_id.local_module_id(),
-            source_file: self.file,
+            source_file: variant.name.location().file,
             self_type: None,
         };
 
@@ -210,7 +210,7 @@ impl Elaborator<'_> {
             HirPattern::Identifier(ident) => {
                 let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
                 self.interner.push_expr_type(id, typ.clone());
-                self.interner.push_expr_location(id, location.span, location.file);
+                self.interner.push_expr_location(id, location);
                 id
             }
             _ => unreachable!(),
@@ -226,7 +226,7 @@ impl Elaborator<'_> {
         let enum_generics = self_type.borrow().generic_types();
         let typ = Type::DataType(self_type.clone(), enum_generics);
         self.interner.push_expr_type(body, typ);
-        self.interner.push_expr_location(body, location.span, location.file);
+        self.interner.push_expr_location(body, location);
         body
     }
 

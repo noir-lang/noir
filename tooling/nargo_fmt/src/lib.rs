@@ -65,7 +65,7 @@ pub(crate) fn assert_format_with_max_width(src: &str, expected: &str, max_width:
 pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Config) {
     use noirc_frontend::parser;
 
-    let (parsed_module, errors) = parser::parse_program(src);
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
         panic!("Expected no errors, got: {:?}", errors);
@@ -78,7 +78,7 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
     similar_asserts::assert_eq!(result, expected);
 
     let src = &result;
-    let (parsed_module, errors) = parser::parse_program(src);
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
         panic!("Expected no errors in idempotent check, got: {:?}", errors);

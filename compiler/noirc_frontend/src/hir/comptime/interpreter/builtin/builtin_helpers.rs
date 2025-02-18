@@ -7,9 +7,11 @@ use noirc_errors::Location;
 
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
-use crate::hir::comptime::value::add_token_spans;
+use crate::hir::comptime::value::unwrap_rc;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
+use crate::token::LocatedToken;
 use crate::{
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
@@ -110,7 +112,7 @@ pub(crate) fn get_struct_fields(
         _ => {
             let expected = DataType::new(
                 TypeId::dummy_id(),
-                Ident::new(name.to_string(), location.span),
+                Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
             );
@@ -287,7 +289,7 @@ pub(crate) fn get_expr(
                 Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
-                Ok(ExprValue::LValue(interner.get_lvalue(id, location.span).clone()))
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location).clone()))
             }
             ExprValue::Pattern(Pattern::Interned(id, _)) => {
                 Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
@@ -370,7 +372,7 @@ pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<Ty
     }
 }
 
-pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<Token>>> {
+pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<LocatedToken>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
@@ -483,10 +485,11 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
-pub(super) fn lex(input: &str) -> Vec<Token> {
-    let (tokens, _) = Lexer::lex(input);
-    let mut tokens: Vec<_> = tokens.0.into_iter().map(|token| token.into_token()).collect();
-    if let Some(Token::EOF) = tokens.last() {
+pub(super) fn lex(input: &str, location: Location) -> Vec<LocatedToken> {
+    let (tokens, _) = Lexer::lex(input, location.file);
+    let mut tokens: Vec<_> =
+        tokens.0.into_iter().map(|token| LocatedToken::new(token.into_token(), location)).collect();
+    if let Some(Token::EOF) = tokens.last().map(|t| t.token()) {
         tokens.pop();
     }
     tokens
@@ -502,17 +505,19 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     let tokens = get_quoted((value, location))?;
-    let quoted = add_token_spans(tokens.clone(), location.span);
+    let quoted = Tokens(unwrap_rc(tokens.clone()));
     let (result, warnings) =
         parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        elaborator.errors.push((warning.into(), location.file));
+        let location = warning.location();
+        let warning: CompilationError = warning.into();
+        elaborator.push_err(warning, location.file);
     }
     Ok(result)
 }
 
 pub(super) fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<Token>>,
+    tokens: Rc<Vec<LocatedToken>>,
     quoted: Tokens,
     interner: &NodeInterner,
     location: Location,
@@ -524,8 +529,8 @@ where
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
         let error = Box::new(errors.swap_remove(0));
-        let tokens = tokens_to_string(tokens, interner);
-        InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
+        let tokens = tokens_to_string(&tokens, interner);
+        InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
 }
 
@@ -582,12 +587,14 @@ pub(super) fn has_named_attribute(name: &str, attributes: &[SecondaryAttribute])
     false
 }
 
-pub(super) fn quote_ident(ident: &Ident) -> Value {
-    Value::Quoted(ident_to_tokens(ident))
+pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
+    Value::Quoted(ident_to_tokens(ident, location))
 }
 
-pub(super) fn ident_to_tokens(ident: &Ident) -> Rc<Vec<Token>> {
-    Rc::new(vec![Token::Ident(ident.0.contents.clone())])
+fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
+    let token = Token::Ident(ident.0.contents.clone());
+    let token = LocatedToken::new(token, location);
+    Rc::new(vec![token])
 }
 
 pub(super) fn hash_item<T: Hash>(

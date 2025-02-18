@@ -20,8 +20,10 @@ use crate::token::SecondaryAttribute;
 
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
-use noirc_errors::Span;
-pub use parser::{parse_program, Parser, StatementOrExpressionOrLValue};
+use noirc_errors::Location;
+pub use parser::{
+    parse_program, parse_program_with_dummy_file, Parser, StatementOrExpressionOrLValue,
+};
 
 #[derive(Clone, Default)]
 pub struct SortedModule {
@@ -128,7 +130,7 @@ impl ParsedModule {
 #[derive(Clone, Debug)]
 pub struct Item {
     pub kind: ItemKind,
-    pub span: Span,
+    pub location: Location,
     pub doc_comments: Vec<String>,
 }
 

@@ -80,7 +80,7 @@ pub(crate) struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,
@@ -303,7 +303,7 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
+                Ok(token) => token.into_spanned_token(),
                 Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
             }
         } else {

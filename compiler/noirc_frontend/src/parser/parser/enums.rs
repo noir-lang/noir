@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Documented, EnumVariant, Ident, ItemVisibility, NoirEnumeration, UnresolvedGenerics},
@@ -17,13 +17,13 @@ impl<'a> Parser<'a> {
     /// EnumField = OuterDocComments identifier ':' Type
     pub(crate) fn parse_enum(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
                 attributes,
                 visibility,
                 Vec::new(),
-                start_span,
+                start_location,
             );
         };
 
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_enum(name, attributes, visibility, generics, start_span);
+            return self.empty_enum(name, attributes, visibility, generics, start_location);
         }
 
         let comma_separated = separated_by_comma_until_right_brace();
@@ -52,7 +52,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             variants,
-            span: self.span_since(start_span),
+            location: self.location_since(start_location),
         }
     }
 
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
-            let doc_comments_start_span = self.current_token_span;
+            let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
             if let Some(ident) = self.eat_ident() {
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.span_since(doc_comments_start_span),
+                    self.location_since(doc_comments_start_location),
                 );
             }
 
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
         generics: UnresolvedGenerics,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirEnumeration {
         NoirEnumeration {
             name,
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             variants: Vec::new(),
-            span: self.span_since(start_span),
+            location: self.location_since(start_location),
         }
     }
 }
@@ -123,17 +123,15 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{expect_no_errors, get_source_with_error_span},
-            },
+            parser::tests::{expect_no_errors, get_source_with_error_span},
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_enum_no_errors(src: &str) -> NoirEnumeration {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -205,7 +203,7 @@ mod tests {
     #[test]
     fn parse_empty_enum_with_doc_comments() {
         let src = "/// Hello\nenum Foo {}";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -219,7 +217,7 @@ mod tests {
     #[test]
     fn parse_unclosed_enum() {
         let src = "enum Foo {";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -236,7 +234,7 @@ mod tests {
         ^^^^^^^
         ";
         let (src, _) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = errors[0].reason().unwrap();
         assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
@@ -248,7 +246,7 @@ mod tests {
                    ^^
         ";
         let (src, _) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

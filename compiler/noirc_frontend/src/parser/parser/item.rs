@@ -89,16 +89,16 @@ impl<'a> Parser<'a> {
 
     /// Item = OuterDocComments ItemKind
     fn parse_item(&mut self) -> Vec<Item> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let doc_comments = self.parse_outer_doc_comments();
         let kinds = self.parse_item_kind();
-        let span = self.span_since(start_span);
+        let location = self.location_since(start_location);
 
         if kinds.is_empty() && !doc_comments.is_empty() {
-            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_span);
+            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
-        vecmap(kinds, |kind| Item { kind, span, doc_comments: doc_comments.clone() })
+        vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::InnerAttribute(kind)];
         }
 
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let attributes = self.parse_attributes();
 
         let modifiers = self.parse_modifiers(
@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::Struct(self.parse_struct(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             ))];
         }
 
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
             return vec![ItemKind::Enum(self.parse_enum(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             ))];
         }
 
@@ -176,7 +176,7 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let (noir_trait, noir_impl) =
-                self.parse_trait(attributes, modifiers.visibility, start_span);
+                self.parse_trait(attributes, modifiers.visibility, start_location);
             let mut output = vec![ItemKind::Trait(noir_trait)];
             if let Some(noir_impl) = noir_impl {
                 output.push(ItemKind::TraitImpl(noir_impl));
@@ -202,7 +202,7 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             return vec![ItemKind::TypeAlias(
-                self.parse_type_alias(modifiers.visibility, start_span),
+                self.parse_type_alias(modifiers.visibility, start_location),
             )];
         }
 
@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parse_program,
+        parse_program_with_dummy_file,
         parser::parser::tests::{get_single_error, get_source_with_error_span},
     };
 
@@ -246,7 +246,7 @@ mod tests {
                     ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected an item but found 'hello'");
@@ -259,7 +259,7 @@ mod tests {
                              ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a '}' but found end of input");
@@ -273,7 +273,7 @@ mod tests {
         ^^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("This doc comment doesn't document anything"));
