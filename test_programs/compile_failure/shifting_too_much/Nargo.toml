@@ -1,0 +1,6 @@
+[package]
+name = "shifting_too_much"
+type = "bin"
+authors = [""]
+
+[dependencies]

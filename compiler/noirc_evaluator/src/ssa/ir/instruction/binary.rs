@@ -1,4 +1,5 @@
 use acvm::{acir::AcirField, FieldElement};
+use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -574,8 +575,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
     }
 
