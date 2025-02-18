@@ -316,6 +316,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         members: vec![assumed_package],
         selected_package_index: Some(0),
         is_assumed: true,
+        target_dir: None,
     };
     Ok(workspace)
 }

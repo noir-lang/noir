@@ -20,7 +20,6 @@ pub mod ops;
 pub mod default;
 pub mod prelude;
 pub mod uint128;
-pub mod bigint;
 pub mod runtime;
 pub mod meta;
 pub mod append;
@@ -40,14 +39,14 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 }
 
 pub fn println<T>(input: T) {
-    /// Safety: a print statement cannot be constrained
+    // Safety: a print statement cannot be constrained
     unsafe {
         print_unconstrained(true, input);
     }
 }
 
 pub fn print<T>(input: T) {
-    /// Safety: a print statement cannot be constrained
+    // Safety: a print statement cannot be constrained
     unsafe {
         print_unconstrained(false, input);
     }

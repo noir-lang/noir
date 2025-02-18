@@ -93,7 +93,7 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                self.push_err(ResolverError::AsTraitPathNotYetImplemented { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),

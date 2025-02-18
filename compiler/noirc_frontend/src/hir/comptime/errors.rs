@@ -50,6 +50,10 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    NonBoolUsedInWhile {
+        typ: Type,
+        location: Location,
+    },
     NonBoolUsedInConstrain {
         typ: Type,
         location: Location,
@@ -150,7 +154,7 @@ pub enum InterpreterError {
         location: Location,
     },
     FailedToParseMacro {
-        error: ParserError,
+        error: Box<ParserError>,
         tokens: String,
         rule: &'static str,
         file: FileId,
@@ -285,6 +289,7 @@ impl InterpreterError {
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
             | InterpreterError::NonBoolUsedInIf { location, .. }
+            | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
             | InterpreterError::NoMethodFound { location, .. }
@@ -413,6 +418,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "If conditions must be a boolean value".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
+            InterpreterError::NonBoolUsedInWhile { typ, location } => {
+                let msg = format!("Expected a `bool` but found `{typ}`");
+                let secondary = "While conditions must be a boolean value".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
             InterpreterError::NonBoolUsedInConstrain { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
@@ -539,7 +549,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
 
-                let mut diagnostic = CustomDiagnostic::from(error);
+                let mut diagnostic = CustomDiagnostic::from(error.as_ref());
                 // Swap the parser's primary note to become the secondary note so that it is
                 // more clear this error originates from failing to parse a macro.
                 let secondary = std::mem::take(&mut diagnostic.message);

@@ -15,6 +15,7 @@ pub enum HirStatement {
     Assign(HirAssignStatement),
     For(HirForStatement),
     Loop(ExprId),
+    While(ExprId, ExprId),
     Break,
     Continue,
     Expression(ExprId),

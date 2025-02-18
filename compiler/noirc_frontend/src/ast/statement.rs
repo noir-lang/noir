@@ -46,6 +46,7 @@ pub enum StatementKind {
     Assign(AssignStatement),
     For(ForLoopStatement),
     Loop(Expression, Span /* loop keyword span */),
+    While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -103,11 +104,8 @@ impl StatementKind {
                     statement.add_semicolon(semi, span, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
             }
-            // A semicolon on a for loop is optional and does nothing
-            StatementKind::For(_) => self,
-
-            // A semicolon on a loop is optional and does nothing
-            StatementKind::Loop(..) => self,
+            // A semicolon on a for loop, loop or while is optional and does nothing
+            StatementKind::For(_) | StatementKind::Loop(..) | StatementKind::While(..) => self,
 
             // No semicolon needed for a resolved statement
             StatementKind::Interned(_) => self,
@@ -154,30 +152,6 @@ impl StatementKind {
             is_global_let: false,
             attributes,
         })
-    }
-
-    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
-    pub fn assign(
-        lvalue: LValue,
-        operator: Token,
-        mut expression: Expression,
-        span: Span,
-    ) -> StatementKind {
-        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of LValues.
-        if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression();
-            let error_msg = "Token passed to Statement::assign is not a binary operator";
-
-            let infix = crate::ast::InfixExpression {
-                lhs: lvalue_expr,
-                operator: operator.try_into_binary_op(span).expect(error_msg),
-                rhs: expression,
-            };
-            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
-        }
-
-        StatementKind::Assign(AssignStatement { lvalue, expression })
     }
 }
 
@@ -881,6 +855,13 @@ pub struct ForLoopStatement {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Expression,
+    pub while_keyword_span: Span,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -889,6 +870,9 @@ impl Display for StatementKind {
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Loop(block, _) => write!(f, "loop {}", block),
+            StatementKind::While(while_) => {
+                write!(f, "while {} {}", while_.condition, while_.body)
+            }
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),

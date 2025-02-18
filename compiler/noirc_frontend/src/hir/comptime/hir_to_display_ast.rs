@@ -6,7 +6,7 @@ use crate::ast::{
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
     MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
-    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -46,6 +46,11 @@ impl HirStatement {
                 span,
             }),
             HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner), span),
+            HirStatement::While(condition, block) => StatementKind::While(WhileStatement {
+                condition: condition.to_display_ast(interner),
+                body: block.to_display_ast(interner),
+                while_keyword_span: span,
+            }),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {

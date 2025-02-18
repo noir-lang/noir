@@ -25,7 +25,7 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
-use ast::GlobalId;
+use ast::{GlobalId, While};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -704,6 +704,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Loop(block) => {
                 let block = Box::new(self.expr(block)?);
                 Ok(ast::Expression::Loop(block))
+            }
+            HirStatement::While(condition, body) => {
+                let condition = Box::new(self.expr(condition)?);
+                let body = Box::new(self.expr(body)?);
+                Ok(ast::Expression::While(While { condition, body }))
             }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => {
