@@ -1,5 +1,6 @@
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 
+pub mod commands;
 pub mod errors;
 pub mod fs;
 

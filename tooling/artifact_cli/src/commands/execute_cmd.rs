@@ -5,12 +5,12 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
-use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
-use noir_artifact_cli::{
+use crate::{
     errors::CliError,
     fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
     Artifact,
 };
+use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
 use noirc_abi::{input_parser::InputValue, Abi};
 use noirc_artifacts::debug::DebugArtifact;
 
@@ -18,7 +18,7 @@ use super::parse_and_normalize_path;
 
 /// Execute a binary program or a circuit artifact.
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ExecuteCommand {
+pub struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     artifact_path: PathBuf,
@@ -44,8 +44,6 @@ pub(crate) struct ExecuteCommand {
     contract_fn: Option<String>,
 
     /// JSON RPC url to solve oracle calls.
-    ///
-    /// This is to facilitate new executions, as opposed to replays.
     #[clap(long)]
     oracle_resolver: Option<String>,
 
@@ -54,7 +52,7 @@ pub(crate) struct ExecuteCommand {
     pedantic_solving: bool,
 }
 
-pub(crate) fn run(args: ExecuteCommand) -> eyre::Result<()> {
+pub fn run(args: ExecuteCommand) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(&args.artifact_path)?;
 
     let circuit = match artifact {

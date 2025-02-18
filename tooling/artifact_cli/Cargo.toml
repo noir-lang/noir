@@ -13,9 +13,12 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
-name = "noir-artifact"
-path = "src/main.rs"
+name = "noir-execute"
+path = "src/bin/execute.rs"
 
 [dependencies]
 clap.workspace = true
