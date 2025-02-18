@@ -579,8 +579,8 @@ impl DependencyContext {
         self.side_effects_condition.map(|v| parents.insert(v));
 
         // Don't update sets for the calls not yet being tracked
-        for (call, tainted_ids) in self.tainted.iter_mut() {
-            if self.tracking.contains(call) {
+        for call in &self.tracking {
+            if let Some(tainted_ids) = self.tainted.get_mut(&call) {
                 tainted_ids.update_children(&parents, children);
             }
         }
@@ -597,8 +597,8 @@ impl DependencyContext {
             .collect();
 
         // Skip untracked calls
-        for (call, tainted_ids) in self.tainted.iter_mut() {
-            if self.tracking.contains(call) {
+        for call in &self.tracking {
+            if let Some(tainted_ids) = self.tainted.get_mut(&call) {
                 tainted_ids.store_partial_constraints(&constrained_values);
             }
         }
@@ -627,8 +627,8 @@ impl DependencyContext {
         if let Some(value) = function.dfg.get_numeric_constant(index) {
             if let Some(index) = value.try_to_u32() {
                 // Skip untracked calls
-                for (call, tainted_ids) in self.tainted.iter_mut() {
-                    if self.tracking.contains(call) {
+                for call in &self.tracking {
+                    if let Some(tainted_ids) = self.tainted.get_mut(&call) {
                         tainted_ids.process_array_get(array, index as usize, element_results);
                     }
                 }
