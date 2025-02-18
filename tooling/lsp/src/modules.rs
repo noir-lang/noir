@@ -1,8 +1,13 @@
+use std::collections::BTreeMap;
+
 use noirc_frontend::{
+    ast::{Ident, ItemVisibility},
     graph::{CrateId, Dependency},
-    hir::def_map::{ModuleDefId, ModuleId},
-    node_interner::{NodeInterner, ReferenceId},
+    hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
+    node_interner::{NodeInterner, Reexport, ReferenceId},
 };
+
+use crate::visibility::module_def_id_is_visible;
 
 pub(crate) fn get_parent_module(
     interner: &NodeInterner,
@@ -36,7 +41,7 @@ pub(crate) fn relative_module_full_path(
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
         full_path = relative_module_id_path(
             module_id,
-            &current_module_id,
+            current_module_id,
             current_module_parent_id,
             interner,
         );
@@ -45,7 +50,7 @@ pub(crate) fn relative_module_full_path(
 
         full_path = relative_module_id_path(
             parent_module,
-            &current_module_id,
+            current_module_id,
             current_module_parent_id,
             interner,
         );
@@ -57,7 +62,7 @@ pub(crate) fn relative_module_full_path(
 /// Returns a relative path if possible.
 pub(crate) fn relative_module_id_path(
     target_module_id: ModuleId,
-    current_module_id: &ModuleId,
+    current_module_id: ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
 ) -> String {
@@ -80,7 +85,7 @@ pub(crate) fn relative_module_id_path(
             let parent_module_id =
                 &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
 
-            if current_module_id == parent_module_id {
+            if current_module_id == *parent_module_id {
                 is_relative = true;
                 break;
             }
@@ -159,4 +164,110 @@ pub(crate) fn module_full_path(
 
     segments.reverse();
     segments.join("::")
+}
+
+/// Finds a visible reexport for any ancestor module of the given ModuleDefId,
+pub(crate) fn get_ancestor_module_reexport(
+    module_def_id: ModuleDefId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &[Dependency],
+) -> Option<Reexport> {
+    let parent_module = get_parent_module(interner, module_def_id)?;
+    let reexport =
+        interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
+            module_def_id_is_visible(
+                ModuleDefId::ModuleId(reexport.module_id),
+                current_module_id,
+                reexport.visibility,
+                None,
+                interner,
+                def_maps,
+                dependencies,
+            )
+        });
+    if let Some(reexport) = reexport {
+        return Some(reexport.clone());
+    }
+
+    // Try searching in the parent's parent module.
+    let mut grandparent_module_reexport = get_ancestor_module_reexport(
+        ModuleDefId::ModuleId(parent_module),
+        visibility,
+        current_module_id,
+        interner,
+        def_maps,
+        dependencies,
+    )?;
+
+    // If we can find one, we need to check if ModuleDefId is actually visible from the grandparent module
+    if !module_def_id_is_visible(
+        module_def_id,
+        current_module_id,
+        visibility,
+        Some(grandparent_module_reexport.module_id),
+        interner,
+        def_maps,
+        dependencies,
+    ) {
+        return None;
+    }
+
+    // If we can find one we need to adjust the exported name a bit.
+    let parent_module_name = &interner.try_module_attributes(&parent_module)?.name;
+    grandparent_module_reexport.name.0.contents =
+        format!("{}::{}", grandparent_module_reexport.name.0.contents, parent_module_name);
+
+    Some(grandparent_module_reexport)
+}
+
+/// Returns the relative path to reach `module_def_id` named `name` starting from `current_module_id`.
+///
+/// - `defining_module` might be `Some` if the item is reexported from another module
+/// - `intermediate_name` might be `Some` if the item's parent module is reexport from another module
+///   (this will be the name of the reexport)
+///
+/// Returns `None` if `module_def_id` isn't visible from the current module, neither directly, neither via
+/// any of its reexports (or parent module reexports).
+pub(crate) fn module_def_id_relative_path(
+    module_def_id: ModuleDefId,
+    name: &str,
+    current_module_id: ModuleId,
+    current_module_parent_id: Option<ModuleId>,
+    defining_module: Option<ModuleId>,
+    intermediate_name: &Option<Ident>,
+    interner: &NodeInterner,
+) -> Option<String> {
+    let module_path = if let Some(defining_module) = defining_module {
+        relative_module_id_path(
+            defining_module,
+            current_module_id,
+            current_module_parent_id,
+            interner,
+        )
+    } else {
+        let Some(module_full_path) = relative_module_full_path(
+            module_def_id,
+            current_module_id,
+            current_module_parent_id,
+            interner,
+        ) else {
+            return None;
+        };
+        module_full_path
+    };
+
+    let path = if defining_module.is_some() || !matches!(module_def_id, ModuleDefId::ModuleId(..)) {
+        if let Some(reexport_name) = &intermediate_name {
+            format!("{}::{}::{}", module_path, reexport_name, name)
+        } else {
+            format!("{}::{}", module_path, name)
+        }
+    } else {
+        module_path.clone()
+    };
+
+    Some(path)
 }
