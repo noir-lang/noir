@@ -2345,7 +2345,7 @@ fn main() {
     }
 
     #[test]
-    async fn test_auto_import_suggests_private_function_if_visibile() {
+    async fn test_auto_import_suggests_private_function_if_visible() {
         let src = r#"
             mod foo {
                 fn qux() {

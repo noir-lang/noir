@@ -20,7 +20,6 @@ pub mod ops;
 pub mod default;
 pub mod prelude;
 pub mod uint128;
-pub mod bigint;
 pub mod runtime;
 pub mod meta;
 pub mod append;

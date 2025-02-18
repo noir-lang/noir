@@ -17,10 +17,8 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        instruction::Instruction,
-        value::{Value, ValueId},
+        value::ValueId,
     },
-    opt::inlining::called_functions_vec,
     ssa_gen::Ssa,
 };
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -122,10 +120,13 @@ impl Ssa {
         brillig_globals.declare_globals(&globals_dfg, &mut brillig, options);
 
         for brillig_function_id in brillig_reachable_function_ids {
-            let globals_allocations = brillig_globals.get_brillig_globals(brillig_function_id);
+            let empty_allocations = HashMap::default();
+            let globals_allocations = brillig_globals
+                .get_brillig_globals(brillig_function_id)
+                .unwrap_or(&empty_allocations);
 
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, options, &globals_allocations);
+            brillig.compile(func, options, globals_allocations);
         }
 
         brillig
