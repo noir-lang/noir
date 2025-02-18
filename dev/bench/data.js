@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739878163047,
+  "lastUpdate": 1739878222012,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8950,95 +8950,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3a42eb5c68f9616f0ebe367c894f0376ba41e0ef",
-          "message": "chore: add sha256 library to test suite (#7278)",
-          "timestamp": "2025-02-04T19:32:34Z",
-          "tree_id": "a93e03824fd0e496d61908288e0738e71bd8fc5c",
-          "url": "https://github.com/noir-lang/noir/commit/3a42eb5c68f9616f0ebe367c894f0376ba41e0ef"
-        },
-        "date": 1738698722539,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.051,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 0.599,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.454,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.312,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 0.069,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -12388,6 +12299,65 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3eb8e38e04c526f5d7e1c34f6bf2de3e48c238c6",
+          "message": "chore(ci): lock aztec-packages commit in CI (#7414)",
+          "timestamp": "2025-02-18T11:04:20Z",
+          "tree_id": "a474fdf9c97262aab141a88ca333dfd4e66f9b2c",
+          "url": "https://github.com/noir-lang/noir/commit/3eb8e38e04c526f5d7e1c34f6bf2de3e48c238c6"
+        },
+        "date": 1739878219904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.072,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.298,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.466,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.19,
             "unit": "s"
           },
           {
