@@ -1,17 +1,13 @@
 use lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::{
-    ast::{Ident, Path},
-    hir::def_map::ModuleDefId,
-};
+use noirc_frontend::ast::{Ident, Path};
 
 use crate::{
     byte_span_to_range,
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::module_def_id_relative_path,
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
-    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -41,55 +37,41 @@ impl<'a> CodeActionFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility, defining_module) in entries {
-                if !module_def_id_is_visible(
-                    *module_def_id,
-                    self.module_id,
-                    *visibility,
-                    *defining_module,
-                    self.interner,
-                    self.def_maps,
-                ) {
-                    continue;
+            for entry in entries {
+                let module_def_id = entry.module_def_id;
+                let visibility = entry.visibility;
+                let mut defining_module = entry.defining_module.as_ref().cloned();
+
+                // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
+                let mut intermediate_name = None;
+
+                let is_visible =
+                    self.module_def_id_is_visible(module_def_id, visibility, defining_module);
+                if !is_visible {
+                    if let Some(reexport) =
+                        self.get_ancestor_module_reexport(module_def_id, visibility)
+                    {
+                        defining_module = Some(reexport.module_id);
+                        intermediate_name = Some(reexport.name);
+                    } else {
+                        continue;
+                    }
                 }
 
-                let module_full_path = if let Some(defining_module) = defining_module {
-                    relative_module_id_path(
-                        *defining_module,
-                        &self.module_id,
-                        current_module_parent_id,
-                        self.interner,
-                    )
-                } else {
-                    let Some(module_full_path) = relative_module_full_path(
-                        *module_def_id,
-                        self.module_id,
-                        current_module_parent_id,
-                        self.interner,
-                    ) else {
-                        continue;
-                    };
-                    module_full_path
-                };
-
-                let full_path = if defining_module.is_some()
-                    || !matches!(module_def_id, ModuleDefId::ModuleId(..))
-                {
-                    format!("{}::{}", module_full_path, name)
-                } else {
-                    module_full_path.clone()
-                };
-
-                let qualify_prefix = if let ModuleDefId::ModuleId(..) = module_def_id {
-                    let mut segments: Vec<_> = module_full_path.split("::").collect();
-                    segments.pop();
-                    segments.join("::")
-                } else {
-                    module_full_path
+                let Some(full_path) = module_def_id_relative_path(
+                    module_def_id,
+                    name,
+                    self.module_id,
+                    current_module_parent_id,
+                    defining_module,
+                    &intermediate_name,
+                    self.interner,
+                ) else {
+                    continue;
                 };
 
                 self.push_import_code_action(&full_path);
-                self.push_qualify_code_action(ident, &qualify_prefix, &full_path);
+                self.push_qualify_code_action(ident, &full_path);
             }
         }
     }
@@ -113,7 +95,7 @@ impl<'a> CodeActionFinder<'a> {
         self.code_actions.push(code_action);
     }
 
-    fn push_qualify_code_action(&mut self, ident: &Ident, prefix: &str, full_path: &str) {
+    fn push_qualify_code_action(&mut self, ident: &Ident, full_path: &str) {
         let Some(range) = byte_span_to_range(
             self.files,
             self.file,
@@ -121,6 +103,10 @@ impl<'a> CodeActionFinder<'a> {
         ) else {
             return;
         };
+
+        let mut prefix = full_path.split("::").collect::<Vec<_>>();
+        prefix.pop();
+        let prefix = prefix.join("::");
 
         let title = format!("Qualify as {}", full_path);
         let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
@@ -296,6 +282,78 @@ mod foo {
 }
 
 fn foo(x: SomeTypeInBar) {}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_via_reexport() {
+        let title = "Import aztec::protocol_types::SomeStruct";
+
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStr>|<uct
+}"#;
+
+        let expected = r#"use aztec::protocol_types::SomeStruct;
+
+mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStruct
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_qualify_via_reexport() {
+        let title = "Qualify as aztec::protocol_types::SomeStruct";
+
+        let src = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    SomeStr>|<uct
+}"#;
+
+        let expected = r#"mod aztec {
+    mod deps {
+        pub mod protocol_types {
+            pub struct SomeStruct {}
+        }
+    }
+
+    pub use deps::protocol_types;
+}
+
+fn main() {
+    aztec::protocol_types::SomeStruct
+}"#;
 
         assert_code_action(title, src, expected).await;
     }

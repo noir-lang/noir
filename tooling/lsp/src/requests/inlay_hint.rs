@@ -327,7 +327,7 @@ impl<'a> Visitor for InlayHintCollector<'a> {
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
         self.show_closing_brace_hint(span, || {
-            format!(" impl {} for {}", noir_trait_impl.trait_name, noir_trait_impl.object_type)
+            format!(" impl {} for {}", noir_trait_impl.r#trait, noir_trait_impl.object_type)
         });
 
         true
