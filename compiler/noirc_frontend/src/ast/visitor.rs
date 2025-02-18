@@ -310,6 +310,10 @@ pub trait Visitor {
         true
     }
 
+    fn visit_while_statement(&mut self, _condition: &Expression, _body: &Expression) -> bool {
+        true
+    }
+
     fn visit_comptime_statement(&mut self, _: &Statement) -> bool {
         true
     }
@@ -598,7 +602,7 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.trait_name.accept(visitor);
+        self.r#trait.accept(visitor);
         self.object_type.accept(visitor);
 
         for item in &self.items {
@@ -1163,6 +1167,12 @@ impl Statement {
             StatementKind::Loop(block, _) => {
                 if visitor.visit_loop_statement(block) {
                     block.accept(visitor);
+                }
+            }
+            StatementKind::While(while_) => {
+                if visitor.visit_while_statement(&while_.condition, &while_.body) {
+                    while_.condition.accept(visitor);
+                    while_.body.accept(visitor);
                 }
             }
             StatementKind::Comptime(statement) => {

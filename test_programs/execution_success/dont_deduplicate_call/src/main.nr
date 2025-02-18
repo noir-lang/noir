@@ -1,6 +1,6 @@
 fn main(x: Field, active: bool) {
     let mut x1 = false;
-    /// Safety:)
+    // Safety:)
     unsafe {
         if active {
             x1 = foo(x);

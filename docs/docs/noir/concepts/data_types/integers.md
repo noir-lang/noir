@@ -111,8 +111,9 @@ fn main(x: U128, y: U128) {
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
 ```rust
-fn main(x: u8, y: u8) {
+fn main(x: u8, y: u8) -> pub u8 {
     let z = x + y;
+    z
 }
 ```
 
@@ -140,10 +141,20 @@ error: Assertion failed: 'attempt to add with overflow'
 A similar error would happen with signed integers:
 
 ```rust
-fn main() {
+fn main() -> i8 {
     let x: i8 = -118;
     let y: i8 = -11;
     let z = x + y;
+    z
+}
+```
+
+Note that if a computation ends up being unused the compiler might remove it and it won't end up producing an overflow:
+
+```rust
+fn main() {
+    // "255 + 1" would overflow, but `z` is unused so no computation happens
+    let z: u8 = 255 + 1;
 }
 ```
 
