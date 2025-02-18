@@ -13,4 +13,4 @@ cat $dir/Oracle.test.jsonl \
     > $dir/Oracle.jsonl
 
 # TODO: Execute `main` with the Prover.toml and Oracle.jsonl files.
-nargo execute --skip-underconstrained-check
+nargo execute --skip-underconstrained-check --oracle-file $dir/Oracle.jsonl
