@@ -179,6 +179,30 @@ pub struct CompileOptions {
     /// Used internally to test for non-determinism in the compiler.
     #[clap(long, hide = true)]
     pub check_non_determinism: bool,
+
+    #[clap(long, short = 'Z', value_parser = parse_unstable_feature)]
+    pub unstable_features: Vec<UnstableFeature>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum UnstableFeature {
+    Enums,
+    ArrayOwnership,
+}
+
+pub fn parse_unstable_feature(input: &str) -> Result<UnstableFeature, std::io::Error> {
+    let features =
+        [("enums", UnstableFeature::Enums), ("array_ownership", UnstableFeature::ArrayOwnership)];
+
+    if let Some(item) = features.iter().find(|(name, _)| *name == input) {
+        Ok(item.1)
+    } else {
+        let features = vecmap(features, |(name, _)| name);
+        let msg = format!(
+            "'{input}' is not an unstable feature.\nAvailable unstable features are: {features:?}"
+        );
+        Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, msg))
+    }
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
