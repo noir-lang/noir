@@ -163,6 +163,10 @@ impl ConstantAllocation {
         }
         current_block
     }
+
+    pub(crate) fn get_constants(&self) -> HashSet<ValueId> {
+        self.constant_usage.keys().copied().collect()
+    }
 }
 
 pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
