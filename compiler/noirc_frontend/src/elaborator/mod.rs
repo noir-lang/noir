@@ -11,14 +11,15 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-            UnresolvedTypeAlias,
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
+            errors::DefCollectorErrorKind,
         },
-        def_collector::errors::DefCollectorErrorKind,
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
@@ -1977,13 +1978,6 @@ impl<'context> Elaborator<'context> {
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
-        // Even though the trait type of an impl is `UnresolvedType`, only a couple of types are actually
-        // valid for a trait impl, namely named types and resolved types that point to a trait constraint.
-        enum TraitType {
-            Named(Path, GenericTypeArgs),
-            Trait(TraitId, TraitGenerics),
-        }
-
         for function_set in functions {
             self.define_function_metas_for_functions(function_set);
         }
@@ -2007,20 +2001,39 @@ impl<'context> Elaborator<'context> {
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
-            let trait_type = match &trait_impl.r#trait.typ {
+            let (trait_id, mut trait_generics, path_span) = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
-                    TraitType::Named(trait_path.clone(), trait_generics.clone())
+                    let trait_id = self.resolve_trait_by_path(trait_path.clone());
+                    (trait_id, trait_generics.clone(), trait_path.span)
                 }
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
-                    if let Type::TraitAsType(trait_id, _, trait_generics) = typ {
-                        TraitType::Trait(*trait_id, trait_generics.clone())
-                    } else {
-                        self.push_err(ResolverError::ExpectedTrait {
-                            span: trait_impl.r#trait.span,
-                        });
+                    let span = trait_impl.r#trait.span;
+                    let Type::TraitAsType(trait_id, _, trait_generics) = typ else {
+                        self.push_err(ResolverError::ExpectedTrait { span });
                         continue;
-                    }
+                    };
+
+                    // In order to take associated types into account we turn these resolved generics
+                    // into unresolved ones, but ones that point to solved types.
+                    let trait_id = *trait_id;
+                    let trait_generics = trait_generics.clone();
+                    let trait_generics = GenericTypeArgs {
+                        ordered_args: vecmap(&trait_generics.ordered, |typ| {
+                            let quoted_type_id = self.interner.push_quoted_type(typ.clone());
+                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
+                            UnresolvedType { typ, span }
+                        }),
+                        named_args: vecmap(&trait_generics.named, |named_type| {
+                            let quoted_type_id =
+                                self.interner.push_quoted_type(named_type.typ.clone());
+                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
+                            (named_type.name.clone(), UnresolvedType { typ, span })
+                        }),
+                        kinds: Vec::new(),
+                    };
+
+                    (Some(trait_id), trait_generics, span)
                 }
                 _ => {
                     self.push_err(ResolverError::ExpectedTrait { span: trait_impl.r#trait.span });
@@ -2028,10 +2041,6 @@ impl<'context> Elaborator<'context> {
                 }
             };
 
-            let trait_id = match &trait_type {
-                TraitType::Named(trait_path, _) => self.resolve_trait_by_path(trait_path.clone()),
-                TraitType::Trait(trait_id, _) => Some(*trait_id),
-            };
             trait_impl.trait_id = trait_id;
             let unresolved_type = trait_impl.object_type.clone();
 
@@ -2056,33 +2065,6 @@ impl<'context> Elaborator<'context> {
 
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
-
-            let path_span = match &trait_type {
-                TraitType::Named(path, _) => path.span,
-                TraitType::Trait(..) => trait_impl.r#trait.span,
-            };
-
-            let mut trait_generics = match &trait_type {
-                TraitType::Named(_, trait_generics) => trait_generics.clone(),
-                TraitType::Trait(_, trait_generics) => {
-                    // In order to take associated types into account we turn these resolved generics
-                    // into unresolved ones, but ones that point to solved types.
-                    GenericTypeArgs {
-                        ordered_args: vecmap(&trait_generics.ordered, |typ| {
-                            let quoted_type_id = self.interner.push_quoted_type(typ.clone());
-                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
-                            UnresolvedType { typ, span: path_span }
-                        }),
-                        named_args: vecmap(&trait_generics.named, |named_type| {
-                            let quoted_type_id =
-                                self.interner.push_quoted_type(named_type.typ.clone());
-                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
-                            (named_type.name.clone(), UnresolvedType { typ, span: path_span })
-                        }),
-                        kinds: Vec::new(),
-                    }
-                }
-            };
 
             // Add each associated type to the list of named type arguments
             trait_generics.named_args.extend(self.take_unresolved_associated_types(trait_impl));
