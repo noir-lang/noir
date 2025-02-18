@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739910128184,
+  "lastUpdate": 1739910221557,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ac1da8f4b57290a67240973a7d6172cfbf5680a8",
-          "message": "fix: avoid stack overflow on many comments in a row (#7325)",
-          "timestamp": "2025-02-07T18:20:56Z",
-          "tree_id": "194e13757e4b29173c7f7363902f0fe5a37a1238",
-          "url": "https://github.com/noir-lang/noir/commit/ac1da8f4b57290a67240973a7d6172cfbf5680a8"
-        },
-        "date": 1738953889533,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 272.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 587.73,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1170,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2180,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 662.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 547.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5310,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 545.53,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 662.68,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3899,6 +3820,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 372.32,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aqdrgg19@gmail.com",
+            "name": "VolodymyrBg",
+            "username": "VolodymyrBg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f37eedca7f286187c71587797e08da189c4eee70",
+          "message": "feat(acir_field): Add little-endian byte serialization for FieldElement (#7258)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-02-18T19:53:43Z",
+          "tree_id": "12c26ead54deb16c8a84bbabe733be12ac3809be",
+          "url": "https://github.com/noir-lang/noir/commit/f37eedca7f286187c71587797e08da189c4eee70"
+        },
+        "date": 1739910220104,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 275.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 586.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 950.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 816.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 326.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.66,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.33,
             "unit": "MB"
           }
         ]
