@@ -315,7 +315,7 @@ pub fn create_program(
     let func_sigs = program.function_signatures.clone();
 
     let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        (mut generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
     ) = optimize_into_acir(program, options)?;
 
@@ -325,10 +325,14 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let error_types = error_types
+    let mut error_types: BTreeMap<_, _> = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
+
+    for acir in &mut generated_acirs {
+        error_types.append(&mut acir.error_types);
+    }
 
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
 
