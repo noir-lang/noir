@@ -872,16 +872,23 @@ impl Elaborator<'_> {
     }
 }
 
-/// Patterns are represented as resolved expressions currently.
-/// This type alias just makes code involving them more clear.
+/// A Pattern is anything that can appear before the `=>` in a match rule.
 #[derive(Debug, Clone)]
 enum Pattern {
-    /// A pattern such as `Some(42)`.
+    /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
     Constructor(Constructor, Vec<Pattern>),
+    /// An integer literal pattern such as `4`, `12345`, or `-56`
     Int(SignedField),
+    /// A pattern binding a variable such as `a` or `_`
     Binding(DefinitionId),
+
+    /// Multiple patterns combined with `|` where we should match this pattern if any
+    /// constituent pattern matches. e.g. `Some(3) | None` or `Some(1) | Some(2) | None`
     #[allow(unused)]
     Or(Vec<Pattern>),
+
+    /// An integer range pattern such as `1..20` which will match any integer n such that
+    /// 1 <= n < 20.
     #[allow(unused)]
     Range(SignedField, SignedField),
 }
