@@ -100,13 +100,13 @@ pub(crate) fn trace_program(
 
     let crate_name_string: String = crate_name.into();
     let mut tracer = Tracer::new(crate_name_string.as_str(), &vec![]);
-
     match noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
         &debug_artifact,
         initial_witness,
         &compiled_program.program.unconstrained_functions,
+        &compiled_program.abi.error_types,
         &mut tracer,
     ) {
         Err(error) => return Err(CliError::from(error)),
