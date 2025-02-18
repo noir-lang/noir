@@ -60,8 +60,6 @@ pub enum ResolverError {
     InvalidArrayLengthExpr { span: Span },
     #[error("Integer too large to be evaluated in an array length context")]
     IntegerTooLarge { span: Span },
-    #[error("Integer too large to be evaluated in an array length context")]
-    IntegerPatternTooLarge { span: Span },
     #[error("No global or generic type parameter found with the given name")]
     NoSuchNumericTypeVariable { path: crate::ast::Path },
     #[error("Closures cannot capture mutable variables")]
@@ -357,11 +355,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::IntegerTooLarge { span } => Diagnostic::simple_error(
                 "Integer too large to be evaluated to an array-length".into(),
                 "Array-lengths may be a maximum size of usize::MAX, including intermediate calculations".into(),
-                *span,
-            ),
-            ResolverError::IntegerPatternTooLarge { span } => Diagnostic::simple_error(
-                "Integer too large to be used in a match pattern".into(),
-                format!("Integers used in patterns must fit into a {} bit unsigned value (0 .. {})", usize::BITS, usize::MAX),
                 *span,
             ),
             ResolverError::NoSuchNumericTypeVariable { path } => Diagnostic::simple_error(

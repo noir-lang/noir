@@ -492,7 +492,11 @@ impl std::fmt::Display for Constructor {
             Constructor::False => write!(f, "false"),
             Constructor::Unit => write!(f, "()"),
             Constructor::Int(x) => write!(f, "{x}"),
-            Constructor::Tuple(_) => Ok(()), // args are printed after already
+            // We already print the arguments of a constructor after this in the format of `(x, y)`.
+            // In that case it is already in the format of a tuple so there's nothing more we need
+            // to do here. This is implicitly assuming we never display a constructor without also
+            // displaying its arguments though.
+            Constructor::Tuple(_) => Ok(()),
             Constructor::Variant(typ, variant_index) => {
                 if let Type::DataType(def, _) = typ {
                     let def = def.borrow();
