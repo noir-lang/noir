@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739909383413,
+  "lastUpdate": 1739909386699,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0d78578981bfcc4aa021dcc0f0238548f6ff9ca0",
-          "message": "fix!: check abi integer input is within signed range (#7316)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-07T15:24:23Z",
-          "tree_id": "b057ad8a9dfc62c1056579a1134205a12e9d4176",
-          "url": "https://github.com/noir-lang/noir/commit/0d78578981bfcc4aa021dcc0f0238548f6ff9ca0"
-        },
-        "date": 1738943258238,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 272.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 587.73,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1170,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2180,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 662.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 547.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5310,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 545.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 662.68,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3909,6 +3830,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 372.33,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8652072920b3abc5990be5d57db27a7e66221252",
+          "message": "feat(brillig): Hoist shared constants across functions to the global space (#7216)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-18T19:42:56Z",
+          "tree_id": "bbc863618aab34e480c6379dd40ec0cb0b31870f",
+          "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
+        },
+        "date": 1739909384958,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 275.58,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 586.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 950.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 816.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 326.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.34,
             "unit": "MB"
           }
         ]
