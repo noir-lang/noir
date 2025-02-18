@@ -3,11 +3,14 @@ use acvm::acir::circuit::{
     OpcodeLocation, Program, ResolvedAssertionPayload, ResolvedOpcodeLocation,
 };
 use acvm::acir::native_types::WitnessStack;
+use acvm::brillig_vm::BranchToFeatureMap;
 use acvm::pwg::{
     ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM,
 };
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
+type NargoErrorAndCoverage<F> = (NargoError<F>, Option<Vec<u32>>);
+type WitnessAndCoverage<F> = (WitnessStack<F>, Option<Vec<u32>>);
 
 use crate::errors::ExecutionError;
 use crate::foreign_calls::ForeignCallExecutor;
@@ -37,6 +40,15 @@ struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecut
     // Flag that states whether we want to profile the VM. Profiling can add extra
     // execution costs so we want to make sure we only trigger it explicitly.
     profiling_active: bool,
+
+    // Flag that states whether we want to trace brillig VM execution
+    brillig_fuzzing_active: bool,
+
+    // Brillig branch to feature map
+    brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+
+    // Last recorded fuzzing trace
+    last_fuzzing_trace: Option<Vec<u32>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
@@ -58,9 +70,24 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             call_stack: Vec::default(),
             current_function_index: 0,
             profiling_active,
+            brillig_fuzzing_active: false,
+            brillig_branch_to_feature_map: None,
+            last_fuzzing_trace: None,
         }
     }
 
+    fn with_brillig_fuzzing(
+        &mut self,
+        brillig_fuzzing_active: bool,
+        brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+    ) {
+        self.brillig_fuzzing_active = brillig_fuzzing_active;
+        if brillig_fuzzing_active {
+            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+        } else {
+            self.brillig_branch_to_feature_map = None;
+        }
+    }
     fn finalize(self) -> WitnessStack<F> {
         self.witness_stack
     }
@@ -79,6 +106,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             &circuit.assert_messages,
         );
         acvm.with_profiler(self.profiling_active);
+        acvm.with_brillig_fuzzing(self.brillig_fuzzing_active, self.brillig_branch_to_feature_map);
 
         loop {
             let solver_status = acvm.solve();
@@ -89,6 +117,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                     unreachable!("Execution should not stop while in `InProgress` state.")
                 }
                 ACVMStatus::Failure(error) => {
+                    self.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
                     let call_stack = match &error {
                         OpcodeResolutionError::UnsatisfiedConstrain {
                             opcode_location: ErrorLocation::Resolved(opcode_location),
@@ -194,6 +223,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         self.call_stack.clear();
 
         let profiling_samples = acvm.take_profiling_samples();
+        self.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
         Ok((acvm.finalize(), profiling_samples))
     }
 }
@@ -228,15 +258,45 @@ pub fn execute_program_with_profiling<
     foreign_call_executor: &mut E,
 ) -> Result<(WitnessStack<F>, ProfilingSamples), NargoError<F>> {
     let profiling_active = true;
-    execute_program_inner(
+    match execute_program_inner(
         program,
         initial_witness,
         blackbox_solver,
         foreign_call_executor,
         profiling_active,
-    )
+    ) {
+        Ok((witness_stack, profiling_samples, ..)) => Ok((witness_stack, profiling_samples)),
+        Err(err) => Err(err),
+    }
 }
-
+pub(crate) fn execute_program_with_brillig_fuzzing<
+    F: AcirField,
+    B: BlackBoxFunctionSolver<F>,
+    E: ForeignCallExecutor<F>,
+>(
+    program: &Program<F>,
+    initial_witness: WitnessMap<F>,
+    blackbox_solver: &B,
+    foreign_call_executor: &mut E,
+    brillig_branch_to_feature_map: Option<&BranchToFeatureMap>,
+) -> Result<WitnessAndCoverage<F>, NargoErrorAndCoverage<F>> {
+    let mut executor = ProgramExecutor::new(
+        &program.functions,
+        &program.unconstrained_functions,
+        blackbox_solver,
+        foreign_call_executor,
+        false,
+    );
+    executor.with_brillig_fuzzing(true, brillig_branch_to_feature_map);
+    match executor.execute_circuit(initial_witness) {
+        Ok((main_witness, _)) => {
+            executor.witness_stack.push(0, main_witness);
+            let trace = executor.last_fuzzing_trace.clone();
+            Ok((executor.finalize(), trace))
+        }
+        Err(err) => Err((err, executor.last_fuzzing_trace)),
+    }
+}
 #[tracing::instrument(level = "trace", skip_all)]
 fn execute_program_inner<F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>(
     program: &Program<F>,

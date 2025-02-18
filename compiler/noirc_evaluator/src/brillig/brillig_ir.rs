@@ -372,7 +372,7 @@ pub(crate) mod tests {
         bytecode: &[BrilligOpcode<FieldElement>],
     ) -> (VM<'_, FieldElement, DummyBlackBoxSolver>, usize, usize) {
         let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active);
+        let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
         let status = vm.process_opcodes();
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
