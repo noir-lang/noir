@@ -4,7 +4,7 @@ use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::ParserErrorReason;
-use crate::token::{Attribute, FunctionAttribute, MetaAttribute, TestScope, Token};
+use crate::token::{Attribute, CfgAttribute, FunctionAttribute, MetaAttribute, TestScope, Token};
 use crate::token::{CustomAttribute, SecondaryAttribute};
 
 use super::parse_many::without_separator;
@@ -60,12 +60,16 @@ impl<'a> Parser<'a> {
     ///     | 'allow' '(' AttributeValue ')'
     ///     | 'deprecated'
     ///     | 'deprecated' '(' string ')'
+    ///     | 'cfg' '(' CfgAttribute ')'
     ///     | 'contract_library_method'
     ///     | 'export'
     ///     | 'field' '(' AttributeValue ')'
     ///     | 'use_callers_scope'
     ///     | 'varargs'
     ///     | MetaAttribute
+    ///
+    /// CfgAttribute
+    ///     = Arguments
     ///
     /// MetaAttribute
     ///     = Path Arguments?
@@ -144,6 +148,8 @@ impl<'a> Parser<'a> {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_test_attribute(start_span)
+                } else if ident.0.contents == "cfg" {
+                    self.parse_cfg_attribute(start_span)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test(ident, start_span)
@@ -156,6 +162,50 @@ impl<'a> Parser<'a> {
             self.expected_label(ParsingRuleLabel::Path);
             self.parse_tag_attribute(start_span)
         }
+    }
+
+    fn parse_cfg_attribute(&mut self, start_span: Span) -> Attribute {
+        // `[cfg` <- already parsed
+        // `(feature = "{str}"`
+        self.eat_or_error(Token::LeftParen);
+
+        // "feature"
+        if let Some(ident) = self.parse_path_no_turbofish().as_ref().and_then(Path::as_ident) {
+            if ident.0.contents != "feature" {
+                // TODO:  new error for this case
+                self.push_error(
+                    ParserErrorReason::UnexpectedSemicolon,
+                    self.span_since(start_span),
+                );
+            }
+        }
+
+        // '='
+        self.eat_or_error(Token::Assign);
+        let name = self.eat_str().unwrap_or_else(|| {
+            self.push_error(
+                ParserErrorReason::WrongNumberOfAttributeArguments {
+                    name: "cfg".to_string(),
+                    min: 1,
+                    max: 1,
+                    found: 0,
+                },
+                self.span_since(start_span),
+            );
+            String::new()
+        });
+
+        // `)]`
+        self.eat_or_error(Token::RightParen);
+
+        // TODO: skip or just parse the token?
+        // self.eat_or_error(Token::RightBracket);
+        self.skip_until_right_bracket();
+
+        Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
+            name,
+            span: self.span_since(start_span),
+        }))
     }
 
     fn parse_meta_attribute(&mut self, name: Path, start_span: Span) -> Attribute {
@@ -389,7 +439,7 @@ mod tests {
 
     use crate::{
         parser::{parser::tests::expect_no_errors, Parser},
-        token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
+        token::{Attribute, CfgAttribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 
     fn parse_inner_secondary_attribute_no_errors(src: &str, expected: SecondaryAttribute) {
@@ -619,6 +669,31 @@ mod tests {
         assert_eq!(meta.name.to_string(), "foo::bar");
         assert_eq!(meta.arguments.len(), 3);
         assert_eq!(meta.arguments[0].to_string(), "1");
+    }
+
+    #[test]
+    fn parses_cfg_feature() {
+        let src = "#[cfg(feature = \"foo\")]";
+        let mut parser = Parser::for_str(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute else {
+            panic!("Expected cfg attribute");
+        };
+        let CfgAttribute::Feature { name: feature_name, span: _ } = cfg_attribute;
+        assert_eq!(feature_name, "foo");
+    }
+
+    #[test]
+    fn parsing_cfg_feature_requires_nonempty_string() {
+        let src = "#[cfg(feature = \"\")]";
+        let mut parser = Parser::for_str(src);
+        let (attribute, _span) = parser.parse_attribute().unwrap();
+        match attribute {
+            Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature { name, .. })) => assert_eq!(name, String::new()),
+            other => panic!("expected an CfgAttribute::Feature, but found {other:?}"),
+        }
+        expect_no_errors(&parser.errors);
     }
 
     #[test]

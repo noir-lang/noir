@@ -787,6 +787,15 @@ impl fmt::Display for Attribute {
     }
 }
 
+impl Attribute {
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            Attribute::Function(_) => false,
+            Attribute::Secondary(secondary) => secondary.is_disabled_cfg(),
+        }
+    }
+}
+
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -910,6 +919,9 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    // A #[cfg(..)] attribute
+    Cfg(CfgAttribute),
 }
 
 impl SecondaryAttribute {
@@ -927,6 +939,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+            SecondaryAttribute::Cfg(_) => Some("cfg".to_string()),
         }
     }
 
@@ -939,6 +952,22 @@ impl SecondaryAttribute {
 
     pub(crate) fn is_abi(&self) -> bool {
         matches!(self, SecondaryAttribute::Abi(_))
+    }
+
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            SecondaryAttribute::Deprecated(..) => false,
+            SecondaryAttribute::Tag(..) => false,
+            SecondaryAttribute::Meta(..) => false,
+            SecondaryAttribute::ContractLibraryMethod => false,
+            SecondaryAttribute::Export => false,
+            SecondaryAttribute::Field(..) => false,
+            SecondaryAttribute::Abi(..) => false,
+            SecondaryAttribute::Varargs => false,
+            SecondaryAttribute::UseCallersScope => false,
+            SecondaryAttribute::Allow(..) => false,
+            SecondaryAttribute::Cfg(ref cfg_attribute) => cfg_attribute.is_disabled(),
+        }
     }
 
     pub(crate) fn contents(&self) -> String {
@@ -956,6 +985,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(ref k) => format!("allow({k})"),
+            SecondaryAttribute::Cfg(ref cfg_attribute) => format!("cfg({cfg_attribute})"),
         }
     }
 }
@@ -984,6 +1014,52 @@ impl Display for MetaAttribute {
         }
     }
 }
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum CfgAttribute {
+    // feature = "{name}"
+    Feature {
+        name: String,
+        span: Span,
+    },
+}
+
+impl CfgAttribute {
+    pub fn name(&self) -> String {
+        match self {
+            CfgAttribute::Feature { name, .. } => name.clone(),
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            CfgAttribute::Feature { span, .. } => span.clone(),
+        }
+    }
+}
+
+impl Display for CfgAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CfgAttribute::Feature { name, span: _ } => {
+                write!(f, "feature = {:?}", name)
+            }
+        }
+    }
+}
+
+// TODO: enable more features once working
+impl CfgAttribute {
+    pub(crate) fn is_disabled(&self) -> bool {
+        match self {
+            CfgAttribute::Feature { name, .. } => {
+                name != &"default"
+            }
+        }
+    }
+
+}
+
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {

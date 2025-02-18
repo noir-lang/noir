@@ -416,6 +416,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_single_function_attribute() {
+        let src = "#[foreign(foo)] fn foo() {}";
+        let (_, errors) = parse_program(&src);
+
+        // TODO: cleanup
+        dbg!(&errors);
+
+        assert_eq!(errors.len(), 0);
+    }
+
+    #[test]
     fn parse_error_multiple_function_attributes_found() {
         let src = "
         #[foreign(foo)] #[oracle(bar)] fn foo() {}

@@ -7,23 +7,23 @@ use crate::{
         StatementKind, WhileStatement,
     },
     parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Attribute, Keyword, Token, TokenKind},
+    token::{Attribute, CfgAttribute, Keyword, SecondaryAttribute, Token, TokenKind},
 };
 
 use super::Parser;
 
 impl<'a> Parser<'a> {
-    pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
-        if let Some((statement, (_token, _span))) = self.parse_statement() {
-            statement
+    pub(crate) fn parse_statement_or_error(&mut self) -> (Statement, Option<CfgAttribute>) {
+        if let Some((statement, (_token, _span), cfg_attribute)) = self.parse_statement() {
+            (statement, cfg_attribute)
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
-            Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }
+            (Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }, None)
         }
     }
 
     /// Statement = Attributes StatementKind ';'?
-    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
+    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span), Option<CfgAttribute>)> {
         loop {
             let span_before_doc_comments = self.current_token_span;
             let doc_comments = self.parse_outer_doc_comments();
@@ -42,6 +42,7 @@ impl<'a> Parser<'a> {
 
             let attributes = self.parse_attributes();
             let start_span = self.current_token_span;
+            let cfg_attribute = self.cfg_attribute(&attributes);
             let kind = self.parse_statement_kind(attributes);
 
             self.statement_comments = None;
@@ -60,7 +61,7 @@ impl<'a> Parser<'a> {
 
             if let Some(kind) = kind {
                 let statement = Statement { kind, span };
-                return Some((statement, (semicolon_token, semicolon_span)));
+                return Some((statement, (semicolon_token, semicolon_span), cfg_attribute));
             }
 
             self.expected_label(ParsingRuleLabel::Statement);
@@ -71,6 +72,35 @@ impl<'a> Parser<'a> {
                 self.bump();
             }
         }
+    }
+
+    // TODO relocate
+    //
+    /// Return the unique `CfgAttribute` in the given `attributes` list along
+    /// with its `Span`, if it exists
+    fn cfg_attribute(
+        &mut self,
+        attributes: &Vec<(Attribute, Span)>,
+    ) -> Option<CfgAttribute> {
+        let mut found_cfg_attribute: Option<CfgAttribute> = None;
+        for (attribute, attribute_span) in attributes {
+            if let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute {
+                if let Some(ref second_cfg_attribute) = found_cfg_attribute {
+                    let cfg_attribute = cfg_attribute.clone();
+                    let second_cfg_attribute = second_cfg_attribute.clone();
+                    self.push_error(
+                        ParserErrorReason::MultipleCfgAttributesFound {
+                            cfg_attribute,
+                            second_cfg_attribute,
+                        },
+                        *attribute_span,
+                    );
+                } else {
+                    found_cfg_attribute = Some(cfg_attribute.clone());
+                }
+            }
+        }
+        found_cfg_attribute
     }
 
     /// StatementKind
@@ -453,15 +483,15 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
-            parser::tests::{
+            parser::{CfgAttribute, tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
-            },
+            }},
             Parser, ParserErrorReason,
         },
     };
 
-    fn parse_statement_no_errors(src: &str) -> Statement {
+    fn parse_statement_no_errors(src: &str) -> (Statement, Option<CfgAttribute>) {
         let mut parser = Parser::for_str(src);
         let statement = parser.parse_statement_or_error();
         expect_no_errors(&parser.errors);
@@ -471,21 +501,21 @@ mod tests {
     #[test]
     fn parses_break() {
         let src = "break";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         assert!(matches!(statement.kind, StatementKind::Break));
     }
 
     #[test]
     fn parses_continue() {
         let src = "continue";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         assert!(matches!(statement.kind, StatementKind::Continue));
     }
 
     #[test]
     fn parses_let_statement_no_type() {
         let src = "let x = 1;";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -498,7 +528,7 @@ mod tests {
     #[test]
     fn parses_let_statement_with_type() {
         let src = "let x: Field = 1;";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -512,7 +542,7 @@ mod tests {
     fn parses_let_statement_with_unsafe() {
         let src = "// Safety: comment
         let x = unsafe { 1 };";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -534,7 +564,7 @@ mod tests {
     #[test]
     fn parses_comptime_block() {
         let src = "comptime { 1 }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
         };
@@ -550,7 +580,7 @@ mod tests {
     #[test]
     fn parses_comptime_let() {
         let src = "comptime let x = 1;";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime statement");
         };
@@ -562,7 +592,7 @@ mod tests {
     #[test]
     fn parses_for_array() {
         let src = "for i in x { }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::For(for_loop) = statement.kind else {
             panic!("Expected for loop");
         };
@@ -576,7 +606,7 @@ mod tests {
     #[test]
     fn parses_for_range() {
         let src = "for i in 0..10 { }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::For(for_loop) = statement.kind else {
             panic!("Expected for loop");
         };
@@ -592,7 +622,7 @@ mod tests {
     #[test]
     fn parses_for_range_inclusive() {
         let src = "for i in 0..=10 { }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::For(for_loop) = statement.kind else {
             panic!("Expected for loop");
         };
@@ -608,7 +638,7 @@ mod tests {
     #[test]
     fn parses_comptime_for() {
         let src = "comptime for i in x { }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Comptime(statement) = statement.kind else {
             panic!("Expected comptime");
         };
@@ -622,7 +652,7 @@ mod tests {
     #[test]
     fn parses_assignment() {
         let src = "x = 1";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -636,7 +666,7 @@ mod tests {
     #[test]
     fn parses_assignment_with_parentheses() {
         let src = "(x)[0] = 1";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(..) = statement.kind else {
             panic!("Expected assign");
         };
@@ -646,7 +676,7 @@ mod tests {
     fn parses_assignment_with_unsafe() {
         let src = "// Safety: test 
         x = unsafe { 1 }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -659,7 +689,7 @@ mod tests {
     #[test]
     fn parses_op_assignment() {
         let src = "x += 1";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -669,7 +699,7 @@ mod tests {
     #[test]
     fn parses_op_assignment_with_shift_right() {
         let src = "x >>= 1";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
@@ -680,7 +710,7 @@ mod tests {
     fn parses_op_assignment_with_unsafe() {
         let src = "// Safety: comment
         x += unsafe { 1 }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Assign(_) = statement.kind else {
             panic!("Expected assign");
         };
@@ -690,7 +720,7 @@ mod tests {
     fn parses_if_statement_followed_by_tuple() {
         // This shouldn't be parsed as a call
         let src = "{ if 1 { 2 } (3, 4) }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Expression(expr) = statement.kind else {
             panic!("Expected expr");
         };
@@ -704,7 +734,7 @@ mod tests {
     fn parses_block_followed_by_tuple() {
         // This shouldn't be parsed as a call
         let src = "{ { 2 } (3, 4) }";
-        let statement = parse_statement_no_errors(src);
+        let (statement, None) = parse_statement_no_errors(src) else { panic!("cfg found") };
         let StatementKind::Expression(expr) = statement.kind else {
             panic!("Expected expr");
         };
@@ -723,7 +753,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         assert!(matches!(statement.kind, StatementKind::Error));
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::EarlyReturn));
@@ -737,7 +767,7 @@ mod tests {
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str(&src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         assert!(matches!(statement.kind, StatementKind::Let(..)));
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a statement but found ']'");
@@ -765,7 +795,7 @@ mod tests {
     fn parses_empty_loop() {
         let src = "loop { }";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Loop(block, span) = statement.kind else {
             panic!("Expected loop");
         };
@@ -781,7 +811,7 @@ mod tests {
     fn parses_loop_with_statements() {
         let src = "loop { 1; 2 }";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Loop(block, _) = statement.kind else {
             panic!("Expected loop");
         };
@@ -795,7 +825,7 @@ mod tests {
     fn parses_let_with_assert() {
         let src = "let _ = assert(true);";
         let mut parser = Parser::for_str(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let");
         };
