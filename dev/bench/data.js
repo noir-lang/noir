@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739910109558,
+  "lastUpdate": 1739910111838,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12122,75 +12122,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "09d77058fa119fd8a8db1d16375411ec86932c45",
-          "message": "chore: bump noir_bigcurve timeout (#7322)",
-          "timestamp": "2025-02-07T18:05:52Z",
-          "tree_id": "d66ce6ac0c79f968353b3da5d1650c60c1933b1d",
-          "url": "https://github.com/noir-lang/noir/commit/09d77058fa119fd8a8db1d16375411ec86932c45"
-        },
-        "date": 1738952962773,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15480,6 +15411,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
         },
         "date": 1739909381783,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40d276328e568712fcb742c1c2ecdd975e5123b6",
+          "message": "feat: allow unquoting TraitConstraint in trait impl position (#7395)",
+          "timestamp": "2025-02-18T19:51:11Z",
+          "tree_id": "fb61bdc4f9ffcba112ebaa09e5df6a4f707fdf3d",
+          "url": "https://github.com/noir-lang/noir/commit/40d276328e568712fcb742c1c2ecdd975e5123b6"
+        },
+        "date": 1739910110080,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
