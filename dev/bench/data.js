@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739909311159,
+  "lastUpdate": 1739909383413,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12152,75 +12152,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0d78578981bfcc4aa021dcc0f0238548f6ff9ca0",
-          "message": "fix!: check abi integer input is within signed range (#7316)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-07T15:24:23Z",
-          "tree_id": "b057ad8a9dfc62c1056579a1134205a12e9d4176",
-          "url": "https://github.com/noir-lang/noir/commit/0d78578981bfcc4aa021dcc0f0238548f6ff9ca0"
-        },
-        "date": 1738943257966,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15515,6 +15446,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9b03217ff4b7f8eb13a43466bf9b2d761944c6f7"
         },
         "date": 1739907671894,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8652072920b3abc5990be5d57db27a7e66221252",
+          "message": "feat(brillig): Hoist shared constants across functions to the global space (#7216)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-18T19:42:56Z",
+          "tree_id": "bbc863618aab34e480c6379dd40ec0cb0b31870f",
+          "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
+        },
+        "date": 1739909381783,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
