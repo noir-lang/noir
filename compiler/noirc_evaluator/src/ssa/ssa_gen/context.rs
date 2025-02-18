@@ -456,25 +456,24 @@ impl<'a> FunctionContext<'a> {
         let lhs_value = self.builder.current_function.dfg.get_numeric_constant(lhs);
         let rhs_value = self.builder.current_function.dfg.get_numeric_constant(rhs);
 
+        let two_pow_64 = 1_u128 << 64;
+
         // If lhs is less than 2^64 then the condition trivially holds.
         if let Some(value) = lhs_value {
-            if value.to_u128() < (1_u128 << 64) {
+            if value.to_u128() < two_pow_64 {
                 return;
             }
         }
 
         // Same goes for rhs
         if let Some(value) = rhs_value {
-            if value.to_u128() < (1_u128 << 64) {
+            if value.to_u128() < two_pow_64 {
                 return;
             }
         }
 
         let u128 = NumericType::unsigned(128);
-
-        // This mask keeps the high-end bits of a u128 value.
-        let mask = 0xffffffffffffffff0000000000000000_u128;
-        let mask = self.builder.numeric_constant(mask, u128);
+        let two_pow_64 = self.builder.numeric_constant(two_pow_64, u128);
 
         let res = if lhs_value.is_some() && rhs_value.is_some() {
             // If both values are known at compile time, at this point we know it overflows
@@ -482,24 +481,15 @@ impl<'a> FunctionContext<'a> {
         } else if lhs_value.is_some() {
             // If only the left-hand side is known we just need to check that the right-hand side
             // isn't greater than 2^64
-            self.builder.insert_binary(rhs, BinaryOp::And, mask)
+            self.builder.insert_binary(rhs, BinaryOp::Div, two_pow_64)
         } else if rhs_value.is_some() {
             // Same goes for the other side
-            self.builder.insert_binary(lhs, BinaryOp::And, mask)
+            self.builder.insert_binary(lhs, BinaryOp::Div, two_pow_64)
         } else {
-            // Here we do:
-            //
-            // lhs_masked = lhs & mask
-            // rhs_masked = rhs & mask
-            // res = lhs_masked * rhs_masked
-            // assert_eq(res, 0, "attempt to multiply with overflow")
-            //
-            // which is equivalent to checking that either of them is less than 2^64
-
-            let lhs_masked = self.builder.insert_binary(lhs, BinaryOp::And, mask);
-            let rhs_masked = self.builder.insert_binary(rhs, BinaryOp::And, mask);
-
-            self.builder.insert_binary(lhs_masked, BinaryOp::Mul { unchecked: true }, rhs_masked)
+            // Check both sides
+            let lhs = self.builder.insert_binary(lhs, BinaryOp::Div, two_pow_64);
+            let rhs = self.builder.insert_binary(rhs, BinaryOp::Div, two_pow_64);
+            self.builder.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs)
         };
 
         let zero = self.builder.numeric_constant(FieldElement::zero(), u128);
