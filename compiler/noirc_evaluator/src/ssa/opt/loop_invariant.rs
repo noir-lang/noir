@@ -312,17 +312,6 @@ impl<'f> LoopInvariantContext<'f> {
         binary: &Binary,
         induction_vars: &HashMap<ValueId, (FieldElement, FieldElement)>,
     ) -> bool {
-        if !matches!(
-            binary.operator,
-            BinaryOp::Add { .. }
-                | BinaryOp::Mul { .. }
-                | BinaryOp::Sub { .. }
-                | BinaryOp::Div
-                | BinaryOp::Mod
-        ) {
-            return false;
-        }
-
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
         let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
@@ -354,7 +343,8 @@ impl<'f> LoopInvariantContext<'f> {
             _ => return false,
         };
 
-        // We evaluate this expression using the upper bounds of its inputs to check whether it will ever overflow.
+        // We evaluate this expression using the upper bounds (or lower in the case of div/mod)
+        // of its inputs to check whether it will ever overflow.
         // If so, this will cause `eval_constant_binary_op` to return `None`.
         // Therefore a `Some` value shows that this operation is safe.
         eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
