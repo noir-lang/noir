@@ -11,7 +11,7 @@ use rand::Rng;
 use std::time::Duration;
 
 fn byte_decomposition(c: &mut Criterion) {
-    let mut bytecode = vec![
+    let bytecode = vec![
         // Radix
         brillig::Opcode::Const {
             destination: MemoryAddress::Direct(2),
@@ -53,15 +53,14 @@ fn byte_decomposition(c: &mut Criterion) {
             size_address: MemoryAddress::Direct(1),
             offset_address: MemoryAddress::Direct(0),
         },
+        brillig::Opcode::BlackBox(brillig::BlackBoxOp::ToRadix {
+            input: MemoryAddress::Direct(0),
+            radix: MemoryAddress::Direct(2),
+            output_pointer: MemoryAddress::Direct(3),
+            num_limbs: MemoryAddress::Direct(4),
+            output_bits: MemoryAddress::Direct(5),
+        }),
     ];
-
-    bytecode.push(brillig::Opcode::BlackBox(brillig::BlackBoxOp::ToRadix {
-        input: MemoryAddress::Direct(0),
-        radix: MemoryAddress::Direct(2),
-        output_pointer: MemoryAddress::Direct(3),
-        num_limbs: MemoryAddress::Direct(4),
-        output_bits: MemoryAddress::Direct(5),
-    }));
 
     bench_bytecode(c, "byte_decomposition", &bytecode);
 }
