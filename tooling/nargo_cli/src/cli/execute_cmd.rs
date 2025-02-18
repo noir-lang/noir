@@ -35,7 +35,7 @@ pub(crate) struct ExecuteCommand {
     oracle_resolver: Option<String>,
 
     /// Path to the oracle transcript.
-    #[clap(long, hide = true, conflicts_with = "oracle_resolver")]
+    #[clap(long, conflicts_with = "oracle_resolver")]
     oracle_file: Option<PathBuf>,
 }
 
