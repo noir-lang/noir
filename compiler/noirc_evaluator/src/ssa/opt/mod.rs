@@ -5,6 +5,7 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
 mod array_set;
+mod brillig_array_gets;
 mod as_slice_length;
 mod assert_constant;
 mod constant_folding;
