@@ -428,22 +428,22 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_memory.sh ./parse_memory.sh
           ./memory_report.sh 1
+
+          PACKAGE_NAME=${{ matrix.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
           # Rename the memory report as the execution report is about to write to the same file
-          cp memory_report.json compilation_memory_report.json
+          cp memory_report.json ./memory_report_$PACKAGE_NAME.jso
+          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
         env:
           FLAGS: ${{ matrix.flags }}
 
-      - name: Check compilation memory limit
-        run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/compilation_memory_report.json)
-          MEMORY_LIMIT=${{ matrix.compilation-memory-limit }}
-          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
-            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
-            echo "Failing due to compilation exceeding memory limit..."
-            echo "Limit: "$MEMORY_LIMIT"MB"
-            echo "Compilation took: "$MEMORY"MB".
-            exit 1
-          fi
+      - name: Upload compilation memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_mem_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}
+          path: ./test-repo/${{ matrix.path }}/memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
       - name: Generate execution memory report
         working-directory: ./test-repo/${{ matrix.path }}
@@ -451,35 +451,11 @@ jobs:
         run: |
           ./memory_report.sh 1 1
 
-      - name: Check execution memory limit
-        if: ${{ !matrix.cannot_execute }}
-        run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/memory_report.json)
-          MEMORY_LIMIT=${{ matrix.execution-memory-limit }}
-          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
-            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
-            echo "Failing due to execution exceeding memory limit..."
-            echo "Limit: "$MEMORY_LIMIT"MB"
-            echo "Execution took: "$MEMORY"MB".
-            exit 1
-          fi
-
-      - name: Move compilation report
-        id: compilation_mem_report
-        shell: bash
-        run: |
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          mv ./test-repo/${{ matrix.path }}/compilation_memory_report.json ./memory_report_$PACKAGE_NAME.json
+          # Rename the memory report as the execution report is about to write to the same file
+          mv memory_report.json ./memory_report_$PACKAGE_NAME.jso
           echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-
-      - name: Upload compilation memory report
-        uses: actions/upload-artifact@v4
-        with:
-          name: compilation_mem_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}
-          path: memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
-          retention-days: 3
-          overwrite: true
 
       - name: Move execution report
         id: execution_mem_report
@@ -494,9 +470,34 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: execution_mem_report_${{ steps.execution_mem_report.outputs.memory_report_name }}
-          path: memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json
+          path: ./test-repo/${{ matrix.path }}/memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json
           retention-days: 3
           overwrite: true
+
+      - name: Check compilation memory limit
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/compilation_memory_report.json)
+          MEMORY_LIMIT=${{ matrix.compilation-memory-limit }}
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to compilation exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Compilation took: "$MEMORY"MB".
+            exit 1
+          fi
+
+      - name: Check execution memory limit
+        if: ${{ !matrix.cannot_execute }}
+        run: |
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/memory_report.json)
+          MEMORY_LIMIT=${{ matrix.execution-memory-limit }}
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
+            # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
+            echo "Failing due to execution exceeding memory limit..."
+            echo "Limit: "$MEMORY_LIMIT"MB"
+            echo "Execution took: "$MEMORY"MB".
+            exit 1
+          fi
 
   upload_compilation_report:
     name: Upload compilation report 
