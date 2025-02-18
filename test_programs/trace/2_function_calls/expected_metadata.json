@@ -1,5 +1,1 @@
-{
-  "workdir": "<ignored-in-tests>",
-  "program": "2_function_calls",
-  "args": []
-}
+{"workdir":"/home/stan/code/repos/noir/test_programs/plonky2_trace/2_function_calls","program":"2_function_calls","args":[]}

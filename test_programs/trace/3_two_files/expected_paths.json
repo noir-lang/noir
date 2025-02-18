@@ -1,5 +1,1 @@
-[
-  "<relative-to-this>/src/main.nr",
-  "<relative-to-this>/src/foo.nr",
-  "<relative-to-this>/src/bar.nr"
-]
+["/home/stan/code/repos/noir/test_programs/plonky2_trace/3_two_files/src/main.nr","/home/stan/code/repos/noir/test_programs/plonky2_trace/3_two_files/src/foo.nr","/home/stan/code/repos/noir/test_programs/plonky2_trace/3_two_files/src/bar.nr"]
