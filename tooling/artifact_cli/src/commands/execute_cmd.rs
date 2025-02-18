@@ -18,7 +18,7 @@ use super::parse_and_normalize_path;
 pub struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
     #[clap(long, short, value_parser = parse_and_normalize_path)]
-    pub artifact: PathBuf,
+    pub artifact_path: PathBuf,
 
     /// Path to the Prover.toml file which contains the inputs and the
     /// optional return value in ABI format.
@@ -41,8 +41,7 @@ pub struct ExecuteCommand {
     pub contract_fn: Option<String>,
 
     /// Part to the Oracle.toml file which contains the Oracle transcript,
-    /// which is a list of responses captured during an earlier execution,
-    /// which can replayed via mocks.
+    /// which is a list of responses captured during an earlier execution
     ///
     /// Note that a transcript might be invalid if the inputs change and
     /// the circuit takes a different path during execution.
@@ -50,8 +49,6 @@ pub struct ExecuteCommand {
     pub oracle_file: Option<String>,
 
     /// JSON RPC url to solve oracle calls.
-    ///
-    /// This is to facilitate new executions, as opposed to replays.
     #[clap(long, conflicts_with = "oracle_file")]
     pub oracle_resolver: Option<String>,
 
@@ -69,8 +66,8 @@ pub struct ExecuteCommand {
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
-    let artifact = Artifact::read_from_file(&args.artifact)?;
-    let artifact_name = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let artifact = Artifact::read_from_file(&args.artifact_path)?;
+    let artifact_name = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
     let (circuit, circuit_name): (CompiledProgram, String) = match artifact {
         Artifact::Program(program) => (program.into(), artifact_name.to_string()),
