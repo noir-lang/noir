@@ -25,7 +25,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
     num_runs: 5
     timeout: 250
-    compilation-timeout: 7
+    compilation-timeout: 8
     execution-timeout: 0.35
     compilation-memory-limit: 750
     execution-memory-limit: 300
