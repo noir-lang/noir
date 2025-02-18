@@ -686,34 +686,30 @@ impl<'a> NodeFinder<'a> {
                     let modifiers = self.interner.function_modifiers(&func_id);
                     let visibility = modifiers.visibility;
                     let module_def_id = ModuleDefId::TraitId(trait_id);
-                    if !module_def_id_is_visible(
+                    let is_visible = self.module_def_id_is_visible(
                         module_def_id,
-                        self.module_id,
                         visibility,
                         None, // defining module
-                        self.interner,
-                        self.def_maps,
-                    ) {
+                    );
+                    if !is_visible {
                         // Try to find a visible reexport of the trait
                         // that is visible from the current module
-                        let Some((visible_module_id, name, _)) =
-                            self.interner.get_trait_reexports(trait_id).iter().find(
-                                |(module_id, _, visibility)| {
-                                    module_def_id_is_visible(
-                                        module_def_id,
-                                        self.module_id,
-                                        *visibility,
-                                        Some(*module_id),
-                                        self.interner,
-                                        self.def_maps,
-                                    )
-                                },
-                            )
+                        let Some(reexport) =
+                            self.interner.get_trait_reexports(trait_id).iter().find(|reexport| {
+                                self.module_def_id_is_visible(
+                                    module_def_id,
+                                    reexport.visibility,
+                                    Some(reexport.module_id),
+                                )
+                            })
                         else {
                             continue;
                         };
 
-                        trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+                        trait_reexport = Some(TraitReexport {
+                            module_id: reexport.module_id,
+                            name: reexport.name.clone(),
+                        });
                     }
                 }
 
@@ -1179,6 +1175,23 @@ impl<'a> NodeFinder<'a> {
         }
 
         Some(())
+    }
+
+    fn module_def_id_is_visible(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
     }
 
     fn includes_span(&self, span: Span) -> bool {

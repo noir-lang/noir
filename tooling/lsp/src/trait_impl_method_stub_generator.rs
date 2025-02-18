@@ -204,7 +204,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
@@ -241,7 +241,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     *parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
@@ -278,7 +278,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     *parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
