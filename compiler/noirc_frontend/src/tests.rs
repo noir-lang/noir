@@ -903,6 +903,7 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Semi(semi_expr) => semi_expr,
             HirStatement::For(for_loop) => for_loop.block,
             HirStatement::Loop(block) => block,
+            HirStatement::While(_, block) => block,
             HirStatement::Error => panic!("Invalid HirStatement!"),
             HirStatement::Break => panic!("Unexpected break"),
             HirStatement::Continue => panic!("Unexpected continue"),

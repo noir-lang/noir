@@ -51,7 +51,7 @@ pub enum Value {
 
     // Closures also store their original scope (function & module)
     // in case they use functions such as `Quoted::as_type` which require them.
-    Closure(HirLambda, Vec<Value>, Type, Option<FuncId>, ModuleId),
+    Closure(Box<Closure>),
 
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
@@ -74,6 +74,15 @@ pub enum Value {
     Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Closure {
+    pub lambda: HirLambda,
+    pub env: Vec<Value>,
+    pub typ: Type,
+    pub function_scope: Option<FuncId>,
+    pub module_scope: ModuleId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -127,7 +136,7 @@ impl Value {
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
-            Value::Closure(_, _, typ, ..) => return Cow::Borrowed(typ),
+            Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
             }
@@ -456,9 +465,7 @@ impl Value {
             Value::Pointer(element, true) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
-            Value::Closure(hir_lambda, _args, _typ, _opt_func_id, _module_id) => {
-                HirExpression::Lambda(hir_lambda)
-            }
+            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
