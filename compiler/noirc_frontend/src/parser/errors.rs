@@ -23,8 +23,6 @@ pub enum ParserErrorReason {
     ExpectedMutAfterAmpersand { found: Token },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
-    #[error("Expected trait, found {found}")]
-    ExpectedTrait { found: String },
     #[error("Visibility `{visibility}` is not followed by an item")]
     VisibilityNotFollowedByAnItem { visibility: ItemVisibility },
     #[error("`unconstrained` is not followed by an item")]

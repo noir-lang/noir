@@ -10,7 +10,7 @@ use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, Visitor,
+        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
     ParsedModule,
@@ -349,32 +349,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let Some(name_location) = self.to_lsp_location(noir_trait_impl.trait_name.span) else {
+        let name_span =
+            if let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ {
+                trait_name.span
+            } else {
+                noir_trait_impl.r#trait.span
+            };
+
+        let Some(name_location) = self.to_lsp_location(name_span) else {
             return false;
         };
 
-        let mut trait_name = String::new();
-        trait_name.push_str(&noir_trait_impl.trait_name.to_string());
-        if !noir_trait_impl.trait_generics.is_empty() {
-            trait_name.push('<');
-            for (index, generic) in noir_trait_impl.trait_generics.ordered_args.iter().enumerate() {
-                if index > 0 {
-                    trait_name.push_str(", ");
-                }
-                trait_name.push_str(&generic.to_string());
-            }
-            for (index, (name, generic)) in
-                noir_trait_impl.trait_generics.named_args.iter().enumerate()
-            {
-                if index > 0 {
-                    trait_name.push_str(", ");
-                }
-                trait_name.push_str(&name.0.contents);
-                trait_name.push_str(" = ");
-                trait_name.push_str(&generic.to_string());
-            }
-            trait_name.push('>');
-        }
+        let trait_name = noir_trait_impl.r#trait.to_string();
 
         let old_symbols = std::mem::take(&mut self.symbols);
         self.symbols = Vec::new();

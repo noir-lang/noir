@@ -69,9 +69,7 @@ pub struct TypeImpl {
 pub struct NoirTraitImpl {
     pub impl_generics: UnresolvedGenerics,
 
-    pub trait_name: Path,
-
-    pub trait_generics: GenericTypeArgs,
+    pub r#trait: UnresolvedType,
 
     pub object_type: UnresolvedType,
 
@@ -247,7 +245,7 @@ impl Display for NoirTraitImpl {
             )?;
         }
 
-        write!(f, " {}{} for {}", self.trait_name, self.trait_generics, self.object_type)?;
+        write!(f, " {} for {}", self.r#trait, self.object_type)?;
         if !self.where_clause.is_empty() {
             write!(
                 f,
