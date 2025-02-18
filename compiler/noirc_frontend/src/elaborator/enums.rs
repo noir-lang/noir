@@ -842,7 +842,6 @@ impl Elaborator<'_> {
         let rhs_type = self.interner.definition_type(rhs);
         let variable = HirIdent::non_trait_method(variable, location);
 
-        // TODO: push locs and types
         let rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), None);
         let rhs = self.interner.push_expr(rhs);
         self.interner.push_expr_type(rhs, rhs_type);
