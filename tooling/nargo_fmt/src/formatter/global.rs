@@ -12,6 +12,8 @@ impl<'a> Formatter<'a> {
         let_statement: LetStatement,
         visibility: ItemVisibility,
     ) {
+        self.format_secondary_attributes(let_statement.attributes.clone());
+
         let group = self.chunk_formatter().format_global(let_statement, visibility);
         self.write_indentation();
         self.format_chunk_group(group);
@@ -97,6 +99,15 @@ mod tests {
     fn format_comptime_mut_global() {
         let src = " pub  comptime  mut  global  x  :  Field  =  1  ; ";
         let expected = "pub comptime mut global x: Field = 1;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_global_with_attributes() {
+        let src = " #[abi ( foo ) ]  global  x  =  1  ; ";
+        let expected = "#[abi(foo)]
+global x = 1;
+";
         assert_format(src, expected);
     }
 }

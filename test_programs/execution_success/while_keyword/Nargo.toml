@@ -1,6 +1,5 @@
 [package]
-name = "bigint"
+name = "while_keyword"
 type = "bin"
 authors = [""]
-
 [dependencies]

@@ -15,7 +15,7 @@ fn main() {
     let rc2 = array_refcount(u32_array);
     borrow_mut_two_separate(&mut array, &mut u32_array, rc1, rc2);
 
-    /// Safety: test
+    // Safety: test
     unsafe {
         regression_7297();
     }

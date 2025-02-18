@@ -110,10 +110,8 @@ pub enum ParserErrorReason {
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
     #[error("The `deprecated` attribute expects a string argument")]
     DeprecatedAttributeExpectsAStringArgument,
-    #[error("Unsafe block must have a safety doc comment above it")]
+    #[error("Unsafe block must have a safety comment above it")]
     MissingSafetyComment,
-    #[error("Unsafe block must start with a safety comment")]
-    UnsafeDocCommentDoesNotStartWithSafety,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
 }
@@ -285,24 +283,21 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     error.span,
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
-                    "Unsafe block must have a safety doc comment above it".into(),
-                    "The doc comment must start with the \"Safety: \" word".into(),
+                    "Unsafe block must have a safety comment above it".into(),
+                    "The comment must start with the \"Safety: \" word".into(),
                     error.span,
                 ),
-                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety => {
-                    Diagnostic::simple_warning(
-                        "Unsafe block must start with a safety comment".into(),
-                        "The doc comment above this unsafe block must start with the \"Safety: \" word"
-                            .into(),
-                        error.span,
-                    )
-                }
                 ParserErrorReason::MissingParametersForFunctionDefinition => {
                     Diagnostic::simple_error(
                         "Missing parameters for function definition".into(),
                         "Add a parameter list: `()`".into(),
                         error.span,
                     )
+                }
+                ParserErrorReason::DocCommentDoesNotDocumentAnything => {
+                    let primary = "This doc comment doesn't document anything".to_string();
+                    let secondary = "Consider changing it to a regular `//` comment".to_string();
+                    Diagnostic::simple_warning(primary, secondary, error.span)
                 }
                 other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
             },
@@ -313,7 +308,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ) {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_error(primary, secondary, error.span)
+                    Diagnostic::simple_warning(primary, secondary, error.span)
                 } else {
                     let primary = error.to_string();
                     Diagnostic::simple_error(primary, String::new(), error.span)

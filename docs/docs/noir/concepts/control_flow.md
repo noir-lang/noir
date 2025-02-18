@@ -96,3 +96,16 @@ loop {
 }
 ```
 
+## While loops
+
+In unconstrained code, `while` is allowed for loops that end when a given condition is met. 
+This is only allowed in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
+a loop may have.
+
+```rust
+let mut i = 0
+while i < 10 {
+    println(i);
+    i += 2;
+}
+```

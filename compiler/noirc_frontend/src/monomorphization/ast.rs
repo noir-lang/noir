@@ -37,6 +37,7 @@ pub enum Expression {
     Cast(Cast),
     For(For),
     Loop(Box<Expression>),
+    While(While),
     If(If),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
@@ -108,6 +109,12 @@ pub struct For {
 
     pub start_range_location: Location,
     pub end_range_location: Location,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct While {
+    pub condition: Box<Expression>,
+    pub body: Box<Expression>,
 }
 
 #[derive(Debug, Clone, Hash)]
