@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.0.0-beta.3](https://github.com/noir-lang/noir/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2025-02-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove bigint from stdlib ([#7411](https://github.com/noir-lang/noir/issues/7411))
+* Only decrement the counter of an array if its address has not changed ([#7297](https://github.com/noir-lang/noir/issues/7297))
+
+### Features
+
+* `FunctionDefinition::as_typed_expr` ([#7358](https://github.com/noir-lang/noir/issues/7358)) ([97afa52](https://github.com/noir-lang/noir/commit/97afa52f5212be2d05af26b9e8dde9c3ea7a1d2e))
+* **cli:** Add `--target-dir` option ([#7350](https://github.com/noir-lang/noir/issues/7350)) ([1b6ba5d](https://github.com/noir-lang/noir/commit/1b6ba5d960239f8fa934d9543699eb86edd3c43b))
+* **LSP:** Auto-import via visible reexport ([#7409](https://github.com/noir-lang/noir/issues/7409)) ([9b03217](https://github.com/noir-lang/noir/commit/9b03217ff4b7f8eb13a43466bf9b2d761944c6f7))
+* **performance:** Check sub operations against induction variables ([#7356](https://github.com/noir-lang/noir/issues/7356)) ([7cdce1f](https://github.com/noir-lang/noir/commit/7cdce1fef7e0fd63355fe6dc0993415bbb210ebf))
+* **performance:** Use unchecked ops based upon known induction variables ([#7344](https://github.com/noir-lang/noir/issues/7344)) ([10b377f](https://github.com/noir-lang/noir/commit/10b377fb4eb9284df66f5c0bd830f6d20ab2c003))
+* Remove bigint from stdlib ([#7411](https://github.com/noir-lang/noir/issues/7411)) ([31cc6a1](https://github.com/noir-lang/noir/commit/31cc6a1cf9ea0a02931ef60c71d4d41524f8b84c))
+* Require safety comments instead of safety doc comments ([#7295](https://github.com/noir-lang/noir/issues/7295)) ([e895feb](https://github.com/noir-lang/noir/commit/e895feb4e7b25530a22668bca597dfc78be92584))
+* While statement ([#7280](https://github.com/noir-lang/noir/issues/7280)) ([582f56e](https://github.com/noir-lang/noir/commit/582f56e6b6ea43ab79b08aacfe7f1ba67a097f26))
+
+
+### Bug Fixes
+
+* **brillig:** Brillig entry point analysis and function specialization through duplication ([#7277](https://github.com/noir-lang/noir/issues/7277)) ([119bf62](https://github.com/noir-lang/noir/commit/119bf620005b52362e3aca9321b69e96e8a42fc0))
+* **cli:** Only lock the packages selected in the workspace ([#7345](https://github.com/noir-lang/noir/issues/7345)) ([f0ce5c5](https://github.com/noir-lang/noir/commit/f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c))
+* Field zero division in brillig ([#7386](https://github.com/noir-lang/noir/issues/7386)) ([e73f8cd](https://github.com/noir-lang/noir/commit/e73f8cd669c13cdb792313b46dd4aa012c40a0ad))
+* Format global attributes ([#7401](https://github.com/noir-lang/noir/issues/7401)) ([b7ace68](https://github.com/noir-lang/noir/commit/b7ace682af1ab8a43308457302f08b151af342db))
+* Give "correct" error when trying to use AsTraitPath ([#7360](https://github.com/noir-lang/noir/issues/7360)) ([8f20392](https://github.com/noir-lang/noir/commit/8f20392cab7cca4abf0f1811204ce1a4229f827a))
+* Incorrect secondary file in LSP errors ([#7347](https://github.com/noir-lang/noir/issues/7347)) ([5d782f0](https://github.com/noir-lang/noir/commit/5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6))
+* Let LSP read `noirfmt.toml` for formatting files ([#7355](https://github.com/noir-lang/noir/issues/7355)) ([81b86e2](https://github.com/noir-lang/noir/commit/81b86e2a9bfe991bc0385118094656648a125587))
+* Only decrement the counter of an array if its address has not changed ([#7297](https://github.com/noir-lang/noir/issues/7297)) ([93d1740](https://github.com/noir-lang/noir/commit/93d17407f7170abbab7a6e9c8df6b39fb478ec18))
+* **ssa:** Accurately mark binary ops for hoisting and check Div/Mod against induction variable lower bound ([#7396](https://github.com/noir-lang/noir/issues/7396)) ([64890c0](https://github.com/noir-lang/noir/commit/64890c0d7420adb32d3867e51dd194e48b87bb32))
+* **ssa:** Do not deduplicate division by a zero constant ([#7393](https://github.com/noir-lang/noir/issues/7393)) ([38eeee3](https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1))
+* **ssa:** Make the lookback feature opt-in ([#7190](https://github.com/noir-lang/noir/issues/7190)) ([31becc6](https://github.com/noir-lang/noir/commit/31becc6863688dc9cadf15d2e9726aab9f2a0150))
+
 ## [1.0.0-beta.2](https://github.com/noir-lang/noir/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2025-02-10)
 
 
