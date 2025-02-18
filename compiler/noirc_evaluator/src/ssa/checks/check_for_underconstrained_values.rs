@@ -398,7 +398,7 @@ impl DependencyContext {
                     }
                 }
             }
-            if self.tainted.get(instruction).is_some() {
+            if self.tainted.contains_key(instruction) {
                 self.tracking.insert(*instruction);
             }
 
