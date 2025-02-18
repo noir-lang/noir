@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739881997899,
+  "lastUpdate": 1739882013020,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12337,100 +12337,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "05dc3433ceeb3a395673b9b8431cfdbdc762249f",
-          "message": "feat: infer lambda parameter types from return type and let type (#7267)",
-          "timestamp": "2025-02-04T19:06:21Z",
-          "tree_id": "311394340c49acc4c1c0734c9c8e72c0236c2b2c",
-          "url": "https://github.com/noir-lang/noir/commit/05dc3433ceeb3a395673b9b8431cfdbdc762249f"
-        },
-        "date": 1738697541765,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.04,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.26,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15800,6 +15706,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-tail",
             "value": 186.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 434.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 373.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1040,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 311.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 319.31,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de64e212ba0def04e5b6ebe0ae1c8bd9018e4ca6",
+          "message": "chore: deprecate `merkle` module of stdlib (#7413)",
+          "timestamp": "2025-02-18T12:10:54Z",
+          "tree_id": "d43e42ebdf20d87e4d1905a862a8d64bdb86ff27",
+          "url": "https://github.com/noir-lang/noir/commit/de64e212ba0def04e5b6ebe0ae1c8bd9018e4ca6"
+        },
+        "date": 1739882011482,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 216.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 186.18,
             "unit": "MB"
           },
           {
