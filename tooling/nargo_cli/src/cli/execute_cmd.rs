@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Args;
 
 use nargo::constants::PROVER_INPUT_FILE;
@@ -29,8 +31,12 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 
     /// JSON RPC url to solve oracle calls
-    #[clap(long)]
+    #[clap(long, conflicts_with = "oracle_file")]
     oracle_resolver: Option<String>,
+
+    /// Path to the oracle transcript.
+    #[clap(long, hide = true, conflicts_with = "oracle_resolver")]
+    oracle_file: Option<PathBuf>,
 }
 
 impl WorkspaceCommand for ExecuteCommand {
@@ -61,7 +67,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
                 args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),
             ),
             contract_fn: None,
-            oracle_file: None,
+            oracle_file: args.oracle_file.clone(),
             oracle_resolver: args.oracle_resolver.clone(),
             oracle_root_dir: Some(workspace.root_dir.clone()),
             oracle_package_name: Some(package.name.to_string()),

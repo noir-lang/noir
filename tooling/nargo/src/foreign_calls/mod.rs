@@ -84,4 +84,7 @@ pub enum ForeignCallError {
 
     #[error("Assert message resolved after an unsatisfied constrain. {0}")]
     ResolvedAssertMessage(String),
+
+    #[error("Failed to replay oracle transcript: {0}")]
+    TranscriptError(String),
 }
