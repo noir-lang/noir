@@ -12,5 +12,12 @@ cat $dir/Oracle.test.jsonl \
     | jq --slurp -r -c '.[] | select(.call.function | contains("mock") | not)' \
     > $dir/Oracle.jsonl
 
-# TODO: Execute `main` with the Prover.toml and Oracle.jsonl files.
+# Execute `main` with the Prover.toml and Oracle.jsonl files.
 nargo execute --skip-underconstrained-check --oracle-file $dir/Oracle.jsonl
+
+# Also execute through `noir-execute`
+noir-execute \
+    --artifact-path $dir/target/oracle_transcript.json \
+    --oracle-file $dir/Oracle.jsonl \
+    --prover-file $dir/Prover.toml \
+    --output-dir $dir/target

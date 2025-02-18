@@ -78,6 +78,39 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-noir-execute:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.75.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build noir-execute
+        run: cargo build --package noir_artifact_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/noir-execute ./dist/noir-execute
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-execute-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-execute
+          path: ./dist/*
+          retention-days: 3
+
   build-noirc-abi:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -457,7 +490,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-22.04
-    needs: [build-nargo]
+    needs: [build-nargo, build-noir-execute]
     timeout-minutes: 30
 
     steps:
@@ -476,6 +509,9 @@ jobs:
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
+
+      - name: Download noir-execute binary
+        uses: ./.github/actions/download-noir-execute
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
