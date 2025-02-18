@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739888035170,
+  "lastUpdate": 1739888044997,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12266,100 +12266,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3a42eb5c68f9616f0ebe367c894f0376ba41e0ef",
-          "message": "chore: add sha256 library to test suite (#7278)",
-          "timestamp": "2025-02-04T19:32:34Z",
-          "tree_id": "a93e03824fd0e496d61908288e0738e71bd8fc5c",
-          "url": "https://github.com/noir-lang/noir/commit/3a42eb5c68f9616f0ebe367c894f0376ba41e0ef"
-        },
-        "date": 1738698926436,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "keccak256",
-            "value": 75.01,
-            "unit": "MB"
-          },
-          {
-            "name": "workspace",
-            "value": 124.39,
-            "unit": "MB"
-          },
-          {
-            "name": "regression_4709",
-            "value": 316.25,
-            "unit": "MB"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 512.78,
-            "unit": "MB"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 383.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 555.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 555.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 793.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 652.26,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.01,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 213.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "0d156fffeabdef994905ed9b286e6bb4dd1d91e7",
           "message": "chore: fix memory reports in CI (#7311)",
@@ -15715,6 +15621,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 319.31,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7f804f67b3e37d76d991a882c94574322f3f22b2",
+          "message": "chore: bump aztec-packages commit (#7415)",
+          "timestamp": "2025-02-18T13:49:58Z",
+          "tree_id": "b1efa6ac40c790b7b8be3ade3f02b030911484b7",
+          "url": "https://github.com/noir-lang/noir/commit/7f804f67b3e37d76d991a882c94574322f3f22b2"
+        },
+        "date": 1739888043542,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 216.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 250.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 186.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 434.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 372.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 311.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 319.22,
             "unit": "MB"
           }
         ]
