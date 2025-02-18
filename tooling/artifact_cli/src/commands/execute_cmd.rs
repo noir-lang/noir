@@ -18,7 +18,7 @@ use super::parse_and_normalize_path;
 pub struct ExecuteCommand {
     /// Path to the JSON build artifact (either a program or a contract).
     #[clap(long, short, value_parser = parse_and_normalize_path)]
-    pub artifact: PathBuf,
+    pub artifact_path: PathBuf,
 
     /// Path to the Prover.toml file which contains the inputs and the
     /// optional return value in ABI format.
@@ -47,7 +47,7 @@ pub struct ExecuteCommand {
     /// Note that a transcript might be invalid if the inputs change and
     /// the circuit takes a different path during execution.
     #[clap(long, conflicts_with = "oracle_resolver")]
-    pub oracle_file: Option<String>,
+    pub oracle_file: Option<PathBuf>,
 
     /// JSON RPC url to solve oracle calls.
     ///
@@ -69,8 +69,8 @@ pub struct ExecuteCommand {
 }
 
 pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
-    let artifact = Artifact::read_from_file(&args.artifact)?;
-    let artifact_name = args.artifact.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let artifact = Artifact::read_from_file(&args.artifact_path)?;
+    let artifact_name = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
     let (circuit, circuit_name): (CompiledProgram, String) = match artifact {
         Artifact::Program(program) => (program.into(), artifact_name.to_string()),
