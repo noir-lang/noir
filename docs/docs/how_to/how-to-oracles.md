@@ -265,6 +265,8 @@ const app = express();
 app.use(cors())
 ```
 
+:::
+
 ## Conclusion
 
 Hopefully by the end of this guide, you should be able to:
