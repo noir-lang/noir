@@ -391,7 +391,7 @@ impl DependencyContext {
                 for argument in &arguments {
                     if let Some(calls) = self.call_arguments.get(argument) {
                         for call in calls {
-                            if self.tainted.get(call).is_some() {
+                            if self.tainted.contains_key(call) {
                                 self.tracking.insert(*call);
                             }
                         }
