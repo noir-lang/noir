@@ -29,7 +29,7 @@ pub(crate) struct BrilligGlobals {
     /// Maps an inner call to its Brillig entry point
     /// This is simply used to simplify fetching global allocations when compiling
     /// individual Brillig functions.
-    inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>>,
+    inner_call_to_entry_point: HashMap<FunctionId, BTreeSet<FunctionId>>,
     /// Final map that associated an entry point with its Brillig global allocations
     entry_point_globals_map: HashMap<FunctionId, SsaToBrilligGlobals>,
 }
@@ -116,7 +116,8 @@ impl BrilligGlobals {
 
         // Sanity check: We should have guaranteed earlier that an inner call has only a single entry point
         assert_eq!(entry_points.len(), 1, "{brillig_function_id} has multiple entry points");
-        if let Some(globals) = self.entry_point_globals_map.get(&entry_points[0]) {
+        let entry_point = entry_points.first().expect("ICE: Inner call should have an entry point");
+        if let Some(globals) = self.entry_point_globals_map.get(entry_point) {
             return Some(globals);
         }
 

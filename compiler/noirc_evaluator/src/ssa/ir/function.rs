@@ -109,14 +109,6 @@ impl Function {
         Self { name: another.name.clone(), id: Some(id), entry_block, dfg }
     }
 
-    /// Creates a new function as a clone of the one passed in without an id.
-    /// It is expected that the function id is assigned after this method is called.
-    pub(crate) fn clone_no_id(another: &Function) -> Self {
-        let dfg = another.dfg.clone();
-        let entry_block = another.entry_block;
-        Self { name: another.name.clone(), id: None, entry_block, dfg }
-    }
-
     /// Takes the signature (function name & runtime) from a function but does not copy the body.
     pub(crate) fn clone_signature(id: FunctionId, another: &Function) -> Self {
         let mut new_function = Function::new(another.name.clone(), id);
@@ -135,13 +127,6 @@ impl Function {
     /// The id of the function.
     pub(crate) fn id(&self) -> FunctionId {
         self.id.expect("FunctionId should be initialized")
-    }
-
-    /// Set the id of the function.
-    /// The id should normally be set on creation of a `Function`
-    /// and this method should be used with caution.
-    pub(crate) fn set_id(&mut self, id: FunctionId) {
-        self.id = Some(id);
     }
 
     /// Runtime type of the function.

@@ -81,12 +81,8 @@ impl Ssa {
         }
 
         let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
-        let entry_points = brillig_entry_points.keys().copied().collect::<HashSet<_>>();
 
-        let inner_call_to_entry_point = build_inner_call_to_entry_points(&brillig_entry_points);
-
-        let functions_to_clone_map =
-            build_functions_to_clone(&self.functions, inner_call_to_entry_point, entry_points);
+        let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
 
         let calls_to_update = build_calls_to_update(&mut self, functions_to_clone_map);
 
@@ -118,26 +114,25 @@ impl Ssa {
     }
 }
 
+/// For every call site, we can determine the entry point for a given callee.
+/// Once we know that we can determine which functions are in need of duplication.
+/// We duplicate when the following occurs:
+/// 1. A function is called from two different entry points
+/// 2. An entry point function is called from another entry point
 fn build_functions_to_clone(
-    functions: &BTreeMap<FunctionId, Function>,
-    inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>>,
-    entry_points: HashSet<FunctionId>,
-) -> HashMap<FunctionId, Vec<(Function, FunctionId)>> {
-    let mut functions_to_clone_map: HashMap<FunctionId, Vec<(Function, FunctionId)>> =
-        HashMap::default();
+    brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
+) -> HashMap<FunctionId, Vec<FunctionId>> {
+    let inner_call_to_entry_point = build_inner_call_to_entry_points(brillig_entry_points);
+    let entry_points = brillig_entry_points.keys().copied().collect::<HashSet<_>>();
 
-    let mut add_function_to_clone = |entry_point: FunctionId, inner_call: FunctionId| {
-        let cloned_function = Function::clone_no_id(&functions[&inner_call]);
-        functions_to_clone_map.entry(entry_point).or_default().push((cloned_function, inner_call));
-    };
+    let mut functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>> = HashMap::default();
 
     for (inner_call, inner_call_entry_points) in inner_call_to_entry_point {
-        if inner_call_entry_points.len() > 1 {
+        let should_clone = inner_call_entry_points.len() > 1 || entry_points.contains(&inner_call);
+        if should_clone {
             for entry_point in inner_call_entry_points {
-                add_function_to_clone(entry_point, inner_call);
+                functions_to_clone_map.entry(entry_point).or_default().push(inner_call);
             }
-        } else if entry_points.contains(&inner_call) {
-            add_function_to_clone(inner_call_entry_points[0], inner_call);
         }
     }
 
@@ -149,16 +144,16 @@ fn build_functions_to_clone(
 ///  Returns a map of (entry point, callee function) -> new callee function id.
 fn build_calls_to_update(
     ssa: &mut Ssa,
-    functions_to_clone_map: HashMap<FunctionId, Vec<(Function, FunctionId)>>,
+    functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>>,
 ) -> HashMap<(FunctionId, FunctionId), FunctionId> {
     let mut calls_to_update: HashMap<(FunctionId, FunctionId), FunctionId> = HashMap::default();
 
     for (entry_point, functions_to_clone) in functions_to_clone_map {
-        for (mut cloned_function, old_id) in functions_to_clone {
+        for old_id in functions_to_clone {
+            let function = ssa.functions[&old_id].clone();
             ssa.add_fn(|id| {
                 calls_to_update.insert((entry_point, old_id), id);
-                cloned_function.set_id(id);
-                cloned_function
+                Function::clone_with_id(id, &function)
             });
         }
     }
@@ -284,14 +279,15 @@ fn build_entry_points_map_recursive(
 /// from which this function is reachable.
 pub(crate) fn build_inner_call_to_entry_points(
     brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
-) -> HashMap<FunctionId, Vec<FunctionId>> {
+) -> HashMap<FunctionId, BTreeSet<FunctionId>> {
     // Map for fetching the correct entry point globals when compiling any function
-    let mut inner_call_to_entry_point: HashMap<FunctionId, Vec<FunctionId>> = HashMap::default();
+    let mut inner_call_to_entry_point: HashMap<FunctionId, BTreeSet<FunctionId>> =
+        HashMap::default();
 
     // We only need to generate globals for entry points
     for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
         for inner_call in entry_point_inner_calls {
-            inner_call_to_entry_point.entry(*inner_call).or_default().push(*entry_point);
+            inner_call_to_entry_point.entry(*inner_call).or_default().insert(*entry_point);
         }
     }
 
