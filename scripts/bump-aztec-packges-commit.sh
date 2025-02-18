@@ -4,7 +4,7 @@ AZTEC_COMMIT=$(git ls-remote https://github.com/AztecProtocol/aztec-packages.git
 
 function bump_commit() {
     FILE=$1
-    sed -E -i.bak "s/(^define: &AZ_COMMIT) .*/\1 $AZTEC_COMMIT/" $FILE  && rm $FILE.bak
+    AZTEC_COMMIT=$AZTEC_COMMIT yq -i '.define = env(AZTEC_COMMIT)' $FILE
 
 }
 
