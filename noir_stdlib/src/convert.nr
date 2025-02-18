@@ -45,6 +45,22 @@ impl From<u32> for u64 {
     }
 }
 
+impl From<u8> for u128 {
+    fn from(value: u8) -> u128 {
+        value as u128
+    }
+}
+impl From<u32> for u128 {
+    fn from(value: u32) -> u128 {
+        value as u128
+    }
+}
+impl From<u64> for u128 {
+    fn from(value: u64) -> u128 {
+        value as u128
+    }
+}
+
 impl From<u8> for Field {
     fn from(value: u8) -> Field {
         value as Field
@@ -57,6 +73,12 @@ impl From<u32> for Field {
 }
 impl From<u64> for Field {
     fn from(value: u64) -> Field {
+        value as Field
+    }
+}
+
+impl From<u128> for Field {
+    fn from(value: u128) -> Field {
         value as Field
     }
 }
@@ -142,6 +164,7 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
         quote { u16 },
         quote { u32 },
         quote { u64 },
+        quote { u128 },
         quote { i8 },
         quote { i16 },
         quote { i32 },

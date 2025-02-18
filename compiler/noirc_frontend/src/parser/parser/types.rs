@@ -434,7 +434,7 @@ mod tests {
         ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
         parser::{
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            Parser,
+            Parser, ParserErrorReason,
         },
         QuotedType,
     };
@@ -468,6 +468,28 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         ));
+    }
+
+    #[test]
+    fn errors_on_invalid_bit_size() {
+        let src = "u31";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
+    }
+
+    #[test]
+    fn errors_on_i128() {
+        let src = "i128";
+        let mut parser = Parser::for_str(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
     }
 
     #[test]
