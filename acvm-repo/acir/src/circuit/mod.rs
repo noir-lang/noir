@@ -272,6 +272,7 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
+    /// Deserialize bytecode.
     pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
         Program::read(serialized_circuit)
     }

@@ -211,6 +211,7 @@ pub fn report_all<'files>(
 }
 
 impl FileDiagnostic {
+    /// Print the report; return true if it was an error.
     pub fn report<'files>(
         &self,
         files: &'files impl Files<'files, FileId = fm::FileId>,

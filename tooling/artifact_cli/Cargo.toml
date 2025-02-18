@@ -1,0 +1,43 @@
+[package]
+name = "noir_artifact_cli"
+description = "Commands working on noir build artifacts"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "noir-execute"
+path = "src/bin/execute.rs"
+
+[dependencies]
+clap.workspace = true
+color-eyre.workspace = true
+const_format.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+tracing-subscriber.workspace = true
+
+# Noir repo dependencies
+acir.workspace = true
+acvm.workspace = true
+bn254_blackbox_solver.workspace = true
+fm.workspace = true
+nargo = { workspace = true, features = ["rpc"] }
+noirc_abi.workspace = true
+noirc_artifacts_info.workspace = true
+noirc_artifacts.workspace = true
+noirc_driver.workspace = true
+noirc_errors.workspace = true
+serde.workspace = true
