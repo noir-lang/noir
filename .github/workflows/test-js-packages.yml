@@ -492,9 +492,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
+        include: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
          
-    name: Check external repo - ${{ matrix.project.repo }}/${{ matrix.project.path }}
+    name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -504,9 +504,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: ${{ matrix.project.repo }}
+          repository: ${{ matrix.repo }}
           path: test-repo
-          ref: ${{ matrix.project.ref }}
+          ref: ${{ matrix.ref }}
 
       - name: Download nargo binary
         uses: ./noir-repo/.github/actions/download-nargo
@@ -520,14 +520,14 @@ jobs:
 
       - name: Run nargo test
         id: test_report
-        working-directory: ./test-repo/${{ matrix.project.path }}
+        working-directory: ./test-repo/${{ matrix.path }}
         run: |
-          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+          output_file=${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
           BEFORE=$SECONDS
-          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.project.nargo_args }} | tee $output_file
+          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $output_file
           TIME=$(($SECONDS-$BEFORE))
 
-          NAME=${{ matrix.project.repo }}/${{ matrix.project.path }}
+          NAME=${{ matrix.repo }}/${{ matrix.path }}
           # Replace any slashes with underscores
           NAME=${NAME//\//_}
           TEST_REPORT_NAME=test_report_$NAME
@@ -544,25 +544,25 @@ jobs:
       
       - name: Check test time limit
         run: |
-          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json)
-          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.project.timeout }}"; then
+          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/${{ steps.test_report.outputs.test_report_name }}.json)
+          if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.timeout }}"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             echo "Failing due to test suite exceeding timeout..."
-            echo "Timeout: ${{ matrix.project.timeout }}"
+            echo "Timeout: ${{ matrix.timeout }}"
             echo "Test suite took: $TIME".
             exit 1
           fi
 
       - name: Compare test results
         working-directory: ./noir-repo
-        run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.project.repo }}/${{ matrix.project.path }}.actual.jsonl
+        run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
 
       - name: Upload test report
-        if: ${{ matrix.project.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
+        if: ${{ matrix.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.test_report.outputs.test_report_name }}
-          path: ./test-repo/${{ matrix.project.path }}/${{ steps.test_report.outputs.test_report_name }}.json
+          path: ./test-repo/${{ matrix.path }}/${{ steps.test_report.outputs.test_report_name }}.json
           retention-days: 3
           overwrite: true
 
