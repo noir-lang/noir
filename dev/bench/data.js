@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739910053330,
+  "lastUpdate": 1739910057204,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8765,75 +8765,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ac1da8f4b57290a67240973a7d6172cfbf5680a8",
-          "message": "fix: avoid stack overflow on many comments in a row (#7325)",
-          "timestamp": "2025-02-07T18:20:56Z",
-          "tree_id": "194e13757e4b29173c7f7363902f0fe5a37a1238",
-          "url": "https://github.com/noir-lang/noir/commit/ac1da8f4b57290a67240973a7d6172cfbf5680a8"
-        },
-        "date": 1738953666194,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.309,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.452,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -12113,6 +12044,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 35.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aqdrgg19@gmail.com",
+            "name": "VolodymyrBg",
+            "username": "VolodymyrBg"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f37eedca7f286187c71587797e08da189c4eee70",
+          "message": "feat(acir_field): Add little-endian byte serialization for FieldElement (#7258)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-02-18T19:53:43Z",
+          "tree_id": "12c26ead54deb16c8a84bbabe733be12ac3809be",
+          "url": "https://github.com/noir-lang/noir/commit/f37eedca7f286187c71587797e08da189c4eee70"
+        },
+        "date": 1739910055075,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.298,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.469,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.181,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35,
             "unit": "s"
           },
           {
