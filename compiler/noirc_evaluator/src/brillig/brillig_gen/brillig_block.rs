@@ -20,6 +20,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
+use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
 use acvm::{acir::AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
@@ -835,20 +836,65 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     .store_instruction(array_or_vector.extract_register(), rc_register);
                 self.brillig_context.deallocate_register(rc_register);
             }
-            Instruction::DecrementRc { value } => {
+            Instruction::DecrementRc { value, original } => {
                 let array_or_vector = self.convert_ssa_value(*value, dfg);
-                let rc_register = self.brillig_context.allocate_register();
+                let orig_array_or_vector = self.convert_ssa_value(*original, dfg);
 
-                self.brillig_context
-                    .load_instruction(rc_register, array_or_vector.extract_register());
-                self.brillig_context.codegen_usize_op_in_place(
-                    rc_register,
-                    BrilligBinaryOp::Sub,
-                    1,
-                );
-                self.brillig_context
-                    .store_instruction(array_or_vector.extract_register(), rc_register);
-                self.brillig_context.deallocate_register(rc_register);
+                let array_register = array_or_vector.extract_register();
+                let orig_array_register = orig_array_or_vector.extract_register();
+
+                let codegen_dec_rc = |ctx: &mut BrilligContext<FieldElement, Registers>| {
+                    let rc_register = ctx.allocate_register();
+
+                    ctx.load_instruction(rc_register, array_register);
+
+                    ctx.codegen_usize_op_in_place(rc_register, BrilligBinaryOp::Sub, 1);
+
+                    // Check that the refcount didn't go below 1. If we allow it to underflow
+                    // and become 0 or usize::MAX, and then return to 1, then it will indicate
+                    // an array as mutable when it probably shouldn't be.
+                    if ctx.enable_debug_assertions() {
+                        let min_addr = ReservedRegisters::usize_one();
+                        let condition = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                        ctx.memory_op_instruction(
+                            min_addr,
+                            rc_register,
+                            condition.address,
+                            BrilligBinaryOp::LessThanEquals,
+                        );
+                        ctx.codegen_constrain(
+                            condition,
+                            Some("array ref-count went to zero".to_owned()),
+                        );
+                        ctx.deallocate_single_addr(condition);
+                    }
+
+                    ctx.store_instruction(array_register, rc_register);
+                    ctx.deallocate_register(rc_register);
+                };
+
+                if array_register == orig_array_register {
+                    codegen_dec_rc(self.brillig_context);
+                } else {
+                    // Check if the current and original register point at the same memory.
+                    // If they don't, it means that an array-copy procedure has created a
+                    // new array, which includes decrementing the RC of the original,
+                    // which means we don't have to do the decrement here.
+                    let condition =
+                        SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
+                    // We will use a binary op to interpret the pointer as a number.
+                    let bit_size: u32 = MEMORY_ADDRESSING_BIT_SIZE.into();
+                    let array_var = SingleAddrVariable::new(array_register, bit_size);
+                    let orig_array_var = SingleAddrVariable::new(orig_array_register, bit_size);
+                    self.brillig_context.binary_instruction(
+                        array_var,
+                        orig_array_var,
+                        condition,
+                        BrilligBinaryOp::Equals,
+                    );
+                    self.brillig_context.codegen_if(condition.address, codegen_dec_rc);
+                    self.brillig_context.deallocate_single_addr(condition);
+                }
             }
             Instruction::EnableSideEffectsIf { .. } => {
                 unreachable!("enable_side_effects not supported by brillig")

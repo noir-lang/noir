@@ -279,7 +279,7 @@ pub(crate) fn get_expr(
     (value, location): (Value, Location),
 ) -> IResult<ExprValue> {
     match value {
-        Value::Expr(expr) => match expr {
+        Value::Expr(expr) => match *expr {
             ExprValue::Expression(ExpressionKind::Interned(id)) => {
                 Ok(ExprValue::Expression(interner.get_expression_kind(id).clone()))
             }
@@ -292,7 +292,7 @@ pub(crate) fn get_expr(
             ExprValue::Pattern(Pattern::Interned(id, _)) => {
                 Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
             }
-            _ => Ok(expr),
+            _ => Ok(*expr),
         },
         value => type_mismatch(value, Type::Quoted(QuotedType::Expr), location),
     }
@@ -523,7 +523,7 @@ where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
     Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
-        let error = errors.swap_remove(0);
+        let error = Box::new(errors.swap_remove(0));
         let tokens = tokens_to_string(tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, file: location.file }
     })
