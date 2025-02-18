@@ -2,9 +2,9 @@ use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use thiserror::Error;
 
 pub mod layers;
-pub mod logging;
 pub mod mocker;
 pub mod print;
+pub mod transcript;
 
 pub mod default;
 #[cfg(feature = "rpc")]

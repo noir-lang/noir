@@ -67,7 +67,7 @@ where
     }
 }
 
-/// Log foreign calls to stdout as soon as soon as they are made, or buffer them and write to a file at the end.
+/// Log foreign calls to stdout as soon as they are made, or buffer them and write to a file at the end.
 pub enum ForeignCallLog {
     None,
     Stdout,
@@ -105,11 +105,11 @@ impl ForeignCallLog {
 /// Replay an oracle transcript which was logged with [LoggingForeignCallExecutor].
 ///
 /// This is expected to be the last executor in the stack, e.g. prints can be handled above it.
-pub struct TranscriptForeignCallExecutor<F> {
+pub struct ReplayForeignCallExecutor<F> {
     transcript: VecDeque<LogItem<F>>,
 }
 
-impl<F: for<'a> Deserialize<'a>> TranscriptForeignCallExecutor<F> {
+impl<F: for<'a> Deserialize<'a>> ReplayForeignCallExecutor<F> {
     pub fn from_file(path: &Path) -> Result<Self, TranscriptError> {
         let contents = std::fs::read_to_string(path)?;
 
@@ -120,7 +120,7 @@ impl<F: for<'a> Deserialize<'a>> TranscriptForeignCallExecutor<F> {
     }
 }
 
-impl<F> ForeignCallExecutor<F> for TranscriptForeignCallExecutor<F>
+impl<F> ForeignCallExecutor<F> for ReplayForeignCallExecutor<F>
 where
     F: AcirField,
 {

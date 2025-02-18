@@ -1,5 +1,5 @@
 use acir::FieldElement;
-use nargo::{foreign_calls::logging::TranscriptError, NargoError};
+use nargo::{foreign_calls::transcript::TranscriptError, NargoError};
 use noirc_abi::{
     errors::{AbiError, InputParserError},
     input_parser::InputValue,

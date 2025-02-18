@@ -9,7 +9,7 @@ use crate::{
     Artifact,
 };
 use nargo::{
-    foreign_calls::{layers, logging::TranscriptForeignCallExecutor, DefaultForeignCallBuilder},
+    foreign_calls::{layers, transcript::ReplayForeignCallExecutor, DefaultForeignCallBuilder},
     PrintOutput,
 };
 use noirc_driver::CompiledProgram;
@@ -112,12 +112,12 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 
 /// Execute a circuit and return the output witnesses.
 fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<ExecutionResults, CliError> {
-    // Build a custom foreign call executor that reads from the Oracle transcript,
+    // Build a custom foreign call executor that replays the Oracle transcript,
     // and use it as a base for the default executor. Using it as the innermost rather
     // than top layer so that any extra `print` added for debugging is handled by the
     // default, rather than trying to match it to the transcript.
     let transcript_executor = match args.oracle_file {
-        Some(ref path) => layers::Either::Left(TranscriptForeignCallExecutor::from_file(path)?),
+        Some(ref path) => layers::Either::Left(ReplayForeignCallExecutor::from_file(path)?),
         None => layers::Either::Right(layers::Empty),
     };
 

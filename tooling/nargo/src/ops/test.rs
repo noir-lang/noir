@@ -15,8 +15,8 @@ use crate::{
     errors::try_to_diagnose_runtime_error,
     foreign_calls::{
         layers,
-        logging::{ForeignCallLog, LoggingForeignCallExecutor},
         print::PrintOutput,
+        transcript::{ForeignCallLog, LoggingForeignCallExecutor},
         ForeignCallError, ForeignCallExecutor,
     },
     NargoError,
