@@ -767,7 +767,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
-                if !dfg.is_safe_index(*index, *array) {
+                // Slice validation should be generated separately against its dynamic lengthl
+                if !dfg.is_safe_brillig_index(*index, *array) && matches!(dfg.type_of_value(*array), Type::Array(..)) {
                     self.validate_array_index(array_variable, index_variable);
                 }
 

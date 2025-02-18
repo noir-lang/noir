@@ -27,6 +27,7 @@ fn main(x: Field, y: pub Field) {
     assert(qs.as_slice() == as_slice_push(qs));
 
     assert(dynamic.as_slice()[0] == dynamic_expected[0]);
+    println(dynamic.as_slice()[1]);
     assert(dynamic.as_slice()[1] == dynamic_expected[1]);
     assert(dynamic.as_slice()[2] == dynamic_expected[2]);
     assert(dynamic.as_slice()[3] == dynamic_expected[3]);
