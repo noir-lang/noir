@@ -1,10 +1,18 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use nargo_toml::{ManifestError, PackageSelection};
+use nargo::workspace::Workspace;
+use nargo_toml::{
+    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+};
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use color_eyre::eyre;
+
+use crate::errors::CliError;
 
 mod fs;
 
@@ -48,8 +56,12 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./")]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
     program_dir: PathBuf,
+
+    /// Override the default target directory.
+    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    target_dir: Option<PathBuf>,
 }
 
 /// Options for commands that work on either workspace or package scope.
@@ -76,22 +88,6 @@ impl PackageOptions {
 
         self.package.clone().map_or(default_selection, PackageSelection::Selected)
     }
-
-    /// Whether we need to look for the package manifest at the workspace level.
-    /// If a package is specified, it might not be the current package.
-    fn scope(&self) -> CommandScope {
-        if self.workspace || self.package.is_some() {
-            CommandScope::Workspace
-        } else {
-            CommandScope::CurrentPackage
-        }
-    }
-}
-
-enum CommandScope {
-    Workspace,
-    CurrentPackage,
-    Any,
 }
 
 #[non_exhaustive]
@@ -115,68 +111,46 @@ enum NargoCommand {
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
+/// Commands that can execute on the workspace level, or be limited to a selected package.
+trait WorkspaceCommand {
+    /// Indicate which package the command will be applied to.
+    fn package_selection(&self) -> PackageSelection;
+    /// The kind of lock the command needs to take out on the selected packages.
+    fn lock_type(&self) -> LockType;
+}
+
+/// What kind of lock to take out on the (selected) workspace members.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)] // Not using `Shared` at the moment, e.g. while we `debug` we can `compile` a different version.
+enum LockType {
+    /// For commands that write artifacts.
+    Exclusive,
+    /// For commands that read artifacts, but never write them.
+    Shared,
+    /// For commands that cannot interfere with others.
+    None,
+}
+
 #[cfg(not(feature = "codegen-docs"))]
 #[tracing::instrument(level = "trace")]
 pub(crate) fn start_cli() -> eyre::Result<()> {
-    use std::fs::File;
-
-    use fm::NormalizePath;
-    use fs2::FileExt as _;
-    use nargo_toml::get_package_manifest;
-
-    let NargoCli { command, mut config } = NargoCli::parse();
-
-    // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
-    if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir).normalize();
-    }
-
-    // Search through parent directories to find package root if necessary.
-    if let Some(program_dir) = command_dir(&command, &config.program_dir)? {
-        config.program_dir = program_dir;
-    }
-
-    let lock_file = match needs_lock(&command) {
-        Some(exclusive) => {
-            let toml_path = get_package_manifest(&config.program_dir)?;
-            let file = File::open(toml_path).expect("Expected Nargo.toml to exist");
-            if exclusive {
-                if file.try_lock_exclusive().is_err() {
-                    eprintln!("Waiting for lock on Nargo.toml...");
-                }
-
-                file.lock_exclusive().expect("Failed to lock Nargo.toml");
-            } else {
-                if file.try_lock_shared().is_err() {
-                    eprintln!("Waiting for lock on Nargo.toml...");
-                }
-
-                file.lock_shared().expect("Failed to lock Nargo.toml");
-            }
-            Some(file)
-        }
-        None => None,
-    };
+    let NargoCli { command, config } = NargoCli::parse();
 
     match command {
         NargoCommand::New(args) => new_cmd::run(args, config),
         NargoCommand::Init(args) => init_cmd::run(args, config),
-        NargoCommand::Check(args) => check_cmd::run(args, config),
-        NargoCommand::Compile(args) => compile_cmd::run(args, config),
-        NargoCommand::Debug(args) => debug_cmd::run(args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(args, config),
-        NargoCommand::Export(args) => export_cmd::run(args, config),
-        NargoCommand::Test(args) => test_cmd::run(args, config),
-        NargoCommand::Info(args) => info_cmd::run(args, config),
-        NargoCommand::Lsp(args) => lsp_cmd::run(args, config),
-        NargoCommand::Dap(args) => dap_cmd::run(args, config),
-        NargoCommand::Fmt(args) => fmt_cmd::run(args, config),
+        NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
+        NargoCommand::Compile(args) => with_workspace(args, config, compile_cmd::run),
+        NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
+        NargoCommand::Execute(args) => with_workspace(args, config, execute_cmd::run),
+        NargoCommand::Export(args) => with_workspace(args, config, export_cmd::run),
+        NargoCommand::Test(args) => with_workspace(args, config, test_cmd::run),
+        NargoCommand::Info(args) => with_workspace(args, config, info_cmd::run),
+        NargoCommand::Lsp(_) => lsp_cmd::run(),
+        NargoCommand::Dap(args) => dap_cmd::run(args),
+        NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
-
-    if let Some(lock_file) = lock_file {
-        lock_file.unlock().expect("Failed to unlock Nargo.toml");
-    }
 
     Ok(())
 }
@@ -188,76 +162,131 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
     Ok(())
 }
 
-/// Some commands have package options, which we use here to decide whether to
-/// alter `--program-dir` to point at a manifest, depending on whether we want
-/// to work on a specific package or the entire workspace.
-fn command_scope(cmd: &NargoCommand) -> CommandScope {
-    match &cmd {
-        NargoCommand::Check(cmd) => cmd.package_options.scope(),
-        NargoCommand::Compile(cmd) => cmd.package_options.scope(),
-        NargoCommand::Execute(cmd) => cmd.package_options.scope(),
-        NargoCommand::Export(cmd) => cmd.package_options.scope(),
-        NargoCommand::Test(cmd) => cmd.package_options.scope(),
-        NargoCommand::Info(cmd) => cmd.package_options.scope(),
-        NargoCommand::Fmt(cmd) => cmd.package_options.scope(),
-        NargoCommand::Debug(cmd) => {
-            if cmd.package.is_some() {
-                CommandScope::Workspace
-            } else {
-                CommandScope::CurrentPackage
-            }
+/// Read a given program directory into a workspace.
+fn read_workspace(
+    program_dir: &Path,
+    selection: PackageSelection,
+) -> Result<Workspace, ManifestError> {
+    let toml_path = get_package_manifest(program_dir)?;
+
+    let workspace = resolve_workspace_from_toml(
+        &toml_path,
+        selection,
+        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+    )?;
+
+    Ok(workspace)
+}
+
+/// Find the root directory, parse the workspace, lock the packages, then execute the command.
+fn with_workspace<C, R>(cmd: C, config: NargoConfig, run: R) -> Result<(), CliError>
+where
+    C: WorkspaceCommand,
+    R: FnOnce(C, Workspace) -> Result<(), CliError>,
+{
+    // All commands need to run on the workspace level, because that's where the `target` directory is.
+    let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
+    let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
+    // Check if we're running inside the directory of a package, without having selected the entire workspace
+    // or a specific package; if that's the case then parse the package name to select it in the workspace.
+    let selection = match cmd.package_selection() {
+        PackageSelection::DefaultOrAll if workspace_dir != package_dir => {
+            let package = read_workspace(&package_dir, PackageSelection::DefaultOrAll)?;
+            let package = package.into_iter().next().expect("there should be exactly 1 package");
+            PackageSelection::Selected(package.name.clone())
         }
-        NargoCommand::New(..)
-        | NargoCommand::Init(..)
-        | NargoCommand::Lsp(..)
-        | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => CommandScope::Any,
-    }
-}
-
-/// A manifest directory we need to change into, if the command needs it.
-fn command_dir(cmd: &NargoCommand, program_dir: &Path) -> Result<Option<PathBuf>, ManifestError> {
-    let workspace = match command_scope(cmd) {
-        CommandScope::Workspace => true,
-        CommandScope::CurrentPackage => false,
-        CommandScope::Any => return Ok(None),
+        other => other,
     };
-    Ok(Some(nargo_toml::find_root(program_dir, workspace)?))
+    // Parse the top level workspace with the member selected.
+    let mut workspace = read_workspace(&workspace_dir, selection)?;
+    // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
+    // don't read or write artifacts, so they don't use the target directory.
+    workspace.target_dir = config.target_dir.clone();
+    // Lock manifests if the command needs it.
+    let _locks = match cmd.lock_type() {
+        LockType::None => None,
+        typ => Some(lock_workspace(&workspace, typ == LockType::Exclusive)?),
+    };
+    run(cmd, workspace)
 }
 
-/// Returns:
-/// - `Some(true)` if an exclusive lock is needed
-/// - `Some(false)` if an read lock is needed
-/// - None if no lock is needed
-fn needs_lock(cmd: &NargoCommand) -> Option<bool> {
-    match cmd {
-        NargoCommand::Check(check_command) => Some(check_command.allow_overwrite),
-        NargoCommand::Compile(..)
-        | NargoCommand::Execute(..)
-        | NargoCommand::Export(..)
-        | NargoCommand::Info(..) => Some(true),
-        NargoCommand::Debug(..) | NargoCommand::Test(..) => Some(false),
-        NargoCommand::Fmt(..)
-        | NargoCommand::New(..)
-        | NargoCommand::Init(..)
-        | NargoCommand::Lsp(..)
-        | NargoCommand::Dap(..)
-        | NargoCommand::GenerateCompletionScript(..) => None,
+/// Lock the (selected) packages in the workspace.
+/// The lock taken can be shared for commands that only read the artifacts,
+/// or exclusive for the ones that (might) write artifacts as well.
+fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
+    use fs2::FileExt as _;
+
+    struct LockedFile(File);
+
+    impl Drop for LockedFile {
+        fn drop(&mut self) {
+            let _ = self.0.unlock();
+        }
     }
+
+    let mut locks = Vec::new();
+    for pkg in workspace.into_iter() {
+        let toml_path = get_package_manifest(&pkg.root_dir)?;
+        let path_display = toml_path.display();
+
+        let file = File::open(&toml_path)
+            .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
+
+        if exclusive {
+            if file.try_lock_exclusive().is_err() {
+                eprintln!("Waiting for lock on {path_display}...");
+            }
+            file.lock_exclusive().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+        } else {
+            if file.try_lock_shared().is_err() {
+                eprintln!("Waiting for lock on {path_display}...",);
+            }
+            file.lock_shared().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+        }
+
+        locks.push(LockedFile(file));
+    }
+    Ok(locks)
+}
+
+/// Parses a path and turns it into an absolute one by joining to the current directory.
+fn parse_path(path: &str) -> Result<PathBuf, String> {
+    use fm::NormalizePath;
+    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
+    if !path.is_absolute() {
+        path = std::env::current_dir().unwrap().join(path).normalize();
+    }
+    Ok(path)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::NargoCli;
     use clap::Parser;
+
     #[test]
     fn test_parse_invalid_expression_width() {
         let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = super::NargoCli::try_parse_from(cmd.split_ascii_whitespace());
+        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
         assert!(err
             .to_string()
             .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+    }
+
+    #[test]
+    fn test_parse_target_dir() {
+        let cmd = "nargo --program-dir . --target-dir ../foo/bar execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+
+        let target_dir = cli.config.target_dir.expect("should parse target dir");
+        assert!(target_dir.is_absolute(), "should be made absolute");
+        assert!(target_dir.ends_with("foo/bar"));
+
+        let cmd = "nargo --program-dir . execute";
+        let cli = NargoCli::try_parse_from(cmd.split_ascii_whitespace()).expect("should parse");
+        assert!(cli.config.target_dir.is_none());
     }
 }

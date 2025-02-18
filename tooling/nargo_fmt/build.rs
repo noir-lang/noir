@@ -62,7 +62,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
 
         let (parsed_module, _errors) = noirc_frontend::parse_program_with_dummy_file(input);
 
-        let config = nargo_fmt::Config::of("{config}").unwrap();
+        let config = nargo_fmt::Config::of("{config}", &std::path::PathBuf::new()).unwrap();
         let fmt_text = nargo_fmt::format(input, parsed_module, &config);
 
         if std::env::var("UPDATE_EXPECT").is_ok() {{
@@ -84,7 +84,7 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
 
             let (parsed_module, _errors) = noirc_frontend::parse_program_with_dummy_file(expected_output);
 
-            let config = nargo_fmt::Config::of("{config}").unwrap();
+            let config = nargo_fmt::Config::of("{config}", &std::path::PathBuf::new()).unwrap();
             let fmt_text = nargo_fmt::format(expected_output, parsed_module, &config);
 
             similar_asserts::assert_eq!(fmt_text, expected_output);

@@ -534,7 +534,7 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                /// Safety: debug context
+                // Safety: debug context
                 unsafe {
                 {
                     __debug_var_assign_inner(var_id, value);
@@ -547,7 +547,7 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                /// Safety: debug context
+                // Safety: debug context
                 unsafe {
                 {
                     __debug_var_drop_inner(var_id);
@@ -560,7 +560,7 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                /// Safety: debug context
+                // Safety: debug context
                 unsafe {
                 {
                     __debug_fn_enter_inner(fn_id);
@@ -573,7 +573,7 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                /// Safety: debug context
+                // Safety: debug context
                 unsafe {
                 {
                     __debug_fn_exit_inner(fn_id);
@@ -586,7 +586,7 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                /// Safety: debug context
+                // Safety: debug context
                 unsafe {
                 {
                     __debug_dereference_assign_inner(var_id, value);

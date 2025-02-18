@@ -76,9 +76,9 @@ pub fn find_file_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
 }
 
 /// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path],
-/// returning at the topmost directory found, i.e. the one corresponding to the entire workspace.
+/// returning the topmost directory found, i.e. the one corresponding to the entire workspace.
 ///
-/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+/// Returns a [ManifestError] if none of the ancestor directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let root = path_root(current_path);
     let manifest_path = find_package_manifest(&root, current_path)?;
@@ -396,6 +396,7 @@ fn toml_to_workspace(
                     selected_package_index: Some(0),
                     members: vec![member],
                     is_assumed: false,
+                    target_dir: None,
                 },
             }
         }
@@ -448,6 +449,7 @@ fn toml_to_workspace(
                 members,
                 selected_package_index,
                 is_assumed: false,
+                target_dir: None,
             }
         }
     };
@@ -514,6 +516,8 @@ pub enum PackageSelection {
 }
 
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
+///
+/// As a side effect it downloads project dependencies as well.
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
     package_selection: PackageSelection,
@@ -521,7 +525,6 @@ pub fn resolve_workspace_from_toml(
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
     let workspace = toml_to_workspace(nargo_toml, package_selection)?;
-
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }

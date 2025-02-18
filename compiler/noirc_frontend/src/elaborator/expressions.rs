@@ -95,7 +95,7 @@ impl<'context> Elaborator<'context> {
             }
             ExpressionKind::AsTraitPath(_) => {
                 self.push_err(
-                    ResolverError::UnquoteUsedOutsideQuote { span: expr.location.span },
+                    ResolverError::AsTraitPathNotYetImplemented { span: expr.location.span },
                     expr.location.file,
                 );
                 (HirExpression::Error, Type::Error)

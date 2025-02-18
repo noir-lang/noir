@@ -276,17 +276,15 @@ impl<'a> Parser<'a> {
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let location_before_doc_comments = self.current_token_location;
         let doc_comments = self.parse_outer_doc_comments();
-        let has_doc_comments = !doc_comments.is_empty();
-
-        if let Some(kind) = self.parse_unsafe_expr(&doc_comments, location_before_doc_comments) {
-            return Some(kind);
-        }
-
-        if has_doc_comments {
+        if !doc_comments.is_empty() {
             self.push_error(
                 ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                self.location_since(location_before_doc_comments),
+                location_before_doc_comments,
             );
+        }
+
+        if let Some(kind) = self.parse_unsafe_expr() {
+            return Some(kind);
         }
 
         if let Some(literal) = self.parse_literal() {
@@ -394,39 +392,23 @@ impl<'a> Parser<'a> {
     }
 
     /// UnsafeExpression = 'unsafe' Block
-    fn parse_unsafe_expr(
-        &mut self,
-        doc_comments: &[String],
-        location_before_doc_comments: Location,
-    ) -> Option<ExpressionKind> {
+    fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
 
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
         }
 
-        if doc_comments.is_empty() {
-            if let Some(statement_doc_comments) = &mut self.statement_doc_comments {
-                statement_doc_comments.read = true;
-
-                let doc_comments = &statement_doc_comments.doc_comments;
-                let location_before_doc_comments = statement_doc_comments.start_location;
-                let location_after_doc_comments = statement_doc_comments.end_location;
-
-                if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
-                    self.push_error(
-                        ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                        location_before_doc_comments.merge(location_after_doc_comments),
-                    );
+        if self.current_token_comments.is_empty() {
+            if let Some(statement_comments) = &mut self.statement_comments {
+                if !statement_comments.trim().to_lowercase().starts_with("safety:") {
+                    self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
                 }
             } else {
                 self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
             }
-        } else if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
-            self.push_error(
-                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                self.location_since(location_before_doc_comments),
-            );
+        } else if !self.current_token_comments.trim().to_lowercase().starts_with("safety:") {
+            self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
         }
 
         if let Some(block) = self.parse_block() {
@@ -1112,7 +1094,7 @@ mod tests {
     #[test]
     fn parses_unsafe_expression() {
         let src = "
-        /// Safety: test
+        // Safety: test
         unsafe { 1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
@@ -1126,7 +1108,9 @@ mod tests {
         let src = "
         /// Safety: test
         unsafe { 1 }";
-        let expr = parse_expression_no_errors(src);
+
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let expr = parser.parse_expression().unwrap();
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");
         };

@@ -315,7 +315,7 @@ pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
 
 fn lt_fallback(x: Field, y: Field) -> bool {
     if is_unconstrained() {
-        /// Safety: unconstrained context
+        // Safety: unconstrained context
         unsafe {
             field_less_than(x, y)
         }

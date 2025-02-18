@@ -90,31 +90,25 @@ pub struct Parser<'a> {
     current_token_location: Location,
     previous_token_location: Location,
 
-    /// The current statement's doc comments.
-    /// This is used to eventually know if an `unsafe { ... }` expression is documented
+    // We also keep track of comments that appear right before a token,
+    // because `unsafe { }` requires one before it.
+    current_token_comments: String,
+    next_token_comments: String,
+
+    /// The current statement's comments.
+    /// This is used to eventually know if an `unsafe { ... }` expression is commented
     /// in its containing statement. For example:
     ///
     /// ```noir
-    /// /// Safety: test
+    /// // Safety: test
     /// let x = unsafe { call() };
     /// ```
-    statement_doc_comments: Option<StatementDocComments>,
-}
-
-#[derive(Debug)]
-pub(crate) struct StatementDocComments {
-    pub(crate) doc_comments: Vec<String>,
-    pub(crate) start_location: Location,
-    pub(crate) end_location: Location,
-
-    /// Were these doc comments "read" by an unsafe statement?
-    /// If not, these doc comments aren't documenting anything and they produce an error.
-    pub(crate) read: bool,
+    statement_comments: Option<String>,
 }
 
 impl<'a> Parser<'a> {
     pub fn for_lexer(lexer: Lexer<'a>) -> Self {
-        Self::new(TokenStream::Lexer(lexer))
+        Self::new(TokenStream::Lexer(lexer.skip_comments(false)))
     }
 
     pub fn for_tokens(mut tokens: Tokens) -> Self {
@@ -138,7 +132,9 @@ impl<'a> Parser<'a> {
             next_token: eof_located_token(),
             current_token_location: Location::dummy(),
             previous_token_location: Location::dummy(),
-            statement_doc_comments: None,
+            current_token_comments: String::new(),
+            next_token_comments: String::new(),
+            statement_comments: None,
         };
         parser.read_two_first_tokens();
         parser
@@ -186,25 +182,45 @@ impl<'a> Parser<'a> {
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
     fn bump(&mut self) -> LocatedToken {
         self.previous_token_location = self.current_token_location;
-        let next_next_token = self.read_token_internal();
+        let (next_next_token, next_next_token_comments) = self.read_token_internal();
         let next_token = std::mem::replace(&mut self.next_token, next_next_token);
         let token = std::mem::replace(&mut self.token, next_token);
+
+        let next_comments =
+            std::mem::replace(&mut self.next_token_comments, next_next_token_comments);
+        let _ = std::mem::replace(&mut self.current_token_comments, next_comments);
+
         self.current_token_location = self.token.to_location();
         token
     }
 
     fn read_two_first_tokens(&mut self) {
-        self.token = self.read_token_internal();
+        let (token, comments) = self.read_token_internal();
+        self.token = token;
+        self.current_token_comments = comments;
         self.current_token_location = self.token.to_location();
-        self.next_token = self.read_token_internal();
+
+        let (token, comments) = self.read_token_internal();
+        self.next_token = token;
+        self.next_token_comments = comments;
     }
 
-    fn read_token_internal(&mut self) -> LocatedToken {
+    fn read_token_internal(&mut self) -> (LocatedToken, String) {
+        let mut last_comments = String::new();
+
         loop {
             match self.tokens.next() {
-                Some(Ok(token)) => return token,
+                Some(Ok(token)) => match token.token() {
+                    Token::LineComment(comment, None) | Token::BlockComment(comment, None) => {
+                        last_comments.push_str(comment);
+                        continue;
+                    }
+                    _ => {
+                        return (token, last_comments);
+                    }
+                },
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
-                None => return eof_located_token(),
+                None => return (eof_located_token(), last_comments),
             }
         }
     }

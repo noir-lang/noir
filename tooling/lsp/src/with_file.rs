@@ -13,7 +13,7 @@ use noirc_frontend::{
         PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
         TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UseTree, UseTreeKind,
+        UseTree, UseTreeKind, WhileStatement,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
@@ -889,6 +889,11 @@ fn statement_kind_with_file(kind: StatementKind, file: FileId) -> StatementKind 
         StatementKind::For(for_loop_statement) => {
             StatementKind::For(for_loop_statement_with_file(for_loop_statement, file))
         }
+        StatementKind::While(while_) => StatementKind::While(WhileStatement {
+            condition: expression_with_file(while_.condition, file),
+            body: expression_with_file(while_.body, file),
+            while_keyword_location: while_.while_keyword_location,
+        }),
         StatementKind::Loop(expression, location) => StatementKind::Loop(
             expression_with_file(expression, file),
             location_with_file(location, file),

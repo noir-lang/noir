@@ -731,7 +731,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn type_check_variable(
+    pub(crate) fn type_check_variable(
         &mut self,
         ident: HirIdent,
         expr_id: ExprId,

@@ -54,7 +54,7 @@ pub enum Value {
 
     // Closures also store their original scope (function & module)
     // in case they use functions such as `Quoted::as_type` which require them.
-    Closure(HirLambda, Vec<Value>, Type, Option<FuncId>, ModuleId),
+    Closure(Box<Closure>),
 
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
@@ -71,9 +71,18 @@ pub enum Value {
     ModuleDefinition(ModuleId),
     Type(Type),
     Zeroed(Type),
-    Expr(ExprValue),
+    Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Closure {
+    pub lambda: HirLambda,
+    pub env: Vec<Value>,
+    pub typ: Type,
+    pub function_scope: Option<FuncId>,
+    pub module_scope: ModuleId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -92,19 +101,19 @@ pub enum TypedExpr {
 
 impl Value {
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
-        Value::Expr(ExprValue::Expression(expr))
+        Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
 
     pub(crate) fn statement(statement: StatementKind) -> Self {
-        Value::Expr(ExprValue::Statement(statement))
+        Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
     pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(ExprValue::LValue(lvaue))
+        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
-        Value::Expr(ExprValue::Pattern(pattern))
+        Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
     pub(crate) fn get_type(&self) -> Cow<Type> {
@@ -127,7 +136,7 @@ impl Value {
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
-            Value::Closure(_, _, typ, ..) => return Cow::Borrowed(typ),
+            Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
             }
@@ -282,22 +291,38 @@ impl Value {
                         Ok(expr)
                     }
                     Err(mut errors) => {
-                        let error = errors.swap_remove(0);
+                        let error = Box::new(errors.swap_remove(0));
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
                     }
                 };
             }
-            Value::Expr(ExprValue::Expression(expr)) => expr,
-            Value::Expr(ExprValue::Statement(statement)) => {
-                ExpressionKind::Block(BlockExpression {
-                    statements: vec![Statement { kind: statement, location }],
-                })
+            Value::Expr(ref expr) => {
+                // We need to do some shenanigans to get around the borrow checker here due to using a boxed value.
+
+                // We first do whatever needs a reference to `expr` to avoid partially moving `self`.
+                if matches!(expr.as_ref(), ExprValue::Pattern(_)) {
+                    let typ = Type::Quoted(QuotedType::Expr);
+                    let value = self.display(elaborator.interner).to_string();
+                    return Err(InterpreterError::CannotInlineMacro { typ, value, location });
+                }
+
+                // Now drop this references and move `expr` out of `self` so we don't have to clone it.
+                let Value::Expr(expr) = self else {
+                    unreachable!("Ensured by outer match statement")
+                };
+
+                match *expr {
+                    ExprValue::Expression(expr) => expr,
+                    ExprValue::Statement(statement) => ExpressionKind::Block(BlockExpression {
+                        statements: vec![Statement { kind: statement, location }],
+                    }),
+                    ExprValue::LValue(lvalue) => lvalue.as_expression().kind,
+                    ExprValue::Pattern(_) => unreachable!("this case is handled above"),
+                }
             }
-            Value::Expr(ExprValue::LValue(lvalue)) => lvalue.as_expression().kind,
-            Value::Expr(ExprValue::Pattern(_))
-            | Value::TypedExpr(..)
+            Value::TypedExpr(..)
             | Value::Pointer(..)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -442,9 +467,7 @@ impl Value {
             Value::Pointer(element, true) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
-            Value::Closure(hir_lambda, _args, _typ, _opt_func_id, _module_id) => {
-                HirExpression::Lambda(hir_lambda)
-            }
+            Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
@@ -480,24 +503,27 @@ impl Value {
             }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => vec![Token::QuotedType(interner.push_quoted_type(typ))],
-            Value::Expr(ExprValue::Expression(expr)) => {
-                vec![Token::InternedExpr(interner.push_expression_kind(expr))]
-            }
-            Value::Expr(ExprValue::Statement(StatementKind::Expression(expr))) => {
-                vec![Token::InternedExpr(interner.push_expression_kind(expr.kind))]
-            }
-            Value::Expr(ExprValue::Statement(statement)) => {
-                vec![Token::InternedStatement(interner.push_statement_kind(statement))]
-            }
-            Value::Expr(ExprValue::LValue(lvalue)) => {
-                vec![Token::InternedLValue(interner.push_lvalue(lvalue))]
-            }
-            Value::Expr(ExprValue::Pattern(pattern)) => {
-                vec![Token::InternedPattern(interner.push_pattern(pattern))]
-            }
+            Value::Expr(expr) => match *expr {
+                ExprValue::Expression(expr) => {
+                    vec![Token::InternedExpr(interner.push_expression_kind(expr))]
+                }
+                ExprValue::Statement(StatementKind::Expression(expr)) => {
+                    vec![Token::InternedExpr(interner.push_expression_kind(expr.kind))]
+                }
+                ExprValue::Statement(statement) => {
+                    vec![Token::InternedStatement(interner.push_statement_kind(statement))]
+                }
+                ExprValue::LValue(lvalue) => {
+                    vec![Token::InternedLValue(interner.push_lvalue(lvalue))]
+                }
+                ExprValue::Pattern(pattern) => {
+                    vec![Token::InternedPattern(interner.push_pattern(pattern))]
+                }
+            },
             Value::UnresolvedType(typ) => {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
+            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::U1(bool) => vec![Token::Bool(bool)],
             Value::U8(value) => vec![Token::Int((value as u128).into())],
             Value::U16(value) => vec![Token::Int((value as u128).into())],
@@ -613,7 +639,7 @@ where
             Ok(expr)
         }
         Err(mut errors) => {
-            let error = errors.swap_remove(0);
+            let error = Box::new(errors.swap_remove(0));
             let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

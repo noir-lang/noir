@@ -10,7 +10,7 @@ use crate::{
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData,
+        StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -443,19 +443,25 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
             Value::Type(typ) => write!(f, "{}", typ),
-            Value::Expr(ExprValue::Expression(expr)) => {
-                let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                write!(f, "{}", expr)
-            }
-            Value::Expr(ExprValue::Statement(statement)) => {
-                write!(f, "{}", remove_interned_in_statement_kind(self.interner, statement.clone()))
-            }
-            Value::Expr(ExprValue::LValue(lvalue)) => {
-                write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
-            }
-            Value::Expr(ExprValue::Pattern(pattern)) => {
-                write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
-            }
+            Value::Expr(expr) => match expr.as_ref() {
+                ExprValue::Expression(expr) => {
+                    let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
+                    write!(f, "{}", expr)
+                }
+                ExprValue::Statement(statement) => {
+                    write!(
+                        f,
+                        "{}",
+                        remove_interned_in_statement_kind(self.interner, statement.clone())
+                    )
+                }
+                ExprValue::LValue(lvalue) => {
+                    write!(f, "{}", remove_interned_in_lvalue(self.interner, lvalue.clone()))
+                }
+                ExprValue::Pattern(pattern) => {
+                    write!(f, "{}", remove_interned_in_pattern(self.interner, pattern.clone()))
+                }
+            },
             Value::TypedExpr(TypedExpr::ExprId(id)) => {
                 let hir_expr = self.interner.expression(id);
                 let expr = hir_expr.to_display_ast(self.interner, Location::dummy());
@@ -761,6 +767,11 @@ fn remove_interned_in_statement_kind(
         StatementKind::Loop(block, span) => {
             StatementKind::Loop(remove_interned_in_expression(interner, block), span)
         }
+        StatementKind::While(while_) => StatementKind::While(WhileStatement {
+            condition: remove_interned_in_expression(interner, while_.condition),
+            body: remove_interned_in_expression(interner, while_.body),
+            while_keyword_location: while_.while_keyword_location,
+        }),
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
         }

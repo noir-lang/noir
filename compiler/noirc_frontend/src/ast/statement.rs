@@ -45,6 +45,7 @@ pub enum StatementKind {
     Assign(AssignStatement),
     For(ForLoopStatement),
     Loop(Expression, Location /* loop keyword location */),
+    While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -102,11 +103,8 @@ impl StatementKind {
                     statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
             }
-            // A semicolon on a for loop is optional and does nothing
-            StatementKind::For(_) => self,
-
-            // A semicolon on a loop is optional and does nothing
-            StatementKind::Loop(..) => self,
+            // A semicolon on a for loop, loop or while is optional and does nothing
+            StatementKind::For(_) | StatementKind::Loop(..) | StatementKind::While(..) => self,
 
             // No semicolon needed for a resolved statement
             StatementKind::Interned(_) => self,
@@ -880,6 +878,13 @@ pub struct ForLoopStatement {
     pub location: Location,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Expression,
+    pub while_keyword_location: Location,
+}
+
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -888,6 +893,9 @@ impl Display for StatementKind {
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Loop(block, _) => write!(f, "loop {}", block),
+            StatementKind::While(while_) => {
+                write!(f, "while {} {}", while_.condition, while_.body)
+            }
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),
