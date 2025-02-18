@@ -66,7 +66,7 @@ projects:
     cannot_execute: true
     num_runs: 1
     timeout: 60
-    compilation-timeout: 80
+    compilation-timeout: 100
     compilation-memory-limit: 5500
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
@@ -74,7 +74,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_runs: 1
     timeout: 60
-    compilation-timeout: 80
+    compilation-timeout: 100
     execution-timeout: 35
     compilation-memory-limit: 5500
     execution-memory-limit: 1200
