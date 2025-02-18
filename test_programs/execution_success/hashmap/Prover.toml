@@ -1,0 +1,26 @@
+# Input: 6 key-value entries for hashmap capacity of 8.
+# These must be distinct (both key-to-key, and value-to-value) for correct testing.
+
+[[input]]
+key = 2
+value = 17
+
+[[input]]
+key = 3
+value = 19
+
+[[input]]
+key = 5
+value = 23
+
+[[input]]
+key = 7
+value = 29
+
+[[input]]
+key = 11
+value = 31
+
+[[input]]
+key = 41
+value = 43
