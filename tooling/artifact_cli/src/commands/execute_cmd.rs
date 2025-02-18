@@ -53,8 +53,6 @@ pub struct ExecuteCommand {
     pub oracle_file: Option<PathBuf>,
 
     /// JSON RPC url to solve oracle calls.
-    ///
-    /// This is to facilitate new executions, as opposed to replays.
     #[clap(long, conflicts_with = "oracle_file")]
     pub oracle_resolver: Option<String>,
 
@@ -115,7 +113,9 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 /// Execute a circuit and return the output witnesses.
 fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<ExecutionResults, CliError> {
     // Build a custom foreign call executor that reads from the Oracle transcript,
-    // and use it as a base for the default executor; see `DefaultForeignCallBuilder::build_with_base`
+    // and use it as a base for the default executor. Using it as the innermost rather
+    // than top layer so that any extra `print` added for debugging is handled by the
+    // default, rather than trying to match it to the transcript.
     let transcript_executor = match args.oracle_file {
         Some(ref path) => layers::Either::Left(TranscriptForeignCallExecutor::from_file(path)?),
         None => layers::Either::Right(layers::Empty),
