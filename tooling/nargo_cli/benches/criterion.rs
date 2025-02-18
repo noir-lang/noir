@@ -3,16 +3,12 @@ use acvm::{acir::native_types::WitnessMap, FieldElement};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use noirc_abi::{
-    input_parser::{Format, InputValue},
-    Abi, InputMap,
-};
-use noirc_artifacts::program::ProgramArtifact;
+use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_driver::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
+use std::cell::RefCell;
 use std::hint::black_box;
 use std::path::Path;
-use std::{cell::RefCell, collections::BTreeMap};
 use std::{process::Command, time::Duration};
 
 include!("./utils.rs");
@@ -50,14 +46,14 @@ fn read_compiled_programs_and_inputs(
 
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram = read_program_from_file(&program_artifact_path).into();
+        let program: CompiledProgram =
+            read_program_from_file(&program_artifact_path).unwrap().into();
 
         let (inputs, _) = read_inputs_from_file(
-            &package.root_dir,
-            nargo::constants::PROVER_INPUT_FILE,
-            Format::Toml,
+            &package.root_dir.join(nargo::constants::PROVER_INPUT_FILE).with_extension("toml"),
             &program.abi,
-        );
+        )
+        .expect("failed to read input");
 
         let initial_witness =
             program.abi.encode(&inputs, None).expect("failed to encode input witness");
@@ -65,40 +61,6 @@ fn read_compiled_programs_and_inputs(
         programs.push((program, initial_witness));
     }
     programs
-}
-
-/// Read the bytecode and ABI from the compilation output
-fn read_program_from_file(circuit_path: &Path) -> ProgramArtifact {
-    let file_path = circuit_path.with_extension("json");
-    let input_string = std::fs::read(file_path).expect("failed to read artifact file");
-    serde_json::from_slice(&input_string).expect("failed to deserialize artifact")
-}
-
-/// Read the inputs from Prover.toml
-fn read_inputs_from_file(
-    path: &Path,
-    file_name: &str,
-    format: Format,
-    abi: &Abi,
-) -> (InputMap, Option<InputValue>) {
-    if abi.is_empty() {
-        return (BTreeMap::new(), None);
-    }
-
-    let file_path = path.join(file_name).with_extension(format.ext());
-    if !file_path.exists() {
-        if abi.parameters.is_empty() {
-            return (BTreeMap::new(), None);
-        } else {
-            panic!("input file doesn't exist: {}", file_path.display());
-        }
-    }
-
-    let input_string = std::fs::read_to_string(file_path).expect("failed to read input file");
-    let mut input_map = format.parse(&input_string, abi).expect("failed to parse input");
-    let return_value = input_map.remove(noirc_abi::MAIN_RETURN_NAME);
-
-    (input_map, return_value)
 }
 
 /// Use the nargo CLI to compile a test program, then benchmark its execution
