@@ -186,7 +186,8 @@ impl InputValue {
 
 /// The different formats that are supported when parsing
 /// the initial witness values
-#[derive(strum_macros::EnumIter, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum Format {
     Json,
     Toml,
