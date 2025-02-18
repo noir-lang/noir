@@ -6,9 +6,9 @@ use crate::ast::{
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal,
     MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
-    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WhileStatement,
 };
-use crate::ast::{ConstrainStatement, Expression, Statement, StatementKind};
+use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
     HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral,
 };
@@ -32,20 +32,6 @@ impl HirStatement {
                 let expression = let_stmt.expression.to_display_ast(interner);
                 StatementKind::new_let(pattern, r#type, expression, let_stmt.attributes.clone())
             }
-            HirStatement::Constrain(constrain) => {
-                let expr = constrain.0.to_display_ast(interner);
-                let mut arguments = vec![expr];
-                if let Some(message) = constrain.2 {
-                    arguments.push(message.to_display_ast(interner));
-                }
-
-                // TODO: Find difference in usage between Assert & AssertEq
-                StatementKind::Constrain(ConstrainStatement {
-                    kind: ConstrainKind::Assert,
-                    arguments,
-                    span,
-                })
-            }
             HirStatement::Assign(assign) => StatementKind::Assign(AssignStatement {
                 lvalue: assign.lvalue.to_display_ast(interner),
                 expression: assign.expression.to_display_ast(interner),
@@ -60,6 +46,11 @@ impl HirStatement {
                 span,
             }),
             HirStatement::Loop(block) => StatementKind::Loop(block.to_display_ast(interner), span),
+            HirStatement::While(condition, block) => StatementKind::While(WhileStatement {
+                condition: condition.to_display_ast(interner),
+                body: block.to_display_ast(interner),
+                while_keyword_span: span,
+            }),
             HirStatement::Break => StatementKind::Break,
             HirStatement::Continue => StatementKind::Continue,
             HirStatement::Expression(expr) => {
@@ -179,6 +170,20 @@ impl HirExpression {
                     }),
                     is_macro_call: false,
                 }))
+            }
+            HirExpression::Constrain(constrain) => {
+                let expr = constrain.0.to_display_ast(interner);
+                let mut arguments = vec![expr];
+                if let Some(message) = constrain.2 {
+                    arguments.push(message.to_display_ast(interner));
+                }
+
+                // TODO: Find difference in usage between Assert & AssertEq
+                ExpressionKind::Constrain(ConstrainExpression {
+                    kind: ConstrainKind::Assert,
+                    arguments,
+                    span,
+                })
             }
             HirExpression::Cast(cast) => {
                 let lhs = cast.lhs.to_display_ast(interner);

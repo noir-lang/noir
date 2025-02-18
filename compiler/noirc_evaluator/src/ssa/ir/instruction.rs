@@ -1,3 +1,4 @@
+use binary::truncate_field;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
@@ -324,7 +325,9 @@ pub(crate) enum Instruction {
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    ///
+    /// The `original` contains the value of the array which was incremented by the pair of this decrement.
+    DecrementRc { value: ValueId, original: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -595,12 +598,16 @@ impl Instruction {
                 match binary.operator {
                     BinaryOp::Add { unchecked: false }
                     | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }
-                    | BinaryOp::Div
-                    | BinaryOp::Mod => {
+                    | BinaryOp::Mul { unchecked: false } => {
                         // Some binary math can overflow or underflow, but this is only the case
                         // for unsigned types (here we assume the type of binary.lhs is the same)
                         dfg.type_of_value(binary.rhs).is_unsigned()
+                    }
+                    BinaryOp::Div | BinaryOp::Mod => {
+                        // Div and Mod require a predicate if the RHS may be zero.
+                        dfg.get_numeric_constant(binary.rhs)
+                            .map(|rhs| rhs.is_zero())
+                            .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
                     | BinaryOp::Sub { unchecked: true }
@@ -717,7 +724,9 @@ impl Instruction {
                 mutable: *mutable,
             },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
-            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
+            Instruction::DecrementRc { value, original } => {
+                Instruction::DecrementRc { value: f(*value), original: f(*original) }
+            }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -788,7 +797,10 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value, original } => {
+                *value = f(*value);
+                *original = f(*original);
+            }
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -854,10 +866,12 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value }
-            | Instruction::DecrementRc { value }
-            | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
                 f(*value);
+            }
+            Instruction::DecrementRc { value, original } => {
+                f(*value);
+                f(*original);
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);
@@ -955,9 +969,8 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
-                    let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                    let truncated_field = truncate_field(numeric_constant, *bit_size);
+                    SimplifiedTo(dfg.make_constant(truncated_field, typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
                     match &dfg[*instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {

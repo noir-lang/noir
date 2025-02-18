@@ -3,9 +3,10 @@ use noirc_errors::Span;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, Literal,
-        MemberAccessExpression, MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
+        ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
+        IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        Statement, TypePath, UnaryOp, UnresolvedType,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
@@ -91,8 +92,7 @@ impl<'a> Parser<'a> {
     }
 
     /// AtomOrUnaryRightExpression
-    ///     = Atom
-    ///     | UnaryRightExpression
+    ///     = Atom UnaryRightExpression*
     fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_span = self.current_token_span;
         let mut atom = self.parse_atom(allow_constructors)?;
@@ -269,17 +269,15 @@ impl<'a> Parser<'a> {
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         let span_before_doc_comments = self.current_token_span;
         let doc_comments = self.parse_outer_doc_comments();
-        let has_doc_comments = !doc_comments.is_empty();
-
-        if let Some(kind) = self.parse_unsafe_expr(&doc_comments, span_before_doc_comments) {
-            return Some(kind);
-        }
-
-        if has_doc_comments {
+        if !doc_comments.is_empty() {
             self.push_error(
                 ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                self.span_since(span_before_doc_comments),
+                span_before_doc_comments,
             );
+        }
+
+        if let Some(kind) = self.parse_unsafe_expr() {
+            return Some(kind);
         }
 
         if let Some(literal) = self.parse_literal() {
@@ -308,6 +306,10 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(kind) = self.parse_if_expr() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_match_expr() {
             return Some(kind);
         }
 
@@ -383,41 +385,23 @@ impl<'a> Parser<'a> {
     }
 
     /// UnsafeExpression = 'unsafe' Block
-    fn parse_unsafe_expr(
-        &mut self,
-        doc_comments: &[String],
-        span_before_doc_comments: Span,
-    ) -> Option<ExpressionKind> {
+    fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         let start_span = self.current_token_span;
 
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
         }
 
-        if doc_comments.is_empty() {
-            if let Some(statement_doc_comments) = &mut self.statement_doc_comments {
-                statement_doc_comments.read = true;
-
-                let doc_comments = &statement_doc_comments.doc_comments;
-                let span_before_doc_comments = statement_doc_comments.start_span;
-                let span_after_doc_comments = statement_doc_comments.end_span;
-
-                if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
-                    self.push_error(
-                        ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                        Span::from(
-                            span_before_doc_comments.start()..span_after_doc_comments.start(),
-                        ),
-                    );
+        if self.current_token_comments.is_empty() {
+            if let Some(statement_comments) = &mut self.statement_comments {
+                if !statement_comments.trim().to_lowercase().starts_with("safety:") {
+                    self.push_error(ParserErrorReason::MissingSafetyComment, start_span);
                 }
             } else {
                 self.push_error(ParserErrorReason::MissingSafetyComment, start_span);
             }
-        } else if !doc_comments[0].trim().to_lowercase().starts_with("safety:") {
-            self.push_error(
-                ParserErrorReason::UnsafeDocCommentDoesNotStartWithSafety,
-                self.span_since(span_before_doc_comments),
-            );
+        } else if !self.current_token_comments.trim().to_lowercase().starts_with("safety:") {
+            self.push_error(ParserErrorReason::MissingSafetyComment, start_span);
         }
 
         if let Some(block) = self.parse_block() {
@@ -518,6 +502,49 @@ impl<'a> Parser<'a> {
         Some(ExpressionKind::If(Box::new(IfExpression { condition, consequence, alternative })))
     }
 
+    /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
+    pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
+        let start_span = self.current_token_span;
+        if !self.eat_keyword(Keyword::Match) {
+            return None;
+        }
+
+        let expression = self.parse_expression_except_constructor_or_error();
+
+        self.eat_left_brace();
+
+        let rules = self.parse_many(
+            "match cases",
+            without_separator().until(Token::RightBrace),
+            Self::parse_match_rule,
+        );
+
+        self.push_error(ParserErrorReason::ExperimentalFeature("Match expressions"), start_span);
+        Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
+    }
+
+    /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
+    fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
+        let pattern = self.parse_expression()?;
+        self.eat_or_error(Token::FatArrow);
+
+        let start_span = self.current_token_span;
+        let branch = match self.parse_block() {
+            Some(block) => {
+                let span = self.span_since(start_span);
+                let block = Expression::new(ExpressionKind::Block(block), span);
+                self.eat_comma(); // comma is optional if we have a block
+                block
+            }
+            None => {
+                let branch = self.parse_expression_or_error();
+                self.eat_or_error(Token::Comma);
+                branch
+            }
+        };
+        Some((pattern, branch))
+    }
+
     /// ComptimeExpression = 'comptime' Block
     fn parse_comptime_expr(&mut self) -> Option<ExpressionKind> {
         if !self.eat_keyword(Keyword::Comptime) {
@@ -607,6 +634,7 @@ impl<'a> Parser<'a> {
     ///     | ArrayExpression
     ///     | SliceExpression
     ///     | BlockExpression
+    ///     | ConstrainExpression
     ///
     /// QuoteExpression = 'quote' '{' token* '}'
     ///
@@ -648,6 +676,10 @@ impl<'a> Parser<'a> {
 
         if let Some(kind) = self.parse_block() {
             return Some(ExpressionKind::Block(kind));
+        }
+
+        if let Some(constrain) = self.parse_constrain_expression() {
+            return Some(ExpressionKind::Constrain(constrain));
         }
 
         None
@@ -754,6 +786,49 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// ConstrainExpression
+    ///     = 'constrain' Expression
+    ///     | 'assert' Arguments
+    ///     | 'assert_eq' Arguments
+    pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
+        let start_span = self.current_token_span;
+        let kind = self.parse_constrain_kind()?;
+
+        Some(match kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => {
+                let arguments = self.parse_arguments();
+                if arguments.is_none() {
+                    self.expected_token(Token::LeftParen);
+                }
+                let arguments = arguments.unwrap_or_default();
+
+                ConstrainExpression { kind, arguments, span: self.span_since(start_span) }
+            }
+            ConstrainKind::Constrain => {
+                self.push_error(ParserErrorReason::ConstrainDeprecated, self.previous_token_span);
+
+                let expression = self.parse_expression_or_error();
+                ConstrainExpression {
+                    kind,
+                    arguments: vec![expression],
+                    span: self.span_since(start_span),
+                }
+            }
+        })
+    }
+
+    fn parse_constrain_kind(&mut self) -> Option<ConstrainKind> {
+        if self.eat_keyword(Keyword::Assert) {
+            Some(ConstrainKind::Assert)
+        } else if self.eat_keyword(Keyword::AssertEq) {
+            Some(ConstrainKind::AssertEq)
+        } else if self.eat_keyword(Keyword::Constrain) {
+            Some(ConstrainKind::Constrain)
+        } else {
+            None
+        }
+    }
+
     /// Block = '{' Statement* '}'
     pub(super) fn parse_block(&mut self) -> Option<BlockExpression> {
         if !self.eat_left_brace() {
@@ -803,8 +878,8 @@ mod tests {
 
     use crate::{
         ast::{
-            ArrayLiteral, BinaryOpKind, Expression, ExpressionKind, Literal, StatementKind,
-            UnaryOp, UnresolvedTypeData,
+            ArrayLiteral, BinaryOpKind, ConstrainKind, Expression, ExpressionKind, Literal,
+            StatementKind, UnaryOp, UnresolvedTypeData,
         },
         parser::{
             parser::tests::{
@@ -1002,7 +1077,7 @@ mod tests {
     #[test]
     fn parses_unsafe_expression() {
         let src = "
-        /// Safety: test
+        // Safety: test
         unsafe { 1 }";
         let expr = parse_expression_no_errors(src);
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
@@ -1016,7 +1091,9 @@ mod tests {
         let src = "
         /// Safety: test
         unsafe { 1 }";
-        let expr = parse_expression_no_errors(src);
+
+        let mut parser = Parser::for_str(src);
+        let expr = parser.parse_expression().unwrap();
         let ExpressionKind::Unsafe(block, _) = expr.kind else {
             panic!("Expected unsafe expression");
         };
@@ -1702,5 +1779,46 @@ mod tests {
             panic!("Expected unquote");
         };
         assert_eq!(expr.kind.to_string(), "((1 + 2))");
+    }
+
+    #[test]
+    fn parses_assert() {
+        let src = "assert(true, \"good\")";
+        let expression = parse_expression_no_errors(src);
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Assert);
+        assert_eq!(constrain.arguments.len(), 2);
+    }
+
+    #[test]
+    fn parses_assert_eq() {
+        let src = "assert_eq(1, 2, \"bad\")";
+        let expression = parse_expression_no_errors(src);
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::AssertEq);
+        assert_eq!(constrain.arguments.len(), 3);
+    }
+
+    #[test]
+    fn parses_constrain() {
+        let src = "
+        constrain 1
+        ^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str(&src);
+        let expression = parser.parse_expression_or_error();
+        let ExpressionKind::Constrain(constrain) = expression.kind else {
+            panic!("Expected constrain expression");
+        };
+        assert_eq!(constrain.kind, ConstrainKind::Constrain);
+        assert_eq!(constrain.arguments.len(), 1);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::ConstrainDeprecated));
     }
 }

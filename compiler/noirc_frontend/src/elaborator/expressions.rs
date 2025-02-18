@@ -1,15 +1,15 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MemberAccessExpression, MethodCallExpression, Path,
-        PathSegment, PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData,
-        UnresolvedTypeExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -21,9 +21,9 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
+            HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
+            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
         stmt::HirStatement,
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -37,30 +37,44 @@ use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
 impl<'context> Elaborator<'context> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
+        self.elaborate_expression_with_target_type(expr, None)
+    }
+
+    pub(crate) fn elaborate_expression_with_target_type(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.span),
-            ExpressionKind::Block(block) => self.elaborate_block(block),
+            ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
             ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.span),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
+            ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
                 return self.elaborate_member_access(*access, expr.span)
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
-            ExpressionKind::If(if_) => self.elaborate_if(*if_),
+            ExpressionKind::If(if_) => self.elaborate_if(*if_, target_type),
+            ExpressionKind::Match(match_) => self.elaborate_match(*match_),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
-            ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple),
-            ExpressionKind::Lambda(lambda) => self.elaborate_lambda(*lambda, None),
-            ExpressionKind::Parenthesized(expr) => return self.elaborate_expression(*expr),
+            ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
+            ExpressionKind::Lambda(lambda) => {
+                self.elaborate_lambda_with_target_type(*lambda, target_type)
+            }
+            ExpressionKind::Parenthesized(expr) => {
+                return self.elaborate_expression_with_target_type(*expr, target_type)
+            }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.span),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.span)
+                return self.elaborate_comptime_block(comptime, expr.span, target_type)
             }
             ExpressionKind::Unsafe(block_expression, span) => {
-                self.elaborate_unsafe_block(block_expression, span)
+                self.elaborate_unsafe_block(block_expression, span, target_type)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -77,7 +91,7 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                self.push_err(ResolverError::AsTraitPathNotYetImplemented { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
@@ -111,18 +125,29 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(super) fn elaborate_block(&mut self, block: BlockExpression) -> (HirExpression, Type) {
-        let (block, typ) = self.elaborate_block_expression(block);
+    pub(super) fn elaborate_block(
+        &mut self,
+        block: BlockExpression,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
+        let (block, typ) = self.elaborate_block_expression(block, target_type);
         (HirExpression::Block(block), typ)
     }
 
-    fn elaborate_block_expression(&mut self, block: BlockExpression) -> (HirBlockExpression, Type) {
+    fn elaborate_block_expression(
+        &mut self,
+        block: BlockExpression,
+        target_type: Option<&Type>,
+    ) -> (HirBlockExpression, Type) {
         self.push_scope();
         let mut block_type = Type::Unit;
-        let mut statements = Vec::with_capacity(block.statements.len());
+        let statements_len = block.statements.len();
+        let mut statements = Vec::with_capacity(statements_len);
 
         for (i, statement) in block.statements.into_iter().enumerate() {
-            let (id, stmt_type) = self.elaborate_statement(statement);
+            let statement_target_type = if i == statements_len - 1 { target_type } else { None };
+            let (id, stmt_type) =
+                self.elaborate_statement_with_target_type(statement, statement_target_type);
             statements.push(id);
 
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
@@ -148,6 +173,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         block: BlockExpression,
         span: Span,
+        target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
         let old_in_unsafe_block = self.unsafe_block_status;
@@ -160,7 +186,7 @@ impl<'context> Elaborator<'context> {
 
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
-        let (hir_block_expression, typ) = self.elaborate_block_expression(block);
+        let (hir_block_expression, typ) = self.elaborate_block_expression(block, target_type);
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
@@ -558,6 +584,61 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    pub(super) fn elaborate_constrain(
+        &mut self,
+        mut expr: ConstrainExpression,
+    ) -> (HirExpression, Type) {
+        let span = expr.span;
+        let min_args_count = expr.kind.required_arguments_count();
+        let max_args_count = min_args_count + 1;
+        let actual_args_count = expr.arguments.len();
+
+        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
+            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
+                kind: expr.kind,
+                found: actual_args_count,
+                span,
+            });
+
+            // Given that we already produced an error, let's make this an `assert(true)` so
+            // we don't get further errors.
+            let message = None;
+            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let expr = Expression { kind, span };
+            (message, expr)
+        } else {
+            let message =
+                (actual_args_count != min_args_count).then(|| expr.arguments.pop().unwrap());
+            let expr = match expr.kind {
+                ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
+                ConstrainKind::AssertEq => {
+                    let rhs = expr.arguments.pop().unwrap();
+                    let lhs = expr.arguments.pop().unwrap();
+                    let span = Span::from(lhs.span.start()..rhs.span.end());
+                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let kind =
+                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+                    Expression { kind, span }
+                }
+            };
+            (message, expr)
+        };
+
+        let expr_span = expr.span;
+        let (expr_id, expr_type) = self.elaborate_expression(expr);
+
+        // Must type check the assertion message expression so that we instantiate bindings
+        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+
+        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool.to_string(),
+            expr_span,
+        });
+
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, self.file, msg)), Type::Unit)
+    }
+
     /// Elaborates an expression knowing that it has to match a given type.
     fn elaborate_expression_with_type(
         &mut self,
@@ -571,7 +652,7 @@ impl<'context> Elaborator<'context> {
         let span = arg.span;
         let type_hint =
             if let Some(Type::Function(func_args, _, _, _)) = typ { Some(func_args) } else { None };
-        let (hir_expr, typ) = self.elaborate_lambda(*lambda, type_hint);
+        let (hir_expr, typ) = self.elaborate_lambda_with_parameter_type_hints(*lambda, type_hint);
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, span, self.file);
         self.interner.push_expr_type(id, typ.clone());
@@ -883,10 +964,16 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_if(&mut self, if_expr: IfExpression) -> (HirExpression, Type) {
+    fn elaborate_if(
+        &mut self,
+        if_expr: IfExpression,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
         let expr_span = if_expr.condition.span;
+        let consequence_span = if_expr.consequence.span;
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
-        let (consequence, mut ret_type) = self.elaborate_expression(if_expr.consequence);
+        let (consequence, mut ret_type) =
+            self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
 
         self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
@@ -894,28 +981,30 @@ impl<'context> Elaborator<'context> {
             expr_span,
         });
 
-        let alternative = if_expr.alternative.map(|alternative| {
-            let expr_span = alternative.span;
-            let (else_, else_type) = self.elaborate_expression(alternative);
+        let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
+            let (else_, else_type) =
+                self.elaborate_expression_with_target_type(alternative, target_type);
+            (Some(else_), else_type, expr_span)
+        } else {
+            (None, Type::Unit, consequence_span)
+        };
 
-            self.unify(&ret_type, &else_type, || {
-                let err = TypeCheckError::TypeMismatch {
-                    expected_typ: ret_type.to_string(),
-                    expr_typ: else_type.to_string(),
-                    expr_span,
-                };
+        self.unify(&ret_type, &else_type, || {
+            let err = TypeCheckError::TypeMismatch {
+                expected_typ: ret_type.to_string(),
+                expr_typ: else_type.to_string(),
+                expr_span: error_span,
+            };
 
-                let context = if ret_type == Type::Unit {
-                    "Are you missing a semicolon at the end of your 'else' branch?"
-                } else if else_type == Type::Unit {
-                    "Are you missing a semicolon at the end of the first block of this 'if'?"
-                } else {
-                    "Expected the types of both if branches to be equal"
-                };
+            let context = if ret_type == Type::Unit {
+                "Are you missing a semicolon at the end of your 'else' branch?"
+            } else if else_type == Type::Unit {
+                "Are you missing a semicolon at the end of the first block of this 'if'?"
+            } else {
+                "Expected the types of both if branches to be equal"
+            };
 
-                err.add_context(context)
-            });
-            else_
+            err.add_context(context)
         });
 
         if alternative.is_none() {
@@ -926,12 +1015,23 @@ impl<'context> Elaborator<'context> {
         (HirExpression::If(if_expr), ret_type)
     }
 
-    fn elaborate_tuple(&mut self, tuple: Vec<Expression>) -> (HirExpression, Type) {
+    fn elaborate_match(&mut self, _match_expr: MatchExpression) -> (HirExpression, Type) {
+        (HirExpression::Error, Type::Error)
+    }
+
+    fn elaborate_tuple(
+        &mut self,
+        tuple: Vec<Expression>,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
         let mut element_ids = Vec::with_capacity(tuple.len());
         let mut element_types = Vec::with_capacity(tuple.len());
 
-        for element in tuple {
-            let (id, typ) = self.elaborate_expression(element);
+        for (index, element) in tuple.into_iter().enumerate() {
+            let target_type = target_type.map(|typ| typ.follow_bindings());
+            let expr_target_type =
+                if let Some(Type::Tuple(types)) = &target_type { types.get(index) } else { None };
+            let (id, typ) = self.elaborate_expression_with_target_type(element, expr_target_type);
             element_ids.push(id);
             element_types.push(typ);
         }
@@ -939,10 +1039,24 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
     }
 
+    fn elaborate_lambda_with_target_type(
+        &mut self,
+        lambda: Lambda,
+        target_type: Option<&Type>,
+    ) -> (HirExpression, Type) {
+        let target_type = target_type.map(|typ| typ.follow_bindings());
+
+        if let Some(Type::Function(args, _, _, _)) = target_type {
+            return self.elaborate_lambda_with_parameter_type_hints(lambda, Some(&args));
+        }
+
+        self.elaborate_lambda_with_parameter_type_hints(lambda, None)
+    }
+
     /// For elaborating a lambda we might get `parameters_type_hints`. These come from a potential
     /// call that has this lambda as the argument.
     /// The parameter type hints will be the types of the function type corresponding to the lambda argument.
-    fn elaborate_lambda(
+    fn elaborate_lambda_with_parameter_type_hints(
         &mut self,
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
@@ -1008,9 +1122,15 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    fn elaborate_comptime_block(&mut self, block: BlockExpression, span: Span) -> (ExprId, Type) {
-        let (block, _typ) =
-            self.elaborate_in_comptime_context(|this| this.elaborate_block_expression(block));
+    fn elaborate_comptime_block(
+        &mut self,
+        block: BlockExpression,
+        span: Span,
+        target_type: Option<&Type>,
+    ) -> (ExprId, Type) {
+        let (block, _typ) = self.elaborate_in_comptime_context(|this| {
+            this.elaborate_block_expression(block, target_type)
+        });
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);

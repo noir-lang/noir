@@ -25,7 +25,7 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
-use ast::GlobalId;
+use ast::{GlobalId, While};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -557,6 +557,22 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Call(call) => self.function_call(call, expr)?,
 
+            HirExpression::Constrain(constrain) => {
+                let expr = self.expr(constrain.0)?;
+                let location = self.interner.expr_location(&constrain.0);
+                let assert_message = constrain
+                    .2
+                    .map(|assert_msg_expr| {
+                        self.expr(assert_msg_expr).map(|expr| {
+                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                        })
+                    })
+                    .transpose()?
+                    .map(Box::new);
+
+                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+            }
+
             HirExpression::Cast(cast) => {
                 let location = self.interner.expr_location(&expr);
                 let typ = Self::convert_type(&cast.r#type, location)?;
@@ -658,21 +674,6 @@ impl<'interner> Monomorphizer<'interner> {
     fn statement(&mut self, id: StmtId) -> Result<ast::Expression, MonomorphizationError> {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
-            HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0)?;
-                let location = self.interner.expr_location(&constrain.0);
-                let assert_message = constrain
-                    .2
-                    .map(|assert_msg_expr| {
-                        self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
-                        })
-                    })
-                    .transpose()?
-                    .map(Box::new);
-
-                Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
-            }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
                 self.is_range_loop = true;
@@ -701,6 +702,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Loop(block) => {
                 let block = Box::new(self.expr(block)?);
                 Ok(ast::Expression::Loop(block))
+            }
+            HirStatement::While(condition, body) => {
+                let condition = Box::new(self.expr(condition)?);
+                let body = Box::new(self.expr(body)?);
+                Ok(ast::Expression::While(While { condition, body }))
             }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => {

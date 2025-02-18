@@ -63,12 +63,15 @@ impl Type {
                 let dummy_span = Span::default();
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let (Ok(lhs_value), Ok(rhs_value)) = (
-                    lhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications),
-                    rhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications),
-                ) {
-                    if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_span) {
-                        return Type::Constant(result, kind);
+                if let Ok(lhs_value) =
+                    lhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications)
+                {
+                    if let Ok(rhs_value) =
+                        rhs.evaluate_to_field_element_helper(&kind, dummy_span, run_simplifications)
+                    {
+                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_span) {
+                            return Type::Constant(result, kind);
+                        }
                     }
                 }
 

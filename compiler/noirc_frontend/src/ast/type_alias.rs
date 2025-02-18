@@ -13,18 +13,6 @@ pub struct NoirTypeAlias {
     pub span: Span,
 }
 
-impl NoirTypeAlias {
-    pub fn new(
-        name: Ident,
-        generics: UnresolvedGenerics,
-        typ: UnresolvedType,
-        visibility: ItemVisibility,
-        span: Span,
-    ) -> NoirTypeAlias {
-        NoirTypeAlias { name, generics, typ, visibility, span }
-    }
-}
-
 impl Display for NoirTypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());

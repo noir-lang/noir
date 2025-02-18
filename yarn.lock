@@ -14925,7 +14925,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@patch:fsevents@2.3.2#~builtin<compat/fsevents>":
+"fsevents@patch:fsevents@npm%3A2.3.2#~builtin<compat/fsevents>":
   version: 2.3.2
   resolution: "fsevents@patch:fsevents@npm%3A2.3.2#~builtin<compat/fsevents>::version=2.3.2&hash=df0bf1"
   dependencies:
@@ -20322,27 +20322,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"playwright-core@npm:1.50.0":
-  version: 1.50.0
-  resolution: "playwright-core@npm:1.50.0"
+"playwright-core@npm:1.49.0":
+  version: 1.49.0
+  resolution: "playwright-core@npm:1.49.0"
   bin:
     playwright-core: cli.js
-  checksum: aca5222d7859039bc579b4b860db57c8adc1cc94c3de990ed08cec911bf888e2decb331560bd456991c98222a55c58526187a2a070e6f101fbef43a8e07e1dea
+  checksum: d8423ad0cab2e672856529bf6b98b406e7e605da098b847b9b54ee8ebd8d716ed8880a9afff4b38f0a2e3f59b95661c74589116ce3ff2b5e0ae3561507086c94
   languageName: node
   linkType: hard
 
 "playwright@npm:^1.22.2":
-  version: 1.50.0
-  resolution: "playwright@npm:1.50.0"
+  version: 1.49.0
+  resolution: "playwright@npm:1.49.0"
   dependencies:
-    fsevents: 2.3.2
-    playwright-core: 1.50.0
+    fsevents: "npm:2.3.2"
+    playwright-core: "npm:1.49.0"
   dependenciesMeta:
     fsevents:
       optional: true
   bin:
     playwright: cli.js
-  checksum: 44004e3082433f6024665fcf04bd37cda2b284bd5262682a40a60c66943ccf66f68fbc9ca859908dfd0d117235424580a55e9ccd07e2ad9c30df363b6445448b
+  checksum: f1bfb2fff65cad2ce996edab74ec231dfd21aeb5961554b765ce1eaec27efb87eaba37b00e91ecd27727b82861e5d8c230abe4960e93f6ada8be5ad1020df306
   languageName: node
   linkType: hard
 
