@@ -7,7 +7,6 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::Format;
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_artifacts_info::{
     count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
@@ -21,7 +20,7 @@ use crate::errors::CliError;
 
 use super::{
     compile_cmd::{compile_workspace_full, get_target_width},
-    fs::{inputs::read_inputs_from_file, program::read_program_from_file},
+    fs::{inputs::read_inputs_from_file_any_format, program::read_program_from_file},
     LockType, PackageOptions, WorkspaceCommand,
 };
 
@@ -143,10 +142,9 @@ fn profile_brillig_execution(
     let mut program_info = Vec::new();
     for (package, program_artifact) in binary_packages.iter() {
         // Parse the initial witness values from Prover.toml or Prover.json
-        let (inputs_map, _) = read_inputs_from_file(
+        let (inputs_map, _) = read_inputs_from_file_any_format(
             &package.root_dir,
             prover_name,
-            Format::Toml,
             &program_artifact.abi,
         )?;
         let initial_witness = program_artifact.abi.encode(&inputs_map, None)?;

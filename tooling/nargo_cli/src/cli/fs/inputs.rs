@@ -3,6 +3,7 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
 };
 use std::{collections::BTreeMap, path::Path};
+use strum::IntoEnumIterator;
 
 use crate::errors::FilesystemError;
 
@@ -39,4 +40,28 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     let return_value = input_map.remove(MAIN_RETURN_NAME);
 
     Ok((input_map, return_value))
+}
+
+/// Try to look for any format with the given file name:
+/// 1. TOML
+/// 2. JSON
+pub(crate) fn read_inputs_from_file_any_format(
+    path: &Path,
+    file_name: &str,
+    abi: &Abi,
+) -> Result<(InputMap, Option<InputValue>), FilesystemError> {
+    let mut first_missing = None;
+    for format in Format::iter() {
+        match read_inputs_from_file(path, file_name, format, abi) {
+            Err(e @ FilesystemError::MissingTomlFile(..)) => {
+                if first_missing.is_none() {
+                    first_missing = Some(e);
+                }
+            }
+            other => {
+                return other;
+            }
+        }
+    }
+    Err(first_missing.expect("must have encountered an error"))
 }

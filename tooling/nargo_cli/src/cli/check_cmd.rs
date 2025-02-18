@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::errors::CliError;
 
 use clap::Args;
@@ -8,12 +10,13 @@ use nargo::{
     package::Package, parse_all, prepare_package, workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
+use noirc_abi::{input_parser::Format, AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_abi, CompileOptions, CrateId};
 use noirc_frontend::{
     hir::{Context, ParsedFiles},
     monomorphization::monomorphize,
 };
+use strum::IntoEnumIterator;
 
 use super::{fs::write_to_file, PackageOptions};
 use super::{LockType, WorkspaceCommand};
@@ -93,26 +96,54 @@ fn check_package(
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(())
-    } else {
-        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
-            let path_to_prover_input = package.prover_input_path();
+    } else if let Some((parameters, _)) = compute_function_abi(&context, &crate_id) {
+        let path_to_prover_input = package.prover_input_path();
 
-            // Before writing the file, check if it exists and whether overwrite is set
-            let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
-
-            if should_write_prover {
-                let prover_toml = create_input_toml_template(parameters.clone(), None);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-            } else {
-                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
-            }
-
-            Ok(())
+        // Before writing the file, check if it exists and whether overwrite is set
+        let should_write_prover = if allow_overwrite {
+            true
+        } else if path_to_prover_input.exists() {
+            eprintln!("Note: Prover.toml already exists; use --overwrite to force overwrite.");
+            false
+        } else if let Some(other_path) = find_input_with_other_format(&path_to_prover_input) {
+            eprintln!(
+                    "An input file with a different format exists; use --overwrite to write Prover.toml anyway: {}",
+                    other_path.to_string_lossy()
+                );
+            false
         } else {
-            Err(CompileError::MissingMainFunction(package.name.clone()))
+            true
+        };
+
+        if should_write_prover {
+            let prover_toml = create_input_toml_template(parameters.clone(), None);
+            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+        }
+
+        Ok(())
+    } else {
+        Err(CompileError::MissingMainFunction(package.name.clone()))
+    }
+}
+
+/// Check if any Prover.<ext> file exists that is *not* the one which we are about to write,
+/// to avoid shadowing what the user would write with another file that a subsequent command
+/// would pick up instead of the existing file.
+fn find_input_with_other_format(path_to_prover_input: &Path) -> Option<PathBuf> {
+    let Some(ext) = path_to_prover_input.extension().and_then(|ext| ext.to_str()) else {
+        return None;
+    };
+    for format in Format::iter() {
+        if format.ext() == ext {
+            continue;
+        }
+        let mut other_input_path = path_to_prover_input.to_path_buf();
+        other_input_path.set_extension(format.ext());
+        if other_input_path.exists() {
+            return Some(other_input_path);
         }
     }
+    None
 }
 
 /// Generates the contents of a toml file with fields for each of the passed parameters.

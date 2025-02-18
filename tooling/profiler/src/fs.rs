@@ -6,6 +6,7 @@ use noirc_abi::{
     Abi, InputMap, MAIN_RETURN_NAME,
 };
 use noirc_artifacts::program::ProgramArtifact;
+use strum::IntoEnumIterator;
 
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(
     circuit_path: P,
@@ -39,4 +40,21 @@ pub(crate) fn read_inputs_from_file(
     let return_value = input_map.remove(MAIN_RETURN_NAME);
 
     Ok((input_map, return_value))
+}
+
+pub(crate) fn read_inputs_from_file_any_format(
+    file_path: &Path,
+    abi: &Abi,
+) -> eyre::Result<(InputMap, Option<InputValue>)> {
+    if abi.is_empty() {
+        return Ok((BTreeMap::new(), None));
+    }
+
+    let format = file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .and_then(|ext| Format::iter().find(|fmt| fmt.ext() == ext))
+        .unwrap_or(Format::Toml);
+
+    read_inputs_from_file(file_path, format, abi)
 }

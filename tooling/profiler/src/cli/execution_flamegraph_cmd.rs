@@ -7,10 +7,9 @@ use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
 
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
-use crate::fs::{read_inputs_from_file, read_program_from_file};
+use crate::fs::{read_inputs_from_file_any_format, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
 
 #[derive(Debug, Clone, Args)]
@@ -20,8 +19,8 @@ pub(crate) struct ExecutionFlamegraphCommand {
     artifact_path: PathBuf,
 
     /// The path to the Prover.toml file
-    #[clap(long, short)]
-    prover_toml_path: PathBuf,
+    #[clap(long, short, alias = "profile-toml-path")]
+    prover_file_path: PathBuf,
 
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
@@ -37,7 +36,7 @@ pub(crate) struct ExecutionFlamegraphCommand {
 pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
     run_with_generator(
         &args.artifact_path,
-        &args.prover_toml_path,
+        &args.prover_file_path,
         &InfernoFlamegraphGenerator { count_name: "samples".to_string() },
         &args.output,
         args.pedantic_solving,
@@ -46,7 +45,7 @@ pub(crate) fn run(args: ExecutionFlamegraphCommand) -> eyre::Result<()> {
 
 fn run_with_generator(
     artifact_path: &Path,
-    prover_toml_path: &Path,
+    prover_file_path: &Path,
     flamegraph_generator: &impl FlamegraphGenerator,
     output_path: &Path,
     pedantic_solving: bool,
@@ -54,7 +53,7 @@ fn run_with_generator(
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    let (inputs_map, _) = read_inputs_from_file(prover_toml_path, Format::Toml, &program.abi)?;
+    let (inputs_map, _) = read_inputs_from_file_any_format(prover_file_path, &program.abi)?;
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 
