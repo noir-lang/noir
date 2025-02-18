@@ -58,8 +58,6 @@ fn test_main() {
             .with_params((Point { x: 300, y: 800 }, [10, 20, 30, 40]))
             .returns(100);
     }
-
-    let input = Point { x: 2, y: 3 };
-    let output = main(input);
-    assert_eq(output, 100);
+    let output = main(Point { x: 2, y: 3 });
+    assert_eq(output, 100)
 }
