@@ -1,6 +1,6 @@
 use acvm::{acir::circuit::Program, FieldElement};
 use noirc_abi::{Abi, AbiType, AbiValue};
-use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
+use noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 use serde::{Deserialize, Serialize};
 
 use noirc_driver::DebugFile;
@@ -44,6 +44,26 @@ impl From<CompiledContract> for ContractArtifact {
             outputs: contract.outputs.into(),
             file_map: contract.file_map,
         }
+    }
+}
+
+impl ContractArtifact {
+    pub fn function_as_compiled_program(&self, function_name: &str) -> Option<CompiledProgram> {
+        let Some(f) = self.functions.iter().find(|f| f.name == function_name) else {
+            return None;
+        };
+        let program = CompiledProgram {
+            noir_version: self.noir_version.clone(),
+            hash: 0,
+            program: f.bytecode.clone(),
+            abi: f.abi.clone(),
+            debug: f.debug_symbols.debug_infos.clone(),
+            file_map: self.file_map.clone(),
+            warnings: Vec::new(),
+            names: f.names.clone().unwrap_or_default(), // XXX: Might be empty
+            brillig_names: f.brillig_names.clone(),
+        };
+        Some(program)
     }
 }
 
