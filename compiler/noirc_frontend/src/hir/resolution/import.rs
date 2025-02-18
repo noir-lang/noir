@@ -93,7 +93,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
-                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
                 let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
