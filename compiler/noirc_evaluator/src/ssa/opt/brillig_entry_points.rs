@@ -185,7 +185,7 @@ fn update_function_calls(
             new_functions_map.insert(*func_id, *new_id);
             let new_function_value_id = function.dfg.import_function(*new_id);
             function.dfg[instruction_id] =
-                Instruction::Call { func: new_function_value_id, arguments: arguments.clone() };
+                Instruction::Call { func: new_function_value_id, arguments };
         }
     }
 }
