@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739904393347,
+  "lastUpdate": 1739904394643,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "87196e9419f9c12bc7739024e2f649dcbd3e7340",
-          "message": "fix: allows for infinite brillig loops (#7296)",
-          "timestamp": "2025-02-07T10:09:46Z",
-          "tree_id": "5c1d687efcd1bb25a292a27238a7b8ad2fdadeb4",
-          "url": "https://github.com/noir-lang/noir/commit/87196e9419f9c12bc7739024e2f649dcbd3e7340"
-        },
-        "date": 1738924457142,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 272.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 587.73,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1170,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 2180,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 662.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 547.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5310,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 545.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 662.68,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3919,6 +3840,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 372.32,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "119bf620005b52362e3aca9321b69e96e8a42fc0",
+          "message": "fix(brillig): Brillig entry point analysis and function specialization through duplication (#7277)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-18T18:22:52Z",
+          "tree_id": "1512312e78357e87d054c7db154fc727e78ae45d",
+          "url": "https://github.com/noir-lang/noir/commit/119bf620005b52362e3aca9321b69e96e8a42fc0"
+        },
+        "date": 1739904391974,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 275.59,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 586.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 950.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 816.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 326.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.35,
             "unit": "MB"
           }
         ]
