@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739996659100,
+  "lastUpdate": 1739996790467,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11912,75 +11912,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6",
-          "message": "fix: incorrect secondary file in LSP errors (#7347)",
-          "timestamp": "2025-02-11T22:44:13Z",
-          "tree_id": "ebb905c97661fb5ccaf18c55ee61d05dcc881c26",
-          "url": "https://github.com/noir-lang/noir/commit/5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6"
-        },
-        "date": 1739315300111,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15195,6 +15126,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fdfe2bf752771b9611dc71953d50423b4ae7ec44"
         },
         "date": 1739989977158,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.45,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "093a8ec60eaacd1b307447545e166a40e037436d",
+          "message": "fix: don't let nargo fmt produce multiple trailing newlines (#7444)",
+          "timestamp": "2025-02-19T20:00:26Z",
+          "tree_id": "66438654561ffaf3d0639a9276b09b371a99ad65",
+          "url": "https://github.com/noir-lang/noir/commit/093a8ec60eaacd1b307447545e166a40e037436d"
+        },
+        "date": 1739996788609,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
