@@ -27,10 +27,11 @@ export function shouldCompileProgramIdentically(
     // Prepare noir-wasm artifact
     const noirWasmProgram = noirWasmArtifact.program;
     expect(noirWasmProgram).not.to.be.undefined;
-    const [_noirWasmDebugInfos, norWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
+    const [_noirWasmDebugInfos, noirWasmFileMap] = deleteProgramDebugMetadata(noirWasmProgram);
     normalizeVersion(noirWasmProgram);
 
-    // We first compare both contracts without considering debug info
+    // We first compare both contracts without considering debug info.
+    // NOTE: Ideally these should be the same, but they aren't, even though for the contract the deterministic file ordering fixed it.
     delete (noirWasmProgram as Partial<ProgramArtifact>).hash;
     delete (nargoArtifact as Partial<ProgramArtifact>).hash;
     expect(nargoArtifact).to.deep.eq(noirWasmProgram);
@@ -38,7 +39,7 @@ export function shouldCompileProgramIdentically(
     // Compare the file maps, ignoring keys, since those depend in the order in which files are visited,
     // which may change depending on the file manager implementation. Also ignores paths, since the base
     // path is reported differently between nargo and noir-wasm.
-    expect(getSources(nargoFileMap)).to.have.members(getSources(norWasmFileMap));
+    expect(getSources(nargoFileMap)).to.have.members(getSources(noirWasmFileMap));
 
     // Compare the debug symbol information, ignoring the actual ids used for file identifiers.
     // Debug symbol info looks like the following, what we need is to ignore the 'file' identifiers
@@ -63,16 +64,24 @@ export function shouldCompileContractIdentically(
     // Prepare noir-wasm artifact
     const noirWasmContract = noirWasmArtifact.contract;
     expect(noirWasmContract).not.to.be.undefined;
-    const [noirWasmDebugInfos, norWasmFileMap] = deleteContractDebugMetadata(noirWasmContract);
+    const [noirWasmDebugInfos, noirWasmFileMap] = deleteContractDebugMetadata(noirWasmContract);
     normalizeVersion(noirWasmContract);
 
     // We first compare both contracts without considering debug info
+    // NOTE: After making the compile module use deterministic file ordering this was identical,
+    // but not for programs, so we remove the `hash` to have identical treatment.
+    nargoArtifact.functions.forEach(function (f) {
+      delete (f as Partial<NoirFunctionEntry>).hash;
+    });
+    noirWasmContract.functions.forEach(function (f) {
+      delete (f as Partial<NoirFunctionEntry>).hash;
+    });
     expect(nargoArtifact).to.deep.eq(noirWasmContract);
 
     // Compare the file maps, ignoring keys, since those depend in the order in which files are visited,
     // which may change depending on the file manager implementation. Also ignores paths, since the base
     // path is reported differently between nargo and noir-wasm.
-    expect(getSources(nargoFileMap)).to.have.members(getSources(norWasmFileMap));
+    expect(getSources(nargoFileMap)).to.have.members(getSources(noirWasmFileMap));
 
     // Compare the debug symbol information, ignoring the actual ids used for file identifiers.
     // Debug symbol info looks like the following, what we need is to ignore the 'file' identifiers
