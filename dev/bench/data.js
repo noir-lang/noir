@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739956429298,
+  "lastUpdate": 1739956432901,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3880,105 +3880,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d9ad0be869598f8e78010ebbcce00fcfaa23da5d",
-          "message": "fix: perform SSA constraints check on final SSA (#7334)",
-          "timestamp": "2025-02-10T13:50:33Z",
-          "tree_id": "747e4b23cc8bbce00305c3ef3cf8d4d9719ce6cc",
-          "url": "https://github.com/noir-lang/noir/commit/d9ad0be869598f8e78010ebbcce00fcfaa23da5d"
-        },
-        "date": 1739196663853,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.01,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.858,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.699,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.114,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.33,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.324,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 67.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 69.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.032,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.734,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8701,6 +8602,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.54,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b11fd7bb9a226499b4524cd2620c50e5677b840",
+          "message": "chore: Add SSA security checks description (#7366)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-02-19T08:56:05Z",
+          "tree_id": "d1030818be8dc016e2812bc5bd6d518fedac3c16",
+          "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
+        },
+        "date": 1739956431014,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.941,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.489,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.156,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.664,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.952,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.878,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.923,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 96.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 93.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.905,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.46,
             "unit": "s"
           }
         ]
