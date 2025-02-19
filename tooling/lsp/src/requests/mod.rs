@@ -657,9 +657,9 @@ pub(crate) fn find_all_references(
 }
 
 /// Represents a trait reexported from a given module with a name.
-pub(crate) struct TraitReexport<'a> {
-    pub(super) module_id: &'a ModuleId,
-    pub(super) name: &'a Ident,
+pub(crate) struct TraitReexport {
+    pub(super) module_id: ModuleId,
+    pub(super) name: Ident,
 }
 
 #[cfg(test)]

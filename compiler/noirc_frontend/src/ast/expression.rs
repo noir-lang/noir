@@ -249,6 +249,45 @@ impl Expression {
     pub fn new(kind: ExpressionKind, location: Location) -> Expression {
         Expression { kind, location }
     }
+
+    /// Returns the innermost location that gives this expression its type.
+    pub fn type_location(&self) -> Location {
+        match &self.kind {
+            ExpressionKind::Block(block_expression)
+            | ExpressionKind::Comptime(block_expression, _)
+            | ExpressionKind::Unsafe(block_expression, _) => {
+                if let Some(statement) = block_expression.statements.last() {
+                    statement.type_location()
+                } else {
+                    self.location
+                }
+            }
+            ExpressionKind::Parenthesized(expression) => expression.type_location(),
+            ExpressionKind::Literal(..)
+            | ExpressionKind::Prefix(..)
+            | ExpressionKind::Index(..)
+            | ExpressionKind::Call(..)
+            | ExpressionKind::MethodCall(..)
+            | ExpressionKind::Constrain(..)
+            | ExpressionKind::Constructor(..)
+            | ExpressionKind::MemberAccess(..)
+            | ExpressionKind::Cast(..)
+            | ExpressionKind::Infix(..)
+            | ExpressionKind::If(..)
+            | ExpressionKind::Match(..)
+            | ExpressionKind::Variable(..)
+            | ExpressionKind::Tuple(..)
+            | ExpressionKind::Lambda(..)
+            | ExpressionKind::Quote(..)
+            | ExpressionKind::Unquote(..)
+            | ExpressionKind::AsTraitPath(..)
+            | ExpressionKind::TypePath(..)
+            | ExpressionKind::Resolved(..)
+            | ExpressionKind::Interned(..)
+            | ExpressionKind::InternedStatement(..)
+            | ExpressionKind::Error => self.location,
+        }
+    }
 }
 
 pub type BinaryOp = Located<BinaryOpKind>;

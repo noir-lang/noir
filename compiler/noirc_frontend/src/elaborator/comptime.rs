@@ -404,8 +404,7 @@ impl<'context> Elaborator<'context> {
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: location.file,
                     module_id: self.local_module,
-                    trait_generics: trait_impl.trait_generics,
-                    trait_path: trait_impl.trait_name,
+                    r#trait: trait_impl.r#trait,
                     object_type: trait_impl.object_type,
                     methods,
                     generics: trait_impl.impl_generics,

@@ -4371,3 +4371,56 @@ fn does_not_stack_overflow_on_many_comments_in_a_row() {
     let src = "//\n".repeat(10_000);
     assert_no_errors(&src);
 }
+
+#[test]
+fn errors_if_for_body_type_is_not_unit() {
+    let src = r#"
+    fn main() {
+        for _ in 0..1 {
+            1
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+        panic!("Expected a TypeMismatch error");
+    };
+}
+
+#[test]
+fn errors_if_loop_body_type_is_not_unit() {
+    let src = r#"
+    unconstrained fn main() {
+        loop {
+            if false { break; }
+
+            1
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+        panic!("Expected a TypeMismatch error");
+    };
+}
+
+#[test]
+fn errors_if_while_body_type_is_not_unit() {
+    let src = r#"
+    unconstrained fn main() {
+        while 1 == 1 {
+            1
+        }
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+        panic!("Expected a TypeMismatch error");
+    };
+}

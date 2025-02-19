@@ -223,7 +223,16 @@ impl<'context> Elaborator<'context> {
 
         self.interner.push_definition_type(identifier.id, start_range_type);
 
-        let (block, _block_type) = self.elaborate_expression(block);
+        let block_location = block.type_location();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, block_location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: Type::Unit.to_string(),
+                expr_typ: block_type.to_string(),
+                expr_span: block_location.span,
+            }
+        });
 
         self.pop_scope();
         self.current_loop = old_loop;
@@ -249,7 +258,16 @@ impl<'context> Elaborator<'context> {
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
-        let (block, _block_type) = self.elaborate_expression(block);
+        let block_location = block.type_location();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, block_location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: Type::Unit.to_string(),
+                expr_typ: block_type.to_string(),
+                expr_span: block_location.span,
+            }
+        });
 
         self.pop_scope();
 
@@ -277,14 +295,24 @@ impl<'context> Elaborator<'context> {
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
-        let location_span = while_.condition.location;
+        let location = while_.condition.type_location();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
-        let (block, _block_type) = self.elaborate_expression(while_.body);
 
-        self.unify(&cond_type, &Type::Bool, location_span.file, || TypeCheckError::TypeMismatch {
+        self.unify(&cond_type, &Type::Bool, location.file, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
-            expr_span: location_span.span,
+            expr_span: location.span,
+        });
+
+        let block_location = while_.body.type_location();
+        let (block, block_type) = self.elaborate_expression(while_.body);
+
+        self.unify(&block_type, &Type::Unit, block_location.file, || {
+            TypeCheckError::TypeMismatch {
+                expected_typ: Type::Unit.to_string(),
+                expr_typ: block_type.to_string(),
+                expr_span: block_location.span,
+            }
         });
 
         self.pop_scope();

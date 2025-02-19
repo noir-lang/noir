@@ -8,12 +8,11 @@ use noirc_frontend::{
 };
 
 use crate::{
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
         use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
     },
-    visibility::module_def_id_is_visible,
 };
 
 use super::CodeActionFinder;
@@ -58,70 +57,66 @@ impl<'a> CodeActionFinder<'a> {
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let mut trait_reexport = None;
 
-        if !module_def_id_is_visible(
-            module_def_id,
-            self.module_id,
-            visibility,
-            None,
-            self.interner,
-            self.def_maps,
-        ) {
+        // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
+        let mut intermediate_name = None;
+
+        if !self.module_def_id_is_visible(module_def_id, visibility, None) {
             // If it's not, try to find a visible reexport of the trait
             // that is visible from the current module
-            let Some((visible_module_id, name, _)) =
-                self.interner.get_trait_reexports(trait_id).iter().find(
-                    |(module_id, _, visibility)| {
-                        module_def_id_is_visible(
-                            module_def_id,
-                            self.module_id,
-                            *visibility,
-                            Some(*module_id),
-                            self.interner,
-                            self.def_maps,
-                        )
-                    },
-                )
-            else {
+            if let Some(reexport) =
+                self.interner.get_trait_reexports(trait_id).iter().find(|reexport| {
+                    self.module_def_id_is_visible(
+                        module_def_id,
+                        reexport.visibility,
+                        Some(reexport.module_id),
+                    )
+                })
+            {
+                trait_reexport = Some(TraitReexport {
+                    module_id: reexport.module_id,
+                    name: reexport.name.clone(),
+                });
+            } else if let Some(reexport) =
+                self.get_ancestor_module_reexport(module_def_id, visibility)
+            {
+                trait_reexport = Some(TraitReexport {
+                    module_id: reexport.module_id,
+                    name: trait_.name.clone(),
+                });
+                intermediate_name = Some(reexport.name.clone());
+            } else {
                 return;
-            };
-            trait_reexport = Some(TraitReexport { module_id: visible_module_id, name });
+            }
         }
 
         let trait_name = if let Some(trait_reexport) = &trait_reexport {
-            trait_reexport.name
+            trait_reexport.name.clone()
         } else {
-            &trait_.name
+            trait_.name.clone()
         };
 
         // Check if the trait is currently imported. If yes, no need to suggest anything
         let module_data =
             &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-        if !module_data.scope().find_name(trait_name).is_none() {
+        if !module_data.scope().find_name(&trait_name).is_none() {
             return;
         }
 
         let module_def_id = ModuleDefId::TraitId(trait_id);
         let current_module_parent_id = self.module_id.parent(self.def_maps);
-        let module_full_path = if let Some(trait_reexport) = &trait_reexport {
-            relative_module_id_path(
-                *trait_reexport.module_id,
-                &self.module_id,
-                current_module_parent_id,
-                self.interner,
-            )
-        } else {
-            let Some(path) = relative_module_full_path(
-                module_def_id,
-                self.module_id,
-                current_module_parent_id,
-                self.interner,
-            ) else {
-                return;
-            };
-            path
-        };
+        let defining_module = trait_reexport.map(|reexport| reexport.module_id);
 
-        let full_path = format!("{}::{}", module_full_path, trait_name);
+        let Some(full_path) = module_def_id_relative_path(
+            module_def_id,
+            &trait_name.0.contents,
+            self.module_id,
+            current_module_parent_id,
+            defining_module,
+            &intermediate_name,
+            self.interner,
+        ) else {
+            return;
+        };
 
         let title = format!("Import {}", full_path);
 
@@ -399,6 +394,57 @@ mod moo {
 
     pub use nested::Foo as Baz;
     pub use nested::Foo as Qux;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foobar();
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_import_trait_via_module_reexport() {
+        let title = "Import moo::another::Foo";
+
+        let src = r#"mod moo {
+    mod nested {
+        pub mod another {
+            pub trait Foo {
+                fn foobar(self);
+            }
+
+            impl Foo for Field {
+                fn foobar(self) {}
+            }
+        }
+    }
+
+    pub use nested::another;
+}
+
+fn main() {
+    let x: Field = 1;
+    x.foo>|<bar();
+}"#;
+
+        let expected = r#"use moo::another::Foo;
+
+mod moo {
+    mod nested {
+        pub mod another {
+            pub trait Foo {
+                fn foobar(self);
+            }
+
+            impl Foo for Field {
+                fn foobar(self) {}
+            }
+        }
+    }
+
+    pub use nested::another;
 }
 
 fn main() {

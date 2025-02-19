@@ -72,6 +72,24 @@ impl Statement {
         self.kind = self.kind.add_semicolon(semi, location, last_statement_in_block, emit_error);
         self
     }
+
+    /// Returns the innermost location that gives this statement its type.
+    pub fn type_location(&self) -> Location {
+        match &self.kind {
+            StatementKind::Expression(expression) => expression.type_location(),
+            StatementKind::Comptime(statement) => statement.type_location(),
+            StatementKind::Let(..)
+            | StatementKind::Assign(..)
+            | StatementKind::For(..)
+            | StatementKind::Loop(..)
+            | StatementKind::While(..)
+            | StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Semi(..)
+            | StatementKind::Interned(..)
+            | StatementKind::Error => self.location,
+        }
+    }
 }
 
 impl StatementKind {
@@ -116,6 +134,7 @@ impl StatementKind {
                     | (ExpressionKind::Unsafe(..), semi, _)
                     | (ExpressionKind::Interned(..), semi, _)
                     | (ExpressionKind::InternedStatement(..), semi, _)
+                    | (ExpressionKind::Match(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)

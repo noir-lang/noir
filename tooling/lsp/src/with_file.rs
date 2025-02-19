@@ -173,8 +173,7 @@ fn documented_noir_function_with_file(
 fn noir_trait_impl_with_file(noir_trait_impl: NoirTraitImpl, file: FileId) -> NoirTraitImpl {
     NoirTraitImpl {
         impl_generics: unresolved_generics_with_file(noir_trait_impl.impl_generics, file),
-        trait_name: path_with_file(noir_trait_impl.trait_name, file),
-        trait_generics: generic_type_args_with_file(noir_trait_impl.trait_generics, file),
+        r#trait: unresolved_type_with_file(noir_trait_impl.r#trait, file),
         object_type: unresolved_type_with_file(noir_trait_impl.object_type, file),
         where_clause: unresolved_trait_constraints_with_file(noir_trait_impl.where_clause, file),
         items: documented_trait_impl_items_with_file(noir_trait_impl.items, file),

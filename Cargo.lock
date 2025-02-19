@@ -3211,6 +3211,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "num-bigint",
  "rayon",
  "serde",
  "serde_json",

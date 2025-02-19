@@ -535,6 +535,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
+            HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
@@ -715,6 +716,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
+            let value = if is_negative { -value } else { value };
             Ok(Value::Field(value))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
