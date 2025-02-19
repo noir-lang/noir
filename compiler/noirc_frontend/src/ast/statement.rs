@@ -73,6 +73,24 @@ impl Statement {
         self.kind = self.kind.add_semicolon(semi, span, last_statement_in_block, emit_error);
         self
     }
+
+    /// Returns the innermost span that gives this statement its type.
+    pub fn type_span(&self) -> Span {
+        match &self.kind {
+            StatementKind::Expression(expression) => expression.type_span(),
+            StatementKind::Comptime(statement) => statement.type_span(),
+            StatementKind::Let(..)
+            | StatementKind::Assign(..)
+            | StatementKind::For(..)
+            | StatementKind::Loop(..)
+            | StatementKind::While(..)
+            | StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Semi(..)
+            | StatementKind::Interned(..)
+            | StatementKind::Error => self.span,
+        }
+    }
 }
 
 impl StatementKind {
