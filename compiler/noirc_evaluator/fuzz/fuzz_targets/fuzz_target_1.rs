@@ -18,6 +18,9 @@ use log;
 use env_logger;
 use fxhash;
 use fastrand;
+use noirc_evaluator::ssa::ir::map::Id;
+use noirc_evaluator::ssa::ir::value::Value;
+use noirc_driver::{CompiledProgram, CompileError};
 
 #[derive(Arbitrary, Debug, Clone, Hash)]
 enum Instructions {
@@ -64,6 +67,21 @@ enum Instructions {
     Not {
         lhs: u32,
     },
+    Shl {
+        lhs: u32,
+        rhs: u32,
+    },
+    Shr {
+        lhs: u32,
+        rhs: u32,
+    },
+    SimpleCast {
+        lhs: u32,
+    },
+    BigCastAndBack {
+        lhs: u32,
+        size: u32,
+    },
 }
 
 fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
@@ -85,173 +103,163 @@ fn get_witness_map(seed: u64) -> WitnessMap<FieldElement> {
     witness_map
 }
 
+struct FuzzerContext {
+    acir_builder: FuzzerBuilder,
+    brillig_builder: FuzzerBuilder,
+    acir_witnesses_indeces: Vec<u32>,
+    brillig_witnesses_indeces: Vec<u32>,
+}
+
+impl FuzzerContext {
+    fn new(type_: Type) -> Self {
+        let mut acir_builder = FuzzerBuilder::new_acir();
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+        acir_builder.insert_variables(type_.clone());
+        brillig_builder.insert_variables(type_.clone());
+        let mut acir_witnesses_indeces = vec![];
+        let mut brillig_witnesses_indeces = vec![];
+        for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
+            acir_witnesses_indeces.push(i);
+            brillig_witnesses_indeces.push(i);
+        }
+        Self {
+            acir_builder,
+            brillig_builder,
+            acir_witnesses_indeces,
+            brillig_witnesses_indeces,
+        }
+    }
+
+    fn insert_instruction_with_single_arg(&mut self, arg: u32, f: fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>) {
+        if !index_presented(arg, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
+            return;
+        }
+        let arg = u32_to_id(arg);
+        let acir_result = f(&mut self.acir_builder, arg);
+        let brillig_result = f(&mut self.brillig_builder, arg);
+        self.acir_witnesses_indeces.push(id_to_int(acir_result));
+        self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
+    }
+
+    fn insert_instruction_with_double_args(&mut self, lhs: u32, rhs: u32, f: fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>) {
+        if !both_indeces_presented(lhs, rhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
+            return;
+        }
+        let lhs = u32_to_id(lhs);
+        let rhs = u32_to_id(rhs);
+        let acir_result = f(&mut self.acir_builder, lhs, rhs);
+        let brillig_result = f(&mut self.brillig_builder, lhs, rhs);
+        self.acir_witnesses_indeces.push(id_to_int(acir_result));
+        self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
+    }
+
+    fn insert_instruction(&mut self, instruction: Instructions) {
+        match instruction {
+            Instructions::Add { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_add_instruction(lhs, rhs));
+            }
+            Instructions::Sub { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_sub_instruction(lhs, rhs));
+            }
+            Instructions::Mul { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_mul_instruction(lhs, rhs));
+            }
+            Instructions::Div { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_div_instruction(lhs, rhs));
+            }
+            Instructions::Lt { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_lt_instruction(lhs, rhs));
+            }
+            Instructions::Eq { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_eq_instruction(lhs, rhs));
+            }
+            Instructions::And { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_and_instruction(lhs, rhs));
+            }
+            Instructions::Or { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_or_instruction(lhs, rhs));
+            }
+            Instructions::Xor { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs));
+            }
+            Instructions::Mod { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_mod_instruction(lhs, rhs));
+            }
+            Instructions::Not { lhs } => {
+                self.insert_instruction_with_single_arg(lhs, |builder, lhs| builder.insert_not_instruction(lhs));
+            }
+            Instructions::Shl { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_shl_instruction(lhs, rhs));
+            }
+            Instructions::Shr { lhs, rhs } => {
+                self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_shr_instruction(lhs, rhs));
+            }
+            Instructions::SimpleCast { lhs } => {
+                self.insert_instruction_with_single_arg(lhs, |builder, lhs| builder.insert_simple_cast(lhs));
+            }
+            /*Instructions::BigCastAndBack { lhs, size } => {
+                self.insert_instruction_with_double_args(lhs, size, |builder, lhs, size| builder.insert_cast_bigger_and_back(lhs, size));
+            }*/
+            _ => {
+                return;
+            }
+        }
+    }
+
+    fn finalize_function(&mut self) {
+        let acir_result_index = *self.acir_witnesses_indeces.last().unwrap();
+        let brillig_result_index = *self.brillig_witnesses_indeces.last().unwrap();
+        self.acir_builder.finalize_function(u32_to_id(acir_result_index));
+        self.brillig_builder.finalize_function(u32_to_id(brillig_result_index));
+    }
+
+    fn get_return_witnesses(&mut self) -> (Witness, Witness) {
+        let acir_result_index = *self.acir_witnesses_indeces.last().unwrap();
+        let brillig_result_index = *self.brillig_witnesses_indeces.last().unwrap();
+        let mut acir_result_witness = Witness(acir_result_index);
+        let mut brillig_result_witness = Witness(brillig_result_index);
+
+        if self.acir_witnesses_indeces.len() as u32 != config::NUMBER_OF_VARIABLES_INITIAL {
+            acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
+            brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
+        }
+        (acir_result_witness, brillig_result_witness)
+    }
+
+    fn get_programs(self) -> (Result<CompiledProgram, CompileError>, Result<CompiledProgram, CompileError>) {
+        (self.acir_builder.compile(), self.brillig_builder.compile())
+    }
+}
+
 libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
     // Initialize logger once
     let _ = env_logger::try_init();
     let seed = fxhash::hash64(&methods);
-
-    let mut acir_builder = FuzzerBuilder::new_acir();
-    let mut brillig_builder = FuzzerBuilder::new_brillig();
     let type_ = Type::unsigned(64);
-    acir_builder.insert_variables(type_.clone());
-    brillig_builder.insert_variables(type_.clone());
-
-    let mut acir_witnesses_indeces = vec![];
-    let mut brillig_witnesses_indeces = vec![];
-    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
-        acir_witnesses_indeces.push(i);
-        brillig_witnesses_indeces.push(i);
-    }
-    let mut initial_witness = get_witness_map(seed);
+    let initial_witness = get_witness_map(seed);
     log::debug!("instructions: {:?}", methods.clone());
+    log::debug!("initial_witness: {:?}", initial_witness);
 
-
+    let mut fuzzer_context = FuzzerContext::new(type_.clone());
     for method in methods {
-        match method {
-            Instructions::Add { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_add_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_add_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Sub { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_sub_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_sub_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Mul { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_mul_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_mul_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Div { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_div_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_div_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Lt { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_lt_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_lt_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Eq { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_eq_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_eq_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::And { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_and_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_and_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Or { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_or_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_or_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Xor { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_xor_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_xor_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Mod { lhs, rhs } => {
-                if !both_indeces_presented(lhs, rhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let rhs_id = u32_to_id(rhs);
-                let acir_result = acir_builder.insert_mod_instruction(lhs_id, rhs_id);
-                let brillig_result = brillig_builder.insert_mod_instruction(lhs_id, rhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-            Instructions::Not { lhs } => {
-                if !index_presented(lhs, &mut acir_witnesses_indeces, &mut brillig_witnesses_indeces) {
-                    continue;
-                }
-                let lhs_id = u32_to_id(lhs);
-                let acir_result = acir_builder.insert_not_instruction(lhs_id);
-                let brillig_result = brillig_builder.insert_not_instruction(lhs_id);
-                acir_witnesses_indeces.push(id_to_int(acir_result));
-                brillig_witnesses_indeces.push(id_to_int(brillig_result));
-            }
-        }
+        fuzzer_context.insert_instruction(method);
     }
-    let acir_result_index = *acir_witnesses_indeces.last().unwrap();
-    let brillig_result_index = *brillig_witnesses_indeces.last().unwrap();
-    acir_builder.finalize_function(u32_to_id(acir_result_index));
-    brillig_builder.finalize_function(u32_to_id(brillig_result_index));
-    let mut acir_result_witness = Witness(acir_result_index);
-    let mut brillig_result_witness = Witness(brillig_result_index);
-
-    if acir_witnesses_indeces.len() as u32 != config::NUMBER_OF_VARIABLES_INITIAL {
-        acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-        brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-    }
-
-
-    let acir_program = acir_builder.compile().unwrap();
-    let brillig_program = brillig_builder.compile().unwrap();
+    fuzzer_context.finalize_function();
+    let (acir_result_witness, brillig_result_witness) = fuzzer_context.get_return_witnesses();
     
-    log::debug!("acir_indeces: {:?}", acir_witnesses_indeces);
-    log::debug!("brillig_indeces: {:?}", brillig_witnesses_indeces);
-    log::debug!("acir_result_witness: {:?}", acir_result_witness);
-    log::debug!("brillig_result_witness: {:?}", brillig_result_witness);
-    log::debug!("acir_program: {:?}", acir_program.program);
-    log::debug!("brillig_program: {:?}", brillig_program.program);
+    let (acir_program, brillig_program) = fuzzer_context.get_programs();
+    let (acir_program, brillig_program) = match (acir_program, brillig_program) {
+        (Ok(acir), Ok(brillig)) => (acir, brillig),
+        (Err(_), Err(_)) => {
+            return;
+        }
+        (Ok(_), Err(e)) => {
+            panic!("ACIR program compiled successfully but Brillig failed with: {:?}", e);
+        }
+        (Err(e), Ok(_)) => {
+            panic!("Brillig program compiled successfully but ACIR failed with: {:?}", e);
+        }
+    };
 
     let (result, acir_result, brillig_result) = run_and_compare(&acir_program.program, &brillig_program.program, initial_witness, acir_result_witness, brillig_result_witness);
     log::debug!("result: {:?}", result);
