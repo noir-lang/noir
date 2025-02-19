@@ -67,8 +67,9 @@ jobs:
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
 
+          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
           tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
-          tar -czf noir-profiler-${{ matrix.target }}.tar.gz -C dist noir-profiler
+          tar -czf noir-${{ matrix.target }}.tar.gz -C dist .
 
       - name: Upload nargo artifact
         uses: actions/upload-artifact@v4
@@ -77,10 +78,10 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload noir-profiler artifact
+      - name: Upload Noir binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: noir-profiler-${{ matrix.target }}
+          name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
@@ -95,14 +96,14 @@ jobs:
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
-      - name: Upload noir-profiler binaries to release tag
+      - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-profiler-${{ matrix.target }}.tar.gz
-          asset_name: noir-profiler-${{ matrix.target }}.tar.gz
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
@@ -124,14 +125,14 @@ jobs:
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
-      - name: Upload noir-profiler binaries to release with date tag
+      - name: Upload Noir binaries to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-profiler-${{ matrix.target }}.tar.gz
-          asset_name: noir-profiler-${{ matrix.target }}.tar.gz
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           prerelease: true
           make_latest: false
           overwrite: true
@@ -181,8 +182,9 @@ jobs:
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
 
+          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
           tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
-          tar -czf noir-profiler-${{ matrix.target }}.tar.gz -C dist noir-profiler
+          tar -czf noir-${{ matrix.target }}.tar.gz -C dist .
 
       - name: Upload nargo artifact
         uses: actions/upload-artifact@v4
@@ -191,10 +193,10 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload noir-profiler artifact
+      - name: Upload Noir binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: noir-profiler-${{ matrix.target }}
+          name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
@@ -210,14 +212,14 @@ jobs:
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
-      - name: Upload noir-profiler binaries to release tag
+      - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-profiler-${{ matrix.target }}.tar.gz
-          asset_name: noir-profiler-${{ matrix.target }}.tar.gz
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           prerelease: true
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
@@ -240,14 +242,14 @@ jobs:
           overwrite: true
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
-      - name: Upload noir-profiler binaries to release with date tag
+      - name: Upload Noir binaries to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-profiler-${{ matrix.target }}.tar.gz
-          asset_name: noir-profiler-${{ matrix.target }}.tar.gz
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           prerelease: true
           make_latest: false
           overwrite: true
