@@ -11,14 +11,15 @@ use crate::{
     },
     graph::CrateId,
     hir::{
-        def_collector::dc_crate::{
-            filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-            UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-            UnresolvedTypeAlias,
+        def_collector::{
+            dc_crate::{
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
+            },
+            errors::DefCollectorErrorKind,
         },
-        def_collector::errors::DefCollectorErrorKind,
-        def_map::{DefMaps, ModuleData},
-        def_map::{LocalModuleId, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
         type_check::{generics::TraitGenerics, TypeCheckError},
@@ -1458,9 +1459,26 @@ impl<'context> Elaborator<'context> {
             }
 
             let trait_generics = trait_impl.resolved_trait_generics.clone();
+            let ident = match &trait_impl.r#trait.typ {
+                UnresolvedTypeData::Named(trait_path, _, _) => trait_path.last_ident(),
+                UnresolvedTypeData::Resolved(quoted_type_id) => {
+                    let typ = self.interner.get_quoted_type(*quoted_type_id);
+                    let name = if let Type::TraitAsType(_, name, _) = typ {
+                        name.to_string()
+                    } else {
+                        typ.to_string()
+                    };
+                    Ident::new(name, trait_impl.r#trait.span)
+                }
+                _ => {
+                    // We don't error in this case because an error will be produced later on when
+                    // solving the trait impl trait type
+                    Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.span)
+                }
+            };
 
             let resolved_trait_impl = Shared::new(TraitImpl {
-                ident: trait_impl.trait_path.last_ident(),
+                ident,
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
@@ -1983,7 +2001,49 @@ impl<'context> Elaborator<'context> {
             self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
-            let trait_id = self.resolve_trait_by_path(trait_impl.trait_path.clone());
+            let (trait_id, mut trait_generics, path_span) = match &trait_impl.r#trait.typ {
+                UnresolvedTypeData::Named(trait_path, trait_generics, _) => {
+                    let trait_id = self.resolve_trait_by_path(trait_path.clone());
+                    (trait_id, trait_generics.clone(), trait_path.span)
+                }
+                UnresolvedTypeData::Resolved(quoted_type_id) => {
+                    let typ = self.interner.get_quoted_type(*quoted_type_id);
+                    let span = trait_impl.r#trait.span;
+                    let Type::TraitAsType(trait_id, _, trait_generics) = typ else {
+                        let found = typ.to_string();
+                        self.push_err(ResolverError::ExpectedTrait { span, found });
+                        continue;
+                    };
+
+                    // In order to take associated types into account we turn these resolved generics
+                    // into unresolved ones, but ones that point to solved types.
+                    let trait_id = *trait_id;
+                    let trait_generics = trait_generics.clone();
+                    let trait_generics = GenericTypeArgs {
+                        ordered_args: vecmap(&trait_generics.ordered, |typ| {
+                            let quoted_type_id = self.interner.push_quoted_type(typ.clone());
+                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
+                            UnresolvedType { typ, span }
+                        }),
+                        named_args: vecmap(&trait_generics.named, |named_type| {
+                            let quoted_type_id =
+                                self.interner.push_quoted_type(named_type.typ.clone());
+                            let typ = UnresolvedTypeData::Resolved(quoted_type_id);
+                            (named_type.name.clone(), UnresolvedType { typ, span })
+                        }),
+                        kinds: Vec::new(),
+                    };
+
+                    (Some(trait_id), trait_generics, span)
+                }
+                _ => {
+                    let span = trait_impl.r#trait.span;
+                    let found = trait_impl.r#trait.typ.to_string();
+                    self.push_err(ResolverError::ExpectedTrait { span, found });
+                    continue;
+                }
+            };
+
             trait_impl.trait_id = trait_id;
             let unresolved_type = trait_impl.object_type.clone();
 
@@ -2006,14 +2066,12 @@ impl<'context> Elaborator<'context> {
                 method.def.where_clause.append(&mut trait_impl.where_clause.clone());
             }
 
-            // Add each associated type to the list of named type arguments
-            let mut trait_generics = trait_impl.trait_generics.clone();
-            trait_generics.named_args.extend(self.take_unresolved_associated_types(trait_impl));
-
             let impl_id = self.interner.next_trait_impl_id();
             self.current_trait_impl = Some(impl_id);
 
-            let path_span = trait_impl.trait_path.span;
+            // Add each associated type to the list of named type arguments
+            trait_generics.named_args.extend(self.take_unresolved_associated_types(trait_impl));
+
             let (ordered_generics, named_generics) = trait_impl
                 .trait_id
                 .map(|trait_id| {
@@ -2038,12 +2096,15 @@ impl<'context> Elaborator<'context> {
             self.generics.clear();
 
             if let Some(trait_id) = trait_id {
-                let trait_name = trait_impl.trait_path.last_ident();
-                self.interner.add_trait_reference(
-                    trait_id,
-                    Location::new(trait_name.span(), trait_impl.file_id),
-                    trait_name.is_self_type_name(),
-                );
+                let (span, is_self_type_name) = match &trait_impl.r#trait.typ {
+                    UnresolvedTypeData::Named(trait_path, _, _) => {
+                        let trait_name = trait_path.last_ident();
+                        (trait_name.span(), trait_name.is_self_type_name())
+                    }
+                    _ => (trait_impl.r#trait.span, false),
+                };
+                let location = Location::new(span, trait_impl.file_id);
+                self.interner.add_trait_reference(trait_id, location, is_self_type_name);
             }
         }
     }

@@ -3,7 +3,7 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
 use crate::hir::comptime::InterpreterError;
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId};
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::locations::ReferencesTracker;
@@ -21,8 +21,8 @@ use crate::node_interner::{
 };
 
 use crate::ast::{
-    ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, LetStatement, Literal, NoirFunction,
-    NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
+    ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
     UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
@@ -83,8 +83,7 @@ pub struct UnresolvedTrait {
 pub struct UnresolvedTraitImpl {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub trait_generics: GenericTypeArgs,
-    pub trait_path: Path,
+    pub r#trait: UnresolvedType,
     pub object_type: UnresolvedType,
     pub methods: UnresolvedFunctions,
     pub generics: UnresolvedGenerics,
@@ -431,14 +430,12 @@ impl DefCollector {
                                     Some(defining_module),
                                 );
 
-                                if let ModuleDefId::TraitId(trait_id) = module_def_id {
-                                    context.def_interner.add_trait_reexport(
-                                        trait_id,
-                                        defining_module,
-                                        name.clone(),
-                                        visibility,
-                                    );
-                                }
+                                context.def_interner.add_reexport(
+                                    module_def_id,
+                                    defining_module,
+                                    name.clone(),
+                                    visibility,
+                                );
                             }
                         }
 

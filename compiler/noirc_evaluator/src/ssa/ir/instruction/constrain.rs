@@ -123,6 +123,39 @@ pub(super) fn decompose_constrain(
                 }
             }
 
+            (Value::NumericConstant { constant, .. }, Value::Instruction { instruction, .. })
+            | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, .. }) => {
+                match dfg[*instruction] {
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
+                        if constant.is_zero() && lhs == rhs =>
+                    {
+                        // Replace an assertion that a squared value is zero
+                        //
+                        // v1 = mul v0, v0
+                        // constrain v1 == u1 0
+                        //
+                        // with a direct assertion that value being squared is equal to 0
+                        //
+                        // v1 = mul v0, v0
+                        // constrain v0 == u1 0
+                        //
+                        // This is due to the fact that for `v1` to be 0 then `v0` is 0.
+                        //
+                        // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        //
+                        // This is safe for all numeric types as the underlying field has a prime modulus so squaring
+                        // a non-zero value should never result in zero.
+
+                        let zero = FieldElement::zero();
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
+                        decompose_constrain(lhs, zero, msg, dfg)
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                }
+            }
+
             (
                 Value::Instruction { instruction: instruction_lhs, .. },
                 Value::Instruction { instruction: instruction_rhs, .. },
@@ -142,5 +175,33 @@ pub(super) fn decompose_constrain(
             }
             _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v1 == Field 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v0 == Field 0
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
