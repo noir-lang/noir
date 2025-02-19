@@ -41,4 +41,3 @@ unconstrained fn entry_point_one_diff_global(x: Field, y: Field) {
     let z = THREE + x + y;
     assert(z == 4);
 }
-
