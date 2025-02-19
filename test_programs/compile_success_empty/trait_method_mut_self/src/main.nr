@@ -71,7 +71,7 @@ where
 {
     // Check that we can call a trait method instead of a trait implementation
     // TODO: Need to remove the need for this type annotation
-    // TODO: Curently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`
+    // TODO: Currently, without the annotation we will get `Expression type is ambiguous` when trying to use the `hasher`
     let mut hasher: H = H::default();
     // Regression that the object is converted to a mutable reference type `&mut _`.
     // Otherwise will see `Expected type &mut _, found type H`.
