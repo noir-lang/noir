@@ -55,6 +55,11 @@ impl From<CompiledContract> for ContractArtifact {
 pub struct ContractFunctionArtifact {
     pub name: String,
 
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which the [`ContractFunction`]
+    /// was compiled.
+    #[serde(default)] // For backwards compatibility (it was missing).
+    pub hash: u64,
+
     pub is_unconstrained: bool,
 
     pub custom_attributes: Vec<String>,
@@ -81,6 +86,7 @@ impl From<ContractFunction> for ContractFunctionArtifact {
     fn from(func: ContractFunction) -> Self {
         ContractFunctionArtifact {
             name: func.name,
+            hash: func.hash,
             is_unconstrained: func.is_unconstrained,
             custom_attributes: func.custom_attributes,
             abi: func.abi,
