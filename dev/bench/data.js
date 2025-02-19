@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739979677410,
+  "lastUpdate": 1739979680527,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8655,75 +8655,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a55a5fc0465d484149892ee62548076d5ddc94e5",
-          "message": "chore: remove foreign calls array from Brillig VM constructor (#7337)",
-          "timestamp": "2025-02-10T21:11:11Z",
-          "tree_id": "ce82fe013b925e04ef4a48b2c3de4c2321d20f60",
-          "url": "https://github.com/noir-lang/noir/commit/a55a5fc0465d484149892ee62548076d5ddc94e5"
-        },
-        "date": 1739222933316,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.452,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.558,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11943,6 +11874,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 0.187,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1d04f8ba0292e493e4e64cf8caf6df15c51b3346",
+          "message": "fix: do not discard negative sign from field literals in comptime interpreter (#7439)",
+          "timestamp": "2025-02-19T15:22:39Z",
+          "tree_id": "3f7d52cbebe5498027a141d9a86ba0867f75fbff",
+          "url": "https://github.com/noir-lang/noir/commit/1d04f8ba0292e493e4e64cf8caf6df15c51b3346"
+        },
+        "date": 1739979678194,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.299,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.462,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.184,
             "unit": "s"
           },
           {
