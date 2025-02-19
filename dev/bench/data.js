@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739923650344,
+  "lastUpdate": 1739923655422,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12056,75 +12056,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0eeda5831648d4bf517c3f26cd4446f14761d779",
-          "message": "chore: remove misleading output from `nargo check` (#7329)",
-          "timestamp": "2025-02-10T12:40:22Z",
-          "tree_id": "88f8c184240e2b9e598643ec4226e6bebf625c49",
-          "url": "https://github.com/noir-lang/noir/commit/0eeda5831648d4bf517c3f26cd4446f14761d779"
-        },
-        "date": 1739192534031,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d9ad0be869598f8e78010ebbcce00fcfaa23da5d",
           "message": "fix: perform SSA constraints check on final SSA (#7334)",
@@ -15385,6 +15316,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 214.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49a095ded5cd33795bcdac60cbd98ce7c5ab9198",
+          "message": "fix(performance): Remove redundant slice access check from brillig (#7434)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-02-18T23:41:29Z",
+          "tree_id": "94eb94add059d670c62b5a0b9572a3eac564f77a",
+          "url": "https://github.com/noir-lang/noir/commit/49a095ded5cd33795bcdac60cbd98ce7c5ab9198"
+        },
+        "date": 1739923653647,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.85,
             "unit": "MB"
           },
           {
