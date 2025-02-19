@@ -41,10 +41,6 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
             .map(|f| {
                 // We have to cheat to be able to call `count_opcodes_and_gates_in_program`.
                 let package_name = format!("{}::{}", contract.name, f.name);
-                // The `names` field was historically missing for the function artifact.
-                let names = f.names.unwrap_or_else(|| {
-                    f.bytecode.functions.iter().map(|_| contract.name.clone()).collect()
-                });
                 let program = ProgramArtifact {
                     noir_version: contract.noir_version.clone(),
                     hash: f.hash,
@@ -52,7 +48,7 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
                     bytecode: f.bytecode,
                     debug_symbols: f.debug_symbols,
                     file_map: contract.file_map.clone(),
-                    names,
+                    names: f.names,
                     brillig_names: f.brillig_names,
                 };
                 count_opcodes_and_gates_in_program(program, package_name, None)
