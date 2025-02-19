@@ -435,7 +435,7 @@ jobs:
           # Rename the memory report as the execution report is about to write to the same file
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          REPORT_NAME=memory_report_$PACKAGE_NAME.json
+          REPORT_NAME=compilation_memory_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_FILE
           mv ./memory_report.json $REPORT_PATH
 
@@ -461,7 +461,7 @@ jobs:
 
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          REPORT_NAME=memory_report_$PACKAGE_NAME.json
+          REPORT_NAME=execution_memory_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_FILE
           mv ./memory_report.json $REPORT_PATH
 
