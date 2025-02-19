@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739989982716,
+  "lastUpdate": 1739996460266,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8625,75 +8625,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6",
-          "message": "fix: incorrect secondary file in LSP errors (#7347)",
-          "timestamp": "2025-02-11T22:44:13Z",
-          "tree_id": "ebb905c97661fb5ccaf18c55ee61d05dcc881c26",
-          "url": "https://github.com/noir-lang/noir/commit/5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6"
-        },
-        "date": 1739315078656,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.312,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.453,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.55,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.111,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11908,6 +11839,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "093a8ec60eaacd1b307447545e166a40e037436d",
+          "message": "fix: don't let nargo fmt produce multiple trailing newlines (#7444)",
+          "timestamp": "2025-02-19T20:00:26Z",
+          "tree_id": "66438654561ffaf3d0639a9276b09b371a99ad65",
+          "url": "https://github.com/noir-lang/noir/commit/093a8ec60eaacd1b307447545e166a40e037436d"
+        },
+        "date": 1739996458548,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.464,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.195,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
             "unit": "s"
           },
           {
