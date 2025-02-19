@@ -4433,7 +4433,7 @@ fn errors_if_while_body_type_is_not_unit() {
 }
 
 #[test]
-fn errors_on_unspecified_unstable_feature() {
+fn errors_on_unspecified_unstable_enum() {
     // Enums are experimental - this will need to be updated when they are stabilized
     let src = r#"
     enum Foo { Bar }
@@ -4445,7 +4445,28 @@ fn errors_on_unspecified_unstable_feature() {
 
     let no_features = &[];
     let errors = get_program_using_features(src, no_features).2;
-    dbg!(&errors);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ParseError(error) = &errors[0].0 else {
+        panic!("Expected a ParseError experimental feature error");
+    };
+
+    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+}
+
+#[test]
+fn errors_on_unspecified_unstable_match() {
+    // Enums are experimental - this will need to be updated when they are stabilized
+    let src = r#"
+    fn main() {
+        match 3 {
+            _ => (),
+        }
+    }
+    "#;
+
+    let no_features = &[];
+    let errors = get_program_using_features(src, no_features).2;
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ParseError(error) = &errors[0].0 else {
