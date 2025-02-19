@@ -9,6 +9,7 @@ use noirc_errors::{
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
+    hir_def::expr::Constructor,
     token::{Attributes, FunctionAttribute},
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
@@ -39,6 +40,7 @@ pub enum Expression {
     Loop(Box<Expression>),
     While(While),
     If(If),
+    Match(Match),
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
@@ -158,6 +160,21 @@ pub struct If {
     pub consequence: Box<Expression>,
     pub alternative: Option<Box<Expression>>,
     pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct Match {
+    pub variable_to_match: LocalId,
+    pub cases: Vec<MatchCase>,
+    pub default_case: Option<Box<Expression>>,
+    pub typ: Type,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MatchCase {
+    pub constructor: Constructor,
+    pub arguments: Vec<LocalId>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, Clone, Hash)]
