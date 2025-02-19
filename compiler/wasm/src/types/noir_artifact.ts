@@ -58,6 +58,8 @@ export interface ABIVariable {
 export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
+  /** The hash of the circuit. */
+  hash?: number;
   /** Whether the function is unconstrained. */
   is_unconstrained: boolean;
   /** The custom attributes applied to the function. */
