@@ -984,9 +984,10 @@ impl<'context> Elaborator<'context> {
         });
 
         let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
+            let alternative_span = alternative.span;
             let (else_, else_type) =
                 self.elaborate_expression_with_target_type(alternative, target_type);
-            (Some(else_), else_type, expr_span)
+            (Some(else_), else_type, alternative_span)
         } else {
             (None, Type::Unit, consequence_span)
         };
