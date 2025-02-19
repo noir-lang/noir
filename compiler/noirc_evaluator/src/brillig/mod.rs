@@ -3,6 +3,7 @@ pub(crate) mod brillig_ir;
 
 use acvm::FieldElement;
 use brillig_gen::brillig_globals::BrilligGlobals;
+use brillig_gen::constant_allocation::ConstantAllocation;
 use brillig_ir::{artifact::LabelType, brillig_variable::BrilligVariable, registers::GlobalSpace};
 
 use self::{
@@ -17,6 +18,7 @@ use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        types::NumericType,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -50,8 +52,9 @@ impl Brillig {
         func: &Function,
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
+        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
     ) {
-        let obj = convert_ssa_function(func, options, globals);
+        let obj = convert_ssa_function(func, options, globals, hoisted_global_constants);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -121,12 +124,13 @@ impl Ssa {
 
         for brillig_function_id in brillig_reachable_function_ids {
             let empty_allocations = HashMap::default();
-            let globals_allocations = brillig_globals
+            let empty_const_allocations = HashMap::default();
+            let (globals_allocations, hoisted_constant_allocations) = brillig_globals
                 .get_brillig_globals(brillig_function_id)
-                .unwrap_or(&empty_allocations);
+                .unwrap_or((&empty_allocations, &empty_const_allocations));
 
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func, options, globals_allocations);
+            brillig.compile(func, options, globals_allocations, hoisted_constant_allocations);
         }
 
         brillig

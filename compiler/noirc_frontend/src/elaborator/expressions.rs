@@ -25,10 +25,12 @@ use crate::{
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
-        stmt::HirStatement,
+        stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+    },
     token::{FmtStrFragment, Tokens},
     DataType, Kind, QuotedType, Shared, Type,
 };
@@ -60,7 +62,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_, target_type),
-            ExpressionKind::Match(match_) => self.elaborate_match(*match_),
+            ExpressionKind::Match(match_) => self.elaborate_match(*match_, expr.span),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
             ExpressionKind::Lambda(lambda) => {
@@ -969,8 +971,8 @@ impl<'context> Elaborator<'context> {
         if_expr: IfExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let expr_span = if_expr.condition.span;
-        let consequence_span = if_expr.consequence.span;
+        let expr_span = if_expr.condition.type_span();
+        let consequence_span = if_expr.consequence.type_span();
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
@@ -982,9 +984,10 @@ impl<'context> Elaborator<'context> {
         });
 
         let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
+            let alternative_span = alternative.type_span();
             let (else_, else_type) =
                 self.elaborate_expression_with_target_type(alternative, target_type);
-            (Some(else_), else_type, expr_span)
+            (Some(else_), else_type, alternative_span)
         } else {
             (None, Type::Unit, consequence_span)
         };
@@ -1015,8 +1018,39 @@ impl<'context> Elaborator<'context> {
         (HirExpression::If(if_expr), ret_type)
     }
 
-    fn elaborate_match(&mut self, _match_expr: MatchExpression) -> (HirExpression, Type) {
-        (HirExpression::Error, Type::Error)
+    fn elaborate_match(
+        &mut self,
+        match_expr: MatchExpression,
+        span: Span,
+    ) -> (HirExpression, Type) {
+        let (expression, typ) = self.elaborate_expression(match_expr.expression);
+        let (let_, variable) = self.wrap_in_let(expression, typ);
+
+        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
+        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let tree = self.interner.push_expr(tree);
+        self.interner.push_expr_type(tree, result_type.clone());
+        self.interner.push_expr_location(tree, span, self.file);
+
+        let tree = self.interner.push_stmt(HirStatement::Expression(tree));
+        self.interner.push_stmt_location(tree, span, self.file);
+
+        let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, tree] });
+        (block, result_type)
+    }
+
+    fn wrap_in_let(&mut self, expr_id: ExprId, typ: Type) -> (StmtId, DefinitionId) {
+        let location = self.interner.expr_location(&expr_id);
+        let name = "internal variable".to_string();
+        let definition = DefinitionKind::Local(None);
+        let variable = self.interner.push_definition(name, false, false, definition, location);
+        self.interner.push_definition_type(variable, typ.clone());
+
+        let pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
+        let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
+        let let_ = self.interner.push_stmt(let_);
+        self.interner.push_stmt_location(let_, location.span, location.file);
+        (let_, variable)
     }
 
     fn elaborate_tuple(

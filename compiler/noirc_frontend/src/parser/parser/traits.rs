@@ -92,6 +92,11 @@ impl<'a> Parser<'a> {
             })
             .into();
 
+            let r#trait = UnresolvedType {
+                typ: UnresolvedTypeData::Named(trait_name, trait_generics, false),
+                span,
+            };
+
             // bounds from trait
             let mut where_clause = where_clause.clone();
             for bound in bounds.clone() {
@@ -104,15 +109,7 @@ impl<'a> Parser<'a> {
             let items = vec![];
             let is_synthetic = true;
 
-            NoirTraitImpl {
-                impl_generics,
-                trait_name,
-                trait_generics,
-                object_type,
-                where_clause,
-                items,
-                is_synthetic,
-            }
+            NoirTraitImpl { impl_generics, r#trait, object_type, where_clause, items, is_synthetic }
         });
 
         let noir_trait = NoirTrait {
@@ -287,7 +284,7 @@ fn empty_trait(
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{NoirTrait, NoirTraitImpl, TraitItem},
+        ast::{NoirTrait, NoirTraitImpl, TraitItem, UnresolvedTypeData},
         parser::{
             parser::{
                 parse_program,
@@ -374,9 +371,14 @@ mod tests {
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
 
-        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        let UnresolvedTypeData::Named(trait_name, trait_generics, _) = noir_trait_impl.r#trait.typ
+        else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(noir_trait_impl.impl_generics.len(), 3);
-        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(trait_generics.ordered_args.len(), 2);
         assert_eq!(noir_trait_impl.where_clause.len(), 2);
         assert_eq!(noir_trait_alias.bounds.len(), 2);
         assert_eq!(noir_trait_alias.bounds[0].to_string(), "Bar");
@@ -428,9 +430,14 @@ mod tests {
         assert!(noir_trait_alias.items.is_empty());
         assert!(noir_trait_alias.is_alias);
 
-        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        let UnresolvedTypeData::Named(trait_name, trait_generics, _) = noir_trait_impl.r#trait.typ
+        else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(noir_trait_impl.impl_generics.len(), 3);
-        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 2);
+        assert_eq!(trait_generics.ordered_args.len(), 2);
         assert_eq!(noir_trait_impl.where_clause.len(), 3);
         assert_eq!(noir_trait_impl.where_clause[0].to_string(), "A: Z");
         assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Bar");
@@ -557,9 +564,14 @@ mod tests {
         assert_eq!(noir_trait_alias.to_string(), "trait Foo = Bar + Baz;");
         assert!(noir_trait_alias.is_alias);
 
-        assert_eq!(noir_trait_impl.trait_name.to_string(), "Foo");
+        let UnresolvedTypeData::Named(trait_name, trait_generics, _) = noir_trait_impl.r#trait.typ
+        else {
+            panic!("Expected name type");
+        };
+
+        assert_eq!(trait_name.to_string(), "Foo");
         assert_eq!(noir_trait_impl.impl_generics.len(), 1);
-        assert_eq!(noir_trait_impl.trait_generics.ordered_args.len(), 0);
+        assert_eq!(trait_generics.ordered_args.len(), 0);
         assert_eq!(noir_trait_impl.where_clause.len(), 2);
         assert_eq!(noir_trait_impl.where_clause[0].to_string(), "#T: Bar");
         assert_eq!(noir_trait_impl.where_clause[1].to_string(), "#T: Baz");
