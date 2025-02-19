@@ -768,8 +768,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let index_variable = self.convert_ssa_single_addr_value(*index, dfg);
 
                 // Slice access checks are generated separately against the slice's dynamic length field.
-                if !dfg.is_safe_index(*index, *array)
-                    && matches!(dfg.type_of_value(*array), Type::Array(..))
+                if matches!(dfg.type_of_value(*array), Type::Array(..))
+                    && !dfg.is_safe_index(*index, *array)
                 {
                     self.validate_array_index(array_variable, index_variable);
                 }
@@ -799,8 +799,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
 
                 // Slice access checks are generated separately against the slice's dynamic length field.
-                if !dfg.is_safe_index(*index, *array)
-                    && matches!(dfg.type_of_value(*array), Type::Array(..))
+                if matches!(dfg.type_of_value(*array), Type::Array(..))
+                    && !dfg.is_safe_index(*index, *array)
                 {
                     self.validate_array_index(source_variable, index_register);
                 }
