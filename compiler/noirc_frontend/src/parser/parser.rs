@@ -47,7 +47,7 @@ pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+pub fn parse_program<'a>(source_program: &'a str) -> (ParsedModule, Vec<ParserError>) {
     let lexer = Lexer::new(source_program);
     let mut parser = Parser::for_lexer(lexer);
     let program = parser.parse_program();

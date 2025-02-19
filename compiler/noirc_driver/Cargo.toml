@@ -27,6 +27,7 @@ serde.workspace = true
 fxhash.workspace = true
 rust-embed.workspace = true
 tracing.workspace = true
+cli-args.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]

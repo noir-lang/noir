@@ -5,6 +5,7 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+use cli_args::FrontendOptions;
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
@@ -77,8 +78,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        debug_comptime_in_file: Option<&str>,
-        pedantic_solving: bool,
+        options: FrontendOptions,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -120,8 +120,7 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            options,
         ));
 
         errors.extend(

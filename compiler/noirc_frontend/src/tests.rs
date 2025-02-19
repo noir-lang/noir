@@ -116,17 +116,13 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             extern_prelude: BTreeMap::new(),
         };
 
-        let debug_comptime_in_file = None;
-        let pedantic_solving = true;
-
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            cli_args::FrontendOptions::test_default(),
         ));
     }
     (program, context, errors)

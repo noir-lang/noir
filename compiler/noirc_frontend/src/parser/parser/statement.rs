@@ -291,8 +291,6 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
-
         let block_start_span = self.current_token_span;
         let block = if let Some(block) = self.parse_block() {
             Expression {
@@ -313,8 +311,6 @@ impl<'a> Parser<'a> {
         if !self.eat_keyword(Keyword::While) {
             return None;
         }
-
-        self.push_error(ParserErrorReason::ExperimentalFeature("while loops"), start_span);
 
         let condition = self.parse_expression_except_constructor_or_error();
 

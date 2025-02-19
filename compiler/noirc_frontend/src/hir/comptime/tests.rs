@@ -11,7 +11,7 @@ use super::errors::InterpreterError;
 use super::value::Value;
 use super::Interpreter;
 use crate::elaborator::Elaborator;
-use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector, ElaboratorOptions};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
 use crate::hir::{Context, ParsedFiles};
@@ -60,13 +60,11 @@ pub(crate) fn with_interpreter<T>(
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
-    let pedantic_solving = true;
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
-        None,
-        pedantic_solving,
+        ElaboratorOptions::test_default(),
     );
 
     let errors = elaborator.errors.clone();

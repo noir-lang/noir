@@ -27,6 +27,7 @@ use crate::ast::{
 };
 
 use crate::parser::{ParserError, SortedModule};
+use cli_args::{FrontendOptions, UnstableFeature};
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
@@ -254,6 +255,31 @@ impl From<UnsupportedNumericGenericType> for CompilationError {
     }
 }
 
+/// Options from nargo_cli that need to be passed down to the elaborator
+#[derive(Copy, Clone)]
+pub struct ElaboratorOptions<'a> {
+    /// The scope of --debug-comptime, or None if unset
+    pub debug_comptime_in_file: Option<fm::FileId>,
+
+    /// Use pedantic ACVM solving
+    pub pedantic_solving: bool,
+
+    /// Unstable compiler features that were explicitly enabled. Any unstable features
+    /// that are not in this list result in an error when used.
+    pub enabled_unstable_features: &'a [UnstableFeature],
+}
+
+impl<'a> ElaboratorOptions<'a> {
+    pub fn test_default() -> ElaboratorOptions<'static> {
+        let options = FrontendOptions::test_default();
+        ElaboratorOptions {
+            debug_comptime_in_file: None,
+            pedantic_solving: options.pedantic_solving,
+            enabled_unstable_features: options.enabled_unstable_features,
+        }
+    }
+}
+
 impl DefCollector {
     pub fn new(def_map: CrateDefMap) -> DefCollector {
         DefCollector {
@@ -282,8 +308,7 @@ impl DefCollector {
         context: &mut Context,
         ast: SortedModule,
         root_file_id: FileId,
-        debug_comptime_in_file: Option<&str>,
-        pedantic_solving: bool,
+        options: FrontendOptions,
     ) -> Vec<(CompilationError, FileId)> {
         let mut errors: Vec<(CompilationError, FileId)> = vec![];
         let crate_id = def_map.krate;
@@ -296,12 +321,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(
-                dep.crate_id,
-                context,
-                debug_comptime_in_file,
-                pedantic_solving,
-            ));
+            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
 
             let dep_def_map =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created");
@@ -467,21 +487,22 @@ impl DefCollector {
             }
         }
 
-        let debug_comptime_in_file = debug_comptime_in_file.and_then(|debug_comptime_in_file| {
-            let file = context.file_manager.find_by_path_suffix(debug_comptime_in_file);
+        let debug_comptime_in_file = options.debug_comptime_in_file.and_then(|file_suffix| {
+            let file = context.file_manager.find_by_path_suffix(file_suffix);
             file.unwrap_or_else(|error| {
                 errors.push((CompilationError::DebugComptimeScopeNotFound(error), root_file_id));
                 None
             })
         });
 
-        let mut more_errors = Elaborator::elaborate(
-            context,
-            crate_id,
-            def_collector.items,
+        let cli_options = ElaboratorOptions {
             debug_comptime_in_file,
-            pedantic_solving,
-        );
+            pedantic_solving: options.pedantic_solving,
+            enabled_unstable_features: options.enabled_unstable_features,
+        };
+
+        let mut more_errors =
+            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
 
         errors.append(&mut more_errors);
 

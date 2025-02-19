@@ -7,6 +7,8 @@ use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
+use cli_args::FrontendOptions;
+use cli_args::UnstableFeature;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
@@ -184,12 +186,6 @@ pub struct CompileOptions {
     pub unstable_features: Vec<UnstableFeature>,
 }
 
-#[derive(Copy, Clone, Debug, clap::ValueEnum)]
-pub enum UnstableFeature {
-    Enums,
-    ArrayOwnership,
-}
-
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input
@@ -203,6 +199,16 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
             ErrorKind::InvalidInput,
             format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
         )),
+    }
+}
+
+impl CompileOptions {
+    pub fn frontend_options(&self) -> FrontendOptions {
+        FrontendOptions {
+            debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
+            pedantic_solving: self.pedantic_solving,
+            enabled_unstable_features: &self.unstable_features,
+        }
     }
 }
 
@@ -345,12 +351,7 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let diagnostics = CrateDefMap::collect_defs(
-        crate_id,
-        context,
-        options.debug_comptime_in_file.as_deref(),
-        options.pedantic_solving,
-    );
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()

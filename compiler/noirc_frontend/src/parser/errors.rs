@@ -5,6 +5,7 @@ use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
+use cli_args::UnstableFeature;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
@@ -75,8 +76,8 @@ pub enum ParserErrorReason {
     TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("{0} are experimental and aren't fully supported yet")]
-    ExperimentalFeature(&'static str),
+    #[error("This requires the unstable feature '{0}' which is not enabled")]
+    ExperimentalFeature(UnstableFeature),
     #[error(
         "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
@@ -260,8 +261,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     ),
                     error.span,
                 ),
-                ParserErrorReason::ExperimentalFeature(_) => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                ParserErrorReason::ExperimentalFeature(feature) => {
+                    let secondary = format!(
+                        "Pass -Z{feature} to nargo to enable this feature at your own risk."
+                    );
+                    Diagnostic::simple_warning(reason.to_string(), secondary, error.span)
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
