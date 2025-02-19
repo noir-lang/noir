@@ -777,7 +777,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size::<F>();
         // Subtracting from max flips the bits
-        let max = self.add_constant((1_u128 << bit_size) - 1);
+        let max = if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
+        let max = self.add_constant(max);
         self.sub_var(max, x)
     }
 

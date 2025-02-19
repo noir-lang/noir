@@ -911,7 +911,12 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                        let value = !constant.to_u128() % (1 << typ.bit_size());
+                        let bit_size = typ.bit_size();
+                        let value = if bit_size >= 128 {
+                            !constant.to_u128()
+                        } else {
+                            !constant.to_u128() % (1 << bit_size)
+                        };
                         SimplifiedTo(dfg.make_constant(value.into(), *typ))
                     }
                     Value::Instruction { instruction, .. } => {
