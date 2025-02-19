@@ -182,7 +182,8 @@ pub struct CompileOptions {
     #[clap(long, hide = true)]
     pub check_non_determinism: bool,
 
-    #[clap(long, short = 'Z')]
+    /// Unstable features to enable for this current build
+    #[clap(long, short = 'Z', value_delimiter = ',')]
     pub unstable_features: Vec<UnstableFeature>,
 }
 
