@@ -83,4 +83,3 @@ fn main() {
 
     assert(0.foo_3().bar_3() == baz_3(0));
 }
-

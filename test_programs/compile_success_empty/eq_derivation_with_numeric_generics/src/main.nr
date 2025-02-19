@@ -9,4 +9,3 @@ fn main() {
     let bar = Foo { a: [0; 10], b: 28 };
     assert(foo != bar);
 }
-

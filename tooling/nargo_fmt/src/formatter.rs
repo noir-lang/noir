@@ -107,6 +107,7 @@ impl<'a> Formatter<'a> {
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);
+        self.buffer.trim_multiple_newlines();
     }
 
     pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
