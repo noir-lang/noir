@@ -935,6 +935,17 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     predicate,
                     rhs_const.num_bits(),
                 )?;
+            } else if bit_size == 128 {
+                // q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
+                let two_pow_64 = F::from(1_u128 << 64);
+                let two_pow_64 = self.add_constant(two_pow_64);
+
+                let (q_upper, _) =
+                    self.euclidean_division_var(quotient_var, two_pow_64, bit_size, predicate)?;
+                let (rhs_upper, _) =
+                    self.euclidean_division_var(rhs, two_pow_64, bit_size, predicate)?;
+                let mul_uppers = self.mul_var(q_upper, rhs_upper)?;
+                self.assert_eq_var(mul_uppers, zero, None)?;
             } else {
                 // we do not support unbounded division
                 unreachable!("overflow in unbounded division");
