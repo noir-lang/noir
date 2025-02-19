@@ -8,7 +8,7 @@ pub(crate) enum CliError {
     Generic,
 }
 
-/// Report an error from the CLI that is not reliant on a stack trace. 
+/// Report an error from the CLI that is not reliant on a stack trace.
 pub(crate) fn report_error(message: String) -> Result<(), CliError> {
     let error = CustomDiagnostic::simple_error(message.clone(), String::new(), Span::default());
     noirc_errors::reporter::report(&FileMap::default(), &error, None, false);
