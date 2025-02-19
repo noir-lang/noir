@@ -9,7 +9,27 @@
 //! Should any projects require/desire a different artifact format, it's expected that they will write a transformer
 //! to generate them using these artifacts as a starting point.
 
+use serde::{de::Error, Deserialize, Deserializer, Serializer};
+
 pub mod contract;
 pub mod debug;
 mod debug_vars;
 pub mod program;
+
+/// Serialize `hash` as `String`, so that it doesn't get truncated in Javascript.
+fn serialize_hash<S>(hash: &u64, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    s.serialize_str(&hash.to_string())
+}
+
+/// Deserialize `hash` from `String` in JSON.
+fn deserialize_hash<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let hash: String = Deserialize::deserialize(deserializer)?;
+    let hash: u64 = hash.parse().map_err(D::Error::custom)?;
+    Ok(hash)
+}

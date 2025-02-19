@@ -9,6 +9,8 @@ use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
 
+use super::{deserialize_hash, serialize_hash};
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
@@ -58,6 +60,7 @@ pub struct ContractFunctionArtifact {
     /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which the [`ContractFunction`]
     /// was compiled.
     #[serde(default)] // For backwards compatibility (it was missing).
+    #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,
 
     pub is_unconstrained: bool,
