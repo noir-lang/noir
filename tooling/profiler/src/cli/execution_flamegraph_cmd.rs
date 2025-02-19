@@ -133,7 +133,7 @@ fn run_with_generator(
     Ok(())
 }
 
-fn is_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError> {
+fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError> {
     let err_msg = "Command only supports fully unconstrained Noir programs e.g. `unconstrained fn main() { .. }".to_owned();
     let program = &artifact.bytecode;
     if program.functions.len() != 1 || program.unconstrained_functions.len() != 1 {
