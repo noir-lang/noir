@@ -12,4 +12,3 @@ fn main(x: pub u8, y: u8) {
         assert_eq(x, y);
     }
 }
-

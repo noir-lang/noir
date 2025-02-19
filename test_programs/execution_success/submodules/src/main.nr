@@ -12,4 +12,3 @@ mod my_submodule {
 
     pub fn my_helper() {}
 }
-

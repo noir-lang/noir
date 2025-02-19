@@ -542,7 +542,6 @@ fn bar() {
 // noir-fmt:ignore
 fn baz() { let  z  = 3  ; 
             }
-
 ";
         assert_format(src, expected);
     }

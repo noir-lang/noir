@@ -41,4 +41,3 @@ fn main(x: Field, y: Field) {
         create_and_assert_inside_brillig(x, y);
     }
 }
-

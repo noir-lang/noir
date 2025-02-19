@@ -341,4 +341,3 @@ impl Shr for i64 {
         self >> other
     }
 }
-
