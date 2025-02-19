@@ -70,7 +70,7 @@ impl FuzzingRunStatus {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn run_fuzzing_harness<'a, B>(
+pub fn run_fuzzing_harness<B>(
     context: &mut Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,

@@ -292,7 +292,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         root_path,
         package_name,
         compile_options,
-        &fuzz_folder_config,
+        fuzz_folder_config,
         fuzz_execution_config,
     )
 }
@@ -428,8 +428,7 @@ fn display_fuzzing_report_and_store(
                     writer
                         .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                         .expect("Failed to set color");
-                    let mut full_path_of_example =
-                        PathBuf::from(fuzzing_failure_path.clone()).join(file_name);
+                    let mut full_path_of_example = fuzzing_failure_path.clone().join(file_name);
                     full_path_of_example.set_extension(PathBuf::from("toml"));
                     writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
                         .expect("Failed to write to stderr");
