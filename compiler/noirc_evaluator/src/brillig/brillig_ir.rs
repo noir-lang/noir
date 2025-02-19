@@ -448,7 +448,7 @@ pub(crate) mod tests {
 
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false);
+        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
         let status = vm.process_opcodes();
         assert_eq!(
             status,

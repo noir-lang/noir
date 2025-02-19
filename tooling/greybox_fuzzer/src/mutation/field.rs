@@ -185,6 +185,7 @@ pub fn mutate_field_input_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_bigint::BigUint;
     use rand::SeedableRng;
 
     fn create_dictionary() -> Vec<FieldElement> {
