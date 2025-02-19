@@ -326,7 +326,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           REPORT_NAME=compilation_report_$PACKAGE_NAME.json
-          REPORT_PATH=$(pwd)/$REPORT_FILE
+          REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./compilation_report.json $REPORT_PATH
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
@@ -354,7 +354,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           REPORT_NAME=execution_report_$PACKAGE_NAME.json
-          REPORT_PATH=$(pwd)/$REPORT_FILE
+          REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./execution_report.json $REPORT_PATH
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
@@ -436,7 +436,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           REPORT_NAME=compilation_mem_report_$PACKAGE_NAME.json
-          REPORT_PATH=$(pwd)/$REPORT_FILE
+          REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./memory_report.json $REPORT_PATH
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
@@ -462,7 +462,7 @@ jobs:
           PACKAGE_NAME=${{ matrix.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
           REPORT_NAME=execution_mem_report_$PACKAGE_NAME.json
-          REPORT_PATH=$(pwd)/$REPORT_FILE
+          REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./memory_report.json $REPORT_PATH
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
