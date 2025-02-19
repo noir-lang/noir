@@ -265,7 +265,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_warning(reason.to_string(), secondary, error.span)
+                    Diagnostic::simple_error(reason.to_string(), secondary, error.span)
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
                     Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
