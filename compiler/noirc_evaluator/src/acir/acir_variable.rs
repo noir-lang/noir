@@ -937,7 +937,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 )?;
             } else if bit_size == 128 {
                 // q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
-                let two_pow_64 = F::from(1_u128 << 64);
+                let two_pow_64: F = power_of_two(64);
                 let two_pow_64 = self.add_constant(two_pow_64);
 
                 let (q_upper, _) =
