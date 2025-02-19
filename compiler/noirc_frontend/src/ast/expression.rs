@@ -245,6 +245,45 @@ impl Expression {
     pub fn new(kind: ExpressionKind, span: Span) -> Expression {
         Expression { kind, span }
     }
+
+    /// Returns the innermost span that gives this expression its type.
+    pub fn type_span(&self) -> Span {
+        match &self.kind {
+            ExpressionKind::Block(block_expression)
+            | ExpressionKind::Comptime(block_expression, _)
+            | ExpressionKind::Unsafe(block_expression, _) => {
+                if let Some(statement) = block_expression.statements.last() {
+                    statement.type_span()
+                } else {
+                    self.span
+                }
+            }
+            ExpressionKind::Parenthesized(expression) => expression.type_span(),
+            ExpressionKind::Literal(..)
+            | ExpressionKind::Prefix(..)
+            | ExpressionKind::Index(..)
+            | ExpressionKind::Call(..)
+            | ExpressionKind::MethodCall(..)
+            | ExpressionKind::Constrain(..)
+            | ExpressionKind::Constructor(..)
+            | ExpressionKind::MemberAccess(..)
+            | ExpressionKind::Cast(..)
+            | ExpressionKind::Infix(..)
+            | ExpressionKind::If(..)
+            | ExpressionKind::Match(..)
+            | ExpressionKind::Variable(..)
+            | ExpressionKind::Tuple(..)
+            | ExpressionKind::Lambda(..)
+            | ExpressionKind::Quote(..)
+            | ExpressionKind::Unquote(..)
+            | ExpressionKind::AsTraitPath(..)
+            | ExpressionKind::TypePath(..)
+            | ExpressionKind::Resolved(..)
+            | ExpressionKind::Interned(..)
+            | ExpressionKind::InternedStatement(..)
+            | ExpressionKind::Error => self.span,
+        }
+    }
 }
 
 pub type BinaryOp = Spanned<BinaryOpKind>;

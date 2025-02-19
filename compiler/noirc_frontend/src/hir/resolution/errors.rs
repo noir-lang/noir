@@ -180,6 +180,8 @@ pub enum ResolverError {
     },
     #[error("`loop` statements are not yet implemented")]
     LoopNotYetSupported { span: Span },
+    #[error("Expected a trait but found {found}")]
+    ExpectedTrait { found: String, span: Span },
 }
 
 impl ResolverError {
@@ -417,7 +419,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
@@ -681,8 +683,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { span  } => {
+                let msg = "`loop` statements are not yet implemented".to_string();
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            ResolverError::ExpectedTrait { found, span  } => {
                 Diagnostic::simple_error(
-                    "`loop` statements are not yet implemented".to_string(), 
+                    format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
 

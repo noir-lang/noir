@@ -9,7 +9,7 @@
 //! Should any projects require/desire a different artifact format, it's expected that they will write a transformer
 //! to generate them using these artifacts as a starting point.
 
-use serde::{de::Error, Deserialize, Deserializer, Serializer};
+use serde::{de::Visitor, Deserializer, Serializer};
 
 pub mod contract;
 pub mod debug;
@@ -29,7 +29,28 @@ fn deserialize_hash<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let hash: String = Deserialize::deserialize(deserializer)?;
-    let hash: u64 = hash.parse().map_err(D::Error::custom)?;
-    Ok(hash)
+    use serde::de::Error;
+
+    // Backwards compatible with `hash` serialized as a number.
+    struct StringOrU64;
+
+    impl<'de> Visitor<'de> for StringOrU64 {
+        type Value = u64;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("String or u64")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<u64, E>
+        where
+            E: Error,
+        {
+            value.parse().map_err(E::custom)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+            Ok(value)
+        }
+    }
+    deserializer.deserialize_any(StringOrU64)
 }
