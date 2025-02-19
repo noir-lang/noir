@@ -274,7 +274,7 @@ impl Elaborator<'_> {
             let columns = vec![Column::new(variable_to_match, pattern)];
 
             let guard = None;
-            let body_span = branch.span;
+            let body_span = branch.type_span();
             let (body, body_type) = self.elaborate_expression(branch);
 
             self.unify(&body_type, &result_type, || TypeCheckError::TypeMismatch {
@@ -291,7 +291,7 @@ impl Elaborator<'_> {
 
     /// Convert an expression into a Pattern, defining any variables within.
     fn expression_to_pattern(&mut self, expression: Expression, expected_type: &Type) -> Pattern {
-        let expr_span = expression.span;
+        let expr_span = expression.type_span();
         let unify_with_expected_type = |this: &mut Self, actual| {
             this.unify(actual, expected_type, || TypeCheckError::TypeMismatch {
                 expected_typ: expected_type.to_string(),
