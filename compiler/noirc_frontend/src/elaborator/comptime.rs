@@ -96,7 +96,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.crate_id,
             self.interpreter_call_stack.clone(),
-            self.cli_options,
+            self.options,
         );
 
         elaborator.function_context.push(FunctionContext::default());
@@ -495,7 +495,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         mut expr_f: F,
     ) {
-        if Some(location.file) == self.cli_options.debug_comptime_in_file {
+        if Some(location.file) == self.options.debug_comptime_in_file {
             let displayed_expr = expr_f(self.interner);
             self.errors.push((
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into(),

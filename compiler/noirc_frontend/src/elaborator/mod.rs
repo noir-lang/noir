@@ -194,7 +194,7 @@ pub struct Elaborator<'context> {
     silence_field_visibility_errors: usize,
 
     /// Options from the nargo cli
-    cli_options: ElaboratorOptions<'context>,
+    options: ElaboratorOptions<'context>,
 }
 
 #[derive(Default)]
@@ -224,7 +224,7 @@ impl<'context> Elaborator<'context> {
         crate_graph: &'context CrateGraph,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
-        cli_options: ElaboratorOptions<'context>,
+        options: ElaboratorOptions<'context>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -251,14 +251,14 @@ impl<'context> Elaborator<'context> {
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
-            cli_options,
+            options,
         }
     }
 
     pub fn from_context(
         context: &'context mut Context,
         crate_id: CrateId,
-        cli_options: ElaboratorOptions<'context>,
+        options: ElaboratorOptions<'context>,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -267,7 +267,7 @@ impl<'context> Elaborator<'context> {
             &context.crate_graph,
             crate_id,
             im::Vector::new(),
-            cli_options,
+            options,
         )
     }
 
@@ -275,18 +275,18 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
-        cli_options: ElaboratorOptions<'context>,
+        options: ElaboratorOptions<'context>,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(context, crate_id, items, cli_options).errors
+        Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
     pub fn elaborate_and_return_self(
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
-        cli_options: ElaboratorOptions<'context>,
+        options: ElaboratorOptions<'context>,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, cli_options);
+        let mut this = Self::from_context(context, crate_id, options);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -372,7 +372,7 @@ impl<'context> Elaborator<'context> {
 
     /// True if we should use pedantic ACVM solving
     pub fn pedantic_solving(&self) -> bool {
-        self.cli_options.pedantic_solving
+        self.options.pedantic_solving
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -2129,7 +2129,7 @@ impl<'context> Elaborator<'context> {
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, span: Span) {
-        if !self.cli_options.enabled_unstable_features.contains(&feature) {
+        if !self.options.enabled_unstable_features.contains(&feature) {
             let reason = ParserErrorReason::ExperimentalFeature(feature);
             self.push_err(ParserError::with_reason(reason, span));
         }
