@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739956754669,
+  "lastUpdate": 1739956755747,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12042,75 +12042,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d9ad0be869598f8e78010ebbcce00fcfaa23da5d",
-          "message": "fix: perform SSA constraints check on final SSA (#7334)",
-          "timestamp": "2025-02-10T13:50:33Z",
-          "tree_id": "747e4b23cc8bbce00305c3ef3cf8d4d9719ce6cc",
-          "url": "https://github.com/noir-lang/noir/commit/d9ad0be869598f8e78010ebbcce00fcfaa23da5d"
-        },
-        "date": 1739196855155,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8502b8d2f63a1c4b78a3a196eec684672c40461e",
           "message": "fix: lock git dependencies folder when resolving workspace (#7327)",
           "timestamp": "2025-02-10T14:11:39Z",
@@ -15365,6 +15296,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 214.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b11fd7bb9a226499b4524cd2620c50e5677b840",
+          "message": "chore: Add SSA security checks description (#7366)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-02-19T08:56:05Z",
+          "tree_id": "d1030818be8dc016e2812bc5bd6d518fedac3c16",
+          "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
+        },
+        "date": 1739956753858,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.84,
             "unit": "MB"
           },
           {
