@@ -5,12 +5,12 @@ use clap::Args;
 use color_eyre::eyre::{self, Context};
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
+use noir_artifact_cli::fs::artifact::read_program_from_file;
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
-use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
 
 #[derive(Debug, Clone, Args)]
@@ -54,7 +54,8 @@ fn run_with_generator(
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    let (inputs_map, _) = read_inputs_from_file(prover_toml_path, Format::Toml, &program.abi)?;
+    let (inputs_map, _) =
+        read_inputs_from_file(&prover_toml_path.with_extension("toml"), &program.abi)?;
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 

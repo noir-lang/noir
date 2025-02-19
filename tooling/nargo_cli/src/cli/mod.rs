@@ -14,8 +14,6 @@ use color_eyre::eyre;
 
 use crate::errors::CliError;
 
-mod fs;
-
 mod check_cmd;
 mod compile_cmd;
 mod dap_cmd;

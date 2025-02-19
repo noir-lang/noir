@@ -12,15 +12,16 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::PrintOutput;
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::{Format, InputValue};
+use noir_artifact_cli::fs::artifact::read_program_from_file;
+use noir_artifact_cli::fs::inputs::read_inputs_from_file;
+use noir_artifact_cli::fs::witness::save_witness_to_dir;
+use noirc_abi::input_parser::InputValue;
 use noirc_abi::InputMap;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram};
 
 use super::compile_cmd::compile_workspace_full;
-use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::{LockType, PackageOptions, WorkspaceCommand};
-use crate::cli::fs::program::read_program_from_file;
 use crate::errors::CliError;
 
 /// Executes a circuit to calculate its return value
@@ -67,8 +68,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
     for package in binary_packages {
         let program_artifact_path = workspace.package_build_path(package);
-        let program: CompiledProgram =
-            read_program_from_file(program_artifact_path.clone())?.into();
+        let program: CompiledProgram = read_program_from_file(&program_artifact_path)?.into();
         let abi = program.abi.clone();
 
         let results = execute_program_and_decode(
@@ -117,8 +117,10 @@ fn execute_program_and_decode(
     pedantic_solving: bool,
 ) -> Result<ExecutionResults, CliError> {
     // Parse the initial witness values from Prover.toml
-    let (inputs_map, expected_return) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
+    let (inputs_map, expected_return) = read_inputs_from_file(
+        &package.root_dir.join(prover_name).with_extension("toml"),
+        &program.abi,
+    )?;
     let witness_stack = execute_program(
         &program,
         &inputs_map,

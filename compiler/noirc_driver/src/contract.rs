@@ -41,6 +41,8 @@ pub struct CompiledContract {
 pub struct ContractFunction {
     pub name: String,
 
+    pub hash: u64,
+
     pub is_unconstrained: bool,
 
     pub custom_attributes: Vec<String>,

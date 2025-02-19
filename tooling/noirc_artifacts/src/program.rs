@@ -9,6 +9,8 @@ use noirc_driver::DebugFile;
 use noirc_errors::debug_info::ProgramDebugInfo;
 use serde::{Deserialize, Serialize};
 
+use super::{deserialize_hash, serialize_hash};
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProgramArtifact {
     pub noir_version: String,
@@ -17,6 +19,7 @@ pub struct ProgramArtifact {
     /// was compiled.
     ///
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
     pub hash: u64,
 
     pub abi: Abi,

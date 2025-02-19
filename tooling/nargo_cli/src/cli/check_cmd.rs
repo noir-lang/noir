@@ -8,6 +8,7 @@ use nargo::{
     package::Package, parse_all, prepare_package, workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_abi, CompileOptions, CrateId};
 use noirc_frontend::{
@@ -15,8 +16,7 @@ use noirc_frontend::{
     monomorphization::monomorphize,
 };
 
-use super::{fs::write_to_file, PackageOptions};
-use super::{LockType, WorkspaceCommand};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]
@@ -103,7 +103,8 @@ fn check_package(
 
             if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+                write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
+                    .expect("failed to write template");
             } else {
                 eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
             }
