@@ -432,47 +432,54 @@ jobs:
           mv /home/runner/work/noir/noir/scripts/test_programs/parse_memory.sh ./parse_memory.sh
           ./memory_report.sh 1
 
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
           # Rename the memory report as the execution report is about to write to the same file
-          cp memory_report.json ./memory_report_$PACKAGE_NAME.json
-          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          PACKAGE_NAME=${{ matrix.project.path }}
+          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          REPORT_NAME=memory_report_$PACKAGE_NAME.json
+          REPORT_PATH=$(pwd)/$REPORT_FILE
+          mv ./memory_report.json $REPORT_PATH
+
+          echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
+          echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
         env:
           FLAGS: ${{ matrix.flags }}
 
       - name: Upload compilation memory report
         uses: actions/upload-artifact@v4
         with:
-          name: compilation_mem_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}
-          path: ./test-repo/${{ matrix.path }}/memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json
+          name: ${{ steps.compilation_report.outputs.report_name }}
+          path: ${{ steps.compilation_report.outputs.report_path }}
           retention-days: 3
           overwrite: true
 
       - name: Generate execution memory report
-        id: execution_mem_report
+        id: execution_report
         working-directory: ./test-repo/${{ matrix.path }}
         if: ${{ !matrix.cannot_execute }}
         run: |
           ./memory_report.sh 1 1
 
-          PACKAGE_NAME=${{ matrix.path }}
+          PACKAGE_NAME=${{ matrix.project.path }}
           PACKAGE_NAME=$(basename $PACKAGE_NAME)
-          # Rename the memory report as the execution report is about to write to the same file
-          mv memory_report.json ./memory_report_$PACKAGE_NAME.json
-          echo "memory_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          REPORT_NAME=memory_report_$PACKAGE_NAME.json
+          REPORT_PATH=$(pwd)/$REPORT_FILE
+          mv ./memory_report.json $REPORT_PATH
+
+          echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
+          echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload execution memory report
         if: ${{ !matrix.cannot_execute }}
         uses: actions/upload-artifact@v4
         with:
-          name: execution_mem_report_${{ steps.execution_mem_report.outputs.memory_report_name }}
-          path: ./test-repo/${{ matrix.path }}/memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json
+          name: ${{ steps.execution_report.outputs.report_name }}
+          path: ${{ steps.execution_report.outputs.report_path }}
           retention-days: 3
           overwrite: true
 
       - name: Check compilation memory limit
         run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json)
+          MEMORY=$(jq '.[0].value' ${{ steps.compilation_report.outputs.report_path }})
           MEMORY_LIMIT=${{ matrix.compilation-memory-limit }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
             # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
@@ -485,7 +492,7 @@ jobs:
       - name: Check execution memory limit
         if: ${{ !matrix.cannot_execute }}
         run: |
-          MEMORY=$(jq '.[0].value'  ./test-repo/${{ matrix.path }}/memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json)
+          MEMORY=$(jq '.[0].value' ${{ steps.execution_report.outputs.report_path }})
           MEMORY_LIMIT=${{ matrix.execution-memory-limit }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
             # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
