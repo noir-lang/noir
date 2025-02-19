@@ -177,3 +177,31 @@ pub(super) fn decompose_constrain(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v1 == Field 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v0 == Field 0
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
