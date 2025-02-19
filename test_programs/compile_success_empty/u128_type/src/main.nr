@@ -5,5 +5,10 @@ fn main(x: u128, y: u128) -> pub u128 {
     let d = c - y;
     let e = d % y;
     let f = e % !x;
-    f
+    let g = f ^ y;
+    let h = g >> 1;
+    let i = h << 2;
+    let j = i & x;
+    let k = j | y;
+    k
 }
