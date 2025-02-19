@@ -909,19 +909,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
 
         // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
         if max_q_bits + max_rhs_bits >= F::max_num_bits() - 1 {
             // q*b+r can overflow; we avoid this when b is constant
-            if rhs_expr.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
-            }
-        }
-
-        if let Some(rhs_const) = rhs_expr.to_const() {
-            if avoid_overflow {
+            if let Some(rhs_const) = rhs_expr.to_const() {
                 // we compute q0 = p/rhs
                 let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
                 let q0_big = F::modulus() / &rhs_big;
@@ -945,6 +935,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     predicate,
                     rhs_const.num_bits(),
                 )?;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
             }
         }
 
