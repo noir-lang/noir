@@ -1,6 +1,6 @@
 [package]
 name = "noir_profiler"
-description = "Profiler for noir circuits"
+description = "Profiler for Noir circuits"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
