@@ -219,7 +219,14 @@ impl<'context> Elaborator<'context> {
 
         self.interner.push_definition_type(identifier.id, start_range_type);
 
-        let (block, _block_type) = self.elaborate_expression(block);
+        let block_span = block.type_span();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_span: block_span,
+        });
 
         self.pop_scope();
         self.current_loop = old_loop;
@@ -244,7 +251,14 @@ impl<'context> Elaborator<'context> {
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
-        let (block, _block_type) = self.elaborate_expression(block);
+        let block_span = block.type_span();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_span: block_span,
+        });
 
         self.pop_scope();
 
@@ -269,14 +283,22 @@ impl<'context> Elaborator<'context> {
         self.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
-        let condition_span = while_.condition.span;
+        let condition_span = while_.condition.type_span();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
-        let (block, _block_type) = self.elaborate_expression(while_.body);
 
         self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
             expr_span: condition_span,
+        });
+
+        let block_span = while_.body.type_span();
+        let (block, block_type) = self.elaborate_expression(while_.body);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_span: block_span,
         });
 
         self.pop_scope();
