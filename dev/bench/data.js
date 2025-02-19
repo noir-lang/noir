@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739989187004,
+  "lastUpdate": 1739989282891,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11932,75 +11932,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c",
-          "message": "fix(cli): Only lock the packages selected in the workspace (#7345)",
-          "timestamp": "2025-02-11T12:02:21Z",
-          "tree_id": "6a1300c4cb9cb4097c1b4f017b8e0d0aa9b6ae7e",
-          "url": "https://github.com/noir-lang/noir/commit/f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c"
-        },
-        "date": 1739276665840,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.75,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15225,6 +15156,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d0d04e8e67715766de5f41be78300774e139dd75"
         },
         "date": 1739986526921,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.38,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.8,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.45,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40184eb75d69153fb7849700ad10c53bf19cacf3",
+          "message": "chore!: make `ResolverError::OracleMarkedAsConstrained` into a full error (#7426)",
+          "timestamp": "2025-02-19T17:56:12Z",
+          "tree_id": "ec668cc38e62093e1de5699241f67eef5f3aadbc",
+          "url": "https://github.com/noir-lang/noir/commit/40184eb75d69153fb7849700ad10c53bf19cacf3"
+        },
+        "date": 1739989281262,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
