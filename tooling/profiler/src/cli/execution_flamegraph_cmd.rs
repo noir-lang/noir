@@ -59,7 +59,7 @@ fn run_with_generator(
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    is_brillig_entry_point(&program)?;
+    ensure_brillig_entry_point(&program)?;
 
     let (inputs_map, _) = read_inputs_from_file(prover_toml_path, Format::Toml, &program.abi)?;
 
