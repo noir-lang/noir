@@ -342,6 +342,7 @@ impl<
     > FuzzedExecutor<E, F>
 {
     /// Instantiates a fuzzed executor given an executor
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         acir_and_brillig_programs: AcirAndBrilligPrograms,
         acir_executor: E,
@@ -1156,6 +1157,7 @@ impl<
 }
 
 // A method for pretty display starting information
+#[allow(clippy::too_many_arguments)]
 fn display_starting_info(
     minimize_corpus: bool,
     seed: u64,

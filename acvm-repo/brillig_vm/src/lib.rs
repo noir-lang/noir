@@ -417,13 +417,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                         }
                         IntegerBitSize::U128 => {
                             lhs_value = match lhs.expect_u128() {
-                                Ok(lhs_value) => lhs_value.into(),
+                                Ok(lhs_value) => lhs_value,
                                 Err(..) => {
                                     return;
                                 }
                             };
                             rhs_value = match rhs.expect_u128() {
-                                Ok(rhs_value) => rhs_value.into(),
+                                Ok(rhs_value) => rhs_value,
                                 Err(..) => {
                                     return;
                                 }
