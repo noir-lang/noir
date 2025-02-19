@@ -11,7 +11,6 @@ use acvm::{
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
-use num_bigint::BigUint;
 use std::cmp::Ordering;
 use std::{borrow::Cow, hash::Hash};
 
@@ -847,12 +846,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // when rhs is constant, we can better estimate the maximum bit sizes
         if let Some(rhs_const) = rhs_expr.to_const() {
             max_rhs_bits = rhs_const.num_bits();
-            if max_rhs_bits != 0 {
-                if max_rhs_bits > bit_size {
-                    return Ok((zero, zero));
-                }
-                max_q_bits = bit_size - max_rhs_bits + 1;
+            assert!(max_rhs_bits != 0);
+            if max_rhs_bits > bit_size {
+                return Ok((zero, zero));
             }
+            max_q_bits = bit_size - max_rhs_bits + 1;
         }
 
         let [q_value, r_value]: [AcirValue; 2] = self
@@ -909,43 +907,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
 
         // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
         if max_q_bits + max_rhs_bits >= F::max_num_bits() - 1 {
-            // q*b+r can overflow; we avoid this when b is constant
-            if rhs_expr.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
-            }
-        }
+            // Because of the "when rhs is constant" check a bit above this must hold
+            assert!(!rhs_expr.is_const());
 
-        if let Some(rhs_const) = rhs_expr.to_const() {
-            if avoid_overflow {
-                // we compute q0 = p/rhs
-                let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
-                let q0_big = F::modulus() / &rhs_big;
-                let q0 = F::from_be_bytes_reduce(&q0_big.to_bytes_be());
-                let q0_var = self.add_constant(q0);
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
-
-                let size_predicate = self.eq_var(q0_var, quotient_var)?;
-                let predicate = self.mul_var(size_predicate, predicate)?;
-                // Ensure that there is no overflow, under q == q0 predicate
-                let max_r_big = F::modulus() - q0_big * rhs_big;
-                let max_r = F::from_be_bytes_reduce(&max_r_big.to_bytes_be());
-                let max_r_var = self.add_constant(max_r);
-
-                let max_r_predicate = self.mul_var(predicate, max_r_var)?;
-                let r_predicate = self.mul_var(remainder_var, predicate)?;
-                // Bound the remainder to be <p-q0*b, if the predicate is true.
-                self.bound_constraint_with_offset(
-                    r_predicate,
-                    max_r_predicate,
-                    predicate,
-                    rhs_const.num_bits(),
-                )?;
-            }
+            // we do not support unbounded division
+            unreachable!("overflow in unbounded division");
         }
 
         Ok((quotient_var, remainder_var))
