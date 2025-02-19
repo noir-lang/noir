@@ -58,24 +58,25 @@ pub fn run_and_compare(
             let brillig_map = &brillig_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
             let acir_result = acir_map[&return_witness_acir];
             let brillig_result = brillig_map[&return_witness_brillig];
+            //println!("acir_result: {:?}", acir_map);
             (acir_result == brillig_result, acir_result, brillig_result)
         }
         (Ok(acir_witness_stack), Err(e)) => {
             let acir_map = &acir_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
             let acir_result = acir_map[&return_witness_acir];
-            log::error!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
+            log::debug!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
             panic!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
         }
         (Err(e), Ok(brillig_witness_stack)) => {
             let brillig_map = &brillig_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
             let brillig_result = brillig_map[&return_witness_brillig];
-            log::error!("Failed to execute acir program: {:?}, brillig program succeeded with value {:?}", e, brillig_result);
+            log::debug!("Failed to execute acir program: {:?}, brillig program succeeded with value {:?}", e, brillig_result);
             panic!("Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}", e, brillig_result);
         }
         (Err(e), Err(e2)) => {
             // both failed, constructed program unsolvable
-            log::error!("Failed to execute acir program: {:?}", e);
-            log::error!("Failed to execute brillig program: {:?}", e2);
+            log::debug!("Failed to execute acir program: {:?}", e);
+            log::debug!("Failed to execute brillig program: {:?}", e2);
             return (true, FieldElement::from(0 as u32), FieldElement::from(0 as u32));
         }
     }

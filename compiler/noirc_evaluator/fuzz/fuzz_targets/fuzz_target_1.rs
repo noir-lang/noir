@@ -82,6 +82,18 @@ enum Instructions {
         lhs: u32,
         size: u32,
     },
+    ArrayGet {
+        array: u32,
+        index: u32,
+    },
+    ArraySet {
+        array: u32,
+        index: u32,
+        value: u32,
+    },
+    MakeArray {
+        elements: Vec<u32>,
+    },
 }
 
 fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
@@ -92,7 +104,7 @@ fn both_indeces_presented(first_index: u32, second_index: u32, acir_witnesses_in
     index_presented(first_index, acir_witnesses_indeces, brillig_witnesses_indeces) && index_presented(second_index, acir_witnesses_indeces, brillig_witnesses_indeces)
 }
 
-fn get_witness_map(seed: u64) -> WitnessMap<FieldElement> {
+fn get_random_witness_map(seed: u64) -> WitnessMap<FieldElement> {
     let mut witness_map = WitnessMap::new();
     let mut rng = fastrand::Rng::with_seed(seed);
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
@@ -103,11 +115,18 @@ fn get_witness_map(seed: u64) -> WitnessMap<FieldElement> {
     witness_map
 }
 
+struct Array {
+    id: Id<Value>,
+    length: u32,
+}
+
 struct FuzzerContext {
     acir_builder: FuzzerBuilder,
     brillig_builder: FuzzerBuilder,
     acir_witnesses_indeces: Vec<u32>,
     brillig_witnesses_indeces: Vec<u32>,
+    acir_arrays: Vec<Array>,
+    brillig_arrays: Vec<Array>,
 }
 
 impl FuzzerContext {
@@ -127,7 +146,69 @@ impl FuzzerContext {
             brillig_builder,
             acir_witnesses_indeces,
             brillig_witnesses_indeces,
+            acir_arrays: vec![],
+            brillig_arrays: vec![],
         }
+    }
+
+    fn insert_array(&mut self, elements: Vec<u32>) {
+        let mut acir_values_ids = vec![];
+        let mut brillig_values_ids = vec![];
+        for elem in elements {
+            if !index_presented(elem, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
+                continue;
+            }
+            acir_values_ids.push(elem);
+            brillig_values_ids.push(elem);
+        }
+        let acir_len = acir_values_ids.len();
+        let brillig_len = brillig_values_ids.len();
+        let acir_array = self.acir_builder.insert_make_array(acir_values_ids);
+        let brillig_array = self.brillig_builder.insert_make_array(brillig_values_ids);
+        self.acir_arrays.push(Array { id: acir_array, length: acir_len as u32 });
+        self.brillig_arrays.push(Array { id: brillig_array, length: brillig_len as u32 });
+    }
+
+    fn insert_array_get(&mut self, array_idx: u32, index: u32) {
+        if array_idx >= self.acir_arrays.len() as u32 || array_idx >= self.brillig_arrays.len() as u32 {
+            return;
+        }
+        if self.acir_arrays[array_idx as usize].length <= index {
+            return;
+        }
+        if self.brillig_arrays[array_idx as usize].length <= index {
+            return;
+        }
+        let acir_array = self.acir_arrays[array_idx as usize].id;
+        let brillig_array = self.brillig_arrays[array_idx as usize].id;
+        let acir_result = self.acir_builder.insert_array_get(acir_array, index);
+        let brillig_result = self.brillig_builder.insert_array_get(brillig_array, index);
+        self.acir_witnesses_indeces.push(id_to_int(acir_result));
+        self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
+        println!("array getted");
+    }
+
+    fn insert_array_set(&mut self, array_idx: u32, index: u32, value: u32) {
+        if array_idx >= self.acir_arrays.len() as u32 || array_idx >= self.brillig_arrays.len() as u32 {
+            return;
+        }
+        if !index_presented(value, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
+            return;
+        }
+        if self.acir_arrays[array_idx as usize].length <= index {
+            return;
+        }
+        if self.brillig_arrays[array_idx as usize].length <= index {
+            return;
+        }
+        let value = u32_to_id(value);
+        let acir_array = self.acir_arrays[array_idx as usize].id;
+        let brillig_array = self.brillig_arrays[array_idx as usize].id;
+        let acir_result = self.acir_builder.insert_array_set(acir_array, index, value);
+        let brillig_result = self.brillig_builder.insert_array_set(brillig_array, index, value);
+        self.acir_witnesses_indeces.push(id_to_int(acir_result));
+        self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
+        println!("array setted");
     }
 
     fn insert_instruction_with_single_arg(&mut self, arg: u32, f: fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>) {
@@ -188,14 +269,23 @@ impl FuzzerContext {
             Instructions::Not { lhs } => {
                 self.insert_instruction_with_single_arg(lhs, |builder, lhs| builder.insert_not_instruction(lhs));
             }
-            Instructions::Shl { lhs, rhs } => {
+            /*Instructions::Shl { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_shl_instruction(lhs, rhs));
             }
             Instructions::Shr { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_shr_instruction(lhs, rhs));
-            }
+            }*/
             Instructions::SimpleCast { lhs } => {
                 self.insert_instruction_with_single_arg(lhs, |builder, lhs| builder.insert_simple_cast(lhs));
+            }
+            Instructions::MakeArray { elements } => {
+                self.insert_array(elements);
+            }
+            Instructions::ArrayGet { array, index } => {
+                self.insert_array_get(array, index);
+            }
+            Instructions::ArraySet { array, index, value } => {
+                self.insert_array_set(array, index, value);
             }
             /*Instructions::BigCastAndBack { lhs, size } => {
                 self.insert_instruction_with_double_args(lhs, size, |builder, lhs, size| builder.insert_cast_bigger_and_back(lhs, size));
@@ -236,7 +326,7 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
     let _ = env_logger::try_init();
     let seed = fxhash::hash64(&methods);
     let type_ = Type::unsigned(64);
-    let initial_witness = get_witness_map(seed);
+    let initial_witness = get_random_witness_map(seed);
     log::debug!("instructions: {:?}", methods.clone());
     log::debug!("initial_witness: {:?}", initial_witness);
 

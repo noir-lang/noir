@@ -15,6 +15,7 @@ use noirc_evaluator::ssa::{
     SsaCircuitArtifact,
     function_builder::FunctionBuilder,
     ir::types::Type,
+    BrilligOptions,
 };
 use noirc_evaluator::ssa::SsaBuilder;
 use noirc_evaluator::ssa::SsaLogging;
@@ -29,8 +30,9 @@ use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let builder = SsaBuilder { ssa: builder.finish(), ssa_logging: SsaLogging::None, print_codegen_timings: false };
     let ssa = optimize_all(builder, &options)?;
+    
 
-    let brillig = ssa.to_brillig(options.enable_brillig_logging); 
+    let brillig = ssa.to_brillig(&BrilligOptions::default()); 
 
     let ssa = SsaBuilder {
         ssa,
@@ -40,7 +42,7 @@ fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) ->
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
-    let artifacts = ssa.into_acir(&brillig, options.expression_width).unwrap();
+    let artifacts = ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width).unwrap();
 
     Ok(ArtifactsAndWarnings(artifacts, vec![]))
 }
@@ -173,7 +175,6 @@ pub fn compile(builder: FunctionBuilder, options: &CompileOptions) -> Result<Com
                 }
             }
         },
-        enable_brillig_logging: options.show_brillig,
         print_codegen_timings: options.benchmark_codegen,
         expression_width: ExpressionWidth::default(),
         emit_ssa: { None },
@@ -181,6 +182,8 @@ pub fn compile(builder: FunctionBuilder, options: &CompileOptions) -> Result<Com
         enable_brillig_constraints_check: options.enable_brillig_constraints_check,
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
+        brillig_options: BrilligOptions::default(),
+        enable_brillig_constraints_check_lookback: false,
     };
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(builder, ssa_evaluator_options)?;

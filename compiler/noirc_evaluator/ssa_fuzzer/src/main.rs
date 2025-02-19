@@ -14,17 +14,17 @@ use acvm::{
 };
 
 fn main() {
-    let mut acir_program_builder = FuzzerBuilder::new_acir();
-    acir_program_builder.insert_variables(Type::field());
-    let acir_result = acir_program_builder.insert_div_instruction(Id::new(4), Id::new(0));
-    acir_program_builder.finalize_function(acir_result);
-    let acir_program = acir_program_builder.compile().unwrap();
-
     let mut brillig_program_builder = FuzzerBuilder::new_brillig();
-    brillig_program_builder.insert_variables(Type::field());
-    let brillig_result = brillig_program_builder.insert_div_instruction(Id::new(4), Id::new(0));
+    brillig_program_builder.insert_variables(Type::signed(8));
+    let brillig_result = brillig_program_builder.insert_sub_instruction(Id::new(0), Id::new(1));
     brillig_program_builder.finalize_function(brillig_result);
     let brillig_program = brillig_program_builder.compile().unwrap();
+    
+    let mut acir_program_builder = FuzzerBuilder::new_acir();
+    acir_program_builder.insert_variables(Type::signed(8));
+    let acir_result = acir_program_builder.insert_sub_instruction(Id::new(0), Id::new(1));
+    acir_program_builder.finalize_function(acir_result);
+    let acir_program = acir_program_builder.compile().unwrap();
 
 
 
@@ -35,9 +35,11 @@ fn main() {
         initial_witness.insert(witness, value);
     }
 
-    let acir_result_witness = helpers::id_to_witness(acir_result);
-    let brillig_result_witness = helpers::id_to_witness(brillig_result);
+    let acir_result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
+    let brillig_result_witness = Witness(config::NUMBER_OF_VARIABLES_INITIAL);
 
+    println!("{:?}", acir_program);
+    println!("{:?}", brillig_program);
     let result = runner::run_and_compare(&acir_program.program, &brillig_program.program, initial_witness, acir_result_witness, brillig_result_witness);
     println!("{:?}", result);
 }
