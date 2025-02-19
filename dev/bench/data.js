@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739996460266,
+  "lastUpdate": 1739996461959,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3835,105 +3835,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6",
-          "message": "fix: incorrect secondary file in LSP errors (#7347)",
-          "timestamp": "2025-02-11T22:44:13Z",
-          "tree_id": "ebb905c97661fb5ccaf18c55ee61d05dcc881c26",
-          "url": "https://github.com/noir-lang/noir/commit/5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6"
-        },
-        "date": 1739315081060,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.985,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.863,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.709,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 1.98,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.274,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.998,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.774,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 11.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.482,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 69.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 67.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.042,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.894,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8616,6 +8517,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.46,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "093a8ec60eaacd1b307447545e166a40e037436d",
+          "message": "fix: don't let nargo fmt produce multiple trailing newlines (#7444)",
+          "timestamp": "2025-02-19T20:00:26Z",
+          "tree_id": "66438654561ffaf3d0639a9276b09b371a99ad65",
+          "url": "https://github.com/noir-lang/noir/commit/093a8ec60eaacd1b307447545e166a40e037436d"
+        },
+        "date": 1739996460272,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.969,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.796,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.505,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.088,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.596,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.955,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.916,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.905,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 93.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 97,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.912,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.492,
             "unit": "s"
           }
         ]
