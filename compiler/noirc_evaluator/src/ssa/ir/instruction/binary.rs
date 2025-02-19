@@ -592,8 +592,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
     }
 
@@ -622,7 +622,7 @@ mod test {
 
     use super::{
         convert_signed_integer_to_field_element, truncate_field,
-        try_convert_field_element_to_signed_integer,
+        try_convert_field_element_to_signed_integer, BinaryOp,
     };
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
@@ -650,6 +650,17 @@ mod test {
             let truncated_as_bigint = FieldElement::from_be_bytes_reduce(&truncated_as_bigint.to_bytes_be());
             prop_assert_eq!(truncated_as_field, truncated_as_bigint);
         }
+    }
 
+    #[test]
+    fn get_u128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_u128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_u128_function()(1, 128).is_none());
+    }
+
+    #[test]
+    fn get_i128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_i128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_i128_function()(1, 128).is_none());
     }
 }
