@@ -30,6 +30,7 @@ pub struct FrontendOptions<'a> {
 }
 
 impl<'a> FrontendOptions<'a> {
+    /// A sane default of frontend options for running tests
     pub fn test_default() -> FrontendOptions<'static> {
         FrontendOptions {
             debug_comptime_in_file: None,

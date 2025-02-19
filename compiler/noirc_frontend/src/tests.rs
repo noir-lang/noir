@@ -17,6 +17,7 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
+use cli_args::{FrontendOptions, UnstableFeature};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -60,9 +61,18 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 }
 
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
-    get_program_with_maybe_parser_errors(
-        src, false, // allow parser errors
-    )
+    let allow_parser_errors = false;
+    get_program_with_maybe_parser_errors(src, allow_parser_errors, FrontendOptions::test_default())
+}
+
+pub(crate) fn get_program_using_features<'a, 'b>(
+    src: &str,
+    features: &[UnstableFeature],
+) -> (ParsedModule, Context<'static, 'static>, Vec<(CompilationError, FileId)>) {
+    let allow_parser_errors = false;
+    let mut options = FrontendOptions::test_default();
+    options.enabled_unstable_features = features;
+    get_program_with_maybe_parser_errors(src, allow_parser_errors, options)
 }
 
 /// Compile a program.
@@ -71,7 +81,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+    options: FrontendOptions,
+) -> (ParsedModule, Context<'static, 'static>, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -122,7 +133,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            cli_args::FrontendOptions::test_default(),
+            options,
         ));
     }
     (program, context, errors)
@@ -4419,4 +4430,27 @@ fn errors_if_while_body_type_is_not_unit() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
         panic!("Expected a TypeMismatch error");
     };
+}
+
+#[test]
+fn errors_on_unspecified_unstable_feature() {
+    // Enums are experimental - this will need to be updated when they are stabilized
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        let _x = Foo::Bar;
+    }
+    "#;
+
+    let no_features = &[];
+    let errors = get_program_using_features(src, no_features).2;
+    dbg!(&errors);
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ParseError(error) = &errors[0].0 else {
+        panic!("Expected a ParseError experimental feature error");
+    };
+
+    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
