@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739989006625,
+  "lastUpdate": 1739989008080,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3845,105 +3845,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c",
-          "message": "fix(cli): Only lock the packages selected in the workspace (#7345)",
-          "timestamp": "2025-02-11T12:02:21Z",
-          "tree_id": "6a1300c4cb9cb4097c1b4f017b8e0d0aa9b6ae7e",
-          "url": "https://github.com/noir-lang/noir/commit/f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c"
-        },
-        "date": 1739276535595,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.934,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.84,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.3,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.688,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.416,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.992,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.246,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.552,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 76.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 70,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.566,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8631,6 +8532,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.562,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40184eb75d69153fb7849700ad10c53bf19cacf3",
+          "message": "chore!: make `ResolverError::OracleMarkedAsConstrained` into a full error (#7426)",
+          "timestamp": "2025-02-19T17:56:12Z",
+          "tree_id": "ec668cc38e62093e1de5699241f67eef5f3aadbc",
+          "url": "https://github.com/noir-lang/noir/commit/40184eb75d69153fb7849700ad10c53bf19cacf3"
+        },
+        "date": 1739989004211,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.94,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.736,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.499,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.026,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.01,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.148,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.31,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 90.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 98.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.947,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.494,
             "unit": "s"
           }
         ]
