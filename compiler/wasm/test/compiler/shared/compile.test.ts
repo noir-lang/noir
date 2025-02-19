@@ -31,7 +31,7 @@ export function shouldCompileProgramIdentically(
     normalizeVersion(noirWasmProgram);
 
     // We first compare both contracts without considering debug info.
-    // NOTE: Ideally these should be the same, but they aren't, even though for the contract the deterministic file ordering fixed it.
+    // We can't expect hashes to match `nargo` because of the different order in which dependencies are visited.
     delete (noirWasmProgram as Partial<ProgramArtifact>).hash;
     delete (nargoArtifact as Partial<ProgramArtifact>).hash;
     expect(nargoArtifact).to.deep.eq(noirWasmProgram);
@@ -68,8 +68,7 @@ export function shouldCompileContractIdentically(
     normalizeVersion(noirWasmContract);
 
     // We first compare both contracts without considering debug info
-    // NOTE: After making the compile module use deterministic file ordering this was identical,
-    // but not for programs, so we remove the `hash` to have identical treatment.
+    // We can't expect hashes to match `nargo` because of the different order in which dependencies are visited.
     nargoArtifact.functions.forEach(function (f) {
       delete (f as Partial<NoirFunctionEntry>).hash;
     });

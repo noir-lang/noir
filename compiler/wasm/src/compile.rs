@@ -139,6 +139,8 @@ pub(crate) struct DependencyGraph {
 ///
 /// Using a `BTreeMap` to add files to the [FileManager] in a deterministic order,
 /// which affects the `FileId` in the `Location`s in the AST on which the `hash` is based.
+/// Note that we cannot expect to match the IDs assigned by the `FileManager` used by `nargo`,
+/// because there the order is determined by the dependency graph as well as the file name.
 #[derive(Deserialize, Default)]
 pub struct PathToFileSourceMap(pub(crate) BTreeMap<std::path::PathBuf, String>);
 
