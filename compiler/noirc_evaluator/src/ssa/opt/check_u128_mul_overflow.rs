@@ -116,6 +116,7 @@ fn check_u128_mul_overflow(
         let divided_rhs =
             dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
 
+        // Unchecked as operands are restricted to be less than 2^64 so multiplying them cannot overflow.
         let mul = BinaryOp::Mul { unchecked: true };
         let instruction =
             Instruction::Binary(Binary { lhs: divided_lhs, rhs: divided_rhs, operator: mul });
