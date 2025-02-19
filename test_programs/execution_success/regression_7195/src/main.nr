@@ -3,7 +3,7 @@ fn bar(y: Field) {
 }
 
 fn foo(x: Field) {
-    /// Safety: test
+    // Safety: test
     let y = unsafe { baz(x) };
     bar(y);
 }
@@ -13,7 +13,7 @@ unconstrained fn baz(x: Field) -> Field {
 }
 
 fn main(x: Field, y: pub Field) {
-    /// Safety: test
+    // Safety: test
     let x = unsafe { baz(x) };
     foo(x);
     foo(y);
