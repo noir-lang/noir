@@ -715,6 +715,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
+            let value = if is_negative { -value } else { value };
             Ok(Value::Field(value))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {

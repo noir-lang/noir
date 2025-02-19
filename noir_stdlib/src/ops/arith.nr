@@ -321,4 +321,3 @@ impl Neg for i64 {
     }
 }
 // docs:end:neg-trait-impls
-

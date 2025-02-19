@@ -20,4 +20,3 @@ unconstrained fn test_overflow_mul() {
     let b: u8 = 2;
     assert_eq(a * b, 0);
 }
-

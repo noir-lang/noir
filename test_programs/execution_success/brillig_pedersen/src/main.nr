@@ -24,4 +24,3 @@ unconstrained fn main(
     let hash = std::hash::pedersen_commitment_with_separator([state], 0);
     assert(std::hash::pedersen_commitment_with_separator([43], 0).x == hash.x);
 }
-
