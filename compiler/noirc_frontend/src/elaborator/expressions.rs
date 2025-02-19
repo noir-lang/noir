@@ -971,8 +971,8 @@ impl<'context> Elaborator<'context> {
         if_expr: IfExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let expr_span = if_expr.condition.span;
-        let consequence_span = if_expr.consequence.span;
+        let expr_span = if_expr.condition.type_span();
+        let consequence_span = if_expr.consequence.type_span();
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
@@ -984,9 +984,10 @@ impl<'context> Elaborator<'context> {
         });
 
         let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
+            let alternative_span = alternative.type_span();
             let (else_, else_type) =
                 self.elaborate_expression_with_target_type(alternative, target_type);
-            (Some(else_), else_type, expr_span)
+            (Some(else_), else_type, alternative_span)
         } else {
             (None, Type::Unit, consequence_span)
         };

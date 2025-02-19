@@ -40,14 +40,14 @@ pub(crate) fn on_inlay_hint_request(
         args.files.get_file_id(&path).map(|file_id| {
             let file = args.files.get_file(file_id).unwrap();
             let source = file.source();
-            let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source);
 
             let span = utils::range_to_byte_span(args.files, file_id, &params.range)
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
             let mut collector =
                 InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            parsed_moduled.accept(&mut collector);
+            parsed_module.accept(&mut collector);
             collector.inlay_hints
         })
     });
