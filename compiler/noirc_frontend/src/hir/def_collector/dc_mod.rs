@@ -198,8 +198,6 @@ impl<'a> ModCollector<'a> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
-            let trait_name = trait_impl.trait_name.clone();
-
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     &mut context.def_interner,
@@ -233,12 +231,11 @@ impl<'a> ModCollector<'a> {
             let unresolved_trait_impl = UnresolvedTraitImpl {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                trait_path: trait_name,
+                r#trait: trait_impl.r#trait,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
-                trait_generics: trait_impl.trait_generics,
                 associated_constants,
                 associated_types,
 
@@ -961,7 +958,14 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            interner.register_module(mod_id, visibility, mod_name.0.contents.clone());
+            let parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            interner.register_module(
+                mod_id,
+                location,
+                visibility,
+                mod_name.0.contents.clone(),
+                parent_module_id,
+            );
         }
     }
 

@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
-    ast::NoirTraitImpl,
+    ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
-    hir::def_map::ModuleDefId,
     hir::{
-        def_map::{CrateDefMap, ModuleId},
+        def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
@@ -204,7 +203,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
@@ -241,7 +240,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     *parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
@@ -278,7 +277,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
                 let relative_path = relative_module_id_path(
                     *parent_module_id,
-                    &self.module_id,
+                    self.module_id,
                     current_module_parent_id,
                     self.interner,
                 );
@@ -300,7 +299,13 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 if let Some(index) =
                     generics.iter().position(|generic| generic.type_var.id() == typevar.id())
                 {
-                    if let Some(typ) = self.noir_trait_impl.trait_generics.ordered_args.get(index) {
+                    let UnresolvedTypeData::Named(_, trait_generics, _) =
+                        &self.noir_trait_impl.r#trait.typ
+                    else {
+                        return;
+                    };
+
+                    if let Some(typ) = trait_generics.ordered_args.get(index) {
                         self.string.push_str(&typ.to_string());
                         return;
                     }
