@@ -49,21 +49,9 @@ impl From<CompiledContract> for ContractArtifact {
 
 impl ContractArtifact {
     pub fn function_as_compiled_program(&self, function_name: &str) -> Option<CompiledProgram> {
-        let Some(f) = self.functions.iter().find(|f| f.name == function_name) else {
-            return None;
-        };
-        let program = CompiledProgram {
-            noir_version: self.noir_version.clone(),
-            hash: 0,
-            program: f.bytecode.clone(),
-            abi: f.abi.clone(),
-            debug: f.debug_symbols.debug_infos.clone(),
-            file_map: self.file_map.clone(),
-            warnings: Vec::new(),
-            names: f.names.clone().unwrap_or_default(), // XXX: Might be empty
-            brillig_names: f.brillig_names.clone(),
-        };
-        Some(program)
+        self.functions.iter().find(|f| f.name == function_name).map(|f| {
+            f.clone().into_compiled_program(self.noir_version.clone(), self.file_map.clone())
+        })
     }
 }
 
@@ -100,6 +88,26 @@ pub struct ContractFunctionArtifact {
     #[serde(default)] // For backwards compatibility (it was missing).
     pub names: Vec<String>,
     pub brillig_names: Vec<String>,
+}
+
+impl ContractFunctionArtifact {
+    pub fn into_compiled_program(
+        self,
+        noir_version: String,
+        file_map: BTreeMap<FileId, DebugFile>,
+    ) -> CompiledProgram {
+        CompiledProgram {
+            noir_version,
+            hash: self.hash,
+            program: self.bytecode,
+            abi: self.abi,
+            debug: self.debug_symbols.debug_infos,
+            file_map,
+            warnings: Vec::new(),
+            names: self.names,
+            brillig_names: self.brillig_names,
+        }
+    }
 }
 
 impl From<ContractFunction> for ContractFunctionArtifact {
