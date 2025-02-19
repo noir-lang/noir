@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739961793772,
+  "lastUpdate": 1739961794917,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12017,75 +12017,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8502b8d2f63a1c4b78a3a196eec684672c40461e",
-          "message": "fix: lock git dependencies folder when resolving workspace (#7327)",
-          "timestamp": "2025-02-10T14:11:39Z",
-          "tree_id": "d34ce3966758e6766151a91c1fdeab402139a318",
-          "url": "https://github.com/noir-lang/noir/commit/8502b8d2f63a1c4b78a3a196eec684672c40461e"
-        },
-        "date": 1739198144933,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.74,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -15340,6 +15271,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
         },
         "date": 1739956753858,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 214.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.44,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sirasistant@gmail.com",
+            "name": "Álvaro Rodríguez",
+            "username": "sirasistant"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba66d3b9f9ac7ed87ac2e2f91b78368688435e54",
+          "message": "chore(benchmark): Improve noir msm benchmark (#7390)",
+          "timestamp": "2025-02-19T10:19:14Z",
+          "tree_id": "1c8e0e258460d33efb4929a6ebb855881b6ac2fb",
+          "url": "https://github.com/noir-lang/noir/commit/ba66d3b9f9ac7ed87ac2e2f91b78368688435e54"
+        },
+        "date": 1739961793094,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
