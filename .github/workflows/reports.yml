@@ -329,6 +329,14 @@ jobs:
           echo "compilation_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
         env:
           FLAGS: ${{ matrix.project.flags }}
+
+      - name: Upload compilation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}
+          path: ./test-repo/${{ matrix.path }}/compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}.json
+          retention-days: 3
+          overwrite: true
         
       - name: Generate execution report
         id: execution_mem_report
@@ -344,14 +352,6 @@ jobs:
           mv ./execution_report.json ./execution_report_$PACKAGE_NAME.json
           echo "execution_report_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
     
-      - name: Upload compilation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}
-          path: ./test-repo/${{ matrix.path }}/compilation_report_${{ steps.compilation_report.outputs.compilation_report_name }}.json
-          retention-days: 3
-          overwrite: true
-
       - name: Upload execution report
         if: ${{ !matrix.project.cannot_execute }}
         uses: actions/upload-artifact@v4
@@ -464,7 +464,7 @@ jobs:
 
       - name: Check compilation memory limit
         run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/compilation_memory_report.json)
+          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/memory_report_${{ steps.compilation_mem_report.outputs.memory_report_name }}.json)
           MEMORY_LIMIT=${{ matrix.compilation-memory-limit }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
             # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
@@ -477,7 +477,7 @@ jobs:
       - name: Check execution memory limit
         if: ${{ !matrix.cannot_execute }}
         run: |
-          MEMORY=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/memory_report.json)
+          MEMORY=$(jq '.[0].value'  ./test-repo/${{ matrix.path }}/memory_report_${{ steps.execution_mem_report.outputs.memory_report_name }}.json)
           MEMORY_LIMIT=${{ matrix.execution-memory-limit }}
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$MEMORY" "$MEMORY_LIMIT"; then
             # Don't bump this limit without understanding why this has happened and confirming that you're not the cause.
