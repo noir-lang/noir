@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1739961794917,
+  "lastUpdate": 1739968514350,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8690,75 +8690,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1a2a08cbcb68646ff1aaef383cfc1798933c1355",
-          "message": "chore: Release Noir(1.0.0-beta.2) (#6914)",
-          "timestamp": "2025-02-10T14:47:25Z",
-          "tree_id": "9856ae68e0a87af229c61008255a3ff621e287ea",
-          "url": "https://github.com/noir-lang/noir/commit/1a2a08cbcb68646ff1aaef383cfc1798933c1355"
-        },
-        "date": 1739200369723,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.067,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.455,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.559,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.101,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.101,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -12003,6 +11934,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d19109b6a5738a97b745c6117cf0a1e9f1552bb",
+          "message": "feat: simplify assertions that squared values are equal to zero (#7432)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-02-19T12:17:26Z",
+          "tree_id": "487c875a72303339f0b71bcbd09b5ef817d44512",
+          "url": "https://github.com/noir-lang/noir/commit/5d19109b6a5738a97b745c6117cf0a1e9f1552bb"
+        },
+        "date": 1739968512579,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.073,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.298,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.464,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.183,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
             "unit": "s"
           },
           {
