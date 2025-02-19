@@ -1,8 +1,7 @@
 use noirc_frontend::{
     ast::{
-        AssignStatement, ConstrainKind, ConstrainStatement, Expression, ExpressionKind,
-        ForLoopStatement, ForRange, LetStatement, Pattern, Statement, StatementKind,
-        UnresolvedType, UnresolvedTypeData,
+        AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
+        Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -25,14 +24,14 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for a let statement could come before a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
+                formatter.format_outer_doc_comments_checking_safety();
             }
 
             formatter.skip_comments_and_whitespace_writing_multiple_lines_if_found();
 
             // Or doc comments could come after a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
-                formatter.format_outer_doc_comments();
+                formatter.format_outer_doc_comments_checking_safety();
             }
         }));
 
@@ -48,9 +47,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         match statement.kind {
             StatementKind::Let(let_statement) => {
                 group.group(self.format_let_statement(let_statement));
-            }
-            StatementKind::Constrain(constrain_statement) => {
-                group.group(self.format_constrain_statement(constrain_statement));
             }
             StatementKind::Expression(expression) => match expression.kind {
                 ExpressionKind::Block(block) => group.group(self.format_block_expression(
@@ -77,6 +73,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             }
             StatementKind::Loop(block, _) => {
                 group.group(self.format_loop(block));
+            }
+            StatementKind::While(while_) => {
+                group.group(self.format_while(while_));
             }
             StatementKind::Break => {
                 group.text(self.chunk(|formatter| {
@@ -149,44 +148,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         } else {
             group.semicolon(self);
         }
-
-        group
-    }
-
-    fn format_constrain_statement(
-        &mut self,
-        constrain_statement: ConstrainStatement,
-    ) -> ChunkGroup {
-        let mut group = ChunkGroup::new();
-
-        let keyword = match constrain_statement.kind {
-            ConstrainKind::Assert => Keyword::Assert,
-            ConstrainKind::AssertEq => Keyword::AssertEq,
-            ConstrainKind::Constrain => {
-                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
-            }
-        };
-
-        group.text(self.chunk(|formatter| {
-            formatter.write_keyword(keyword);
-            formatter.write_left_paren();
-        }));
-
-        group.kind = GroupKind::ExpressionList {
-            prefix_width: group.width(),
-            expressions_count: constrain_statement.arguments.len(),
-        };
-
-        self.format_expressions_separated_by_comma(
-            constrain_statement.arguments,
-            false, // force trailing comma
-            &mut group,
-        );
-
-        group.text(self.chunk(|formatter| {
-            formatter.write_right_paren();
-            formatter.write_semicolon();
-        }));
 
         group
     }
@@ -290,6 +251,36 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         group.space(self);
 
         let ExpressionKind::Block(block) = block.kind else {
+            panic!("Expected a block expression for loop body");
+        };
+
+        group.group(self.format_block_expression(
+            block, true, // force multiple lines
+        ));
+
+        // If there's a trailing semicolon, remove it
+        group.text(self.chunk(|formatter| {
+            formatter.skip_whitespace_if_it_is_not_a_newline();
+            if formatter.is_at(Token::Semicolon) {
+                formatter.bump();
+            }
+        }));
+
+        group
+    }
+
+    fn format_while(&mut self, while_: WhileStatement) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(Keyword::While);
+        }));
+
+        group.space(self);
+        self.format_expression(while_.condition, &mut group);
+        group.space(self);
+
+        let ExpressionKind::Block(block) = while_.body.kind else {
             panic!("Expected a block expression for loop body");
         };
 
@@ -416,12 +407,12 @@ mod tests {
     }
 
     #[test]
-    fn format_let_statement_with_unsafe() {
+    fn format_let_statement_with_unsafe_comment() {
         let src = " fn foo() { 
-        /// Safety: some doc
+        // Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
-    /// Safety: some doc
+    // Safety: some comment
     let x = unsafe { 1 };
 }
 ";
@@ -429,14 +420,12 @@ mod tests {
     }
 
     #[test]
-    fn format_let_statement_with_unsafe_and_comment_before_it() {
+    fn format_let_statement_with_unsafe_doc_comment() {
         let src = " fn foo() { 
-        // Some comment
-        /// Safety: some doc
+        /// Safety: some comment
         let  x  =  unsafe { 1 } ; } ";
         let expected = "fn foo() {
-    // Some comment
-    /// Safety: some doc
+    // Safety: some comment
     let x = unsafe { 1 };
 }
 ";
@@ -796,6 +785,42 @@ mod tests {
         let src = " fn foo() {  loop  { 1 ; 2  }  } ";
         let expected = "fn foo() {
     loop {
+        1;
+        2
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_while() {
+        let src = " fn foo() {  while  condition  {   }  } ";
+        let expected = "fn foo() {
+    while condition {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_non_empty_while() {
+        let src = " fn foo() {  while  condition  {  1 ; 2  }  } ";
+        let expected = "fn foo() {
+    while condition {
+        1;
+        2
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_while_with_semicolon() {
+        let src = " fn foo() {  while  condition  {  1 ; 2  };  } ";
+        let expected = "fn foo() {
+    while condition {
         1;
         2
     }

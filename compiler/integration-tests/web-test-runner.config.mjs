@@ -26,10 +26,9 @@ export default {
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
-  middleware: [async function setGzHeader(ctx, next) {
-    if (ctx.url.endsWith('.gz')) {
-      ctx.set('Content-Encoding', 'gzip');
-      ctx.res.removeHeader('Content-Length');
+  middleware: [async (ctx, next) => {
+    if (ctx.url.endsWith('.wasm.gz')) {
+      ctx.url = ctx.url.replace('/', "/node_modules/@aztec/bb.js/dest/browser/");
     }
     await next();
   }],

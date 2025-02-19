@@ -1,15 +1,15 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::{Location, Span, Spanned};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstructorExpression,
-        Expression, ExpressionKind, Ident, IfExpression, IndexExpression, InfixExpression,
-        ItemVisibility, Lambda, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, Path, PathSegment, PrefixExpression, StatementKind, UnaryOp,
-        UnresolvedTypeData, UnresolvedTypeExpression,
+        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
+        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
+        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -21,14 +21,16 @@ use crate::{
     hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-            HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
+            HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
+            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
-        stmt::HirStatement,
+        stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, InternedStatementKind, TraitMethodId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+    },
     token::{FmtStrFragment, Tokens},
     DataType, Kind, QuotedType, Shared, Type,
 };
@@ -52,6 +54,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.span),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.span),
+            ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
                 return self.elaborate_member_access(*access, expr.span)
@@ -59,7 +62,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.span),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.span),
             ExpressionKind::If(if_) => self.elaborate_if(*if_, target_type),
-            ExpressionKind::Match(match_) => self.elaborate_match(*match_),
+            ExpressionKind::Match(match_) => self.elaborate_match(*match_, expr.span),
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
             ExpressionKind::Lambda(lambda) => {
@@ -90,7 +93,7 @@ impl<'context> Elaborator<'context> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::UnquoteUsedOutsideQuote { span: expr.span });
+                self.push_err(ResolverError::AsTraitPathNotYetImplemented { span: expr.span });
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
@@ -583,6 +586,61 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    pub(super) fn elaborate_constrain(
+        &mut self,
+        mut expr: ConstrainExpression,
+    ) -> (HirExpression, Type) {
+        let span = expr.span;
+        let min_args_count = expr.kind.required_arguments_count();
+        let max_args_count = min_args_count + 1;
+        let actual_args_count = expr.arguments.len();
+
+        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
+            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
+                kind: expr.kind,
+                found: actual_args_count,
+                span,
+            });
+
+            // Given that we already produced an error, let's make this an `assert(true)` so
+            // we don't get further errors.
+            let message = None;
+            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let expr = Expression { kind, span };
+            (message, expr)
+        } else {
+            let message =
+                (actual_args_count != min_args_count).then(|| expr.arguments.pop().unwrap());
+            let expr = match expr.kind {
+                ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
+                ConstrainKind::AssertEq => {
+                    let rhs = expr.arguments.pop().unwrap();
+                    let lhs = expr.arguments.pop().unwrap();
+                    let span = Span::from(lhs.span.start()..rhs.span.end());
+                    let operator = Spanned::from(span, BinaryOpKind::Equal);
+                    let kind =
+                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
+                    Expression { kind, span }
+                }
+            };
+            (message, expr)
+        };
+
+        let expr_span = expr.span;
+        let (expr_id, expr_type) = self.elaborate_expression(expr);
+
+        // Must type check the assertion message expression so that we instantiate bindings
+        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
+
+        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool.to_string(),
+            expr_span,
+        });
+
+        (HirExpression::Constrain(HirConstrainExpression(expr_id, self.file, msg)), Type::Unit)
+    }
+
     /// Elaborates an expression knowing that it has to match a given type.
     fn elaborate_expression_with_type(
         &mut self,
@@ -914,6 +972,7 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         let expr_span = if_expr.condition.span;
+        let consequence_span = if_expr.consequence.span;
         let (condition, cond_type) = self.elaborate_expression(if_expr.condition);
         let (consequence, mut ret_type) =
             self.elaborate_expression_with_target_type(if_expr.consequence, target_type);
@@ -924,29 +983,30 @@ impl<'context> Elaborator<'context> {
             expr_span,
         });
 
-        let alternative = if_expr.alternative.map(|alternative| {
-            let expr_span = alternative.span;
+        let (alternative, else_type, error_span) = if let Some(alternative) = if_expr.alternative {
             let (else_, else_type) =
                 self.elaborate_expression_with_target_type(alternative, target_type);
+            (Some(else_), else_type, expr_span)
+        } else {
+            (None, Type::Unit, consequence_span)
+        };
 
-            self.unify(&ret_type, &else_type, || {
-                let err = TypeCheckError::TypeMismatch {
-                    expected_typ: ret_type.to_string(),
-                    expr_typ: else_type.to_string(),
-                    expr_span,
-                };
+        self.unify(&ret_type, &else_type, || {
+            let err = TypeCheckError::TypeMismatch {
+                expected_typ: ret_type.to_string(),
+                expr_typ: else_type.to_string(),
+                expr_span: error_span,
+            };
 
-                let context = if ret_type == Type::Unit {
-                    "Are you missing a semicolon at the end of your 'else' branch?"
-                } else if else_type == Type::Unit {
-                    "Are you missing a semicolon at the end of the first block of this 'if'?"
-                } else {
-                    "Expected the types of both if branches to be equal"
-                };
+            let context = if ret_type == Type::Unit {
+                "Are you missing a semicolon at the end of your 'else' branch?"
+            } else if else_type == Type::Unit {
+                "Are you missing a semicolon at the end of the first block of this 'if'?"
+            } else {
+                "Expected the types of both if branches to be equal"
+            };
 
-                err.add_context(context)
-            });
-            else_
+            err.add_context(context)
         });
 
         if alternative.is_none() {
@@ -957,8 +1017,39 @@ impl<'context> Elaborator<'context> {
         (HirExpression::If(if_expr), ret_type)
     }
 
-    fn elaborate_match(&mut self, _match_expr: MatchExpression) -> (HirExpression, Type) {
-        (HirExpression::Error, Type::Error)
+    fn elaborate_match(
+        &mut self,
+        match_expr: MatchExpression,
+        span: Span,
+    ) -> (HirExpression, Type) {
+        let (expression, typ) = self.elaborate_expression(match_expr.expression);
+        let (let_, variable) = self.wrap_in_let(expression, typ);
+
+        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
+        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let tree = self.interner.push_expr(tree);
+        self.interner.push_expr_type(tree, result_type.clone());
+        self.interner.push_expr_location(tree, span, self.file);
+
+        let tree = self.interner.push_stmt(HirStatement::Expression(tree));
+        self.interner.push_stmt_location(tree, span, self.file);
+
+        let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, tree] });
+        (block, result_type)
+    }
+
+    fn wrap_in_let(&mut self, expr_id: ExprId, typ: Type) -> (StmtId, DefinitionId) {
+        let location = self.interner.expr_location(&expr_id);
+        let name = "internal variable".to_string();
+        let definition = DefinitionKind::Local(None);
+        let variable = self.interner.push_definition(name, false, false, definition, location);
+        self.interner.push_definition_type(variable, typ.clone());
+
+        let pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
+        let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
+        let let_ = self.interner.push_stmt(let_);
+        self.interner.push_stmt_location(let_, location.span, location.file);
+        (let_, variable)
     }
 
     fn elaborate_tuple(

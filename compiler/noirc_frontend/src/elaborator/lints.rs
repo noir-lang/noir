@@ -6,7 +6,7 @@ use crate::{
         type_check::TypeCheckError,
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
+        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral, HirMatch},
         function::FuncMeta,
         stmt::HirStatement,
     },
@@ -283,8 +283,8 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
             // Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
             HirStatement::For(e) => check(e.start_range) && check(e.end_range),
             HirStatement::Loop(e) => check(e),
-            HirStatement::Constrain(_)
-            | HirStatement::Comptime(_)
+            HirStatement::While(condition, block) => check(condition) && check(block),
+            HirStatement::Comptime(_)
             | HirStatement::Break
             | HirStatement::Continue
             | HirStatement::Error => true,
@@ -310,10 +310,12 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
         HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
+        HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
             check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
         }
+        HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
         HirExpression::Tuple(e) => e.iter().cloned().all(check),
         HirExpression::Unsafe(b) => check_block(b),
         // Rust doesn't check the lambda body (it might not be called).
@@ -325,5 +327,24 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::Unquote(_)
         | HirExpression::Comptime(_)
         | HirExpression::Error => true,
+    }
+}
+
+fn can_return_without_recursing_match(
+    interner: &NodeInterner,
+    func_id: FuncId,
+    match_expr: &HirMatch,
+) -> bool {
+    let check_match = |e| can_return_without_recursing_match(interner, func_id, e);
+    let check = |e| can_return_without_recursing(interner, func_id, e);
+
+    match match_expr {
+        HirMatch::Success(expr) => check(*expr),
+        HirMatch::Failure => true,
+        HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
+        HirMatch::Switch(_, cases, otherwise) => {
+            cases.iter().all(|case| check_match(&case.body))
+                && otherwise.as_ref().map_or(true, |case| check_match(case))
+        }
     }
 }

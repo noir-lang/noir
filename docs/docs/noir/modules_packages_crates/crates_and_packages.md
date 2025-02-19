@@ -32,7 +32,7 @@ Every crate has a root, which is the source file that the compiler starts, this 
 
 ## Packages
 
-A Nargo _package_ is a collection of one of more crates that provides a set of functionality. A package must include a Nargo.toml file.
+A Nargo _package_ is a collection of one or more crates that provides a set of functionality. A package must include a Nargo.toml file.
 
 A package _must_ contain either a library or a binary crate, but not both.
 

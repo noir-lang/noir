@@ -284,7 +284,7 @@ impl Context {
             self.rc_instructions.iter().fold(HashMap::default(), |mut acc, (rc, block)| {
                 let value = match &dfg[*rc] {
                     Instruction::IncrementRc { value } => *value,
-                    Instruction::DecrementRc { value } => *value,
+                    Instruction::DecrementRc { value, .. } => *value,
                     other => {
                         unreachable!(
                             "Expected IncrementRc or DecrementRc instruction, found {other:?}"
@@ -434,7 +434,7 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> bool {
         use Instruction::*;
-        if let IncrementRc { value } | DecrementRc { value } = instruction {
+        if let IncrementRc { value } | DecrementRc { value, .. } = instruction {
             let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
                 return false;
             };
@@ -685,7 +685,7 @@ impl<'a> RcTracker<'a> {
                 // Remember that this array was RC'd by this instruction.
                 self.inc_rcs.entry(*value).or_default().insert(instruction_id);
             }
-            Instruction::DecrementRc { value } => {
+            Instruction::DecrementRc { value, .. } => {
                 let typ = function.dfg.type_of_value(*value);
 
                 // We assume arrays aren't mutated until we find an array_set
@@ -835,7 +835,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_get v0, index u32 0 -> Field
-                dec_rc v0
+                dec_rc v0 v0
                 return v2
             }
             ";
@@ -859,7 +859,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
-                dec_rc v0
+                dec_rc v0 v0
                 return v2
             }
             ";
@@ -967,7 +967,7 @@ mod test {
                 v3 = load v0 -> [Field; 3]
                 v6 = array_set v3, index u32 0, value Field 5
                 store v6 at v0
-                dec_rc v6
+                dec_rc v6 v1
                 return
             }
             ";
