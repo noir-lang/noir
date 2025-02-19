@@ -204,7 +204,7 @@ fn run_async(
 
             if let Some(witness_name) = witness_name {
                 let witness_path =
-                    save_witness_to_dir(solved_witness_stack, witness_name, target_dir)?;
+                    save_witness_to_dir(&solved_witness_stack, witness_name, target_dir)?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
