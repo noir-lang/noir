@@ -173,7 +173,7 @@ jobs:
       - name: Build binaries
         run: |
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-          cross build --package noir-profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - name: Package artifacts
         run: |
