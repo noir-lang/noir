@@ -29,7 +29,7 @@ use nargo::NargoError;
 use noir_debugger::context::{DebugCommandResult, DebugContext};
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
-use runtime_tracing::{Line, Tracer, TypeKind};
+use runtime_tracing::{Tracer, TypeKind};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
@@ -251,7 +251,6 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
         return Ok(());
     }
 
-    let SourceLocation { filepath, line_number } = SourceLocation::create_unknown();
     let _ = tracer.ensure_type_id(TypeKind::None, "None");
     loop {
         let source_locations = match tracing_context.step_debugger() {
