@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740047596784,
+  "lastUpdate": 1740047598171,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11887,75 +11887,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "10b377fb4eb9284df66f5c0bd830f6d20ab2c003",
-          "message": "feat(performance): Use unchecked ops based upon known induction variables (#7344)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-12T16:06:10Z",
-          "tree_id": "053366b3ea7ac17463e851f39f133aae40f78f02",
-          "url": "https://github.com/noir-lang/noir/commit/10b377fb4eb9284df66f5c0bd830f6d20ab2c003"
-        },
-        "date": 1739377720775,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -15200,6 +15131,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 316.45,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8783e480a39efb47c7783c68b0e09c1c65b1f33a",
+          "message": "feat: add native `u128` type (#7301)\n\nCo-authored-by: kashbrti <kashbrti@gmail.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-02-20T10:08:18Z",
+          "tree_id": "29e11b6bf48bcd94889638fd8531ef31fc4aff16",
+          "url": "https://github.com/noir-lang/noir/commit/8783e480a39efb47c7783c68b0e09c1c65b1f33a"
+        },
+        "date": 1740047595519,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 215.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.78,
             "unit": "MB"
           }
         ]
