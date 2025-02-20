@@ -16,7 +16,7 @@ pub struct Located<T> {
 }
 
 /// This is important for tests. Two Located objects are equal if their content is equal
-/// They may not have the same location. Use into_location to test for Location being equal specifically
+/// They may not have the same location. Use `.location()` to test for Location being equal specifically
 impl<T: PartialEq> PartialEq<Located<T>> for Located<T> {
     fn eq(&self, other: &Located<T>) -> bool {
         self.contents == other.contents
