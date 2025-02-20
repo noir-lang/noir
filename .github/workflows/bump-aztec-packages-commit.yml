@@ -1,8 +1,6 @@
 name: Bump external repos pinned commits
 
 on:
-  # TODO: remove before merging
-  push:
   workflow_dispatch:
   schedule:
     # Trigger at 8am on Mondays
@@ -16,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Check for existing PR
         id: pr-check
