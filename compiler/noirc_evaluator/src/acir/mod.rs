@@ -2095,6 +2095,10 @@ impl<'a> Context<'a> {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
+        assert!(
+            bit_size < max_bit_size,
+            "Attempted to generate a truncation into large size than max input"
+        );
 
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
