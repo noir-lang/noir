@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740085353160,
+  "lastUpdate": 1740085527056,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11742,75 +11742,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c3deb6ab504df75ae8c90d483d53083c6cd8d443",
-          "message": "chore: avoid u128s in brillig memory (#7363)",
-          "timestamp": "2025-02-13T18:18:27Z",
-          "tree_id": "6049f7ca12d33704c47f00a92f569729044addf9",
-          "url": "https://github.com/noir-lang/noir/commit/c3deb6ab504df75ae8c90d483d53083c6cd8d443"
-        },
-        "date": 1739472076127,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.71,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 590.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 536.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 536.63,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14965,6 +14896,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea"
         },
         "date": 1740083329936,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 443.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ceaa1986628197bd1170147f6a07f0f98d21030a",
+          "message": "chore: Release Noir(1.0.0-beta.3) (#7346)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-02-20T20:39:41Z",
+          "tree_id": "a508c305ddbe0caa3fdf9cee6fabce0b89329390",
+          "url": "https://github.com/noir-lang/noir/commit/ceaa1986628197bd1170147f6a07f0f98d21030a"
+        },
+        "date": 1740085525122,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
