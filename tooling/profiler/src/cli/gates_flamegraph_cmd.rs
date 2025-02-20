@@ -4,6 +4,7 @@ use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
+use fxhash::FxHashMap as HashMap;
 use noirc_artifacts::debug::DebugArtifact;
 
 use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
@@ -66,19 +67,24 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
     let backend_gates_response =
         gates_provider.get_gates(artifact_path).context("Error querying backend for gates")?;
 
-    let function_names = program.names.clone();
+    let function_names = std::mem::take(&mut program.names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
 
     let debug_artifact: DebugArtifact = program.into();
 
-    for (func_idx, ((func_gates, func_name), bytecode)) in backend_gates_response
-        .functions
-        .into_iter()
-        .zip(function_names)
-        .zip(bytecode.functions)
-        .enumerate()
+    // We can have repeated names if there are functions with the same name in different
+    // modules or functions that use generics.
+    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    for (func_idx, (func_gates, bytecode)) in
+        backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
     {
+        let func_name = function_names[func_idx].as_str();
+        let count = seen_names.entry(func_name).and_modify(|c| *c += 1).or_insert(0);
+
+        let func_name =
+            if *count == 0 { func_name.to_owned() } else { format!("{}_{}", func_name, count) };
+
         println!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
             func_gates.acir_opcodes,
