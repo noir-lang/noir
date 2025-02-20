@@ -115,10 +115,10 @@ jobs:
 
           ./gates_report_brillig.sh 9223372036854775807
           jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_max.json
-          
+
           ./gates_report_brillig.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_zero.json
-          
+
           ./gates_report_brillig.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig.json > ./reports/gates_report_brillig_inliner_min.json
 
@@ -160,14 +160,14 @@ jobs:
       - name: Generate Brillig execution report
         working-directory: ./test_programs
         run: |
-          mkdir ./reports 
-          
+          mkdir ./reports
+
           ./gates_report_brillig_execution.sh 9223372036854775807
           jq '.programs |= map(.package_name |= (. + "_inliner_max"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_max.json
 
           ./gates_report_brillig_execution.sh 0
           jq '.programs |= map(.package_name |= (. + "_inliner_zero"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_zero.json
-          
+
           ./gates_report_brillig_execution.sh -9223372036854775808
           jq '.programs |= map(.package_name |= (. + "_inliner_min"))' gates_report_brillig_execution.json > ./reports/gates_report_brillig_execution_inliner_min.json
 
@@ -258,7 +258,7 @@ jobs:
         run: |
           ./execution_report.sh 0 1
           mv execution_report.json ../execution_report.json
-          
+
       - name: Upload compilation report
         uses: actions/upload-artifact@v4
         with:
@@ -266,7 +266,7 @@ jobs:
           path: compilation_report.json
           retention-days: 3
           overwrite: true
-      
+
       - name: Upload execution report
         uses: actions/upload-artifact@v4
         with:
@@ -413,7 +413,7 @@ jobs:
             test_programs/memory_report.sh
             test_programs/parse_memory.sh
           sparse-checkout-cone-mode: false
-      
+
       - name: Download nargo binary
         uses: ./scripts/.github/actions/download-nargo
 
@@ -503,10 +503,10 @@ jobs:
           fi
 
   upload_compilation_report:
-    name: Upload compilation report 
+    name: Upload compilation report
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
-    if: always() 
+    if: always()
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -554,10 +554,10 @@ jobs:
           max-items-in-chart: 50
 
   upload_compilation_memory_report:
-    name: Upload compilation memory report 
+    name: Upload compilation memory report
     needs: [generate_memory_report, external_repo_memory_report]
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    if: always() 
+    if: always()
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -604,10 +604,10 @@ jobs:
           max-items-in-chart: 50
 
   upload_execution_memory_report:
-    name: Upload execution memory report 
+    name: Upload execution memory report
     needs: [generate_memory_report, external_repo_memory_report]
     # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
-    if: always() 
+    if: always()
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -655,10 +655,10 @@ jobs:
 
 
   upload_execution_report:
-    name: Upload execution report 
+    name: Upload execution report
     needs: [generate_compilation_and_execution_report, external_repo_compilation_and_execution_report]
     # We want this job to run even if one variation of the matrix in `external_repo_compilation_and_execution_report` fails
-    if: always() 
+    if: always()
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write

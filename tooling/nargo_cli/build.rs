@@ -27,6 +27,8 @@ fn main() {
 
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
+    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
+    // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);

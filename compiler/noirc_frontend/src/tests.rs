@@ -4352,8 +4352,8 @@ fn call_function_alias_type() {
 fn errors_on_if_without_else_type_mismatch() {
     let src = r#"
     fn main() {
-        if true { 
-            1 
+        if true {
+            1
         }
     }
     "#;
