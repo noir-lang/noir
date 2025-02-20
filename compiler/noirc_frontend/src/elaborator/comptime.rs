@@ -666,7 +666,7 @@ impl<'context> Elaborator<'context> {
             }
     }
 
-    /// Pushes an ElaborateReason but also takes the current errors and returns them.
+    /// Pushes an ElaborateReason but also `std::mem::take`s the current errors and returns them.
     pub(crate) fn push_elaborate_reason(
         &mut self,
         reason: ElaborateReason,
