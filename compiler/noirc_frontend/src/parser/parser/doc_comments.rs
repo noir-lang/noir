@@ -34,12 +34,12 @@ impl<'a> Parser<'a> {
 
     /// Skips any outer doc comments but produces a warning saying that they don't document anything.
     pub(super) fn warn_on_outer_doc_comments(&mut self) {
-        let span_before_doc_comments = self.current_token_span;
+        let location_before_doc_comments = self.current_token_location;
         let doc_comments = self.parse_outer_doc_comments();
         if !doc_comments.is_empty() {
             self.push_error(
                 ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                span_before_doc_comments,
+                location_before_doc_comments,
             );
         }
     }
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn parses_inner_doc_comments() {
         let src = "//! Hello\n//! World";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_inner_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn parses_outer_doc_comments() {
         let src = "/// Hello\n/// World";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let comments = parser.parse_outer_doc_comments();
         expect_no_errors(&parser.errors);
         assert_eq!(comments.len(), 2);

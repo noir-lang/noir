@@ -674,7 +674,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 FmtStrFragment::String(string) => {
                     result.push_str(&string);
                 }
-                FmtStrFragment::Interpolation(_, span) => {
+                FmtStrFragment::Interpolation(..) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
@@ -683,8 +683,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 if index > 0 {
                                     result.push(' ');
                                 }
-                                result
-                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                                result.push_str(
+                                    &token.token().display(self.elaborator.interner).to_string(),
+                                );
                             }
                         } else {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
@@ -1412,7 +1413,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let method = self
             .elaborator
-            .lookup_method(&typ, method_name, location.span, true)
+            .lookup_method(&typ, method_name, location, true)
             .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {
