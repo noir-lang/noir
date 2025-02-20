@@ -417,9 +417,6 @@ jobs:
       - name: Download nargo binary
         uses: ./scripts/.github/actions/download-nargo
 
-      - name: Download nargo binary
-        uses: ./scripts/.github/actions/download-nargo
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
