@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740047598171,
+  "lastUpdate": 1740065968474,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3820,105 +3820,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "31becc6863688dc9cadf15d2e9726aab9f2a0150",
-          "message": "fix(ssa): Make the lookback feature opt-in (#7190)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: rkarabut <ratmir@aztecprotocol.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-02-12T16:29:42Z",
-          "tree_id": "b54ab8aaca630d71991b5714f5502004bd8a2cb3",
-          "url": "https://github.com/noir-lang/noir/commit/31becc6863688dc9cadf15d2e9726aab9f2a0150"
-        },
-        "date": 1739379122632,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.966,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.808,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.682,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.084,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.836,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.995,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.824,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.55,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 67.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 73.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.588,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8591,6 +8492,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1fa9b33aab796dbc2a61f3062bf80e120831b462",
+          "message": "fix: prevent incorrect ACIRgen caused by noop truncations (#7456)",
+          "timestamp": "2025-02-20T15:20:30Z",
+          "tree_id": "82a6f11687e4ac77b1e5d8834f1b150f741a1d1f",
+          "url": "https://github.com/noir-lang/noir/commit/1fa9b33aab796dbc2a61f3062bf80e120831b462"
+        },
+        "date": 1740065966719,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.04,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.707,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.062,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.296,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.948,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.842,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.923,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 93.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 91.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.914,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.454,
             "unit": "s"
           }
         ]
