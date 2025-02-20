@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::path::{Path, PathBuf};
 
 use acir::circuit::brillig::BrilligFunctionId;
@@ -52,9 +53,16 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
     let debug_artifact: DebugArtifact = program.into();
 
-    for (func_idx, (func_name, bytecode)) in
-        acir_names.into_iter().zip(bytecode.functions.iter()).enumerate()
-    {
+    // We can have repeated names if there are functions with the same name in different
+    // modules or functions that use generics.
+    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    for (func_idx, bytecode) in bytecode.functions.iter().enumerate() {
+        let func_name = acir_names[func_idx].as_str();
+        let count = seen_names.entry(func_name).and_modify(|c| *c += 1).or_insert(0);
+
+        let func_name =
+            if *count == 0 { func_name.to_owned() } else { format!("{}_{}", func_name, count) };
+
         println!("Opcode count for {}: {}", func_name, bytecode.opcodes.len());
 
         let samples = bytecode
@@ -79,48 +87,57 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         )?;
     }
 
-    if !skip_brillig {
-        for (brillig_fn_index, brillig_bytecode) in
-            bytecode.unconstrained_functions.into_iter().enumerate()
-        {
-            let acir_location = locate_brillig_call(brillig_fn_index, &bytecode.functions);
-            let Some((acir_fn_index, acir_opcode_index)) = acir_location else {
-                continue;
-            };
+    if skip_brillig {
+        return Ok(());
+    }
 
-            let function_name = &brillig_names[brillig_fn_index];
+    // We can have repeated names if there are functions with the same name in different
+    // modules or functions that use generics.
+    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    for (brillig_fn_index, brillig_bytecode) in
+        bytecode.unconstrained_functions.into_iter().enumerate()
+    {
+        let acir_location = locate_brillig_call(brillig_fn_index, &bytecode.functions);
+        let Some((acir_fn_index, acir_opcode_index)) = acir_location else {
+            continue;
+        };
 
-            println!(
-                "Opcode count for {}_brillig: {}",
-                function_name,
-                brillig_bytecode.bytecode.len()
-            );
+        let function_name = brillig_names[brillig_fn_index].as_str();
 
-            let samples = brillig_bytecode
-                .bytecode
-                .into_iter()
-                .enumerate()
-                .map(|(brillig_index, opcode)| CompilationSample {
-                    opcode: Some(format_brillig_opcode(&opcode)),
-                    call_stack: vec![OpcodeLocation::Brillig {
-                        acir_index: acir_opcode_index,
-                        brillig_index,
-                    }],
-                    count: 1,
-                    brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
-                })
-                .collect();
+        let count = seen_names.entry(function_name).and_modify(|c| *c += 1).or_insert(0);
 
-            flamegraph_generator.generate_flamegraph(
-                samples,
-                &debug_artifact.debug_symbols[acir_fn_index],
-                &debug_artifact,
-                artifact_path.to_str().unwrap(),
-                function_name,
-                &Path::new(&output_path)
-                    .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
-            )?;
-        }
+        let function_name = if *count == 0 {
+            function_name.to_owned()
+        } else {
+            format!("{}_{}", function_name, count)
+        };
+
+        println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
+
+        let samples = brillig_bytecode
+            .bytecode
+            .into_iter()
+            .enumerate()
+            .map(|(brillig_index, opcode)| CompilationSample {
+                opcode: Some(format_brillig_opcode(&opcode)),
+                call_stack: vec![OpcodeLocation::Brillig {
+                    acir_index: acir_opcode_index,
+                    brillig_index,
+                }],
+                count: 1,
+                brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
+            })
+            .collect();
+
+        flamegraph_generator.generate_flamegraph(
+            samples,
+            &debug_artifact.debug_symbols[acir_fn_index],
+            &debug_artifact,
+            artifact_path.to_str().unwrap(),
+            &function_name,
+            &Path::new(&output_path)
+                .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
+        )?;
     }
 
     Ok(())
@@ -252,7 +269,7 @@ mod tests {
         let output_file = temp_dir.path().join("main_acir_opcodes.svg");
         assert!(output_file.exists());
 
-        let output_file = temp_dir.path().join("0_brillig_opcodes.svg");
+        let output_file = temp_dir.path().join("main_brillig_opcodes.svg");
         assert!(output_file.exists());
     }
 }

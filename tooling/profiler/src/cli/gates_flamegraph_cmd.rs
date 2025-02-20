@@ -212,7 +212,7 @@ mod tests {
         .expect("should run without errors");
 
         // Check that the output file was written to
-        let output_file = temp_dir.path().join("test_filename::main::gates.svg");
+        let output_file = temp_dir.path().join("test_filename_main_gates.svg");
         assert!(output_file.exists());
     }
 }
