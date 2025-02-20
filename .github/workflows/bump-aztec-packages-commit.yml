@@ -20,12 +20,11 @@ jobs:
       - name: Check for existing PR
         id: pr-check
         run: |
-          set -xue # print commands
-          export GH_TOKEN="${{ secrets.NOIR_REPO_TOKEN }}"
-          
-          # Do we have a PR active?
+          set -xue # print commands         
           PR_URL=$(gh pr list --repo noir-lang/noir --head bump-aztec-packages --json url --jq ".[0].url")
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Configure git
         run: |
@@ -47,4 +46,5 @@ jobs:
           Automated update of the pinned commit of [aztec-packages](https://github.com/AztecProtocol/aztec-packages) repository against which we run benchmarks.
           """
           gh pr create --repo noir-lang/noir --title "chore: bump aztec-packages commit" --body "$PR_BODY" --base master --head bump-aztec-packages
-
+        env:
+          GH_TOKEN: ${{ secrets.NOIR_REPO_TOKEN }}
