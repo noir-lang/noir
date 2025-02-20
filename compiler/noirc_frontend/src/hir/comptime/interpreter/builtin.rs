@@ -2767,8 +2767,8 @@ fn module_add_item(
 
     let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
-        let previous_errors =
-            elaborator.push_elaborate_reason(ElaborateReason::AddingItemToModule, location);
+        let previous_errors = elaborator
+            .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
 
         let mut generated_items = CollectedItems::default();
 

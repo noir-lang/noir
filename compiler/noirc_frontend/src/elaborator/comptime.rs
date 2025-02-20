@@ -354,7 +354,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) {
         let previous_errors =
-            self.push_elaborate_reason(ElaborateReason::RunningAttribute, location);
+            self.push_elaborate_reason_and_take_errors(ElaborateReason::RunningAttribute, location);
 
         for item in items {
             self.add_item(item, generated_items, location);
@@ -572,8 +572,10 @@ impl<'context> Elaborator<'context> {
             });
 
             if !generated_items.is_empty() {
-                let previous_errors =
-                    self.push_elaborate_reason(ElaborateReason::RunningAttribute, location);
+                let previous_errors = self.push_elaborate_reason_and_take_errors(
+                    ElaborateReason::RunningAttribute,
+                    location,
+                );
 
                 self.elaborate_items(generated_items);
 
@@ -667,7 +669,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Pushes an ElaborateReason but also `std::mem::take`s the current errors and returns them.
-    pub(crate) fn push_elaborate_reason(
+    pub(crate) fn push_elaborate_reason_and_take_errors(
         &mut self,
         reason: ElaborateReason,
         location: Location,
