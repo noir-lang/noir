@@ -45,14 +45,15 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     let mut program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    let function_names = program.names.clone();
+    let acir_names = std::mem::take(&mut program.names);
+    let brillig_names = std::mem::take(&mut program.brillig_names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
 
     let debug_artifact: DebugArtifact = program.into();
 
     for (func_idx, (func_name, bytecode)) in
-        function_names.into_iter().zip(bytecode.functions.iter()).enumerate()
+        acir_names.into_iter().zip(bytecode.functions.iter()).enumerate()
     {
         println!("Opcode count for {}: {}", func_name, bytecode.opcodes.len());
 
@@ -87,9 +88,11 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 continue;
             };
 
+            let function_name = &brillig_names[brillig_fn_index];
+
             println!(
-                "Opcode count for brillig_{}: {}",
-                brillig_fn_index,
+                "Opcode count for {}_brillig: {}",
+                function_name,
                 brillig_bytecode.bytecode.len()
             );
 
@@ -113,9 +116,9 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                 &debug_artifact.debug_symbols[acir_fn_index],
                 &debug_artifact,
                 artifact_path.to_str().unwrap(),
-                &format!("brillig_{}", brillig_fn_index),
+                function_name,
                 &Path::new(&output_path)
-                    .join(Path::new(&format!("{}_brillig_opcodes.svg", &brillig_fn_index))),
+                    .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
             )?;
         }
     }
