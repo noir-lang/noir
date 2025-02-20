@@ -187,6 +187,8 @@ pub struct CompileOptions {
     pub unstable_features: Vec<UnstableFeature>,
 }
 
+struct UnstableFeature(noirc_frontend::elaborator::UnstableFeature);
+
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input

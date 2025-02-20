@@ -60,6 +60,7 @@ mod trait_impls;
 mod traits;
 pub mod types;
 mod unquote;
+mod options;
 
 use cli_args::UnstableFeature;
 use fm::FileId;
@@ -68,6 +69,7 @@ use noirc_errors::{Location, Span, Spanned};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
+pub use options::{ FrontendOptions, ElaboratorOptions, UnstableFeature };
 
 use self::traits::check_trait_impl_method_matches_declaration;
 

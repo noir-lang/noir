@@ -255,31 +255,6 @@ impl From<UnsupportedNumericGenericType> for CompilationError {
     }
 }
 
-/// Options from nargo_cli that need to be passed down to the elaborator
-#[derive(Copy, Clone)]
-pub struct ElaboratorOptions<'a> {
-    /// The scope of --debug-comptime, or None if unset
-    pub debug_comptime_in_file: Option<fm::FileId>,
-
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
-
-    /// Unstable compiler features that were explicitly enabled. Any unstable features
-    /// that are not in this list result in an error when used.
-    pub enabled_unstable_features: &'a [UnstableFeature],
-}
-
-impl<'a> ElaboratorOptions<'a> {
-    pub fn test_default() -> ElaboratorOptions<'static> {
-        let options = FrontendOptions::test_default();
-        ElaboratorOptions {
-            debug_comptime_in_file: None,
-            pedantic_solving: options.pedantic_solving,
-            enabled_unstable_features: options.enabled_unstable_features,
-        }
-    }
-}
-
 impl DefCollector {
     pub fn new(def_map: CrateDefMap) -> DefCollector {
         DefCollector {
