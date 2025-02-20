@@ -235,12 +235,20 @@ mod tests {
 
         let artifact_path = temp_dir.path().join("test.json");
 
-        let acir: Vec<Opcode<FieldElement>> = vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![],
-            outputs: vec![],
-            predicate: None,
-        }];
+        let acir: Vec<Opcode<FieldElement>> = vec![
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(0),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(1),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
+        ];
 
         let artifact = ProgramArtifact {
             noir_version: "0.0.0".to_string(),
@@ -248,12 +256,15 @@ mod tests {
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
                 functions: vec![Circuit { opcodes: acir, ..Circuit::default() }],
-                unconstrained_functions: vec![BrilligBytecode::default()],
+                unconstrained_functions: vec![
+                    BrilligBytecode::default(),
+                    BrilligBytecode::default(),
+                ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
-            brillig_names: vec!["main".to_string()],
+            brillig_names: vec!["main".to_string(), "main".to_string()],
         };
 
         // Write the artifact to a file
@@ -265,11 +276,14 @@ mod tests {
         super::run_with_generator(&artifact_path, &flamegraph_generator, temp_dir.path(), false)
             .expect("should run without errors");
 
-        // Check that the output files ware written to
+        // Check that the output files that were written
         let output_file = temp_dir.path().join("main_acir_opcodes.svg");
         assert!(output_file.exists());
 
         let output_file = temp_dir.path().join("main_brillig_opcodes.svg");
+        assert!(output_file.exists());
+
+        let output_file = temp_dir.path().join("main_1_brillig_opcodes.svg");
         assert!(output_file.exists());
     }
 }
