@@ -85,7 +85,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload nargo binaries to release tag
+      - name: Upload nargo binary to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
@@ -112,7 +112,7 @@ jobs:
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload nargo binaries to release with date tag
+      - name: Upload nargo binary to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
@@ -200,7 +200,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload nargo binaries to release tag
+      - name: Upload nargo binary to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish }}
         with:
@@ -229,7 +229,7 @@ jobs:
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload nargo binaries to release with date tag
+      - name: Upload nargo binary to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
