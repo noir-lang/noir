@@ -41,7 +41,7 @@ The program on its own is quite high-level. Let's get a more granular look at wh
 
 After compiling the program, run the following:
 ```sh
-noir-profiler opcodes --artifact-path ./target/program.json -output ./target/
+noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
 ```
 Below you can see an example flamegraph with a total 387 opcodes (using `nargo` version 1.0.0-beta.2):
 <picture>
