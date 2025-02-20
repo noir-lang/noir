@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740074709800,
+  "lastUpdate": 1740074788083,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5d427c8e36be298ba28cc80e3b810022bcc31f8a",
-          "message": "chore: avoid doing all brillig integer arithmetic on u128s (#7357)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-02-12T20:50:20Z",
-          "tree_id": "b433c5a5c7790722a9af2dad858cabbe49649ced",
-          "url": "https://github.com/noir-lang/noir/commit/5d427c8e36be298ba28cc80e3b810022bcc31f8a"
-        },
-        "date": 1739394769915,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 272.11,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 587.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1170,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1300,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 661.49,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 545.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5310,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 544.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 661.5,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3804,6 +3725,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 372.69,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af5e4cd1f200da6f21c543616dea9c188190d833",
+          "message": "feat(ci): Publish binaries for noir-profiler (#7443)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-20T17:42:46Z",
+          "tree_id": "7bc004f3e8d7564b3fac1127e1fc026301af6933",
+          "url": "https://github.com/noir-lang/noir/commit/af5e4cd1f200da6f21c543616dea9c188190d833"
+        },
+        "date": 1740074786416,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 276,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 587.29,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 199.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 950.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 816.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 326.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 372.67,
             "unit": "MB"
           }
         ]
