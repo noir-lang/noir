@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740074789495,
+  "lastUpdate": 1740076387915,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3805,105 +3805,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7cdce1fef7e0fd63355fe6dc0993415bbb210ebf",
-          "message": "feat(performance): Check sub operations against induction variables (#7356)",
-          "timestamp": "2025-02-12T21:15:57Z",
-          "tree_id": "4303f33f696a6e30d3d73c4a57ca9d74303ff4ed",
-          "url": "https://github.com/noir-lang/noir/commit/7cdce1fef7e0fd63355fe6dc0993415bbb210ebf"
-        },
-        "date": 1739396026903,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.01,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.853,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21.4,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.688,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.024,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.428,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.014,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 10.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 3.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.998,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 72.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 67.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3.616,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8561,6 +8462,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.52,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "757e3c473acd844e9639d9e1e2a29e01129c3b7b",
+          "message": "chore(docs): Noir Profiler external documentation (#7457)",
+          "timestamp": "2025-02-20T18:14:32Z",
+          "tree_id": "b1e4312bade1f4249bc7bbfee1ffec2c25ea4e62",
+          "url": "https://github.com/noir-lang/noir/commit/757e3c473acd844e9639d9e1e2a29e01129c3b7b"
+        },
+        "date": 1740076386062,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.994,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.769,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.503,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.142,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.456,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.964,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.512,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.922,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 93.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 90.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.982,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.442,
             "unit": "s"
           }
         ]
