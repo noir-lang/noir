@@ -45,7 +45,7 @@ noir-profiler opcodes --artifact-path ./target/program.json -output ./target/
 ```
 Below you can see an example flamegraph with a total 387 opcodes (using `nargo` version 1.0.0-beta.2):
 <picture>
-  <img src="../../static/img/tooling/profiler/acir-flamegraph-unopt.png">
+  <img src="../../static/img/tooling/profiler/acir-flamegraph-unoptimized.png">
 </picture>
 
 You should now have a flamegraph mapping ACIR opcodes to their associated locations in the source code. We highly recommend generating these graphs yourself while going through this guide. You will be able to click into call stacks and view the flamegraph much more clearly. 
@@ -84,7 +84,7 @@ We chose to instead write our array inside of the unconstrained function. Then i
 
 This new program produces the following ACIR opcodes flamegraph with a total of 284 opcodes:
 <picture>
-  <img src="../../static/img/tooling/profiler/acir-flamegraph-opt.png">
+  <img src="../../static/img/tooling/profiler/acir-flamegraph-optimized.png">
 </picture>
 
 In the above image we searched for the ACIR opcodes due to `i > ptr` in the source code. Trigger a search by clicking on "Search" in the top right corner of the flamegraph. In the bottom right corner of the image above, you will note that the flamegraph displays the percentage of all opcodes associated with that search.  Searching for `memory::op` in the optimized flamegraph will result in no matches. This is due to no longer using a dynamic array in our circuit. By dynamic array, we are referring to using a dynamic index (values reliant upon witness inputs) when working with arrays. Most of the memory operations, have now been replaced with arithmetic operations as we are reading two arrays from known constant indices.   
@@ -102,7 +102,7 @@ noir-profiler gates --artifact-path ./target/program.json --backend-path bb --ou
 
 This produces the following flamegraph with 3,737 total backend gates (using `bb` version 0.76.4):
 <picture>
-  <img src="../../static/img/tooling/profiler/gates-flamegraph-unopt.png">
+  <img src="../../static/img/tooling/profiler/gates-flamegraph-unoptimized.png">
 </picture>
 
 Searching for ACIR `memory::op` opcodes, they look to cause about 18.2% of the backend gates.
@@ -110,18 +110,18 @@ Searching for ACIR `memory::op` opcodes, they look to cause about 18.2% of the b
 You will notice that the majority of the backend gates come from the ACIR range opcodes. This is due to the way UltraHonk handles range constraints, which is the backend used in this example. UltraHonk uses lookup tables internally for its range gates. These can take up the majority of the gates for a small circuit, but whose impact becomes more meaningful in larger circuits. If our array was much larger, range gates would become a much smaller percentage of our total circuit. 
 Here is an example backend gates flamegraph for the same program in this guide but with an array of size 2048:
 <picture>
-  <img src="../../static/img/tooling/profiler/gates-flamegraph-unopt-2048.png">
+  <img src="../../static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png">
 </picture> 
 Every backend implements ACIR opcodes differently, so it is important to profile both the ACIR and the backend gates to get a full picture. 
 
 Now let's generate a graph for our optimized circuit with an array of size 32. We get the following flamegraph that produces 3,062 total backend gates:
 <picture>
-  <img src="../../static/img/tooling/profiler/gates-flamegraph-opt.png">
+  <img src="../../static/img/tooling/profiler/gates-flamegraph-optimized.png">
 </picture>
 
 In the optimized flamegraph, we searched for the backend gates due to `i > ptr` in the source code. The backend gates associated with this call stack were only 3.8% of the total backend gates. If we look back to the ACIR flamegraph, that same code was the cause of 43.3% ACIR opcodes. This discrepancy reiterates the earlier point about profiling both the ACIR opcodes and backend gates. 
 
 For posterity, here is the flamegraph for the same program with a size 2048 array:
 <picture>
-  <img src="../../static/img/tooling/profiler/gates-flamegraph-opt-2048.png">
+  <img src="../../static/img/tooling/profiler/gates-flamegraph-optimized-2048.png">
 </picture> 
