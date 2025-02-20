@@ -1,6 +1,6 @@
 use crate::{
     ast::Path,
-    token::{SpannedToken, Token, Tokens},
+    token::{LocatedToken, Token, Tokens},
 };
 
 use super::Elaborator;
@@ -20,17 +20,18 @@ impl<'a> Elaborator<'a> {
 
             if is_unquote {
                 if let Some(next) = tokens.next() {
-                    let span = next.to_span();
+                    let location = next.location();
 
                     match next.into_token() {
                         Token::Ident(name) => {
                             // Don't want the leading `$` anymore
                             new_tokens.pop();
-                            let path = Path::from_single(name, span);
+                            let path = Path::from_single(name, location);
                             let (expr_id, _) = self.elaborate_variable(path);
-                            new_tokens.push(SpannedToken::new(Token::UnquoteMarker(expr_id), span));
+                            new_tokens
+                                .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
                         }
-                        other_next => new_tokens.push(SpannedToken::new(other_next, span)),
+                        other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                     }
                 }
             }

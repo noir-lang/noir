@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 
-use noirc_errors::Span;
+use noirc_errors::{Located, Location};
 
 use crate::ast::{
     Documented, GenericTypeArg, GenericTypeArgs, ItemVisibility, NoirTrait, Path, Pattern,
@@ -20,15 +20,16 @@ impl<'a> Parser<'a> {
     ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
     pub(crate) fn parse_trait(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> (NoirTrait, Option<NoirTraitImpl>) {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            let noir_trait = empty_trait(attributes, visibility, self.span_since(start_span));
+            let noir_trait =
+                empty_trait(attributes, visibility, self.location_since(start_location));
             let no_implicit_impl = None;
             return (noir_trait, no_implicit_impl);
         };
@@ -41,7 +42,7 @@ impl<'a> Parser<'a> {
             let bounds = self.parse_trait_bounds();
 
             if bounds.is_empty() {
-                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_span);
+                self.push_error(ParserErrorReason::EmptyTraitAlias, self.previous_token_location);
             }
 
             let where_clause = self.parse_where_clause();
@@ -60,17 +61,17 @@ impl<'a> Parser<'a> {
             (bounds, where_clause, items, is_alias)
         };
 
-        let span = self.span_since(start_span);
+        let location = self.location_since(start_location);
 
         let noir_impl = is_alias.then(|| {
-            let object_type_ident = Ident::new("#T".to_string(), span);
+            let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
             let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
                 typ: UnresolvedTypeData::Named(object_type_path, vec![].into(), is_synthesized),
-                span,
+                location,
             };
 
             let mut impl_generics = generics.clone();
@@ -85,7 +86,7 @@ impl<'a> Parser<'a> {
                         vec![].into(),
                         is_synthesized,
                     ),
-                    span,
+                    location,
                 };
 
                 GenericTypeArg::Ordered(generic_type)
@@ -94,7 +95,7 @@ impl<'a> Parser<'a> {
 
             let r#trait = UnresolvedType {
                 typ: UnresolvedTypeData::Named(trait_name, trait_generics, false),
-                span,
+                location,
             };
 
             // bounds from trait
@@ -117,7 +118,7 @@ impl<'a> Parser<'a> {
             generics,
             bounds,
             where_clause,
-            span,
+            location,
             items,
             attributes,
             visibility,
@@ -205,7 +206,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: Span::default() }
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
         };
 
         let default_value =
@@ -223,7 +224,10 @@ impl<'a> Parser<'a> {
         );
 
         if modifiers.visibility != ItemVisibility::Private {
-            self.push_error(ParserErrorReason::TraitVisibilityIgnored, modifiers.visibility_span);
+            self.push_error(
+                ParserErrorReason::TraitVisibilityIgnored,
+                modifiers.visibility_location,
+            );
         }
 
         if !self.eat_keyword(Keyword::Fn) {
@@ -243,7 +247,7 @@ impl<'a> Parser<'a> {
                 if let Pattern::Identifier(ident) = param.pattern {
                     Some((ident, param.typ))
                 } else {
-                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.span());
+                    self.push_error(ParserErrorReason::InvalidPattern, param.pattern.location());
                     None
                 }
             })
@@ -266,14 +270,14 @@ impl<'a> Parser<'a> {
 fn empty_trait(
     attributes: Vec<SecondaryAttribute>,
     visibility: ItemVisibility,
-    span: Span,
+    location: Location,
 ) -> NoirTrait {
     NoirTrait {
         name: Ident::default(),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),
-        span,
+        location,
         items: Vec::new(),
         attributes,
         visibility,
@@ -285,9 +289,9 @@ fn empty_trait(
 mod tests {
     use crate::{
         ast::{NoirTrait, NoirTraitImpl, TraitItem, UnresolvedTypeData},
+        parse_program_with_dummy_file,
         parser::{
             parser::{
-                parse_program,
                 tests::{expect_no_errors, get_single_error, get_source_with_error_span},
                 ParserErrorReason,
             },
@@ -296,7 +300,7 @@ mod tests {
     };
 
     fn parse_trait_opt_impl_no_errors(src: &str) -> (NoirTrait, Option<NoirTraitImpl>) {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         let (item, impl_item) = if module.items.len() == 2 {
             let item = module.items.remove(0);
@@ -342,7 +346,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias() {
         let src = "trait Foo = ;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -401,7 +405,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias_with_generics() {
         let src = "trait Foo<A, B> = ;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -464,7 +468,7 @@ mod tests {
     #[test]
     fn parse_empty_trait_alias_with_where_clause() {
         let src = "trait Foo<A, B> = where A: Z;";
-        let (_module, errors) = parse_program(src);
+        let (_module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[1].reason(), Some(ParserErrorReason::EmptyTraitAlias).as_ref());
     }
@@ -534,7 +538,7 @@ mod tests {
                     ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_module, errors) = parse_program(&src);
+        let (_module, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("Visibility is ignored on a trait method"));
     }

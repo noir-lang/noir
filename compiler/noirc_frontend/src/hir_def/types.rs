@@ -395,7 +395,7 @@ pub type Generics = Vec<ResolvedGeneric>;
 pub struct ResolvedGeneric {
     pub name: Rc<String>,
     pub type_var: TypeVariable,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl ResolvedGeneric {
@@ -2724,7 +2724,8 @@ impl Type {
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
-                Some(((1u128 << max_bit_size) - 1).into())
+                let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
+                Some(max.into())
             }
             Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
@@ -2781,14 +2782,14 @@ fn convert_array_expression_to_slice(
     let argument = interner.expression(&expression);
     let argument = interner.push_expr(argument);
     interner.push_expr_type(argument, array_type.clone());
-    interner.push_expr_location(argument, location.span, location.file);
+    interner.push_expr_location(argument, location);
 
     let arguments = vec![argument];
     let is_macro_call = false;
     let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
 
-    interner.push_expr_location(func, location.span, location.file);
+    interner.push_expr_location(func, location);
     interner.push_expr_type(expression, target_type.clone());
 
     let func_type =

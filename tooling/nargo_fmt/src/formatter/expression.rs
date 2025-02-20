@@ -6,7 +6,7 @@ use noirc_frontend::{
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
         UnresolvedTypeData,
     },
-    token::{Keyword, Token},
+    token::{Keyword, Token, TokenKind},
 };
 
 use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup, GroupKind, GroupTag, TextChunk};
@@ -21,7 +21,19 @@ struct FormattedLambda {
 
 impl<'a, 'b> ChunkFormatter<'a, 'b> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
-        group.leading_comment(self.skip_comments_and_whitespace_chunk());
+        group.leading_comment(self.chunk(|formatter| {
+            // Doc comments for an expression could come before a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+
+            formatter.skip_comments_and_whitespace();
+
+            // Or doc comments could come after a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+        }));
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, group),
@@ -349,7 +361,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.write_space();
             formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
-                formatter.write_source_span(token.to_span());
+                formatter.write_source_span(token.span());
             }
             formatter.write(&delimiter_end.to_string());
         }));
@@ -377,7 +389,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_outer_doc_comments_checking_safety();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));

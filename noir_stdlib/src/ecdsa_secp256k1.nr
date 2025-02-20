@@ -19,4 +19,3 @@ pub fn verify_signature_slice(
 ) -> bool
 // docs:end:ecdsa_secp256k1_slice
 {}
-

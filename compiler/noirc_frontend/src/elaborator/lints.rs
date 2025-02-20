@@ -16,7 +16,7 @@ use crate::{
     Type,
 };
 
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -127,13 +127,14 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
 
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
-    function_args: &[(Type, ExprId, Span)],
+    function_args: &[(Type, ExprId, Location)],
 ) -> Vec<TypeCheckError> {
     function_args
         .iter()
-        .filter_map(|(typ, _, span)| {
+        .filter_map(|(typ, _, location)| {
             if !typ.is_valid_for_unconstrained_boundary() {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
+                let span = location.span;
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span })
             } else {
                 None
             }
@@ -202,9 +203,9 @@ pub(crate) fn overflowing_int(
     let mut errors = Vec::with_capacity(2);
     match expr {
         HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
-            Type::Integer(Signedness::Unsigned, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
-                let max = 2u128.pow(bit_count) - 1;
+            Type::Integer(Signedness::Unsigned, bit_size) => {
+                let bit_size: u32 = (*bit_size).into();
+                let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
                 if value > max.into() || negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: if negative { -value } else { value },
@@ -249,7 +250,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
+    Ident(Located::from(func.name.location, modifiers.name.clone()))
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
