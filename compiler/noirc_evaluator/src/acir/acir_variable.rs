@@ -842,18 +842,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
 
         // maximum bit size for q and for [r and rhs]
-        let mut max_q_bits = bit_size;
-        let mut max_rhs_bits = bit_size;
-        // when rhs is constant, we can better estimate the maximum bit sizes
-        if let Some(rhs_const) = rhs_expr.to_const() {
-            max_rhs_bits = rhs_const.num_bits();
-            if max_rhs_bits != 0 {
-                if max_rhs_bits > bit_size {
-                    return Ok((zero, zero));
-                }
-                max_q_bits = bit_size - max_rhs_bits + 1;
-            }
-        }
+        let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
+            // when rhs is constant, we can better estimate the maximum bit sizes
+            let max_rhs_bits = rhs_const.num_bits();
+            assert!(
+                max_rhs_bits <= bit_size,
+                "attempted to divide by constant larger than operand type"
+            );
+
+            let max_q_bits = bit_size - max_rhs_bits + 1;
+            (max_q_bits, max_rhs_bits)
+        } else {
+            (bit_size, bit_size)
+        };
 
         let [q_value, r_value]: [AcirValue; 2] = self
             .brillig_call(

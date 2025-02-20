@@ -204,4 +204,26 @@ mod tests {
         ";
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn simplifies_out_noop_bitwise_ands() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7451
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: u8):
+            v1 = and u8 255, v0
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+        b0(v0: u8):
+            return v0
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }
