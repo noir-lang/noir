@@ -730,6 +730,7 @@ impl Elaborator<'_> {
     ///
     /// Types with infinite constructors (e.g. int and string) are handled
     /// separately; they don't need most of this work anyway.
+    #[allow(clippy::type_complexity)]
     fn compile_constructor_cases(
         &mut self,
         rows: Vec<Row>,
