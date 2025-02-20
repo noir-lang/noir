@@ -306,14 +306,18 @@ impl Binary {
                             let bitmask_plus_one = bitmask.to_u128() + 1;
                             if bitmask_plus_one.is_power_of_two() {
                                 let value = if lhs_value.is_some() { rhs } else { lhs };
-                                let num_bits = bitmask_plus_one.ilog2();
-                                return SimplifyResult::SimplifiedToInstruction(
-                                    Instruction::Truncate {
-                                        value,
-                                        bit_size: num_bits,
-                                        max_bit_size: lhs_type.bit_size(),
-                                    },
-                                );
+                                let bit_size = bitmask_plus_one.ilog2();
+                                let max_bit_size = lhs_type.bit_size();
+
+                                if bit_size == max_bit_size {
+                                    // If we're truncating a value into the full size of its type then
+                                    // the truncation is a noop.
+                                    return SimplifyResult::SimplifiedTo(value);
+                                } else {
+                                    return SimplifyResult::SimplifiedToInstruction(
+                                        Instruction::Truncate { value, bit_size, max_bit_size },
+                                    );
+                                }
                             }
                         }
 
@@ -509,7 +513,7 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
 }
 
 /// Truncates `int` to fit within `bit_size` bits.
-fn truncate(int: u128, bit_size: u32) -> u128 {
+pub(super) fn truncate(int: u128, bit_size: u32) -> u128 {
     if bit_size == 128 {
         int
     } else {

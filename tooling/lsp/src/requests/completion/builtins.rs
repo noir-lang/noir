@@ -150,8 +150,8 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
-pub(super) fn builtin_integer_types() -> [&'static str; 8] {
-    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]
+pub(super) fn builtin_integer_types() -> [&'static str; 9] {
+    ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "u128"]
 }
 
 /// If a keyword corresponds to a built-in type, returns that type's name.
