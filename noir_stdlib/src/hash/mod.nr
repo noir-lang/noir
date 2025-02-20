@@ -1,8 +1,5 @@
 pub mod poseidon;
 pub mod poseidon2;
-pub mod keccak;
-pub mod sha256;
-pub mod sha512;
 
 use crate::default::Default;
 use crate::embedded_curve_ops::{
@@ -11,8 +8,17 @@ use crate::embedded_curve_ops::{
 use crate::meta::derive_via;
 use crate::uint128::U128;
 
-// Kept for backwards compatibility
-pub use sha256::{digest, sha256, sha256_compression, sha256_var};
+pub mod sha256 {
+    #[foreign(sha256_compression)]
+    pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+}
+
+pub mod keccak256 {
+    #[foreign(keccakf1600)]
+    // docs:start:keccakf1600
+    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+    // docs:end:keccakf1600
+}
 
 #[foreign(blake2s)]
 // docs:start:blake2s
@@ -114,12 +120,6 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
     sum
 }
 
-// docs:start:keccak256
-pub fn keccak256<let N: u32>(input: [u8; N], message_size: u32) -> [u8; 32]
-// docs:end:keccak256
-{
-    crate::hash::keccak::keccak256(input, message_size)
-}
 
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
