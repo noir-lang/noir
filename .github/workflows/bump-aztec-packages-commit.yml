@@ -41,7 +41,7 @@ jobs:
           git push --set-upstream origin bump-aztec-packages --force
 
       - name: Create PR
-        if: ${{ steps.pr-check.outputs.pr_url != '' }}
+        if: ${{ steps.pr-check.outputs.pr_url == '' }}
         run: |
           PR_BODY="""
           Automated update of the pinned commit of [aztec-packages](https://github.com/AztecProtocol/aztec-packages) repository against which we run benchmarks.
