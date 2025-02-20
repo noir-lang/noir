@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740074788083,
+  "lastUpdate": 1740074789495,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11842,75 +11842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5d427c8e36be298ba28cc80e3b810022bcc31f8a",
-          "message": "chore: avoid doing all brillig integer arithmetic on u128s (#7357)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-02-12T20:50:20Z",
-          "tree_id": "b433c5a5c7790722a9af2dad858cabbe49649ced",
-          "url": "https://github.com/noir-lang/noir/commit/5d427c8e36be298ba28cc80e3b810022bcc31f8a"
-        },
-        "date": 1739394765484,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 728.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 554.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 528.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 554.72,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15100,6 +15031,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/263922da5af9a8d7bf85cbe268f381dc1f650913"
         },
         "date": 1740073581227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 215.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 249.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 185.17,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 431.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 370.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 309.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 316.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af5e4cd1f200da6f21c543616dea9c188190d833",
+          "message": "feat(ci): Publish binaries for noir-profiler (#7443)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-20T17:42:46Z",
+          "tree_id": "7bc004f3e8d7564b3fac1127e1fc026301af6933",
+          "url": "https://github.com/noir-lang/noir/commit/af5e4cd1f200da6f21c543616dea9c188190d833"
+        },
+        "date": 1740074787565,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
