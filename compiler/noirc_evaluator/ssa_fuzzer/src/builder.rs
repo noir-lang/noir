@@ -94,21 +94,15 @@ impl FuzzerBuilder {
             return value;
         }
         match self.numeric_type {
-            NumericType::Signed { bit_size } => {
-                if bit_size < size {
-                    let res1 = self.builder.insert_cast(value, NumericType::Signed { bit_size: size });
-                    let result = self.insert_simple_cast(res1);
-                    return result;
-                }
-                return value;
+            NumericType::Signed { bit_size: _ } => {
+                let res1 = self.builder.insert_cast(value, NumericType::Signed { bit_size: size });
+                let result = self.insert_simple_cast(res1);
+                return result;
             }
-            NumericType::Unsigned { bit_size } => {
-                if bit_size < size {
-                    let res1 = self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
-                    let result = self.insert_simple_cast(res1);
-                    return result;
-                }
-                return value;
+            NumericType::Unsigned { bit_size: _ } => {
+                let res1 = self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
+                let result = self.insert_simple_cast(res1);
+                return result;
             }
             NumericType::NativeField => {
                 return value;
@@ -147,12 +141,12 @@ impl FuzzerBuilder {
     pub fn insert_shl_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         // rhs must be 8bit 
         match self.numeric_type {
-            NumericType::Signed { bit_size }  => {
+            NumericType::Signed { bit_size: _ }  => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Signed { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
                 return result;
             }
-            NumericType::Unsigned { bit_size } => {
+            NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
                 return result;
@@ -166,12 +160,12 @@ impl FuzzerBuilder {
 
     pub fn insert_shr_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         match self.numeric_type {
-            NumericType::Signed { bit_size }  => {
+            NumericType::Signed { bit_size: _ }  => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
                 return result;
             }
-            NumericType::Unsigned { bit_size } => {
+            NumericType::Unsigned { bit_size: _ } => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
                 return result;

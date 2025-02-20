@@ -42,9 +42,17 @@ fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) ->
     .run_pass(|ssa| ssa.fold_constants_with_brillig(&brillig), "Inlining Brillig Calls Inlining")
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
-    let artifacts = ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width).unwrap();
 
-    Ok(ArtifactsAndWarnings(artifacts, vec![]))
+    /*let formatted_ssa = format!("{}", ssa);
+    println!("formatted_ssa: {:?}", formatted_ssa);*/
+    match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
+        Ok(artifacts) => {
+            Ok(ArtifactsAndWarnings(artifacts, vec![]))
+        }
+        Err(e) => {
+            Err(e)
+        }
+    }
 }
 
 fn convert_generated_acir_into_circuit_without_signature(

@@ -5,14 +5,13 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use ssa_fuzzer::builder::FuzzerBuilder;
 use ssa_fuzzer::config;
 use ssa_fuzzer::config::NUMBER_OF_VARIABLES_INITIAL;
-use ssa_fuzzer::helpers::id_to_witness;
 use ssa_fuzzer::helpers::id_to_int;
 use ssa_fuzzer::helpers::u32_to_id;
-use ssa_fuzzer::runner::run_and_compare;
+use ssa_fuzzer::runner::{run_and_compare, execute_single};
 use noirc_evaluator::ssa::ir::types::Type;
 use acvm::acir::native_types::Witness;
 use acvm::acir::native_types::WitnessMap;
-use acvm::{FieldElement, AcirField};
+use acvm::FieldElement;
 use std::fmt::Debug;
 use log;
 use env_logger;
@@ -109,7 +108,8 @@ fn get_random_witness_map(seed: u64) -> WitnessMap<FieldElement> {
     let mut rng = fastrand::Rng::with_seed(seed);
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);
-        let value = FieldElement::from(rng.u64(..));
+        let value = FieldElement::from(i + 1);
+        // let value = FieldElement::from(rng.u64(..));
         witness_map.insert(witness, value);
     }
     witness_map
@@ -185,7 +185,6 @@ impl FuzzerContext {
         let brillig_result = self.brillig_builder.insert_array_get(brillig_array, index);
         self.acir_witnesses_indeces.push(id_to_int(acir_result));
         self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
-        println!("array getted");
     }
 
     fn insert_array_set(&mut self, array_idx: u32, index: u32, value: u32) {
@@ -206,9 +205,8 @@ impl FuzzerContext {
         let brillig_array = self.brillig_arrays[array_idx as usize].id;
         let acir_result = self.acir_builder.insert_array_set(acir_array, index, value);
         let brillig_result = self.brillig_builder.insert_array_set(brillig_array, index, value);
-        self.acir_witnesses_indeces.push(id_to_int(acir_result));
-        self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
-        println!("array setted");
+        self.acir_arrays.push(Array { id: acir_result, length: self.acir_arrays[array_idx as usize].length });
+        self.brillig_arrays.push(Array { id: brillig_result, length: self.brillig_arrays[array_idx as usize].length });
     }
 
     fn insert_instruction_with_single_arg(&mut self, arg: u32, f: fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>) {
@@ -287,9 +285,16 @@ impl FuzzerContext {
             Instructions::ArraySet { array, index, value } => {
                 self.insert_array_set(array, index, value);
             }
-            /*Instructions::BigCastAndBack { lhs, size } => {
-                self.insert_instruction_with_double_args(lhs, size, |builder, lhs, size| builder.insert_cast_bigger_and_back(lhs, size));
-            }*/
+            Instructions::BigCastAndBack { lhs, size } => {
+                if !index_presented(lhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
+                    return;
+                }
+                let lhs = u32_to_id(lhs);
+                let acir_result = self.acir_builder.insert_cast_bigger_and_back(lhs, size);
+                let brillig_result = self.brillig_builder.insert_cast_bigger_and_back(lhs, size);
+                self.acir_witnesses_indeces.push(id_to_int(acir_result));
+                self.brillig_witnesses_indeces.push(id_to_int(brillig_result));
+            }
             _ => {
                 return;
             }
@@ -343,11 +348,33 @@ libfuzzer_sys::fuzz_target!(|methods: Vec<Instructions>| {
         (Err(_), Err(_)) => {
             return;
         }
-        (Ok(_), Err(e)) => {
-            panic!("ACIR program compiled successfully but Brillig failed with: {:?}", e);
+        (Ok(acir), Err(e)) => {
+            let acir_result = execute_single(&acir.program, initial_witness, acir_result_witness);
+            match acir_result {
+                Ok(result) => {
+                    println!("ACIR compiled and successfully executed. Execution result of acir only {:?}", result);
+                    panic!("ACIR compiled and successfully executed, 
+                    but brillig compilation failed. Execution result of 
+                    acir only {:?}. Brillig compilation failed with: {:?}", result, e);
+                }
+                Err(e) => {
+                    return;
+                }
+            }
         }
-        (Err(e), Ok(_)) => {
-            panic!("Brillig program compiled successfully but ACIR failed with: {:?}", e);
+        (Err(e), Ok(brillig)) => {
+            let brillig_result = execute_single(&brillig.program, initial_witness, brillig_result_witness);
+            match brillig_result {
+                Ok(result) => {
+                    println!("Brillig compiled and successfully executed. Execution result of brillig only {:?}", result);
+                    panic!("Brillig compiled and successfully executed, 
+                    but acir compilation failed. Execution result of 
+                    brillig only {:?}. Acir compilation failed with: {:?}", result, e);
+                }
+                Err(e) => {
+                    return;
+                }
+            }
         }
     };
 

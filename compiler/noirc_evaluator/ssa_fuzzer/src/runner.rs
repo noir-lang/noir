@@ -15,15 +15,11 @@ use env_logger;
 
 fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
     _foreign_call_resolver_url: Option<&str>, 
-    acir_program: &Program<FieldElement>, 
-    brillig_program: &Program<FieldElement>, 
-    initial_witness: WitnessMap<FieldElement>) -> (
-        Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
-        Result<WitnessStack<FieldElement>, NargoError<FieldElement>>
-    ) 
+    program: &Program<FieldElement>, 
+    initial_witness: WitnessMap<FieldElement>) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> 
 {
-    let acir_result = execute_program(
-        acir_program,
+    let result = execute_program(
+        program,
         initial_witness.clone(),
         &B::default(),
         &mut DefaultForeignCallBuilder::default()
@@ -31,16 +27,17 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
             .build()
     );
 
-    let brillig_result = execute_program(
-        brillig_program,
-        initial_witness,
-        &B::default(),
-        &mut DefaultForeignCallBuilder::default()
-            .with_output(PrintOutput::None)
-            .build()
-    );
+    result
+}
 
-    (acir_result, brillig_result)
+pub fn execute_single(
+    program: &Program<FieldElement>, 
+    initial_witness: WitnessMap<FieldElement>,
+    return_witness: Witness
+) -> Result<FieldElement, NargoError<FieldElement>> {
+    let result = execute::<Bn254BlackBoxSolver>(None, program, initial_witness)?;
+    let witness = result.peek().expect("Should have at least one witness on the stack");
+    Ok(witness.witness[&return_witness])
 }
 
 pub fn run_and_compare(
@@ -50,26 +47,21 @@ pub fn run_and_compare(
     return_witness_acir: Witness,
     return_witness_brillig: Witness
 ) -> (bool, FieldElement, FieldElement) {
-    let (acir_result, brillig_result) = execute::<Bn254BlackBoxSolver>(None, acir_program, brillig_program, initial_witness);
+    let acir_result = execute_single(acir_program, initial_witness.clone(), return_witness_acir);
+    let brillig_result = execute_single(brillig_program, initial_witness, return_witness_brillig);
     let _ = env_logger::try_init();
     match (acir_result, brillig_result) {
-        (Ok(acir_witness_stack), Ok(brillig_witness_stack)) => {
-            let acir_map = &acir_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-            let brillig_map = &brillig_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-            let acir_result = acir_map[&return_witness_acir];
-            let brillig_result = brillig_map[&return_witness_brillig];
-            //println!("acir_result: {:?}", acir_map);
-            (acir_result == brillig_result, acir_result, brillig_result)
+        (Ok(acir_result), Ok(brillig_result)) => {
+            if acir_result != brillig_result {
+                panic!("ACIR and Brillig results do not match. ACIR result: {:?}, Brillig result: {:?}", acir_result, brillig_result);
+            }
+            (true, acir_result, brillig_result)
         }
-        (Ok(acir_witness_stack), Err(e)) => {
-            let acir_map = &acir_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-            let acir_result = acir_map[&return_witness_acir];
+        (Ok(acir_result), Err(e)) => {
             log::debug!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
             panic!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
         }
-        (Err(e), Ok(brillig_witness_stack)) => {
-            let brillig_map = &brillig_witness_stack.peek().expect("Should have at least one witness on the stack").witness;
-            let brillig_result = brillig_map[&return_witness_brillig];
+        (Err(e), Ok(brillig_result)) => {
             log::debug!("Failed to execute acir program: {:?}, brillig program succeeded with value {:?}", e, brillig_result);
             panic!("Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}", e, brillig_result);
         }
@@ -77,7 +69,7 @@ pub fn run_and_compare(
             // both failed, constructed program unsolvable
             log::debug!("Failed to execute acir program: {:?}", e);
             log::debug!("Failed to execute brillig program: {:?}", e2);
-            return (true, FieldElement::from(0 as u32), FieldElement::from(0 as u32));
+            return (true, FieldElement::from(0_u32), FieldElement::from(0_u32));
         }
     }
 }
