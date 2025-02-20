@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740085635512,
+  "lastUpdate": 1740085636774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11722,75 +11722,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8f20392cab7cca4abf0f1811204ce1a4229f827a",
-          "message": "fix: give \"correct\" error when trying to use AsTraitPath (#7360)",
-          "timestamp": "2025-02-13T20:10:14Z",
-          "tree_id": "ba39c168c377e234b10e31ba170c1245235d5886",
-          "url": "https://github.com/noir-lang/noir/commit/8f20392cab7cca4abf0f1811204ce1a4229f827a"
-        },
-        "date": 1739478761089,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.71,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 590.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 536.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 536.63,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14940,6 +14871,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ceaa1986628197bd1170147f6a07f0f98d21030a"
         },
         "date": 1740085525122,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 443.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "752dc0431bf561cb40684868df610a047075b122",
+          "message": "chore(ci): add workflow to automate bumping aztec-packages commit (#7465)",
+          "timestamp": "2025-02-20T20:40:38Z",
+          "tree_id": "cc9351dc896466e79f792679eb67446124476665",
+          "url": "https://github.com/noir-lang/noir/commit/752dc0431bf561cb40684868df610a047075b122"
+        },
+        "date": 1740085634781,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
