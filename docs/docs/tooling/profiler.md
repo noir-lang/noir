@@ -48,7 +48,7 @@ Below you can see an example flamegraph with a total 387 opcodes (using `nargo` 
   <img src="../../static/img/tooling/profiler/acir-flamegraph-unoptimized.png">
 </picture>
 
-You should now have a flamegraph mapping ACIR opcodes to their associated locations in the source code. We highly recommend generating these graphs yourself while going through this guide. You will be able to click into call stacks and view the flamegraph much more clearly. 
+You should now have a flamegraph that maps ACIR opcodes to their corresponding locations in the source code. We strongly recommend generating these graphs yourself as you follow this guide. Opening the flamegraph in a browser provides a more interactive experience, allowing you to click into and examine different regions of the graph. Simply viewing the image file won't offer the same level of insight.
 
 We can see that the majority of opcodes come from the write to `array[i]`. Now that we have some more information about our program's bottlenecks, let's optimize it.
 
