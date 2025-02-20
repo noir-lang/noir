@@ -38,7 +38,7 @@ jobs:
           ./scripts/bump-aztec-packages-commit.sh
           git add .
           git commit -m 'chore: Update pinned commit of aztec-packages'
-          git push
+          git push --set-upstream origin bump-aztec-packages --force
 
       - name: Create PR
         if: ${{ steps.pr-check.outputs.pr_url != '' }}
