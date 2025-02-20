@@ -28,14 +28,8 @@ impl<'a> Parser<'a> {
     /// Statement = Attributes StatementKind ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         loop {
-            let location_before_doc_comments = self.current_token_location;
-            let doc_comments = self.parse_outer_doc_comments();
-            if !doc_comments.is_empty() {
-                self.push_error(
-                    ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    location_before_doc_comments,
-                );
-            }
+            // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
+            self.warn_on_outer_doc_comments();
 
             if !self.current_token_comments.is_empty() {
                 self.statement_comments = Some(std::mem::take(&mut self.current_token_comments));

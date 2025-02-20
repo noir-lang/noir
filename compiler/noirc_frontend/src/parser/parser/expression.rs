@@ -274,14 +274,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
-        let location_before_doc_comments = self.current_token_location;
-        let doc_comments = self.parse_outer_doc_comments();
-        if !doc_comments.is_empty() {
-            self.push_error(
-                ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                location_before_doc_comments,
-            );
-        }
+        // Like in Rust, we allow parsing doc comments on top of an expression but they always produce a warning.
+        self.warn_on_outer_doc_comments();
 
         if let Some(kind) = self.parse_unsafe_expr() {
             return Some(kind);
