@@ -10,7 +10,9 @@ use crate::uint128::U128;
 
 pub mod sha256 {
     #[foreign(sha256_compression)]
+    // docs:start:sha256_compression
     pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+    // docs:end:sha256_compression
 }
 
 pub mod keccak256 {
