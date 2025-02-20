@@ -1,4 +1,4 @@
-name: Bump aztec-packages commit for benchmarks
+name: Bump external repos pinned commits
 
 on:
   # TODO: remove before merging
@@ -11,7 +11,7 @@ on:
 
 jobs:
   bump-commit:
-    name: Update pinned aztec-packages commit
+    name: Update external repo pinned commits
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
@@ -45,6 +45,6 @@ jobs:
           PR_BODY="""
           Automated update of the pinned commit of [aztec-packages](https://github.com/AztecProtocol/aztec-packages) repository against which we run benchmarks.
           """
-          gh pr create --repo noir-lang/noir --title "chore: bump aztec-packages commit" --body "$PR_BODY" --base master --head bump-aztec-packages
+          gh pr create --repo noir-lang/noir --title "chore: bump external pinned commits" --body "$PR_BODY" --base master --head bump-aztec-packages
         env:
           GH_TOKEN: ${{ secrets.NOIR_REPO_TOKEN }}
