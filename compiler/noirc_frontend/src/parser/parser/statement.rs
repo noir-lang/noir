@@ -1,4 +1,4 @@
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
@@ -18,21 +18,18 @@ impl<'a> Parser<'a> {
             statement
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
-            Statement { kind: StatementKind::Error, span: self.span_at_previous_token_end() }
+            Statement {
+                kind: StatementKind::Error,
+                location: self.location_at_previous_token_end(),
+            }
         }
     }
 
     /// Statement = Attributes StatementKind ';'?
-    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Span))> {
+    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         loop {
-            let span_before_doc_comments = self.current_token_span;
-            let doc_comments = self.parse_outer_doc_comments();
-            if !doc_comments.is_empty() {
-                self.push_error(
-                    ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    span_before_doc_comments,
-                );
-            }
+            // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
+            self.warn_on_outer_doc_comments();
 
             if !self.current_token_comments.is_empty() {
                 self.statement_comments = Some(std::mem::take(&mut self.current_token_comments));
@@ -41,26 +38,25 @@ impl<'a> Parser<'a> {
             }
 
             let attributes = self.parse_attributes();
-            let start_span = self.current_token_span;
+            let start_location = self.current_token_location;
             let kind = self.parse_statement_kind(attributes);
-
             self.statement_comments = None;
 
-            let (semicolon_token, semicolon_span) = if self.at(Token::Semicolon) {
+            let (semicolon_token, semicolon_location) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
                 self.bump();
-                let span = token.to_span();
+                let location = token.location();
 
-                (Some(token.into_token()), span)
+                (Some(token.into_token()), location)
             } else {
-                (None, self.previous_token_span)
+                (None, self.previous_token_location)
             };
 
-            let span = self.span_since(start_span);
+            let location = self.location_since(start_location);
 
             if let Some(kind) = kind {
-                let statement = Statement { kind, span };
-                return Some((statement, (semicolon_token, semicolon_span)));
+                let statement = Statement { kind, location };
+                return Some((statement, (semicolon_token, semicolon_location)));
             }
 
             self.expected_label(ParsingRuleLabel::Statement);
@@ -102,9 +98,9 @@ impl<'a> Parser<'a> {
     /// ExpressionStatement = Expression
     fn parse_statement_kind(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
@@ -125,7 +121,7 @@ impl<'a> Parser<'a> {
 
         if self.eat_keyword(Keyword::Return) {
             self.parse_expression();
-            self.push_error(ParserErrorReason::EarlyReturn, self.span_since(start_span));
+            self.push_error(ParserErrorReason::EarlyReturn, self.location_since(start_location));
             return Some(StatementKind::Error);
         }
 
@@ -151,26 +147,26 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(kind) = self.parse_if_expr() {
-            let span = self.span_since(start_span);
-            return Some(StatementKind::Expression(Expression { kind, span }));
+            let location = self.location_since(start_location);
+            return Some(StatementKind::Expression(Expression { kind, location }));
         }
 
         if let Some(kind) = self.parse_match_expr() {
-            let span = self.span_since(start_span);
-            return Some(StatementKind::Expression(Expression { kind, span }));
+            let location = self.location_since(start_location);
+            return Some(StatementKind::Expression(Expression { kind, location }));
         }
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(start_span),
+                location: self.location_since(start_location),
             }));
         }
 
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
-                    let lvalue = LValue::Interned(lvalue, self.span_since(start_span));
+                    let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
                     self.eat_or_error(Token::Assign);
                     let expression = self.parse_expression_or_error();
                     return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
@@ -188,7 +184,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.span,
+                    expression.location,
                 );
             }
         }
@@ -204,13 +200,13 @@ impl<'a> Parser<'a> {
                 };
                 let expression = Expression::new(
                     ExpressionKind::Infix(Box::new(infix)),
-                    self.span_since(start_span),
+                    self.location_since(start_location),
                 );
                 return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
-                    expression.span,
+                    expression.location,
                 );
             }
         }
@@ -219,7 +215,7 @@ impl<'a> Parser<'a> {
     }
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let operator = if self.next_is(Token::Assign) {
             match self.token.token() {
                 Token::Plus => Some(BinaryOpKind::Add),
@@ -243,7 +239,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = operator {
             self.bump();
             self.bump();
-            Some(Spanned::from(self.span_since(start_span), operator))
+            Some(Located::from(self.location_since(start_location), operator))
         } else {
             None
         }
@@ -251,7 +247,7 @@ impl<'a> Parser<'a> {
 
     /// ForStatement = 'for' identifier 'in' ForRange Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if !self.eat_keyword(Keyword::For) {
             return None;
@@ -260,76 +256,90 @@ impl<'a> Parser<'a> {
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
             let identifier = Ident::default();
-            return Some(self.empty_for_loop(identifier, start_span));
+            return Some(self.empty_for_loop(identifier, start_location));
         };
 
         if !self.eat_keyword(Keyword::In) {
             self.expected_token(Token::Keyword(Keyword::In));
-            return Some(self.empty_for_loop(identifier, start_span));
+            return Some(self.empty_for_loop(identifier, start_location));
         }
 
         let range = self.parse_for_range();
 
-        let block_start_span = self.current_token_span;
+        let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(block_start_span),
+                location: self.location_since(block_start_location),
             }
         } else {
             self.expected_token(Token::LeftBrace);
-            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+            Expression {
+                kind: ExpressionKind::Error,
+                location: self.location_since(block_start_location),
+            }
         };
 
-        Some(ForLoopStatement { identifier, range, block, span: self.span_since(start_span) })
+        Some(ForLoopStatement {
+            identifier,
+            range,
+            block,
+            location: self.location_since(start_location),
+        })
     }
 
     /// LoopStatement = 'loop' Block
-    fn parse_loop(&mut self) -> Option<(Expression, Span)> {
-        let start_span = self.current_token_span;
+    fn parse_loop(&mut self) -> Option<(Expression, Location)> {
+        let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_location);
 
-        let block_start_span = self.current_token_span;
+        let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(block_start_span),
+                location: self.location_since(block_start_location),
             }
         } else {
             self.expected_token(Token::LeftBrace);
-            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+            Expression {
+                kind: ExpressionKind::Error,
+                location: self.location_since(block_start_location),
+            }
         };
 
-        Some((block, start_span))
+        Some((block, start_location))
     }
 
     /// WhileStatement = 'while' ExpressionExceptConstructor Block
     fn parse_while(&mut self) -> Option<WhileStatement> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::While) {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("while loops"), start_span);
+        self.push_error(ParserErrorReason::ExperimentalFeature("while loops"), start_location);
 
         let condition = self.parse_expression_except_constructor_or_error();
 
-        let block_start_span = self.current_token_span;
+        let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(block_start_span),
+                location: self.location_since(block_start_location),
             }
         } else {
             self.expected_token(Token::LeftBrace);
-            Expression { kind: ExpressionKind::Error, span: self.span_since(block_start_span) }
+            Expression {
+                kind: ExpressionKind::Error,
+                location: self.location_since(block_start_location),
+            }
         };
 
-        Some(WhileStatement { condition, body: block, while_keyword_span: start_span })
+        Some(WhileStatement { condition, body: block, while_keyword_location: start_location })
     }
 
     /// ForRange
@@ -349,15 +359,15 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn empty_for_loop(&mut self, identifier: Ident, start_span: Span) -> ForLoopStatement {
+    fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
         ForLoopStatement {
             identifier,
             range: ForRange::Array(Expression {
                 kind: ExpressionKind::Error,
-                span: Span::default(),
+                location: Location::dummy(),
             }),
-            block: Expression { kind: ExpressionKind::Error, span: Span::default() },
-            span: self.span_since(start_span),
+            block: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+            location: self.location_since(start_location),
         }
     }
 
@@ -373,9 +383,9 @@ impl<'a> Parser<'a> {
     /// ComptimeFor = 'comptime' ForStatement
     fn parse_comptime_statement(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if !self.eat_keyword(Keyword::Comptime) {
             return None;
@@ -384,7 +394,7 @@ impl<'a> Parser<'a> {
         if let Some(kind) = self.parse_comptime_statement_kind(attributes) {
             return Some(StatementKind::Comptime(Box::new(Statement {
                 kind,
-                span: self.span_since(start_span),
+                location: self.location_since(start_location),
             })));
         }
 
@@ -399,14 +409,14 @@ impl<'a> Parser<'a> {
 
     fn parse_comptime_statement_kind(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if let Some(block) = self.parse_block() {
             return Some(StatementKind::Expression(Expression {
                 kind: ExpressionKind::Block(block),
-                span: self.span_since(start_span),
+                location: self.location_since(start_location),
             }));
         }
 
@@ -422,7 +432,10 @@ impl<'a> Parser<'a> {
     }
 
     /// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
-    fn parse_let_statement(&mut self, attributes: Vec<(Attribute, Span)>) -> Option<LetStatement> {
+    fn parse_let_statement(
+        &mut self,
+        attributes: Vec<(Attribute, Location)>,
+    ) -> Option<LetStatement> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
         }
@@ -434,7 +447,7 @@ impl<'a> Parser<'a> {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, span: self.current_token_span }
+            Expression { kind: ExpressionKind::Error, location: self.current_token_location }
         };
 
         Some(LetStatement {
@@ -462,7 +475,7 @@ mod tests {
     };
 
     fn parse_statement_no_errors(src: &str) -> Statement {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         expect_no_errors(&parser.errors);
         statement
@@ -523,7 +536,7 @@ mod tests {
     fn parses_let_statement_with_unsafe_doc_comment() {
         let src = "/// Safety: doc comment
         let x = unsafe { 1 };";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (statement, _) = parser.parse_statement().unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
@@ -644,7 +657,7 @@ mod tests {
 
     #[test]
     fn parses_assignment_with_unsafe() {
-        let src = "// Safety: test
+        let src = "// Safety: test 
         x = unsafe { 1 }";
         let statement = parse_statement_no_errors(src);
         let StatementKind::Assign(assign) = statement.kind else {
@@ -722,7 +735,7 @@ mod tests {
         ^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Error));
         let reason = get_single_error_reason(&parser.errors, span);
@@ -736,7 +749,7 @@ mod tests {
         ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Let(..)));
         let error = get_single_error(&parser.errors, span);
@@ -746,7 +759,7 @@ mod tests {
     #[test]
     fn recovers_on_unknown_statement_followed_by_semicolon() {
         let src = " ] ;";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement();
         assert!(statement.is_none());
         assert_eq!(parser.errors.len(), 2);
@@ -755,7 +768,7 @@ mod tests {
     #[test]
     fn recovers_on_unknown_statement_followed_by_right_brace() {
         let src = " ] }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement();
         assert!(statement.is_none());
         assert_eq!(parser.errors.len(), 2);
@@ -764,23 +777,23 @@ mod tests {
     #[test]
     fn parses_empty_loop() {
         let src = "loop { }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
-        let StatementKind::Loop(block, span) = statement.kind else {
+        let StatementKind::Loop(block, location) = statement.kind else {
             panic!("Expected loop");
         };
         let ExpressionKind::Block(block) = block.kind else {
             panic!("Expected block");
         };
         assert!(block.statements.is_empty());
-        assert_eq!(span.start(), 0);
-        assert_eq!(span.end(), 4);
+        assert_eq!(location.span.start(), 0);
+        assert_eq!(location.span.end(), 4);
     }
 
     #[test]
     fn parses_loop_with_statements() {
         let src = "loop { 1; 2 }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::Loop(block, _) = statement.kind else {
             panic!("Expected loop");
@@ -794,7 +807,7 @@ mod tests {
     #[test]
     fn parses_let_with_assert() {
         let src = "let _ = assert(true);";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let");
@@ -805,7 +818,7 @@ mod tests {
     #[test]
     fn parses_empty_while() {
         let src = "while true { }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::While(while_) = statement.kind else {
             panic!("Expected while");
@@ -814,8 +827,8 @@ mod tests {
             panic!("Expected block");
         };
         assert!(block.statements.is_empty());
-        assert_eq!(while_.while_keyword_span.start(), 0);
-        assert_eq!(while_.while_keyword_span.end(), 5);
+        assert_eq!(while_.while_keyword_location.span.start(), 0);
+        assert_eq!(while_.while_keyword_location.span.end(), 5);
 
         assert_eq!(while_.condition.to_string(), "true");
     }
@@ -823,7 +836,7 @@ mod tests {
     #[test]
     fn parses_while_with_statements() {
         let src = "while true { 1; 2 }";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let statement = parser.parse_statement_or_error();
         let StatementKind::While(while_) = statement.kind else {
             panic!("Expected while");

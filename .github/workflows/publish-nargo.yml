@@ -59,21 +59,28 @@ jobs:
       - name: Build environment and Compile
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
-
+          cargo build --package noir_profiler --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cargo build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+      
       - name: Package artifacts
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
-          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+          cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
+          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
 
-      - name: Upload artifact
+          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
+          7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-${{ matrix.target }}.tar.gz
+
+      - name: Upload Noir binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nargo-${{ matrix.target }}
+          name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload binaries to release tag
+      - name: Upload nargo binary to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
@@ -84,12 +91,23 @@ jobs:
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
+      - name: Upload Noir binaries to release tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
+          overwrite: true
+          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
       - name: Get formatted date
         id: date
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload binaries to release with date tag
+      - name: Upload nargo binary to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
@@ -97,6 +115,19 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
+
+      - name: Upload Noir binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           prerelease: true
           make_latest: false
           overwrite: true
@@ -135,23 +166,31 @@ jobs:
         with:
           tool: cross@0.2.5
 
-      - name: Build Nargo
-        run: cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+      - name: Build binaries
+        run: |
+          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cross build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - name: Package artifacts
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
-          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+          cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
+          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
 
-      - name: Upload artifact
+          # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
+          tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
+          tar -czf noir-${{ matrix.target }}.tar.gz -C dist .
+
+      - name: Upload Noir binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nargo-${{ matrix.target }}
+          name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload binaries to release tag
+      - name: Upload nargo binary to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish }}
         with:
@@ -163,12 +202,24 @@ jobs:
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
+      - name: Upload Noir binaries to release tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
+          prerelease: true
+          overwrite: true
+          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
       - name: Get formatted date
         id: date
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload binaries to release with date tag
+      - name: Upload nargo binary to release with date tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
@@ -176,6 +227,19 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
+          prerelease: true
+          make_latest: false
+          overwrite: true
+          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
+
+      - name: Upload Noir binaries to release with date tag
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./noir-${{ matrix.target }}.tar.gz
+          asset_name: noir-${{ matrix.target }}.tar.gz
           prerelease: true
           make_latest: false
           overwrite: true

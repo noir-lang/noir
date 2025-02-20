@@ -493,7 +493,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
-
+         
     name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
       - name: Checkout

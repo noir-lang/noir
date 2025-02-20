@@ -11,6 +11,7 @@ use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegrap
 use crate::fs::read_program_from_file;
 use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
+/// Generates a flamegraph mapping ACIR opcodes to their associated locations in the source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct OpcodesFlamegraphCommand {
     /// The path to the artifact JSON file

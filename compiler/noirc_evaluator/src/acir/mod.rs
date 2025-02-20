@@ -1973,26 +1973,7 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
-
         let binary_type = self.type_of_binary_operation(binary, dfg);
-        match &binary_type {
-            Type::Numeric(NumericType::Unsigned { bit_size })
-            | Type::Numeric(NumericType::Signed { bit_size }) => {
-                // Conservative max bit size that is small enough such that two operands can be
-                // multiplied and still fit within the field modulus. This is necessary for the
-                // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
-                if *bit_size > max_integer_bit_size {
-                    return Err(RuntimeError::UnsupportedIntegerSize {
-                        num_bits: *bit_size,
-                        max_num_bits: max_integer_bit_size,
-                        call_stack: self.acir_context.get_call_stack(),
-                    });
-                }
-            }
-            _ => {}
-        }
-
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
@@ -2113,6 +2094,12 @@ impl<'a> Context<'a> {
         max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
+        assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
+        assert!(
+            bit_size < max_bit_size,
+            "Attempted to generate a truncation into size larger than max input"
+        );
+
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {

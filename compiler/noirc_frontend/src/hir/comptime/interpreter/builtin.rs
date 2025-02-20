@@ -23,7 +23,7 @@ use crate::{
         Pattern, Signedness, Statement, StatementKind, UnaryOp, UnresolvedType, UnresolvedTypeData,
         Visibility,
     },
-    elaborator::Elaborator,
+    elaborator::{ElaborateReason, Elaborator},
     hir::{
         comptime::{
             errors::IResult,
@@ -40,7 +40,7 @@ use crate::{
     },
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    token::{Attribute, Token},
+    token::{Attribute, LocatedToken, Token},
     Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
@@ -385,7 +385,7 @@ fn struct_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
     let attribute = format!("#[{}]", attribute);
-    let mut parser = Parser::for_str(&attribute);
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -411,7 +411,7 @@ fn struct_def_add_generic(
     let generic_location = generic.1;
     let generic = get_str(interner, generic)?;
 
-    let mut tokens = lex(&generic);
+    let mut tokens = lex(&generic, location);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
@@ -419,7 +419,7 @@ fn struct_def_add_generic(
         });
     }
 
-    let Token::Ident(generic_name) = tokens.remove(0) else {
+    let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
             name: generic,
             location: generic_location,
@@ -436,7 +436,7 @@ fn struct_def_add_generic(
             return Err(InterpreterError::DuplicateGeneric {
                 name,
                 struct_name: the_struct.name.to_string(),
-                existing_location: Location::new(generic.span, the_struct.location.file),
+                existing_location: generic.location,
                 duplicate_location: generic_location,
             });
         }
@@ -444,9 +444,8 @@ fn struct_def_add_generic(
 
     let type_var_kind = Kind::Normal;
     let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let span = generic_location.span;
     let typ = Type::NamedGeneric(type_var.clone(), name.clone());
-    let new_generic = ResolvedGeneric { name, type_var, span };
+    let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
     Ok(Value::Type(typ))
@@ -572,7 +571,8 @@ fn struct_def_fields(
 
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type) in struct_fields {
-            let name = Value::Quoted(Rc::new(vec![Token::Ident(field_name)]));
+            let token = LocatedToken::new(Token::Ident(field_name), location);
+            let name = Value::Quoted(Rc::new(vec![token]));
             fields.push_back(Value::Tuple(vec![name, Value::Type(field_type)]));
         }
     }
@@ -602,7 +602,8 @@ fn struct_def_fields_as_written(
 
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
-            let name = Value::Quoted(Rc::new(vec![Token::Ident(field.name.to_string())]));
+            let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
+            let name = Value::Quoted(Rc::new(vec![token]));
             let typ = Value::Type(field.typ);
             fields.push_back(Value::Tuple(vec![name, typ]));
         }
@@ -638,7 +639,8 @@ fn struct_def_name(
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
-    Ok(Value::Quoted(Rc::new(vec![name])))
+    let token = LocatedToken::new(name, location);
+    Ok(Value::Quoted(Rc::new(vec![token])))
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
@@ -669,11 +671,11 @@ fn struct_def_set_fields(
                 let name_tokens = get_quoted((name_value.clone(), field_location))?;
                 let typ = get_type((typ, field_location))?;
 
-                match name_tokens.first() {
+                match name_tokens.first().map(|t| t.token()) {
                     Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                         Ok(hir_def::types::StructField {
                             visibility: ItemVisibility::Public,
-                            name: Ident::new(name.clone(), field_location.span),
+                            name: Ident::new(name.clone(), field_location),
                             typ,
                         })
                     }
@@ -1432,11 +1434,13 @@ fn zeroed(return_type: Type, span: Span) -> Value {
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
             (Signedness::Signed, IntegerBitSize::One) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
             (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => todo!(),
         },
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
@@ -1770,7 +1774,7 @@ fn expr_as_constructor(
             let typ = Value::UnresolvedType(constructor.typ.typ);
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
-                Value::Tuple(vec![quote_ident(&name), Value::expression(value.kind)])
+                Value::Tuple(vec![quote_ident(&name, location), Value::expression(value.kind)])
             });
             let fields = fields.collect();
             let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
@@ -1796,8 +1800,9 @@ fn expr_as_for(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Array(array) = for_statement.range {
-                let identifier =
-                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = LocatedToken::new(token, location);
+                let identifier = Value::Quoted(Rc::new(vec![token]));
                 let array = Value::expression(array.kind);
                 let body = Value::expression(for_statement.block.kind);
                 Some(Value::Tuple(vec![identifier, array, body]))
@@ -1821,8 +1826,9 @@ fn expr_as_for_range(
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
                 let (from, to) = bounds.into_half_open();
-                let identifier =
-                    Value::Quoted(Rc::new(vec![Token::Ident(for_statement.identifier.0.contents)]));
+                let token = Token::Ident(for_statement.identifier.0.contents);
+                let token = LocatedToken::new(token, location);
+                let identifier = Value::Quoted(Rc::new(vec![token]));
                 let from = Value::expression(from.kind);
                 let to = Value::expression(to.kind);
                 let body = Value::expression(for_statement.block.kind);
@@ -2042,11 +2048,11 @@ fn expr_as_member_access(
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             Some(Value::Tuple(vec![
                 Value::expression(member_access.lhs.kind),
-                quote_ident(&member_access.rhs),
+                quote_ident(&member_access.rhs, location),
             ]))
         }
-        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, span: _ }) => {
-            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name)]))
+        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, location: _ }) => {
+            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name, location)]))
         }
         _ => None,
     })
@@ -2063,7 +2069,7 @@ fn expr_as_method_call(
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
             let object = Value::expression(method_call.object.kind);
 
-            let name = quote_ident(&method_call.method_name);
+            let name = quote_ident(&method_call.method_name, location);
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
@@ -2306,12 +2312,12 @@ fn expr_resolve(
 
     interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
         ExprValue::Expression(expression_kind) => {
-            let expr = Expression { kind: expression_kind, span: self_argument_location.span };
+            let expr = Expression { kind: expression_kind, location: self_argument_location };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
             Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
         }
         ExprValue::Statement(statement_kind) => {
-            let statement = Statement { kind: statement_kind, span: self_argument_location.span };
+            let statement = Statement { kind: statement_kind, location: self_argument_location };
             let (stmt_id, _) = elaborator.elaborate_statement(statement);
             Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
         }
@@ -2380,7 +2386,7 @@ fn fmtstr_quoted_contents(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let (string, _) = get_format_string(interner, self_argument)?;
-    let tokens = lex(&string);
+    let tokens = lex(&string, location);
     Ok(Value::Quoted(Rc::new(tokens)))
 }
 
@@ -2399,7 +2405,7 @@ fn function_def_add_attribute(
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
     let attribute = format!("#[{}]", attribute);
-    let mut parser = Parser::for_str(&attribute);
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
             attribute: attribute.to_string(),
@@ -2437,7 +2443,7 @@ fn function_def_as_typed_expr(
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
-    interpreter.elaborator.interner.push_expr_location(expr_id, location.span, location.file);
+    interpreter.elaborator.interner.push_expr_location(expr_id, location);
     let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
@@ -2521,7 +2527,9 @@ fn function_def_name(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
     let name = interner.function_name(&func_id).to_string();
-    let tokens = Rc::new(vec![Token::Ident(name)]);
+    let token = Token::Ident(name);
+    let token = LocatedToken::new(token, location);
+    let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -2539,7 +2547,9 @@ fn function_def_parameters(
         .parameters
         .iter()
         .map(|(hir_pattern, typ, _visibility)| {
-            let name = Value::Quoted(Rc::new(hir_pattern_to_tokens(interner, hir_pattern)));
+            let tokens = hir_pattern_to_tokens(interner, hir_pattern);
+            let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
+            let name = Value::Quoted(Rc::new(tokens));
             let typ = Value::Type(typ.clone());
             Value::Tuple(vec![name, typ])
         })
@@ -2580,10 +2590,9 @@ fn function_def_set_body(
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {
-        ExprValue::Expression(expression_kind) => StatementKind::Expression(Expression {
-            kind: expression_kind,
-            span: body_location.span,
-        }),
+        ExprValue::Expression(expression_kind) => {
+            StatementKind::Expression(Expression { kind: expression_kind, location: body_location })
+        }
         ExprValue::Statement(statement_kind) => statement_kind,
         ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
         ExprValue::Pattern(pattern) => {
@@ -2598,12 +2607,12 @@ fn function_def_set_body(
         }
     };
 
-    let statement = Statement { kind: statement_kind, span: body_location.span };
+    let statement = Statement { kind: statement_kind, location: body_location };
     let body = BlockExpression { statements: vec![statement] };
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
-    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location.span);
+    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location);
 
     Ok(Value::Unit)
 }
@@ -2681,7 +2690,7 @@ fn function_def_set_return_type(
     mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
         func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
             typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            span: location.span,
+            location,
         });
         replace_func_meta_return_type(&mut func_meta.typ, return_type);
     });
@@ -2758,6 +2767,9 @@ fn module_add_item(
 
     let module_data = interpreter.elaborator.get_module(module_id);
     interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+        let previous_errors = elaborator
+            .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
+
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
@@ -2767,6 +2779,8 @@ fn module_add_item(
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
         }
+
+        elaborator.pop_elaborate_reason(previous_errors);
     });
 
     Ok(Value::Unit)
@@ -2867,7 +2881,9 @@ fn module_name(
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument)?;
     let name = &interner.module_attributes(&module_id).name;
-    let tokens = Rc::new(vec![Token::Ident(name.clone())]);
+    let token = Token::Ident(name.clone());
+    let token = LocatedToken::new(token, location);
+    let tokens = Rc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -2932,7 +2948,7 @@ fn trait_def_as_trait_constraint(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_id = get_trait_def(argument)?;
-    let constraint = interner.get_trait(trait_id).as_constraint(location.span);
+    let constraint = interner.get_trait(trait_id).as_constraint(location);
 
     Ok(Value::TraitConstraint(trait_id, constraint.trait_bound.trait_generics))
 }

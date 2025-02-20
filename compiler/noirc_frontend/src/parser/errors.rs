@@ -6,8 +6,8 @@ use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
 use iter_extended::vecmap;
-use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 
 use super::labels::ParsingRuleLabel;
 
@@ -132,42 +132,50 @@ pub struct ParserError {
     expected_labels: SmallOrdSet<[ParsingRuleLabel; 1]>,
     found: Token,
     reason: Option<ParserErrorReason>,
-    span: Span,
+    location: Location,
 }
 
 impl ParserError {
-    pub fn empty(found: Token, span: Span) -> ParserError {
+    pub fn empty(found: Token, location: Location) -> ParserError {
         ParserError {
             expected_tokens: SmallOrdSet::new(),
             expected_labels: SmallOrdSet::new(),
             found,
             reason: None,
-            span,
+            location,
         }
     }
 
-    pub fn expected_token(token: Token, found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_token(token: Token, found: Token, location: Location) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         error.expected_tokens.insert(token);
         error
     }
 
-    pub fn expected_one_of_tokens(tokens: &[Token], found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_one_of_tokens(
+        tokens: &[Token],
+        found: Token,
+        location: Location,
+    ) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         for token in tokens {
             error.expected_tokens.insert(token.clone());
         }
         error
     }
 
-    pub fn expected_label(label: ParsingRuleLabel, found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_label(
+        label: ParsingRuleLabel,
+        found: Token,
+        location: Location,
+    ) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         error.expected_labels.insert(label);
         error
     }
 
-    pub fn with_reason(reason: ParserErrorReason, span: Span) -> ParserError {
-        let mut error = ParserError::empty(Token::EOF, span);
+    pub fn with_reason(reason: ParserErrorReason, location: Location) -> ParserError {
+        let mut error = ParserError::empty(Token::EOF, location);
         error.reason = Some(reason);
         error
     }
@@ -177,7 +185,11 @@ impl ParserError {
     }
 
     pub fn span(&self) -> Span {
-        self.span
+        self.location.span
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn reason(&self) -> Option<&ParserErrorReason> {
@@ -234,7 +246,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let mut diagnostic = Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
-                        error.span,
+                        error.span(),
                     );
                     diagnostic.deprecated = true;
                     diagnostic
@@ -243,7 +255,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let mut diagnostic = Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.span,
+                        error.span(),
                     ) ;
                     diagnostic.deprecated = true;
                     diagnostic
@@ -258,46 +270,46 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
-                    error.span,
+                    error.span(),
                 ),
                 ParserErrorReason::ExperimentalFeature(_) => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span())
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span())
                 }
                 ParserErrorReason::TraitImplVisibilityIgnored => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span())
                 }
                 ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
                     format!("Expected a pattern but found a type - {ty}"),
                     format!("{ty} is a type and cannot be used as a variable name"),
-                    error.span,
+                    error.span(),
                 ),
                 ParserErrorReason::Lexer(error) => error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
                     "Noir doesn't have immutable references, only mutable references".to_string(),
-                    error.span,
+                    error.span(),
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
                     "Unsafe block must have a safety comment above it".into(),
                     "The comment must start with the \"Safety: \" word".into(),
-                    error.span,
+                    error.span(),
                 ),
                 ParserErrorReason::MissingParametersForFunctionDefinition => {
                     Diagnostic::simple_error(
                         "Missing parameters for function definition".into(),
                         "Add a parameter list: `()`".into(),
-                        error.span,
+                        error.span(),
                     )
                 }
                 ParserErrorReason::DocCommentDoesNotDocumentAnything => {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_warning(primary, secondary, error.span)
+                    Diagnostic::simple_warning(primary, secondary, error.span())
                 }
-                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
+                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span()),
             },
             None => {
                 if matches!(
@@ -306,10 +318,10 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ) {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_warning(primary, secondary, error.span)
+                    Diagnostic::simple_warning(primary, secondary, error.span())
                 } else {
                     let primary = error.to_string();
-                    Diagnostic::simple_error(primary, String::new(), error.span)
+                    Diagnostic::simple_error(primary, String::new(), error.span())
                 }
             }
         }

@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
@@ -73,7 +73,7 @@ impl PathResolutionItem {
 #[derive(Debug, Clone)]
 pub struct Turbofish {
     pub generics: Vec<UnresolvedType>,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Any item that can appear before the last segment in a path.
@@ -107,10 +107,11 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
+        let file = path.location.file;
         let path_resolution = self.resolve_path(path)?;
 
         for error in path_resolution.errors {
-            self.push_err(error);
+            self.push_err(error, file);
         }
 
         Ok(path_resolution.item)
@@ -149,7 +150,7 @@ impl<'context> Elaborator<'context> {
         importing_module: ModuleId,
     ) -> PathResolutionResult {
         let references_tracker = if self.interner.is_in_lsp_mode() {
-            Some(ReferencesTracker::new(self.interner, self.file))
+            Some(ReferencesTracker::new(self.interner))
         } else {
             None
         };
@@ -204,7 +205,7 @@ impl<'context> Elaborator<'context> {
                 Some((typ, visibility, _)) => (typ, visibility),
             };
 
-            let location = Location::new(last_segment.span, self.file);
+            let location = last_segment.location;
             self.interner.add_module_def_id_reference(
                 typ,
                 location,
@@ -324,7 +325,7 @@ impl<'context> Elaborator<'context> {
 
         let name = path.last_ident();
         let is_self_type = name.is_self_type_name();
-        let location = Location::new(name.span(), self.file);
+        let location = name.location();
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
 
         let item = merge_intermediate_path_resolution_item_with_module_def_id(

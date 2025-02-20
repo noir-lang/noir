@@ -50,7 +50,7 @@ impl<'a> Formatter<'a> {
         ignore_next |= self.ignore_next;
 
         if ignore_next {
-            self.write_and_skip_span_without_formatting(item.span);
+            self.write_and_skip_span_without_formatting(item.location.span);
             return;
         }
 
@@ -98,7 +98,7 @@ impl<'a> Formatter<'a> {
         let mut imports = Vec::new();
 
         let item = items.last()?;
-        if self.span_has_comments(item.span) {
+        if self.span_has_comments(item.location.span) {
             return None;
         }
 
@@ -112,16 +112,17 @@ impl<'a> Formatter<'a> {
         };
 
         imports.push(use_tree);
-        let mut span_end = item.span.end();
+        let mut span_end = item.location.span.end();
 
         while let Some(item) = items.last() {
-            if self.span_is_import_group_separator(Span::from(span_end..item.span.start())) {
+            if self.span_is_import_group_separator(Span::from(span_end..item.location.span.start()))
+            {
                 break;
             }
 
             let next_item_start = if items.len() > 1 {
                 if let Some(next_item) = items.get(items.len() - 2) {
-                    next_item.span.start()
+                    next_item.location.span.start()
                 } else {
                     self.source.len() as u32
                 }
@@ -129,8 +130,9 @@ impl<'a> Formatter<'a> {
                 self.source.len() as u32
             };
 
-            if self.span_starts_with_trailing_comment(Span::from(item.span.end()..next_item_start))
-            {
+            if self.span_starts_with_trailing_comment(Span::from(
+                item.location.span.end()..next_item_start,
+            )) {
                 break;
             }
 
@@ -147,7 +149,7 @@ impl<'a> Formatter<'a> {
                 panic!("Expected import, got {:?}", item.kind);
             };
             imports.push(use_tree);
-            span_end = item.span.end();
+            span_end = item.location.span.end();
         }
 
         Some(ImportGroup { imports, visibility, span_end })

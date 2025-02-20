@@ -11,13 +11,14 @@ use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
 use crate::opcode_formatter::format_acir_opcode;
 
+/// Generates a flamegraph mapping backend opcodes to their associated locations in the source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
     /// The path to the artifact JSON file
     #[clap(long, short)]
     artifact_path: String,
 
-    /// Path to the noir backend binary
+    /// Path to the Noir backend binary
     #[clap(long, short)]
     backend_path: String,
 
@@ -25,6 +26,7 @@ pub(crate) struct GatesFlamegraphCommand {
     #[clap(long, short = 'g', default_value = "gates")]
     backend_gates_command: String,
 
+    /// Optional arguments for the backend gates command
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     backend_extra_args: Vec<String>,
 
