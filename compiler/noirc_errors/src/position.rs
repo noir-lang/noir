@@ -51,7 +51,7 @@ impl<T: Hash> Hash for Located<T> {
 }
 
 impl<T> Located<T> {
-    pub const fn from(location: Location, contents: T) -> Located<T> {
+    pub fn from(location: Location, contents: T) -> Located<T> {
         Located { location, contents }
     }
 
@@ -92,7 +92,7 @@ impl<T> Spanned<T> {
         Spanned { span: Span::inclusive(start, end), contents }
     }
 
-    pub const fn from(t_span: Span, contents: T) -> Spanned<T> {
+    pub fn from(t_span: Span, contents: T) -> Spanned<T> {
         Spanned { span: t_span, contents }
     }
 
