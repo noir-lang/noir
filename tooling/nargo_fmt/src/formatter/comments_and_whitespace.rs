@@ -858,4 +858,11 @@ global x = 1;
 ";
         assert_format(src, expected);
     }
+
+    #[test]
+    fn trims_newlines_from_the_end_of_the_file() {
+        let src = "global x: Field = 1;\n\n\n";
+        let expected = "global x: Field = 1;\n";
+        assert_format(src, expected);
+    }
 }

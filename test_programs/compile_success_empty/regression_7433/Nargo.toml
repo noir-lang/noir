@@ -1,5 +1,5 @@
 [package]
-name = "bigint"
+name = "regression_7433"
 type = "bin"
 authors = [""]
 

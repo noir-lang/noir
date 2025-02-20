@@ -10,7 +10,9 @@ sidebar_position: 4
 
 Noir includes a special `assert` function which will explicitly constrain the predicate/comparison
 expression that follows to be true. If this expression is false at runtime, the program will fail to
-be proven. Example:
+be proven. As of v1.0.0-beta.2, assert statements are expressions and can be used in value contexts.
+
+Example:
 
 ```rust
 fn main(x : Field, y : Field) {
@@ -75,4 +77,3 @@ fn main(x : Field, y : Field) {
     static_assert(example_slice.len() == 0, error_message);
 }
 ```
-

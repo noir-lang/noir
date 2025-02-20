@@ -90,10 +90,10 @@ dependencies = [
  "color-eyre",
  "const_format",
  "nargo",
+ "noir_artifact_cli",
  "paste",
  "proptest",
  "rand",
- "thiserror",
  "toml",
  "tracing-appender",
  "tracing-subscriber",
@@ -3156,6 +3156,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_artifact_cli"
+version = "1.0.0-beta.2"
+dependencies = [
+ "acir",
+ "acvm",
+ "bn254_blackbox_solver",
+ "clap",
+ "color-eyre",
+ "const_format",
+ "fm",
+ "nargo",
+ "noirc_abi",
+ "noirc_artifacts",
+ "noirc_artifacts_info",
+ "noirc_driver",
+ "noirc_errors",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "noir_debugger"
 version = "1.0.0-beta.2"
 dependencies = [
@@ -3221,6 +3245,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "num-bigint",
  "rayon",
  "serde",
  "serde_json",
