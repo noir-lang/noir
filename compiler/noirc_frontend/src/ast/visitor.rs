@@ -1408,8 +1408,8 @@ impl UnresolvedType {
             UnresolvedTypeData::FieldElement => {
                 visitor.visit_field_element_type(self.location.span);
             }
-            UnresolvedTypeData::Integer(signdness, size) => {
-                visitor.visit_integer_type(*signdness, *size, self.location.span);
+            UnresolvedTypeData::Integer(signedness, size) => {
+                visitor.visit_integer_type(*signedness, *size, self.location.span);
             }
             UnresolvedTypeData::Bool => visitor.visit_bool_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
