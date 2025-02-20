@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740085789694,
+  "lastUpdate": 1740085867737,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11732,75 +11732,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "38780375869ad2990f7bed54f740ae4d847b14fc",
-          "message": "chore: remove unnecessary dereferencing within brillig vm (#7375)",
-          "timestamp": "2025-02-14T14:28:45Z",
-          "tree_id": "7e13ce1c1c3ea0f315452d4c59dc822e28065f78",
-          "url": "https://github.com/noir-lang/noir/commit/38780375869ad2990f7bed54f740ae4d847b14fc"
-        },
-        "date": 1739545155199,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.71,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 590.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 536.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 536.63,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2b6db0749aa0f8d0065b913dc15f9a617bed258c",
           "message": "chore: box `ParserError`s in `InterpreterError` (#7373)",
           "timestamp": "2025-02-14T15:09:03Z",
@@ -14935,6 +14866,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/752dc0431bf561cb40684868df610a047075b122"
         },
         "date": 1740085634781,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 443.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4b6a14d7ccb7c2302b5a4ea0d7e00f17bbf95c98",
+          "message": "chore: remove `disable_macros` compile option (#7468)",
+          "timestamp": "2025-02-20T20:40:45Z",
+          "tree_id": "17b94d0503da7529efd8d444d379f443ae720934",
+          "url": "https://github.com/noir-lang/noir/commit/4b6a14d7ccb7c2302b5a4ea0d7e00f17bbf95c98"
+        },
+        "date": 1740085865952,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
