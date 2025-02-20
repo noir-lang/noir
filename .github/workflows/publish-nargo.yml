@@ -60,12 +60,14 @@ jobs:
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cargo build --package noir_profiler --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cargo build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
       
       - name: Package artifacts
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
+          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
 
           # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
           7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
@@ -168,12 +170,14 @@ jobs:
         run: |
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+          cargo build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
 
       - name: Package artifacts
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
+          cp ./target/${{ matrix.target }}/release/noir-inspector ./dist/noir-inspector
 
           # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
           tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
