@@ -56,21 +56,30 @@ config! {
 }
 
 impl Config {
-    pub fn read(path: &Path) -> Result<Self, ConfigError> {
-        let config_path = path.join("noirfmt.toml");
+    /// Reads a Config starting at the given path and going through the path parents
+    /// until a `noirfmt.toml` file is found in one of them or the root is reached.
+    pub fn read(mut path: &Path) -> Result<Self, ConfigError> {
+        loop {
+            let config_path = path.join("noirfmt.toml");
+            if config_path.exists() {
+                match std::fs::read_to_string(&config_path) {
+                    Ok(input) => return Self::of(&input, &config_path),
+                    Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
+                };
+            }
 
-        let input = match std::fs::read_to_string(&config_path) {
-            Ok(input) => input,
-            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(cause) => return Err(ConfigError::ReadFailed(config_path, cause)),
-        };
+            let Some(parent_path) = path.parent() else {
+                return Ok(Config::default());
+            };
 
-        Self::of(&input)
+            path = parent_path;
+        }
     }
 
-    pub fn of(s: &str) -> Result<Self, ConfigError> {
+    pub fn of(s: &str, path: &Path) -> Result<Self, ConfigError> {
         let mut config = Self::default();
-        let toml = toml::from_str(s).map_err(ConfigError::MalformedFile)?;
+        let toml =
+            toml::from_str(s).map_err(|err| ConfigError::MalformedFile(path.to_path_buf(), err))?;
         config.fill_from_toml(toml);
         Ok(config)
     }

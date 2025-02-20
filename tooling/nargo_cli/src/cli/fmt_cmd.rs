@@ -1,15 +1,16 @@
 use std::{fs::DirEntry, path::Path};
 
 use clap::Args;
-use nargo::{insert_all_files_for_workspace_into_file_manager, ops::report_errors};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use nargo::{
+    insert_all_files_for_workspace_into_file_manager, ops::report_errors, workspace::Workspace,
+};
+use nargo_toml::PackageSelection;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{hir::def_map::parse_file, parser::ParserError};
 
 use crate::errors::CliError;
 
-use super::{NargoConfig, PackageOptions};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Format the Noir files in a workspace
 #[derive(Debug, Clone, Args)]
@@ -22,24 +23,26 @@ pub(crate) struct FormatCommand {
     pub(super) package_options: PackageOptions,
 }
 
-pub(crate) fn run(args: FormatCommand, config: NargoConfig) -> Result<(), CliError> {
+impl WorkspaceCommand for FormatCommand {
+    fn package_selection(&self) -> PackageSelection {
+        match self.package_options.package_selection() {
+            PackageSelection::DefaultOrAll => PackageSelection::All,
+            other => other,
+        }
+    }
+
+    fn lock_type(&self) -> LockType {
+        // Writes source files, but doesn't touch compilation artifacts.
+        LockType::None
+    }
+}
+
+pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliError> {
     let check_mode = args.check;
-
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = match args.package_options.package_selection() {
-        PackageSelection::DefaultOrAll => PackageSelection::All,
-        other => other,
-    };
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-    )?;
-
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
 
-    let config = nargo_fmt::Config::read(&config.program_dir)
+    let config = nargo_fmt::Config::read(&workspace.root_dir)
         .map_err(|err| CliError::Generic(err.to_string()))?;
 
     let mut check_exit_code_one = false;

@@ -255,8 +255,8 @@ mod tests {
     #[test]
     fn errors_on_eof_in_nested_mod() {
         let src = "
-        mod foo { fn foo() {} 
-                             ^
+        mod foo { fn foo() {}
+                            ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let (module, errors) = parse_program(&src);
@@ -276,6 +276,6 @@ mod tests {
         let (module, errors) = parse_program(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Documentation comment does not document anything"));
+        assert!(error.to_string().contains("This doc comment doesn't document anything"));
     }
 }

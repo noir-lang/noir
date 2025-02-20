@@ -554,7 +554,7 @@ mod tests {
     fn test_expr_as_unsafe() {
         comptime {
             let expr = quote {  
-                /// Safety: test
+                // Safety: test
                 unsafe { 1; 4; 23 } 
                 }
                 .as_expr()
@@ -568,7 +568,7 @@ mod tests {
     fn test_expr_modify_for_unsafe() {
         comptime {
             let expr = quote { 
-                /// Safety: test
+                // Safety: test
                 unsafe { 1; 4; 23 } 
             }
                 .as_expr()

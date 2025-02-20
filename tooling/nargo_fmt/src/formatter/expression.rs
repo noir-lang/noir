@@ -1,9 +1,10 @@
 use noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
-        ConstructorExpression, Expression, ExpressionKind, IfExpression, IndexExpression,
-        InfixExpression, Lambda, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, PrefixExpression, TypePath, UnaryOp, UnresolvedTypeData,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
+        UnresolvedTypeData,
     },
     token::{Keyword, Token},
 };
@@ -38,6 +39,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             ExpressionKind::Call(call) => group.group(self.format_call(*call)),
             ExpressionKind::MethodCall(method_call) => {
                 group.group(self.format_method_call(*method_call));
+            }
+            ExpressionKind::Constrain(constrain) => {
+                group.group(self.format_constrain(constrain));
             }
             ExpressionKind::Constructor(constructor) => {
                 group.group(self.format_constructor(*constructor));
@@ -373,7 +377,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_outer_doc_comments();
+            formatter.format_outer_doc_comments_checking_safety();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
@@ -1141,6 +1145,40 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
         if !nested {
             group.pop_indentation();
         }
+
+        group
+    }
+
+    fn format_constrain(&mut self, constrain_statement: ConstrainExpression) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        let keyword = match constrain_statement.kind {
+            ConstrainKind::Assert => Keyword::Assert,
+            ConstrainKind::AssertEq => Keyword::AssertEq,
+            ConstrainKind::Constrain => {
+                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+            }
+        };
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_keyword(keyword);
+            formatter.write_left_paren();
+        }));
+
+        group.kind = GroupKind::ExpressionList {
+            prefix_width: group.width(),
+            expressions_count: constrain_statement.arguments.len(),
+        };
+
+        self.format_expressions_separated_by_comma(
+            constrain_statement.arguments,
+            false, // force trailing comma
+            &mut group,
+        );
+
+        group.text(self.chunk(|formatter| {
+            formatter.write_right_paren();
+        }));
 
         group
     }
@@ -1995,15 +2033,34 @@ global y = 1;
     }
 
     #[test]
-    fn format_unsafe_with_doc_comment() {
+    fn format_unsafe_with_comment() {
         let src = "fn foo() {
-        /// Comment 
+        // Comment 
         unsafe { 1  } }";
         let expected = "fn foo() {
-    /// Comment
+    // Comment
     unsafe {
         1
     }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_unsafe_with_doc_comment() {
+        let src = "fn foo() {
+        assert(
+        /// Safety: comment
+        /// More comments...
+        unsafe { 1  }
+        ); } ";
+        let expected = "fn foo() {
+    assert(
+        // Safety: comment
+        // More comments...
+        unsafe { 1 },
+    );
 }
 ";
         assert_format(src, expected);

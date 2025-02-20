@@ -25,7 +25,7 @@ use crate::{
     Kind, Type, TypeBinding, TypeBindings,
 };
 use acvm::{acir::AcirField, FieldElement};
-use ast::GlobalId;
+use ast::{GlobalId, While};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -557,6 +557,22 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Call(call) => self.function_call(call, expr)?,
 
+            HirExpression::Constrain(constrain) => {
+                let expr = self.expr(constrain.0)?;
+                let location = self.interner.expr_location(&constrain.0);
+                let assert_message = constrain
+                    .2
+                    .map(|assert_msg_expr| {
+                        self.expr(assert_msg_expr).map(|expr| {
+                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
+                        })
+                    })
+                    .transpose()?
+                    .map(Box::new);
+
+                ast::Expression::Constrain(Box::new(expr), location, assert_message)
+            }
+
             HirExpression::Cast(cast) => {
                 let location = self.interner.expr_location(&expr);
                 let typ = Self::convert_type(&cast.r#type, location)?;
@@ -574,6 +590,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
+
+            HirExpression::Match(match_expr) => self.match_expr(match_expr, expr)?,
 
             HirExpression::Tuple(fields) => {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
@@ -658,21 +676,6 @@ impl<'interner> Monomorphizer<'interner> {
     fn statement(&mut self, id: StmtId) -> Result<ast::Expression, MonomorphizationError> {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
-            HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0)?;
-                let location = self.interner.expr_location(&constrain.0);
-                let assert_message = constrain
-                    .2
-                    .map(|assert_msg_expr| {
-                        self.expr(assert_msg_expr).map(|expr| {
-                            (expr, self.interner.id_type(assert_msg_expr).follow_bindings())
-                        })
-                    })
-                    .transpose()?
-                    .map(Box::new);
-
-                Ok(ast::Expression::Constrain(Box::new(expr), location, assert_message))
-            }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
                 self.is_range_loop = true;
@@ -701,6 +704,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirStatement::Loop(block) => {
                 let block = Box::new(self.expr(block)?);
                 Ok(ast::Expression::Loop(block))
+            }
+            HirStatement::While(condition, body) => {
+                let condition = Box::new(self.expr(condition)?);
+                let body = Box::new(self.expr(body)?);
+                Ok(ast::Expression::While(While { condition, body }))
             }
             HirStatement::Expression(expr) => self.expr(expr),
             HirStatement::Semi(expr) => {
@@ -1979,6 +1987,68 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         Ok((block_let_stmt, closure_ident))
+    }
+
+    fn match_expr(
+        &mut self,
+        match_expr: HirMatch,
+        expr_id: ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        match match_expr {
+            HirMatch::Success(id) => self.expr(id),
+            HirMatch::Failure => {
+                let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
+                let msg = "match failure";
+                let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
+
+                let u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                let length = (msg.len() as u128).into();
+                let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
+                let msg_type = HirType::String(Box::new(length));
+
+                let msg = Some(Box::new((msg_expr, msg_type)));
+                let location = self.interner.expr_location(&expr_id);
+                Ok(ast::Expression::Constrain(false_, location, msg))
+            }
+            HirMatch::Guard { cond, body, otherwise } => {
+                let condition = Box::new(self.expr(cond)?);
+                let consequence = Box::new(self.expr(body)?);
+                let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
+                let location = self.interner.expr_location(&expr_id);
+                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
+            }
+            HirMatch::Switch(variable_to_match, cases, default) => {
+                let variable_to_match = match self.lookup_local(variable_to_match) {
+                    Some(Definition::Local(id)) => id,
+                    other => unreachable!("Expected match variable to be defined. Found {other:?}"),
+                };
+
+                let cases = try_vecmap(cases, |case| {
+                    let arguments = vecmap(case.arguments, |arg| {
+                        let new_id = self.next_local_id();
+                        self.define_local(arg, new_id);
+                        new_id
+                    });
+                    let branch = self.match_expr(case.body, expr_id)?;
+                    Ok(ast::MatchCase { constructor: case.constructor, arguments, branch })
+                })?;
+
+                let default_case = match default {
+                    Some(case) => Some(Box::new(self.match_expr(*case, expr_id)?)),
+                    None => None,
+                };
+
+                let location = self.interner.expr_location(&expr_id);
+                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                Ok(ast::Expression::Match(ast::Match {
+                    variable_to_match,
+                    cases,
+                    default_case,
+                    typ,
+                }))
+            }
+        }
     }
 
     /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed

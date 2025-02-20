@@ -1,4 +1,4 @@
-use std::field::bn254::{TWO_POW_128, assert_gt};
+use std::field::bn254::{assert_gt, TWO_POW_128};
 
 #[test(should_fail)]
 fn test_assert_gt_should_fail_eq() {

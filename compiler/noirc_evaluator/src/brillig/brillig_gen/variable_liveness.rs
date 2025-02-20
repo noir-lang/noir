@@ -277,6 +277,10 @@ impl VariableLiveness {
 
     fn compute_loop_body(&self, edge: BackEdge) -> HashSet<BasicBlockId> {
         let mut loop_blocks = HashSet::default();
+        if edge.header == edge.start {
+            loop_blocks.insert(edge.header);
+            return loop_blocks;
+        }
         loop_blocks.insert(edge.header);
         loop_blocks.insert(edge.start);
 

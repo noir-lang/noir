@@ -1,4 +1,7 @@
-use super::{field_to_signed_hex, parse_str_to_field, parse_str_to_signed, InputValue};
+use super::{
+    field_to_signed_hex, parse_integer_to_signed, parse_str_to_field, parse_str_to_signed,
+    InputValue,
+};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
@@ -69,9 +72,9 @@ pub enum JsonTypes {
     // Just a regular integer, that can fit in 64 bits.
     //
     // The JSON spec does not specify any limit on the size of integer number types,
-    // however we restrict the allowable size. Values which do not fit in a u64 should be passed
+    // however we restrict the allowable size. Values which do not fit in a i64 should be passed
     // as a string.
-    Integer(u64),
+    Integer(i64),
     // Simple boolean flag
     Bool(bool),
     // Array of JsonTypes
@@ -147,12 +150,20 @@ impl InputValue {
         let input_value = match (value, param_type) {
             (JsonTypes::String(string), AbiType::String { .. }) => InputValue::String(string),
             (JsonTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
-                InputValue::Field(parse_str_to_signed(&string, *width)?)
+                InputValue::Field(parse_str_to_signed(&string, *width, arg_name)?)
             }
             (
                 JsonTypes::String(string),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
-            ) => InputValue::Field(parse_str_to_field(&string)?),
+            ) => InputValue::Field(parse_str_to_field(&string, arg_name)?),
+
+            (
+                JsonTypes::Integer(integer),
+                AbiType::Integer { sign: crate::Sign::Signed, width },
+            ) => {
+                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
+                InputValue::Field(new_value)
+            }
 
             (
                 JsonTypes::Integer(integer),
@@ -166,8 +177,13 @@ impl InputValue {
             (JsonTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
             (JsonTypes::Array(array), AbiType::Array { typ, .. }) => {
-                let array_elements =
-                    try_vecmap(array, |value| InputValue::try_from_json(value, typ, arg_name))?;
+                let mut index = 0;
+                let array_elements = try_vecmap(array, |value| {
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_json(value, typ, &sub_name);
+                    index += 1;
+                    value
+                })?;
                 InputValue::Vec(array_elements)
             }
 
@@ -186,8 +202,12 @@ impl InputValue {
             }
 
             (JsonTypes::Array(array), AbiType::Tuple { fields }) => {
+                let mut index = 0;
                 let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
-                    InputValue::try_from_json(value, typ, arg_name)
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_json(value, typ, &sub_name);
+                    index += 1;
+                    value
                 })?;
                 InputValue::Vec(tuple_fields)
             }
@@ -201,11 +221,13 @@ impl InputValue {
 
 #[cfg(test)]
 mod test {
+    use acvm::FieldElement;
     use proptest::prelude::*;
 
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, json::JsonTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_json, serialize_to_json};
@@ -233,5 +255,27 @@ mod test {
             };
             prop_assert_eq!(output_number, value);
         }
+    }
+
+    #[test]
+    fn errors_on_integer_to_signed_integer_overflow() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = JsonTypes::Integer(128);
+        assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
+
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
+        let input = JsonTypes::Integer(32768);
+        assert!(InputValue::try_from_json(input, &typ, "foo").is_err());
+    }
+
+    #[test]
+    fn try_from_json_negative_integer() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = JsonTypes::Integer(-1);
+        let InputValue::Field(field) = InputValue::try_from_json(input, &typ, "foo").unwrap()
+        else {
+            panic!("Expected field");
+        };
+        assert_eq!(field, FieldElement::from(255_u128));
     }
 }

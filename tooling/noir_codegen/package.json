@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "packageManager": "yarn@3.5.1",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
@@ -35,7 +35,7 @@
     "dev": "tsc-multi --watch",
     "build": "tsc",
     "test": "yarn test:codegen && yarn test:node && yarn test:clean",
-    "test:codegen": "nargo export --program-dir=./test/test_lib && tsx src/main.ts ./test/test_lib/export/** --out-dir ./test/codegen",
+    "test:codegen": "${NARGO:-nargo} export --program-dir=./test/test_lib && tsx src/main.ts ./test/test_lib/export/** --out-dir ./test/codegen",
     "test:node": "mocha --timeout 25000 --exit --config ./.mocharc.json",
     "test:clean": "rm -rf ./test/codegen ./test/test_lib/export",
     "prettier": "prettier 'src/**/*.ts'",

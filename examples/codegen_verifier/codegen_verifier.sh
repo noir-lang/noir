@@ -6,18 +6,18 @@ BACKEND=${BACKEND:-bb}
 nargo compile
 
 # TODO: backend should automatically generate vk if necessary.
-$BACKEND write_vk -b ./target/hello_world.json
-$BACKEND contract -o ./src/contract.sol
+$BACKEND OLD_API write_vk -b ./target/hello_world.json
+$BACKEND OLD_API contract -o ./src/contract.sol
 
 # We now generate a proof and check whether the verifier contract will verify it.
 
-nargo execute --pedantic-solving witness 
+nargo execute --pedantic-solving witness
 
 PROOF_PATH=./target/proof
-$BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz -o $PROOF_PATH
+$BACKEND OLD_API prove -b ./target/hello_world.json -w ./target/witness.gz -o $PROOF_PATH
 
 # Sanity check that proof is valid.
-$BACKEND verify -k ./target/vk -p ./target/proof
+$BACKEND OLD_API verify -k ./target/vk -p ./target/proof
 
 NUM_PUBLIC_INPUTS=2
 PUBLIC_INPUT_BYTES=$((32 * $NUM_PUBLIC_INPUTS))

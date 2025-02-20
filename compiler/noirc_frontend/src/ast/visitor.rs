@@ -4,7 +4,7 @@ use noirc_errors::Span;
 use crate::{
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
-        CastExpression, ConstrainStatement, ConstructorExpression, Expression, ExpressionKind,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
         ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
@@ -162,25 +162,25 @@ pub trait Visitor {
         true
     }
 
-    fn visit_literal_array(&mut self, _: &ArrayLiteral) -> bool {
+    fn visit_literal_array(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
-    fn visit_literal_slice(&mut self, _: &ArrayLiteral) -> bool {
+    fn visit_literal_slice(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
-    fn visit_literal_bool(&mut self, _: bool) {}
+    fn visit_literal_bool(&mut self, _: bool, _: Span) {}
 
-    fn visit_literal_integer(&mut self, _value: FieldElement, _negative: bool) {}
+    fn visit_literal_integer(&mut self, _value: FieldElement, _negative: bool, _: Span) {}
 
-    fn visit_literal_str(&mut self, _: &str) {}
+    fn visit_literal_str(&mut self, _: &str, _: Span) {}
 
-    fn visit_literal_raw_str(&mut self, _: &str, _: u8) {}
+    fn visit_literal_raw_str(&mut self, _: &str, _: u8, _: Span) {}
 
-    fn visit_literal_fmt_str(&mut self, _: &[FmtStrFragment], _length: u32) {}
+    fn visit_literal_fmt_str(&mut self, _: &[FmtStrFragment], _length: u32, _: Span) {}
 
-    fn visit_literal_unit(&mut self) {}
+    fn visit_literal_unit(&mut self, _: Span) {}
 
     fn visit_block_expression(&mut self, _: &BlockExpression, _: Option<Span>) -> bool {
         true
@@ -262,11 +262,11 @@ pub trait Visitor {
         true
     }
 
-    fn visit_array_literal(&mut self, _: &ArrayLiteral) -> bool {
+    fn visit_array_literal(&mut self, _: &ArrayLiteral, _: Span) -> bool {
         true
     }
 
-    fn visit_array_literal_standard(&mut self, _: &[Expression]) -> bool {
+    fn visit_array_literal_standard(&mut self, _: &[Expression], _: Span) -> bool {
         true
     }
 
@@ -274,6 +274,7 @@ pub trait Visitor {
         &mut self,
         _repeated_element: &Expression,
         _length: &Expression,
+        _: Span,
     ) -> bool {
         true
     }
@@ -294,7 +295,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_constrain_statement(&mut self, _: &ConstrainStatement) -> bool {
+    fn visit_constrain_statement(&mut self, _: &ConstrainExpression) -> bool {
         true
     }
 
@@ -307,6 +308,10 @@ pub trait Visitor {
     }
 
     fn visit_loop_statement(&mut self, _: &Expression) -> bool {
+        true
+    }
+
+    fn visit_while_statement(&mut self, _condition: &Expression, _body: &Expression) -> bool {
         true
     }
 
@@ -598,7 +603,7 @@ impl NoirTraitImpl {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.trait_name.accept(visitor);
+        self.r#trait.accept(visitor);
         self.object_type.accept(visitor);
 
         for item in &self.items {
@@ -855,6 +860,9 @@ impl Expression {
             ExpressionKind::MethodCall(method_call_expression) => {
                 method_call_expression.accept(self.span, visitor);
             }
+            ExpressionKind::Constrain(constrain) => {
+                constrain.accept(visitor);
+            }
             ExpressionKind::Constructor(constructor_expression) => {
                 constructor_expression.accept(self.span, visitor);
             }
@@ -920,28 +928,32 @@ impl Expression {
 impl Literal {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_literal(self, span) {
-            self.accept_children(visitor);
+            self.accept_children(span, visitor);
         }
     }
 
-    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+    pub fn accept_children(&self, span: Span, visitor: &mut impl Visitor) {
         match self {
             Literal::Array(array_literal) => {
-                if visitor.visit_literal_array(array_literal) {
-                    array_literal.accept(visitor);
+                if visitor.visit_literal_array(array_literal, span) {
+                    array_literal.accept(span, visitor);
                 }
             }
             Literal::Slice(array_literal) => {
-                if visitor.visit_literal_slice(array_literal) {
-                    array_literal.accept(visitor);
+                if visitor.visit_literal_slice(array_literal, span) {
+                    array_literal.accept(span, visitor);
                 }
             }
-            Literal::Bool(value) => visitor.visit_literal_bool(*value),
-            Literal::Integer(value, negative) => visitor.visit_literal_integer(*value, *negative),
-            Literal::Str(str) => visitor.visit_literal_str(str),
-            Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length),
-            Literal::FmtStr(fragments, length) => visitor.visit_literal_fmt_str(fragments, *length),
-            Literal::Unit => visitor.visit_literal_unit(),
+            Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
+            Literal::Integer(value, negative) => {
+                visitor.visit_literal_integer(*value, *negative, span);
+            }
+            Literal::Str(str) => visitor.visit_literal_str(str, span),
+            Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
+            Literal::FmtStr(fragments, length) => {
+                visitor.visit_literal_fmt_str(fragments, *length, span);
+            }
+            Literal::Unit => visitor.visit_literal_unit(span),
         }
     }
 }
@@ -1113,21 +1125,21 @@ impl Lambda {
 }
 
 impl ArrayLiteral {
-    pub fn accept(&self, visitor: &mut impl Visitor) {
-        if visitor.visit_array_literal(self) {
-            self.accept_children(visitor);
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_array_literal(self, span) {
+            self.accept_children(span, visitor);
         }
     }
 
-    pub fn accept_children(&self, visitor: &mut impl Visitor) {
+    pub fn accept_children(&self, span: Span, visitor: &mut impl Visitor) {
         match self {
             ArrayLiteral::Standard(expressions) => {
-                if visitor.visit_array_literal_standard(expressions) {
+                if visitor.visit_array_literal_standard(expressions, span) {
                     visit_expressions(expressions, visitor);
                 }
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
-                if visitor.visit_array_literal_repeated(repeated_element, length) {
+                if visitor.visit_array_literal_repeated(repeated_element, length, span) {
                     repeated_element.accept(visitor);
                     length.accept(visitor);
                 }
@@ -1148,9 +1160,6 @@ impl Statement {
             StatementKind::Let(let_statement) => {
                 let_statement.accept(visitor);
             }
-            StatementKind::Constrain(constrain_statement) => {
-                constrain_statement.accept(visitor);
-            }
             StatementKind::Expression(expression) => {
                 expression.accept(visitor);
             }
@@ -1163,6 +1172,12 @@ impl Statement {
             StatementKind::Loop(block, _) => {
                 if visitor.visit_loop_statement(block) {
                     block.accept(visitor);
+                }
+            }
+            StatementKind::While(while_) => {
+                if visitor.visit_while_statement(&while_.condition, &while_.body) {
+                    while_.condition.accept(visitor);
+                    while_.body.accept(visitor);
                 }
             }
             StatementKind::Comptime(statement) => {
@@ -1199,7 +1214,7 @@ impl LetStatement {
     }
 }
 
-impl ConstrainStatement {
+impl ConstrainExpression {
     pub fn accept(&self, visitor: &mut impl Visitor) {
         if visitor.visit_constrain_statement(self) {
             self.accept_children(visitor);

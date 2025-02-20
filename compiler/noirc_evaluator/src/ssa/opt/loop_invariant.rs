@@ -15,7 +15,9 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{binary::eval_constant_binary_op, BinaryOp, Instruction, InstructionId},
+        instruction::{
+            binary::eval_constant_binary_op, Binary, BinaryOp, Instruction, InstructionId,
+        },
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -55,7 +57,8 @@ impl Loops {
                 continue;
             };
 
-            context.hoist_loop_invariants(&loop_, pre_header);
+            context.current_pre_header = Some(pre_header);
+            context.hoist_loop_invariants(&loop_);
         }
 
         context.map_dependent_instructions();
@@ -87,8 +90,19 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
-    // Maps induction variable -> fixed upper loop bound
-    outer_induction_variables: HashMap<ValueId, FieldElement>,
+    // Maps current loop induction variable -> fixed lower and upper loop bound
+    // This map is expected to only ever contain a singular value.
+    // However, we store it in a map in order to match the definition of
+    // `outer_induction_variables` as both maps share checks for evaluating binary operations.
+    current_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    // Maps outer loop induction variable -> fixed lower and upper loop bound
+    // This will be used by inner loops to determine whether they
+    // have safe operations reliant upon an outer loop's maximum induction variable.
+    outer_induction_variables: HashMap<ValueId, (FieldElement, FieldElement)>,
+    // This context struct processes runs across all loops.
+    // This stores the current loop's pre-header block.
+    // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
+    current_pre_header: Option<BasicBlockId>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -97,19 +111,27 @@ impl<'f> LoopInvariantContext<'f> {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
             loop_invariants: HashSet::default(),
+            current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
+            current_pre_header: None,
         }
     }
 
-    fn hoist_loop_invariants(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
+    fn pre_header(&self) -> BasicBlockId {
+        self.current_pre_header.expect("ICE: Pre-header block should have been set")
+    }
+
+    fn hoist_loop_invariants(&mut self, loop_: &Loop) {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
+                self.transform_to_unchecked_from_loop_bounds(instruction_id);
+
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, pre_header);
+                    self.inserter.push_instruction(instruction_id, self.pre_header());
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -135,20 +157,11 @@ impl<'f> LoopInvariantContext<'f> {
                 } else {
                     self.inserter.push_instruction(instruction_id, *block);
                 }
-
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
         }
 
-        // Keep track of a loop induction variable and respective upper bound.
-        // This will be used by later loops to determine whether they have operations
-        // reliant upon the maximum induction variable.
-        let upper_bound = loop_.get_const_upper_bound(self.inserter.function);
-        if let Some(upper_bound) = upper_bound {
-            let induction_variable = loop_.get_induction_variable(self.inserter.function);
-            let induction_variable = self.inserter.resolve(induction_variable);
-            self.outer_induction_variables.insert(induction_variable, upper_bound);
-        }
+        self.set_induction_var_bounds(loop_, false);
     }
 
     /// Gather the variables declared within the loop
@@ -158,6 +171,11 @@ impl<'f> LoopInvariantContext<'f> {
         // These are safe to keep per function, but we want to be clear that these values
         // are used per loop.
         self.loop_invariants.clear();
+        // There is only ever one current induction variable for a loop.
+        // For a new loop, we clear the previous induction variable and then
+        // set the new current induction variable.
+        self.current_induction_variables.clear();
+        self.set_induction_var_bounds(loop_, true);
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -210,13 +228,32 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
-            || matches!(instruction, Instruction::Binary(_))
-            || self.can_be_deduplicated_from_upper_bound(&instruction);
+            || self.can_be_deduplicated_from_loop_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
     }
 
-    /// Certain instructions can take advantage of that our induction variable has a fixed maximum.
+    /// Keep track of a loop induction variable and respective upper bound.
+    /// In the case of a nested loop, this will be used by later loops to determine
+    /// whether they have operations reliant upon the maximum induction variable.
+    /// When within the current loop, the known upper bound can be used to simplify instructions,
+    /// such as transforming a checked add to an unchecked add.
+    fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: bool) {
+        let bounds = loop_.get_const_bounds(self.inserter.function, self.pre_header());
+        if let Some((lower_bound, upper_bound)) = bounds {
+            let induction_variable = loop_.get_induction_variable(self.inserter.function);
+            let induction_variable = self.inserter.resolve(induction_variable);
+            if current_loop {
+                self.current_induction_variables
+                    .insert(induction_variable, (lower_bound, upper_bound));
+            } else {
+                self.outer_induction_variables
+                    .insert(induction_variable, (lower_bound, upper_bound));
+            }
+        }
+    }
+
+    /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
     ///
     /// For example, an array access can usually only be safely deduplicated when we have a constant
     /// index that is below the length of the array.
@@ -224,11 +261,11 @@ impl<'f> LoopInvariantContext<'f> {
     /// would determine that the instruction is not safe for hoisting.
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
-    fn can_be_deduplicated_from_upper_bound(&self, instruction: &Instruction) -> bool {
+    fn can_be_deduplicated_from_loop_bound(&self, instruction: &Instruction) -> bool {
         match instruction {
             Instruction::ArrayGet { array, index } => {
                 let array_typ = self.inserter.function.dfg.type_of_value(*array);
-                let upper_bound = self.outer_induction_variables.get(index);
+                let upper_bound = self.outer_induction_variables.get(index).map(|bounds| bounds.1);
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
                     upper_bound.to_u128() <= len.into()
                 } else {
@@ -236,32 +273,81 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Instruction::Binary(binary) => {
-                if !matches!(binary.operator, BinaryOp::Add { .. } | BinaryOp::Mul { .. }) {
-                    return false;
-                }
-
-                let operand_type =
-                    self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-
-                let lhs_const =
-                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
-                let rhs_const =
-                    self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
-                let (lhs, rhs) = match (
-                    lhs_const,
-                    rhs_const,
-                    self.outer_induction_variables.get(&binary.lhs),
-                    self.outer_induction_variables.get(&binary.rhs),
-                ) {
-                    (Some((lhs, _)), None, None, Some(upper_bound)) => (lhs, *upper_bound),
-                    (None, Some((rhs, _)), Some(upper_bound), None) => (*upper_bound, rhs),
-                    _ => return false,
-                };
-
-                eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
+                self.can_evaluate_binary_op(binary, &self.outer_induction_variables)
             }
             _ => false,
         }
+    }
+
+    /// Binary operations can take advantage of that our induction variable has a fixed minimum/maximum,
+    /// to be transformed from a checked operation to an unchecked operation.
+    ///
+    /// Checked operations require more bytecode and thus we aim to minimize their usage wherever possible.
+    ///
+    /// For example, if one side of an add/mul operation is a constant and the other is an induction variable
+    /// with a known upper bound, we know whether that binary operation will ever overflow.
+    /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
+    fn transform_to_unchecked_from_loop_bounds(&mut self, instruction_id: InstructionId) {
+        let Instruction::Binary(binary) = &self.inserter.function.dfg[instruction_id] else {
+            return;
+        };
+
+        if binary.operator.is_unchecked()
+            || !self.can_evaluate_binary_op(binary, &self.current_induction_variables)
+        {
+            return;
+        }
+
+        if let Instruction::Binary(binary) = &mut self.inserter.function.dfg[instruction_id] {
+            binary.operator = binary.operator.into_unchecked();
+        };
+    }
+
+    /// Checks whether a binary operation can be evaluated using the bounds of a given loop induction variables.
+    ///
+    /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
+    /// that the operation can potentially overflow during a given loop iteration.
+    fn can_evaluate_binary_op(
+        &self,
+        binary: &Binary,
+        induction_vars: &HashMap<ValueId, (FieldElement, FieldElement)>,
+    ) -> bool {
+        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
+
+        let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
+        let rhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.rhs);
+        let (lhs, rhs) = match (
+            lhs_const,
+            rhs_const,
+            induction_vars.get(&binary.lhs),
+            induction_vars.get(&binary.rhs),
+        ) {
+            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    // If we have a Div/Mod operation we want to make sure that the
+                    // lower bound is not zero.
+                    (lhs, *lower_bound)
+                } else {
+                    (lhs, *upper_bound)
+                }
+            }
+            (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
+                if matches!(binary.operator, BinaryOp::Sub { .. }) {
+                    // If we are subtracting and the induction variable is on the lhs,
+                    // we want to check the induction variable lower bound.
+                    (*lower_bound, rhs)
+                } else {
+                    (*upper_bound, rhs)
+                }
+            }
+            _ => return false,
+        };
+
+        // We evaluate this expression using the upper bounds (or lower in the case of div/mod)
+        // of its inputs to check whether it will ever overflow.
+        // If so, this will cause `eval_constant_binary_op` to return `None`.
+        // Therefore a `Some` value shows that this operation is safe.
+        eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
     }
 
     /// Loop invariant hoisting only operates over loop instructions.
@@ -304,7 +390,7 @@ mod test {
           b3():
               v6 = mul v0, v1
               constrain v6 == i32 6
-              v8 = add v2, i32 1
+              v8 = unchecked_add v2, i32 1
               jmp b1(v8)
         }
         ";
@@ -328,7 +414,7 @@ mod test {
             return
           b3():
             constrain v3 == i32 6
-            v9 = add v2, i32 1
+            v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
         ";
@@ -356,12 +442,12 @@ mod test {
             v7 = lt v3, i32 4
             jmpif v7 then: b6, else: b5
           b5():
-            v9 = add v2, i32 1
+            v9 = unchecked_add v2, i32 1
             jmp b1(v9)
           b6():
             v10 = mul v0, v1
             constrain v10 == i32 6
-            v12 = add v3, i32 1
+            v12 = unchecked_add v3, i32 1
             jmp b4(v12)
         }
         ";
@@ -389,11 +475,11 @@ mod test {
             v8 = lt v3, i32 4
             jmpif v8 then: b6, else: b5
           b5():
-            v10 = add v2, i32 1
+            v10 = unchecked_add v2, i32 1
             jmp b1(v10)
           b6():
             constrain v4 == i32 6
-            v12 = add v3, i32 1
+            v12 = unchecked_add v3, i32 1
             jmp b4(v12)
         }
         ";
@@ -429,7 +515,7 @@ mod test {
             v7 = mul v6, v0
             v8 = eq v7, i32 12
             constrain v7 == i32 12
-            v9 = add v2, i32 1
+            v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
         ";
@@ -454,7 +540,7 @@ mod test {
             return
           b3():
             constrain v4 == i32 12
-            v11 = add v2, i32 1
+            v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
         ";
@@ -488,7 +574,7 @@ mod test {
             v12 = load v5 -> [u32; 5]
             v13 = array_set v12, index v0, value v1
             store v13 at v5
-            v15 = add v2, u32 1
+            v15 = unchecked_add v2, u32 1
             jmp b1(v15)
         }
         ";
@@ -541,7 +627,7 @@ mod test {
             v10 = lt v3, u32 4
             jmpif v10 then: b6, else: b5
           b5():
-            v12 = add v2, u32 1
+            v12 = unchecked_add v2, u32 1
             jmp b1(v12)
           b6():
             jmp b7(u32 0)
@@ -549,7 +635,7 @@ mod test {
             v13 = lt v4, u32 4
             jmpif v13 then: b9, else: b8
           b8():
-            v14 = add v3, u32 1
+            v14 = unchecked_add v3, u32 1
             jmp b4(v14)
           b9():
             v15 = array_get v6, index v2 -> u32
@@ -558,7 +644,7 @@ mod test {
             v17 = array_get v6, index v3 -> u32
             v18 = eq v17, v0
             constrain v17 == v0
-            v19 = add v4, u32 1
+            v19 = unchecked_add v4, u32 1
             jmp b7(v19)
         }
         ";
@@ -584,7 +670,7 @@ mod test {
             v12 = lt v3, u32 4
             jmpif v12 then: b6, else: b5
           b5():
-            v14 = add v2, u32 1
+            v14 = unchecked_add v2, u32 1
             jmp b1(v14)
           b6():
             v15 = array_get v6, index v3 -> u32
@@ -594,12 +680,12 @@ mod test {
             v17 = lt v4, u32 4
             jmpif v17 then: b9, else: b8
           b8():
-            v18 = add v3, u32 1
+            v18 = unchecked_add v3, u32 1
             jmp b4(v18)
           b9():
             constrain v10 == v0
             constrain v15 == v0
-            v19 = add v4, u32 1
+            v19 = unchecked_add v4, u32 1
             jmp b7(v19)
         }
         ";
@@ -649,7 +735,7 @@ mod test {
             v21 = add v1, v2
             v23 = array_set v19, index v21, value Field 128
             call f1(v23)
-            v24 = add v2, u32 1
+            v24 = unchecked_add v2, u32 1
             jmp b1(v24)
         }
         brillig(inline) fn foo f1 {
@@ -685,7 +771,7 @@ mod test {
             v21 = add v1, v2
             v23 = array_set v14, index v21, value Field 128
             call f1(v23)
-            v24 = add v2, u32 1
+            v24 = unchecked_add v2, u32 1
             jmp b1(v24)
         }
         brillig(inline) fn foo f1 {
@@ -695,6 +781,217 @@ mod test {
         ";
 
         let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn transform_safe_ops_to_unchecked_during_code_motion() {
+        // This test is identical to `simple_loop_invariant_code_motion`, except this test
+        // uses a checked add in `b3`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+              jmp b1(i32 0)
+          b1(v2: i32):
+              v5 = lt v2, i32 4
+              jmpif v5 then: b3, else: b2
+          b2():
+              return
+          b3():
+              v6 = mul v0, v1
+              constrain v6 == i32 6
+              v8 = add v2, i32 1
+              jmp b1(v8)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // `v8 = add v2, i32 1` in b3 should now be `v9 = unchecked_add v2, i32 1` in b3
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v3 = mul v0, v1
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v6 = lt v2, i32 4
+            jmpif v6 then: b3, else: b2
+          b2():
+            return
+          b3():
+            constrain v3 == i32 6
+            v9 = unchecked_add v2, i32 1
+            jmp b1(v9)
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_transform_unsafe_sub_to_unchecked() {
+        // This test is identical to `simple_loop_invariant_code_motion`, except this test
+        // uses a checked sub in `b3`.
+        // We want to make sure that our sub operation has the induction variable (`v2`) on the lhs.
+        // The induction variable `v2` is placed on the lhs of the sub operation
+        // to test that we are checking against the loop's lower bound
+        // rather than the upper bound (add/mul only check against the upper bound).
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+              jmp b1(u32 0)
+          b1(v2: u32):
+              v5 = lt v2, u32 4
+              jmpif v5 then: b3, else: b2
+          b2():
+              return
+          b3():
+              v7 = sub v2, u32 1
+              jmp b1(v7)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn transform_safe_sub_to_unchecked() {
+        // This test is identical to `do_not_transform_unsafe_sub_to_unchecked`, except the loop
+        // in this test starts with a lower bound of `1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+              jmp b1(u32 1)
+          b1(v2: u32):
+              v5 = lt v2, u32 4
+              jmpif v5 then: b3, else: b2
+          b2():
+              return
+          b3():
+              v8 = sub v2, u32 1
+              jmp b1(v8)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(u32 1)
+          b1(v2: u32):
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v6 = unchecked_sub v2, u32 1
+            jmp b1(v6)
+        }
+        ";
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_unsafe_div() {
+        // This test is similar to `nested_loop_invariant_code_motion`, the operation
+        // in question we are trying to hoist is `v9 = div i32 10, v0`.
+        // Check that the lower bound of the outer loop it checked and that we not
+        // hoist an operation that can potentially error with a division by zero.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 0)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_safe_div() {
+        // This test is identical to `do_not_hoist_unsafe_div`, except the loop
+        // in this test starts with a lower bound of `1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v6 = div i32 10, v0
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v8 = lt v1, i32 4
+            jmpif v8 then: b6, else: b5
+          b5():
+            v9 = unchecked_add v0, i32 1
+            jmp b1(v9)
+          b6():
+            constrain v6 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
         assert_normalized_ssa_equals(ssa, expected);
     }
 }
