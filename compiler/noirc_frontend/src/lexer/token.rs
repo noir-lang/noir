@@ -382,10 +382,10 @@ impl LocatedToken {
     pub fn new(token: Token, location: Location) -> LocatedToken {
         LocatedToken(Located::from(location, token))
     }
-    pub fn to_location(&self) -> Location {
+    pub fn location(&self) -> Location {
         self.0.location()
     }
-    pub fn to_span(&self) -> Span {
+    pub fn span(&self) -> Span {
         self.0.span()
     }
     pub fn token(&self) -> &Token {
@@ -398,7 +398,7 @@ impl LocatedToken {
         self.token().kind()
     }
     pub fn into_spanned_token(self) -> SpannedToken {
-        let span = self.to_span();
+        let span = self.span();
         SpannedToken::new(self.into_token(), span)
     }
 }
@@ -439,7 +439,7 @@ impl SpannedToken {
     pub fn new(token: Token, span: Span) -> SpannedToken {
         SpannedToken(Spanned::from(span, token))
     }
-    pub fn to_span(&self) -> Span {
+    pub fn span(&self) -> Span {
         self.0.span()
     }
     pub fn token(&self) -> &Token {

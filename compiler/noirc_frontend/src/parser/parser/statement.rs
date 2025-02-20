@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
             let (semicolon_token, semicolon_location) = if self.at(Token::Semicolon) {
                 let token = self.token.clone();
                 self.bump();
-                let location = token.to_location();
+                let location = token.location();
 
                 (Some(token.into_token()), location)
             } else {

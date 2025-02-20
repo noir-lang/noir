@@ -697,7 +697,7 @@ fn type_path_with_file(type_path: TypePath, file: FileId) -> TypePath {
 
 fn tokens_with_file(tokens: Tokens, file: FileId) -> Tokens {
     Tokens(vecmap(tokens.0, |token| {
-        let location = location_with_file(token.to_location(), file);
+        let location = location_with_file(token.location(), file);
         LocatedToken::new(token_with_location(token.into_token(), file), location)
     }))
 }

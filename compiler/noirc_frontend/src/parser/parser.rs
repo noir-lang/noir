@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
             std::mem::replace(&mut self.next_token_comments, next_next_token_comments);
         let _ = std::mem::replace(&mut self.current_token_comments, next_comments);
 
-        self.current_token_location = self.token.to_location();
+        self.current_token_location = self.token.location();
         token
     }
 
@@ -198,7 +198,7 @@ impl<'a> Parser<'a> {
         let (token, comments) = self.read_token_internal();
         self.token = token;
         self.current_token_comments = comments;
-        self.current_token_location = self.token.to_location();
+        self.current_token_location = self.token.location();
 
         let (token, comments) = self.read_token_internal();
         self.next_token = token;

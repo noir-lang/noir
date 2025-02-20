@@ -113,7 +113,7 @@ impl<'a> Lexer<'a> {
 
     fn next_token(&mut self) -> LocatedTokenResult {
         self.next_spanned_token().map(|token| {
-            let span = token.to_span();
+            let span = token.span();
             LocatedToken::new(token.into_token(), Location::new(span, self.file_id))
         })
     }
@@ -1389,7 +1389,7 @@ mod tests {
 
         for spanned_token in expected.into_iter() {
             let got = lexer.next_token().unwrap();
-            assert_eq!(got.to_span(), spanned_token.to_span());
+            assert_eq!(got.span(), spanned_token.span());
             assert_eq!(got.into_spanned_token(), spanned_token);
         }
     }

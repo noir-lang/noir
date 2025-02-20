@@ -236,7 +236,7 @@ impl From<&str> for Ident {
 
 impl From<LocatedToken> for Ident {
     fn from(lt: LocatedToken) -> Ident {
-        let located_str = Located::from(lt.to_location(), lt.token().to_string());
+        let located_str = Located::from(lt.location(), lt.token().to_string());
         Ident(located_str)
     }
 }

@@ -20,7 +20,7 @@ impl<'a> Elaborator<'a> {
 
             if is_unquote {
                 if let Some(next) = tokens.next() {
-                    let location = next.to_location();
+                    let location = next.location();
 
                     match next.into_token() {
                         Token::Ident(name) => {

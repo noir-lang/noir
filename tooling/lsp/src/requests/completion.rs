@@ -1849,7 +1849,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         let mut last_was_dollar = false;
 
         for token in &tokens.0 {
-            let span = token.to_span();
+            let span = token.span();
             if span.end() as usize > self.byte_index {
                 break;
             }

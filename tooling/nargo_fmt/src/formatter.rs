@@ -296,7 +296,7 @@ impl<'a> Formatter<'a> {
         self.ignore_next = false;
 
         let next_token = self.read_token_internal();
-        self.token_span = next_token.to_span();
+        self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
 

@@ -361,7 +361,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.write_space();
             formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
-                formatter.write_source_span(token.to_span());
+                formatter.write_source_span(token.span());
             }
             formatter.write(&delimiter_end.to_string());
         }));

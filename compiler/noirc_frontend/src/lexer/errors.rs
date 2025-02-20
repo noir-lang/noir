@@ -76,9 +76,9 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidFormatString { location, .. } => *location,
             LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
             LexerErrorKind::InvalidEscape { location, .. } => *location,
-            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_location(),
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
             LexerErrorKind::NonAsciiComment { location, .. } => *location,
-            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_location(),
+            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
 
@@ -166,13 +166,13 @@ impl LexerErrorKind {
             LexerErrorKind::InvalidEscape { escaped, location } =>
                 (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), location.span),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
-                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
+                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.span())
             },
             LexerErrorKind::NonAsciiComment { location } => {
                 ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), location.span)
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
-                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
+                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.span())
             }
         }
     }
