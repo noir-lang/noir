@@ -26,8 +26,8 @@ use crate::ast::{
     UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
 };
 
+use crate::elaborator::FrontendOptions;
 use crate::parser::{ParserError, SortedModule};
-use cli_args::{FrontendOptions, UnstableFeature};
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
@@ -470,7 +470,7 @@ impl DefCollector {
             })
         });
 
-        let cli_options = ElaboratorOptions {
+        let cli_options = crate::elaborator::ElaboratorOptions {
             debug_comptime_in_file,
             pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,

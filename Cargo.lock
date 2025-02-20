@@ -973,14 +973,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
-name = "cli-args"
-version = "1.0.0-beta.2"
-dependencies = [
- "clap",
- "fm",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3391,7 +3383,6 @@ dependencies = [
  "acvm",
  "build-data",
  "clap",
- "cli-args",
  "fm",
  "fxhash",
  "iter-extended",
@@ -3459,7 +3450,6 @@ dependencies = [
  "base64 0.21.7",
  "bn254_blackbox_solver",
  "cfg-if",
- "cli-args",
  "fm",
  "fxhash",
  "im",

@@ -1,3 +1,4 @@
+use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
@@ -5,7 +6,6 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
-use cli_args::FrontendOptions;
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;

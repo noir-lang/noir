@@ -7,8 +7,6 @@ use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
-use cli_args::FrontendOptions;
-use cli_args::UnstableFeature;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
@@ -18,6 +16,7 @@ use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::{
@@ -183,11 +182,10 @@ pub struct CompileOptions {
     pub check_non_determinism: bool,
 
     /// Unstable features to enable for this current build
+    #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]
     pub unstable_features: Vec<UnstableFeature>,
 }
-
-struct UnstableFeature(noirc_frontend::elaborator::UnstableFeature);
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};

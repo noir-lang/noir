@@ -5,7 +5,7 @@ use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
-use cli_args::UnstableFeature;
+use crate::elaborator::UnstableFeature;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;

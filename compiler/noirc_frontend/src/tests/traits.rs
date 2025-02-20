@@ -1,4 +1,4 @@
-use cli_args::FrontendOptions;
+use crate::elaborator::FrontendOptions;
 
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::errors::DefCollectorErrorKind;

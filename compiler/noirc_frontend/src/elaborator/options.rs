@@ -16,13 +16,13 @@ impl std::fmt::Display for UnstableFeature {
 }
 
 impl FromStr for UnstableFeature {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "enums" => Ok(Self::Enums),
             "array-ownership" => Ok(Self::ArrayOwnership),
-            _ => Err(()),
+            other => Err(format!("Unknown unstable feature '{other}'")),
         }
     }
 }
@@ -31,16 +31,16 @@ impl FromStr for UnstableFeature {
 /// we can resolve a file path to a file id later. This generic struct is used
 /// so that FrontendOptions doesn't need to duplicate fields and methods with ElaboratorOptions.
 #[derive(Copy, Clone)]
-struct GenericOptions<'a, T> {
+pub struct GenericOptions<'a, T> {
     /// The scope of --debug-comptime, or None if unset
-    pub(crate) debug_comptime_in_file: Option<T>,
+    pub debug_comptime_in_file: Option<T>,
 
     /// Use pedantic ACVM solving
-    pub(crate) pedantic_solving: bool,
+    pub pedantic_solving: bool,
 
     /// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
-    pub(crate) enabled_unstable_features: &'a [UnstableFeature],
+    pub enabled_unstable_features: &'a [UnstableFeature],
 }
 
 /// Options from nargo_cli that need to be passed down to the elaborator

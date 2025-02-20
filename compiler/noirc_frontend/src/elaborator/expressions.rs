@@ -1023,7 +1023,7 @@ impl<'context> Elaborator<'context> {
         match_expr: MatchExpression,
         span: Span,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(cli_args::UnstableFeature::Enums, span);
+        self.use_unstable_feature(super::UnstableFeature::Enums, span);
 
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);

@@ -13,9 +13,9 @@ use crate::{
     hir::{
         def_collector::{
             dc_crate::{
-                filter_literal_globals, CollectedItems, CompilationError, ElaboratorOptions,
-                ImplMap, UnresolvedEnum, UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct,
-                UnresolvedTraitImpl, UnresolvedTypeAlias,
+                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
+                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
+                UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -52,6 +52,7 @@ mod comptime;
 mod enums;
 mod expressions;
 mod lints;
+mod options;
 mod path_resolution;
 mod patterns;
 mod scope;
@@ -60,16 +61,15 @@ mod trait_impls;
 mod traits;
 pub mod types;
 mod unquote;
-mod options;
 
-use cli_args::UnstableFeature;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span, Spanned};
+pub(crate) use options::ElaboratorOptions;
+pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
-pub use options::{ FrontendOptions, ElaboratorOptions, UnstableFeature };
 
 use self::traits::check_trait_impl_method_matches_declaration;
 
@@ -1842,7 +1842,7 @@ impl<'context> Elaborator<'context> {
             let generics = datatype_ref.generic_types();
             self.add_existing_generics(&typ.enum_def.generics, &datatype_ref.generics);
 
-            self.use_unstable_feature(cli_args::UnstableFeature::Enums, datatype_ref.name.span());
+            self.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.span());
             drop(datatype_ref);
 
             let self_type = Type::DataType(datatype.clone(), generics);
