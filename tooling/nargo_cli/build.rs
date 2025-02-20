@@ -435,7 +435,7 @@ fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Pa
 
         assert_zero_opcodes += r#"
         // `compile_success_empty` tests should be able to compile down to an empty circuit.
-        let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
+        let json: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|e| {{
             panic!("JSON was not well-formatted {:?}\n\n{:?}", e, std::str::from_utf8(&output.stdout))
         }});
         let num_opcodes = &json["programs"][0]["functions"][0]["opcodes"];

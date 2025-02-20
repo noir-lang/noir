@@ -23,7 +23,7 @@ impl<'a> std::fmt::Debug for PrintOutput<'a> {
             Self::None => write!(f, "None"),
             Self::Stdout => write!(f, "Stdout"),
             Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
-            Self::PrintCallback(arg0) => write!(f, "PrintCallback(Box<dyn Fn (String) + 'a)"),
+            Self::PrintCallback(_arg0) => write!(f, "PrintCallback(Box<dyn Fn (String) + 'a)"),
         }
     }
 }
