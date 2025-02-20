@@ -2097,7 +2097,7 @@ impl<'a> Context<'a> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
         assert!(
             bit_size < max_bit_size,
-            "Attempted to generate a truncation into large size than max input"
+            "Attempted to generate a truncation into size larger than max input"
         );
 
         let mut var = self.convert_numeric_value(value_id, dfg)?;
