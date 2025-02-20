@@ -319,115 +319,7 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
                 panic!("ToRadix opcode's output_bits size does not match expected bit size 1")
             };
 
-            assert!(
-                (2..=256).contains(&radix),
-                "Radix out of the valid range [2,256]. Value: {}",
-                radix
-            );
-
-            assert!(
-                num_limbs >= 1 || input.is_zero(),
-                "Input value {} is not zero but number of limbs is zero.",
-                input
-            );
-
-            assert!(
-                !output_bits || radix == 2,
-                "Radix {} is not equal to 2 and bit mode is activated.",
-                radix
-            );
-
-            // TODO: raise an error if we cannot fit `input` into `num_limbs`.
-            let limbs = match radix {
-                256 => {
-                    let bytes_le = input.to_be_bytes().into_iter().rev();
-                    // We only take as many bytes as specified by `num_limbs`.
-                    let lowest_bytes_le = bytes_le.take(num_limbs);
-                    let lowest_bytes_be = lowest_bytes_le.rev();
-
-                    lowest_bytes_be.map(MemoryValue::U8).collect()
-                }
-                2 => {
-                    let bytes_le = input.to_be_bytes().into_iter().rev();
-                    // We now decompose each byte into a number of bits but
-                    // only take as many bits as specified by `num_limbs`.
-                    let lowest_bits_le = bytes_le
-                        .flat_map(|limb| {
-                            [
-                                MemoryValue::U1(((limb & 0x80) >> 7) == 1),
-                                MemoryValue::U1(((limb & 0x40) >> 6) == 1),
-                                MemoryValue::U1(((limb & 0x20) >> 5) == 1),
-                                MemoryValue::U1(((limb & 0x10) >> 4) == 1),
-                                MemoryValue::U1(((limb & 0x08) >> 3) == 1),
-                                MemoryValue::U1(((limb & 0x04) >> 2) == 1),
-                                MemoryValue::U1(((limb & 0x02) >> 1) == 1),
-                                MemoryValue::U1((limb & 0x01) == 1),
-                            ]
-                            .into_iter()
-                        })
-                        .take(num_limbs);
-                    // We need to collect in order to reverse due to `flat_map`
-                    let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
-
-                    // Reverse to get bytes in big endian form again.
-                    lowest_bytes_le.into_iter().rev().collect()
-                }
-                16 => {
-                    let bytes_le = input.to_be_bytes().into_iter().rev();
-                    // We now decompose each byte into a number of nibbles but
-                    // only take as many nibbles as specified by `num_limbs`.
-                    //
-                    // Note that brillig does not have a u4 type so these are represented as u8s
-                    let lowest_bits_le = bytes_le
-                        .flat_map(|limb| {
-                            [MemoryValue::U8((limb & 0xf0) >> 4), MemoryValue::U8(limb & 0x0f)]
-                                .into_iter()
-                        })
-                        .take(num_limbs);
-                    // We need to collect in order to reverse due to `flat_map`
-                    let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
-
-                    // Reverse to get bytes in big endian form again.
-                    lowest_bytes_le.into_iter().rev().collect()
-                }
-                4 => {
-                    let bytes_le = input.to_be_bytes().into_iter().rev();
-                    // We now decompose each byte into a number of 2 bits pairs but
-                    // only take as many pairs as specified by `num_limbs`.
-                    //
-                    // Note that brillig does not have a u2 type so these are represented as u8s
-                    let lowest_bytes_le = bytes_le
-                        .flat_map(|limb| {
-                            [
-                                MemoryValue::U8((limb & 0xc0) >> 6),
-                                MemoryValue::U8((limb & 0x30) >> 4),
-                                MemoryValue::U8((limb & 0x0c) >> 2),
-                                MemoryValue::U8(limb & 0x03),
-                            ]
-                            .into_iter()
-                        })
-                        .take(num_limbs);
-                    // We need to collect in order to reverse due to `flat_map`
-                    let lowest_bytes_le: Vec<_> = lowest_bytes_le.collect();
-
-                    // Reverse to get bytes in big endian form again.
-                    lowest_bytes_le.into_iter().rev().collect()
-                }
-                _ => {
-                    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-                    let radix = BigUint::from(radix);
-
-                    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
-                    for i in (0..num_limbs).rev() {
-                        let limb = &input % &radix;
-                        let limb: u8 = limb.try_into().unwrap();
-                        limbs[i] = MemoryValue::U8(limb);
-
-                        input /= &radix;
-                    }
-                    limbs
-                }
-            };
+            let limbs = to_radix_be(input, radix, num_limbs, output_bits);
 
             memory.write_slice(memory.read_ref(*output_pointer), &limbs);
 
@@ -455,5 +347,171 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
         BlackBoxOp::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
         BlackBoxOp::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         BlackBoxOp::ToRadix { .. } => unreachable!("ToRadix is not an ACIR BlackBoxFunc"),
+    }
+}
+
+fn to_radix_be<F: AcirField>(
+    input: F,
+    radix: u32,
+    num_limbs: usize,
+    output_bits: bool,
+) -> Vec<MemoryValue<F>> {
+    assert!((2..=256).contains(&radix), "Radix out of the valid range [2,256]. Value: {}", radix);
+
+    assert!(
+        num_limbs >= 1 || input.is_zero(),
+        "Input value {} is not zero but number of limbs is zero.",
+        input
+    );
+
+    assert!(
+        !output_bits || radix == 2,
+        "Radix {} is not equal to 2 and bit mode is activated.",
+        radix
+    );
+
+    // TODO: raise an error if we cannot fit `input` into `num_limbs`.
+    match radix {
+        256 => {
+            let bytes_le = input.to_be_bytes().into_iter().rev();
+            // We only take as many bytes as specified by `num_limbs`.
+            let lowest_bytes_le = bytes_le.take(num_limbs);
+            let lowest_bytes_be = lowest_bytes_le.rev();
+
+            let padding_bytes =
+                std::iter::repeat(MemoryValue::U8(0)).take(num_limbs - lowest_bytes_be.len());
+            padding_bytes.chain(lowest_bytes_be.map(MemoryValue::U8)).collect()
+        }
+        2 => {
+            let bytes_le = input.to_be_bytes().into_iter().rev();
+            // We now decompose each byte into a number of bits but
+            // only take as many bits as specified by `num_limbs`.
+            let lowest_bits_le = bytes_le
+                .flat_map(|limb| {
+                    [
+                        MemoryValue::U1((limb & 0x01) == 1),
+                        MemoryValue::U1(((limb & 0x02) >> 1) == 1),
+                        MemoryValue::U1(((limb & 0x04) >> 2) == 1),
+                        MemoryValue::U1(((limb & 0x08) >> 3) == 1),
+                        MemoryValue::U1(((limb & 0x10) >> 4) == 1),
+                        MemoryValue::U1(((limb & 0x20) >> 5) == 1),
+                        MemoryValue::U1(((limb & 0x40) >> 6) == 1),
+                        MemoryValue::U1(((limb & 0x80) >> 7) == 1),
+                    ]
+                    .into_iter()
+                })
+                .take(num_limbs);
+            // We need to collect in order to reverse due to `flat_map`
+            let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
+
+            // Reverse to get bytes in big endian form again.
+            let padding_bytes =
+                std::iter::repeat(MemoryValue::U8(0)).take(num_limbs - lowest_bytes_le.len());
+            padding_bytes.chain(lowest_bytes_le.into_iter().rev()).collect()
+        }
+        16 => {
+            let bytes_le = input.to_be_bytes().into_iter().rev();
+            // We now decompose each byte into a number of nibbles but
+            // only take as many nibbles as specified by `num_limbs`.
+            //
+            // Note that brillig does not have a u4 type so these are represented as u8s
+            let lowest_bits_le = bytes_le
+                .flat_map(|limb| {
+                    [MemoryValue::U8((limb & 0xf0) >> 4), MemoryValue::U8(limb & 0x0f)].into_iter()
+                })
+                .take(num_limbs);
+            // We need to collect in order to reverse due to `flat_map`
+            let lowest_bytes_le: Vec<_> = lowest_bits_le.collect();
+
+            // Reverse to get bytes in big endian form again.
+            let padding_bytes =
+                std::iter::repeat(MemoryValue::U8(0)).take(num_limbs - lowest_bytes_le.len());
+            padding_bytes.chain(lowest_bytes_le.into_iter().rev()).collect()
+        }
+        4 => {
+            let bytes_le = input.to_be_bytes().into_iter().rev();
+            // We now decompose each byte into a number of 2 bits pairs but
+            // only take as many pairs as specified by `num_limbs`.
+            //
+            // Note that brillig does not have a u2 type so these are represented as u8s
+            let lowest_bytes_le = bytes_le
+                .flat_map(|limb| {
+                    [
+                        MemoryValue::U8(limb & 0x03),
+                        MemoryValue::U8((limb & 0x0c) >> 2),
+                        MemoryValue::U8((limb & 0x30) >> 4),
+                        MemoryValue::U8((limb & 0xc0) >> 6),
+                    ]
+                    .into_iter()
+                })
+                .take(num_limbs);
+            // We need to collect in order to reverse due to `flat_map`
+            let lowest_bytes_le: Vec<_> = lowest_bytes_le.collect();
+
+            // Reverse to get bytes in big endian form again.
+            let padding_bytes =
+                std::iter::repeat(MemoryValue::U8(0)).take(num_limbs - lowest_bytes_le.len());
+            padding_bytes.chain(lowest_bytes_le.into_iter().rev()).collect()
+        }
+        _ => {
+            let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+            let radix = BigUint::from(radix);
+
+            let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
+            for i in (0..num_limbs).rev() {
+                let limb = &input % &radix;
+                let limb: u8 = limb.try_into().unwrap();
+                limbs[i] = MemoryValue::U8(limb);
+
+                input /= &radix;
+            }
+            limbs
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acir::{AcirField, FieldElement};
+    use proptest::prelude::*;
+
+    use crate::black_box::to_radix_be;
+
+    proptest! {
+        #[test]
+        fn to_radix_be_bytes(input: u128, num_limbs in 0..32usize) {
+            let input_field = FieldElement::from(input);
+            let num_limbs = std::cmp::max(num_limbs, input_field.to_be_bytes().len());
+
+            let bytes_be = to_radix_be(input_field, 256, num_limbs, false);
+            prop_assert_eq!(bytes_be.len(), num_limbs);
+
+            let bytes_be: Vec<u8> = bytes_be.into_iter().map(| byte| byte.expect_u8().unwrap()).collect();
+            let num_padding_bytes = num_limbs - input_field.to_be_bytes().len();
+
+            // We need to check that the byte decompositions are equivalent.
+            // `bytes_be` may have leading zeros so we assert that these are all zero.
+            prop_assert!(&bytes_be.iter().take(num_padding_bytes).all(|byte| *byte == 0));
+            prop_assert_eq!(&bytes_be[num_padding_bytes..], &input_field.to_be_bytes());
+            prop_assert_eq!(FieldElement::from_be_bytes_reduce(&bytes_be[num_padding_bytes..]), input_field);
+        }
+
+        #[test]
+        fn to_radix_be_bits(input: u128, num_limbs in 0..254usize) {
+            let input_field = FieldElement::from(input);
+            let required_num_bits = input_field.num_bits() as usize;
+            let num_limbs = std::cmp::max(num_limbs, required_num_bits);
+
+            let bits_be = to_radix_be(input_field, 2, num_limbs, true);
+            prop_assert_eq!(bits_be.len(), num_limbs);
+
+            let bits_be: Vec<bool> = bits_be.into_iter().map(| byte| byte.expect_u1().unwrap()).collect();
+            let num_padding_bits = num_limbs - required_num_bits;
+
+            // We need to check that the bit decompositions are equivalent.
+            // `bytes_be` may have leading zeros so we assert that these are all zero.
+            prop_assert!(&bits_be.iter().take(num_padding_bits).all(|byte| !byte));
+            // TODO: assert correct decomposition
+        }
     }
 }

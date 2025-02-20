@@ -799,6 +799,8 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "pprof",
+ "proptest",
+ "proptest-derive",
  "rand",
  "thiserror",
 ]

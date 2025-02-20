@@ -26,6 +26,8 @@ thiserror.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 rand.workspace = true
+proptest.workspace = true
+proptest-derive.workspace = true
 
 [[bench]]
 name = "criterion"
