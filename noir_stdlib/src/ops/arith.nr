@@ -10,6 +10,11 @@ impl Add for Field {
     }
 }
 
+impl Add for u128 {
+    fn add(self, other: u128) -> u128 {
+        self + other
+    }
+}
 impl Add for u64 {
     fn add(self, other: u64) -> u64 {
         self + other
@@ -69,6 +74,11 @@ impl Sub for Field {
     }
 }
 
+impl Sub for u128 {
+    fn sub(self, other: u128) -> u128 {
+        self - other
+    }
+}
 impl Sub for u64 {
     fn sub(self, other: u64) -> u64 {
         self - other
@@ -128,6 +138,11 @@ impl Mul for Field {
     }
 }
 
+impl Mul for u128 {
+    fn mul(self, other: u128) -> u128 {
+        self * other
+    }
+}
 impl Mul for u64 {
     fn mul(self, other: u64) -> u64 {
         self * other
@@ -187,6 +202,11 @@ impl Div for Field {
     }
 }
 
+impl Div for u128 {
+    fn div(self, other: u128) -> u128 {
+        self / other
+    }
+}
 impl Div for u64 {
     fn div(self, other: u64) -> u64 {
         self / other
@@ -240,6 +260,11 @@ pub trait Rem {
 }
 // docs:end:rem-trait
 
+impl Rem for u128 {
+    fn rem(self, other: u128) -> u128 {
+        self % other
+    }
+}
 impl Rem for u64 {
     fn rem(self, other: u64) -> u64 {
         self % other
