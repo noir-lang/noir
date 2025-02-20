@@ -2,6 +2,7 @@ use codespan::Span as ByteSpan;
 use fm::FileId;
 use serde::{Deserialize, Serialize};
 use std::{
+    cmp::Ordering,
     hash::{Hash, Hasher},
     ops::Range,
 };
@@ -23,13 +24,13 @@ impl<T: PartialEq> PartialEq<Located<T>> for Located<T> {
 }
 
 impl<T: PartialOrd> PartialOrd<Located<T>> for Located<T> {
-    fn partial_cmp(&self, other: &Located<T>) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Located<T>) -> Option<Ordering> {
         self.contents.partial_cmp(&other.contents)
     }
 }
 
 impl<T: Ord> Ord for Located<T> {
-    fn cmp(&self, other: &Located<T>) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Located<T>) -> Ordering {
         self.contents.cmp(&other.contents)
     }
 }
@@ -200,6 +201,18 @@ impl Location {
         } else {
             self
         }
+    }
+}
+
+impl Ord for Location {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.file, self.span).cmp(&(other.file, other.span))
+    }
+}
+
+impl PartialOrd for Location {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

@@ -313,9 +313,7 @@ impl<'context> Elaborator<'context> {
         let mut capture_types = Vec::new();
 
         for fragment in &fragments {
-            if let FmtStrFragment::Interpolation(ident_name, string_span, file) = fragment {
-                let string_location = Location::new(*string_span, *file);
-
+            if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let scope_tree = self.scopes.current_scope_tree();
                 let variable = scope_tree.find(ident_name);
 
@@ -323,23 +321,23 @@ impl<'context> Elaborator<'context> {
                     old_value.num_times_used += 1;
                     old_value.ident.clone()
                 } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), string_location))
+                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
                 {
-                    HirIdent::non_trait_method(definition_id, string_location)
+                    HirIdent::non_trait_method(definition_id, *location)
                 } else {
                     self.push_err(
                         ResolverError::VariableNotDeclared {
                             name: ident_name.to_owned(),
-                            span: *string_span,
+                            span: location.span,
                         },
-                        *file,
+                        location.file,
                     );
                     continue;
                 };
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
-                self.interner.push_expr_location(expr_id, string_location);
+                self.interner.push_expr_location(expr_id, *location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
                 capture_types.push(typ);

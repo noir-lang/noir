@@ -1,5 +1,4 @@
 use acvm::FieldElement;
-use fm::FileId;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
@@ -321,7 +320,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
 #[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum FmtStrFragment {
     String(String),
-    Interpolation(String, Span, FileId),
+    Interpolation(String, Location),
 }
 
 impl Display for FmtStrFragment {
@@ -340,7 +339,7 @@ impl Display for FmtStrFragment {
                     .replace('\"', "\\\"");
                 write!(f, "{}", string)
             }
-            FmtStrFragment::Interpolation(string, _span, _) => {
+            FmtStrFragment::Interpolation(string, _) => {
                 write!(f, "{{{}}}", string)
             }
         }

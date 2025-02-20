@@ -715,8 +715,8 @@ fn token_with_location(token: Token, file: FileId) -> Token {
 
 fn fmt_str_fragment_with_file(fragment: FmtStrFragment, file: FileId) -> FmtStrFragment {
     match fragment {
-        FmtStrFragment::Interpolation(string, span, _) => {
-            FmtStrFragment::Interpolation(string, span, file)
+        FmtStrFragment::Interpolation(string, location) => {
+            FmtStrFragment::Interpolation(string, location_with_file(location, file))
         }
         FmtStrFragment::String(_) => fragment,
     }

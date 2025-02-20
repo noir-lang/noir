@@ -644,8 +644,9 @@ impl<'a> Lexer<'a> {
 
             length += 1; // for the closing curly brace
 
-            let interpolation_span = Span::from(interpolation_start..self.position);
-            fragments.push(FmtStrFragment::Interpolation(string, interpolation_span, self.file_id));
+            let span = Span::from(interpolation_start..self.position);
+            let location = Location::new(span, self.file_id);
+            fragments.push(FmtStrFragment::Interpolation(string, location));
         }
 
         let token = Token::FmtStr(fragments, length);
@@ -1239,11 +1240,20 @@ mod tests {
             Token::FmtStr(
                 vec![
                     FmtStrFragment::String("hello ".to_string()),
-                    FmtStrFragment::Interpolation("world".to_string(), Span::from(21..26), file),
+                    FmtStrFragment::Interpolation(
+                        "world".to_string(),
+                        Location::new(Span::from(21..26), file),
+                    ),
                     FmtStrFragment::String(" and ".to_string()),
-                    FmtStrFragment::Interpolation("_another".to_string(), Span::from(33..41), file),
+                    FmtStrFragment::Interpolation(
+                        "_another".to_string(),
+                        Location::new(Span::from(33..41), file),
+                    ),
                     FmtStrFragment::String(" ".to_string()),
-                    FmtStrFragment::Interpolation("vAr_123".to_string(), Span::from(44..51), file),
+                    FmtStrFragment::Interpolation(
+                        "vAr_123".to_string(),
+                        Location::new(Span::from(44..51), file),
+                    ),
                 ],
                 38,
             ),
