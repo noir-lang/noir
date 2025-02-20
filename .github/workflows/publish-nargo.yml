@@ -68,8 +68,8 @@ jobs:
           cp ./target/${{ matrix.target }}/release/noir-profiler ./dist/noir-profiler
 
           # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-          tar -czf nargo-${{ matrix.target }}.tar.gz -C dist nargo
-          tar -czf noir-${{ matrix.target }}.tar.gz -C dist .
+          7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload nargo artifact
         uses: actions/upload-artifact@v4
