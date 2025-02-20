@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740092183764,
+  "lastUpdate": 1740092377224,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11697,75 +11697,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+jewelofchaos9@users.noreply.github.com",
-            "name": "defkit",
-            "username": "jewelofchaos9"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e73f8cd669c13cdb792313b46dd4aa012c40a0ad",
-          "message": "fix: field zero division in brillig (#7386)",
-          "timestamp": "2025-02-14T16:05:03Z",
-          "tree_id": "21debf263436e86c1deed4a1624a4fe291332c65",
-          "url": "https://github.com/noir-lang/noir/commit/e73f8cd669c13cdb792313b46dd4aa012c40a0ad"
-        },
-        "date": 1739550546595,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.71,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 590.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 536.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 536.63,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14900,6 +14831,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3cb08f51b78727457b74619814ef8390c98105b6"
         },
         "date": 1740090365253,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 443.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "50733708b0a7312c74229601a76f68afe1737b1d",
+          "message": "fix: don't panic when shifting too much (#7429)",
+          "timestamp": "2025-02-20T22:32:39Z",
+          "tree_id": "78138d258a6e3fc2445a7a17debdc0d2cf9380f2",
+          "url": "https://github.com/noir-lang/noir/commit/50733708b0a7312c74229601a76f68afe1737b1d"
+        },
+        "date": 1740092374618,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
