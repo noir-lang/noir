@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740083015593,
+  "lastUpdate": 1740083018809,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3780,105 +3780,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fd37b1f7559e898a6c6730b56f1b9cf3f079d3b4",
-          "message": "chore: update docs about integer overflows (#7370)",
-          "timestamp": "2025-02-13T15:02:19Z",
-          "tree_id": "6e6da51e0d36b85a682b4b18e180c8e0a685c40e",
-          "url": "https://github.com/noir-lang/noir/commit/fd37b1f7559e898a6c6730b56f1b9cf3f079d3b4"
-        },
-        "date": 1739460072553,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.14,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.897,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21.3,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.707,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 1.988,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.496,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.977,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.872,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 7.152,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 2.534,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 2.136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 69.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 71.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 2.038,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.602,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8511,6 +8412,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.45,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea",
+          "message": "chore(ci): Missing dash in profiler command argument (#7467)",
+          "timestamp": "2025-02-20T19:55:20Z",
+          "tree_id": "3a94bba8d6b99f43544655e1087ba9c01eb5f729",
+          "url": "https://github.com/noir-lang/noir/commit/4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea"
+        },
+        "date": 1740083014220,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.05,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.72,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21.1,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.523,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.108,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.278,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.986,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.736,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.432,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.956,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 96.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 91.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.454,
             "unit": "s"
           }
         ]
