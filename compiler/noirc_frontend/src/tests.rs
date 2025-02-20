@@ -65,7 +65,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
     get_program_with_maybe_parser_errors(src, allow_parser_errors, FrontendOptions::test_default())
 }
 
-pub(crate) fn get_program_using_features<'a, 'b>(
+pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<(CompilationError, FileId)>) {
