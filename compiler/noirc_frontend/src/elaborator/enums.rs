@@ -1,3 +1,4 @@
+use fm::FileId;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -525,13 +526,13 @@ impl Elaborator<'_> {
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
     pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>) -> HirMatch {
-        self.compile_rows(rows).unwrap_or_else(|error| {
-            self.push_err(error, self.file); // TODO: fix this
+        self.compile_rows(rows).unwrap_or_else(|(error, file)| {
+            self.push_err(error, file);
             HirMatch::Failure
         })
     }
 
-    fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
+    fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, (ResolverError, FileId)> {
         if rows.is_empty() {
             eprintln!("Warning: missing case");
             return Ok(HirMatch::Failure);
@@ -661,7 +662,7 @@ impl Elaborator<'_> {
         &mut self,
         rows: Vec<Row>,
         branch_var: DefinitionId,
-    ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
+    ) -> Result<(Vec<Case>, Box<HirMatch>), (ResolverError, FileId)> {
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows = Vec::new();
         let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
@@ -699,7 +700,7 @@ impl Elaborator<'_> {
 
         let cases = try_vecmap(raw_cases, |(cons, vars, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
+            Ok::<_, (ResolverError, FileId)>(Case::new(cons, vars, rows))
         })?;
 
         Ok((cases, Box::new(self.compile_rows(fallback_rows)?)))
@@ -734,7 +735,7 @@ impl Elaborator<'_> {
         rows: Vec<Row>,
         branch_var: DefinitionId,
         mut cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)>,
-    ) -> Result<(Vec<Case>, Option<Box<HirMatch>>), ResolverError> {
+    ) -> Result<(Vec<Case>, Option<Box<HirMatch>>), (ResolverError, FileId)> {
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
@@ -756,7 +757,7 @@ impl Elaborator<'_> {
 
         let cases = try_vecmap(cases, |(cons, vars, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
+            Ok::<_, (ResolverError, FileId)>(Case::new(cons, vars, rows))
         })?;
 
         Ok(Self::deduplicate_cases(cases))
