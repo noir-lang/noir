@@ -4475,3 +4475,22 @@ fn errors_on_unspecified_unstable_match() {
 
     assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
+
+#[test]
+fn errors_on_repeated_match_variables_in_pattern() {
+    let src = r#"
+    fn main() {
+        match (1, 2) {
+            (_x, _x) => (),
+        }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::VariableAlreadyDefinedInPattern { .. })
+    ));
+}
