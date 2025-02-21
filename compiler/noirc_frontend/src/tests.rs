@@ -4475,3 +4475,24 @@ fn errors_on_unspecified_unstable_match() {
 
     assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
+
+#[test]
+fn check_impl_duplicate_method_without_self() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+        fn foo() {}
+    }
+
+    fn main() {}
+    ";
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
+    ));
+}
