@@ -15,11 +15,16 @@ pub mod sha256 {
     // docs:end:sha256_compression
 }
 
+#[foreign(keccakf1600)]
+// docs:start:keccakf1600
+pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+// docs:end:keccakf1600
+
 pub mod keccak256 {
-    #[foreign(keccakf1600)]
-    // docs:start:keccakf1600
-    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
-    // docs:end:keccakf1600
+    #[deprecated("This function has been moved to std::hash::keccakf1600")]
+    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {
+        super::keccakf1600(input)
+    }
 }
 
 #[foreign(blake2s)]
@@ -121,7 +126,6 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
 
     sum
 }
-
 
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
