@@ -288,9 +288,8 @@ impl Value {
                 return match parser.parse_result(Parser::parse_expression_or_error) {
                     Ok((expr, warnings)) => {
                         for warning in warnings {
-                            let location = warning.location();
                             let warning: CompilationError = warning.into();
-                            elaborator.push_err(warning, location.file);
+                            elaborator.push_err(warning);
                         }
 
                         Ok(expr)
@@ -643,9 +642,8 @@ where
     match parser.parse_result(parsing_function) {
         Ok((expr, warnings)) => {
             for warning in warnings {
-                let location = warning.location();
                 let warning: CompilationError = warning.into();
-                elaborator.push_err(warning, location.file);
+                elaborator.push_err(warning);
             }
             Ok(expr)
         }

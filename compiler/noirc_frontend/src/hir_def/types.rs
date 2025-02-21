@@ -16,7 +16,7 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 
 use crate::{
@@ -278,7 +278,7 @@ impl Kind {
     pub(crate) fn ensure_value_fits(
         &self,
         value: FieldElement,
-        span: Span,
+        location: Location,
     ) -> Result<FieldElement, TypeCheckError> {
         match self.integral_maximum_size() {
             None => Ok(value),
@@ -287,7 +287,7 @@ impl Kind {
                     value,
                     kind: self.clone(),
                     maximum_size,
-                    span,
+                    location,
                 }
             }),
         }
@@ -854,12 +854,17 @@ impl TypeVariable {
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
 
-    pub fn try_bind(&self, binding: Type, kind: &Kind, span: Span) -> Result<(), TypeCheckError> {
+    pub fn try_bind(
+        &self,
+        binding: Type,
+        kind: &Kind,
+        location: Location,
+    ) -> Result<(), TypeCheckError> {
         if !binding.kind().unifies(kind) {
             return Err(TypeCheckError::TypeKindMismatch {
                 expected_kind: format!("{}", kind),
                 expr_kind: format!("{}", binding.kind()),
-                expr_span: span,
+                expr_location: location,
             });
         }
 
@@ -871,7 +876,7 @@ impl TypeVariable {
         };
 
         if binding.occurs(id) {
-            Err(TypeCheckError::CyclicType { span, typ: binding })
+            Err(TypeCheckError::CyclicType { location, typ: binding })
         } else {
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
@@ -1541,7 +1546,7 @@ impl Type {
             Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
-                    .evaluate_to_u32(location.span)
+                    .evaluate_to_u32(*location)
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
                 length * typ.field_count(location)
@@ -1568,7 +1573,7 @@ impl Type {
                 fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count(location))
             }
             Type::String(size) => size
-                .evaluate_to_u32(location.span)
+                .evaluate_to_u32(*location)
                 .expect("Cannot have variable sized strings as a parameter to main"),
             Type::FmtString(_, _)
             | Type::Unit
@@ -1934,8 +1939,8 @@ impl Type {
             }
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
-                let dummy_span = Span::default();
-                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_span) {
+                let dummy_location = Location::dummy();
+                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -2012,7 +2017,7 @@ impl Type {
         &self,
         expected: &Type,
         expression: ExprId,
-        span: Span,
+        location: Location,
         interner: &mut NodeInterner,
         errors: &mut Vec<TypeCheckError>,
         make_error: impl FnOnce() -> TypeCheckError,
@@ -2032,14 +2037,16 @@ impl Type {
         match self.try_fn_to_unconstrained_fn_coercion(expected) {
             FunctionCoercionResult::NoCoercion => errors.push(make_error()),
             FunctionCoercionResult::Coerced(coerced_self) => {
-                coerced_self
-                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+                coerced_self.unify_with_coercions(
+                    expected, expression, location, interner, errors, make_error,
+                );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
-                errors.push(TypeCheckError::UnsafeFn { span });
+                errors.push(TypeCheckError::UnsafeFn { location });
 
-                coerced_self
-                    .unify_with_coercions(expected, expression, span, interner, errors, make_error);
+                coerced_self.unify_with_coercions(
+                    expected, expression, location, interner, errors, make_error,
+                );
             }
         }
     }
@@ -2104,8 +2111,8 @@ impl Type {
 
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
-    pub fn evaluate_to_u32(&self, span: Span) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_field_element(&Kind::u32(), span).map(|field_element| {
+    pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
+        self.evaluate_to_field_element(&Kind::u32(), location).map(|field_element| {
             field_element
                 .try_to_u32()
                 .expect("ICE: size should have already been checked by evaluate_to_field_element")
@@ -2117,17 +2124,17 @@ impl Type {
     pub(crate) fn evaluate_to_field_element(
         &self,
         kind: &Kind,
-        span: Span,
+        location: Location,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, span, run_simplifications)
+        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
     }
 
     /// evaluate_to_field_element with optional generic arithmetic simplifications
     pub(crate) fn evaluate_to_field_element_helper(
         &self,
         kind: &Kind,
-        span: Span,
+        location: Location,
         run_simplifications: bool,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
@@ -2135,7 +2142,7 @@ impl Type {
                 if kind.unifies(&binding_kind) {
                     return binding.evaluate_to_field_element_helper(
                         &binding_kind,
-                        span,
+                        location,
                         run_simplifications,
                     );
                 }
@@ -2146,12 +2153,12 @@ impl Type {
         match self.canonicalize_helper(could_be_checked_cast, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
-                    kind.ensure_value_fits(x, span)
+                    kind.ensure_value_fits(x, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
                         expected_kind: format!("{}", constant_kind),
                         expr_kind: format!("{}", kind),
-                        expr_span: span,
+                        expr_location: location,
                     })
                 }
             }
@@ -2160,31 +2167,31 @@ impl Type {
                 if kind.unifies(&infix_kind) {
                     let lhs_value = lhs.evaluate_to_field_element_helper(
                         &infix_kind,
-                        span,
+                        location,
                         run_simplifications,
                     )?;
                     let rhs_value = rhs.evaluate_to_field_element_helper(
                         &infix_kind,
-                        span,
+                        location,
                         run_simplifications,
                     )?;
-                    op.function(lhs_value, rhs_value, &infix_kind, span)
+                    op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
                         expected_kind: format!("{}", kind),
                         expr_kind: format!("{}", infix_kind),
-                        expr_span: span,
+                        expr_location: location,
                     })
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_field_element(kind, span)?;
+                let to_value = to.evaluate_to_field_element(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, span, skip_simplifications)
+                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -2196,14 +2203,14 @@ impl Type {
                             from,
                             to_value,
                             from_value,
-                            span,
+                            location,
                         })
                     }
                 } else {
                     Ok(to_value)
                 }
             }
-            other => Err(TypeCheckError::NonConstantEvaluated { typ: other, span }),
+            other => Err(TypeCheckError::NonConstantEvaluated { typ: other, location }),
         }
     }
 
@@ -2804,7 +2811,7 @@ impl BinaryTypeOperator {
         a: FieldElement,
         b: FieldElement,
         kind: &Kind,
-        span: Span,
+        location: Location,
     ) -> Result<FieldElement, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             None => match self {
@@ -2813,16 +2820,16 @@ impl BinaryTypeOperator {
                 BinaryTypeOperator::Multiplication => Ok(a * b),
                 BinaryTypeOperator::Division => (b != FieldElement::zero())
                     .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, span }),
+                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
                 BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, span })
+                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
                 }
             },
             Some(_maximum_size) => {
                 let a = a.to_i128();
                 let b = b.to_i128();
 
-                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, span };
+                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
                 let result = match self {
                     BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
                     BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
@@ -2876,9 +2883,10 @@ impl From<&Type> for PrintableType {
         match value {
             Type::FieldElement => PrintableType::Field,
             Type::Array(size, typ) => {
-                let dummy_span = Span::default();
-                let length =
-                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized arrays");
+                let dummy_location = Location::dummy();
+                let length = size
+                    .evaluate_to_u32(dummy_location)
+                    .expect("Cannot print variable sized arrays");
                 let typ = typ.as_ref();
                 PrintableType::Array { length, typ: Box::new(typ.into()) }
             }
@@ -2903,9 +2911,10 @@ impl From<&Type> for PrintableType {
             },
             Type::Bool => PrintableType::Boolean,
             Type::String(size) => {
-                let dummy_span = Span::default();
-                let size =
-                    size.evaluate_to_u32(dummy_span).expect("Cannot print variable sized strings");
+                let dummy_location = Location::dummy();
+                let size = size
+                    .evaluate_to_u32(dummy_location)
+                    .expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
             Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),

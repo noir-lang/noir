@@ -646,7 +646,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
 
-        let length = length.evaluate_to_u32(location.span).map_err(|err| {
+        let length = length.evaluate_to_u32(location).map_err(|err| {
             let location = self.interner.expr_location(&array);
             MonomorphizationError::UnknownArrayLength { location, err, length }
         })?;
@@ -1027,7 +1027,7 @@ impl<'interner> Monomorphizer<'interner> {
                         binding
                             .evaluate_to_field_element(
                                 &Kind::Numeric(numeric_typ.clone()),
-                                location.span,
+                                location,
                             )
                             .map_err(|err| MonomorphizationError::UnknownArrayLength {
                                 length: binding.clone(),
@@ -1119,7 +1119,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
             HirType::String(size) => {
-                let size = match size.evaluate_to_u32(location.span) {
+                let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // only default variable sizes to size 0
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
@@ -1135,7 +1135,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::String(size)
             }
             HirType::FmtString(size, fields) => {
-                let size = match size.evaluate_to_u32(location.span) {
+                let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // only default variable sizes to size 0
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
@@ -1154,7 +1154,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                let length = match length.evaluate_to_u32(location.span) {
+                let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
                         let length = length.as_ref().clone();
@@ -1402,14 +1402,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind(), location.span);
+        let to_value = to.evaluate_to_field_element(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
-            let from_value = from.evaluate_to_field_element_helper(
-                &to.kind(),
-                location.span,
-                skip_simplifications,
-            );
+            let from_value =
+                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
@@ -2375,10 +2372,9 @@ pub fn resolve_trait_method(
                 }
                 Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
-                        NoMatchingImplFoundError::new(interner, constraints, location.span)
+                        NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        let file = location.file;
-                        return Err(InterpreterError::NoMatchingImplFound { error, file });
+                        return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
                         return Err(InterpreterError::NoImpl { location });
                     }

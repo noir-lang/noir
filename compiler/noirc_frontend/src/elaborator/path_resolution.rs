@@ -107,11 +107,10 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<PathResolutionItem, ResolverError> {
-        let file = path.location.file;
         let path_resolution = self.resolve_path(path)?;
 
         for error in path_resolution.errors {
-            self.push_err(error, file);
+            self.push_err(error);
         }
 
         Ok(path_resolution.item)
@@ -219,7 +218,7 @@ impl<'context> Elaborator<'context> {
                     if last_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                             item: format!("module `{last_ident}`"),
-                            span: last_segment.turbofish_span(),
+                            location: last_segment.turbofish_location(),
                         });
                     }
 

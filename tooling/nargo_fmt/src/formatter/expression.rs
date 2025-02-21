@@ -98,7 +98,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(block_expression, _span) => {
+            ExpressionKind::Unsafe(block_expression, _, _) => {
                 group.group(self.format_unsafe_expression(
                     block_expression,
                     false, // force multiple lines

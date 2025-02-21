@@ -911,11 +911,11 @@ impl NodeInterner {
         comptime: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        let span = name.span();
+        let location = name.location();
 
         let id = self
             .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
-        self.push_stmt_location(statement, span, file);
+        self.push_stmt_location(statement, location);
         id
     }
 
@@ -1223,8 +1223,8 @@ impl NodeInterner {
         self.id_location(stmt_id)
     }
 
-    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
-        self.id_to_location.insert(id.into(), Location::new(span, file));
+    pub fn push_stmt_location(&mut self, id: StmtId, location: Location) {
+        self.id_to_location.insert(id.into(), location);
     }
 
     pub fn get_type(&self, id: TypeId) -> Shared<DataType> {
@@ -1513,7 +1513,7 @@ impl NodeInterner {
                 trait_bound: ResolvedTraitBound {
                     trait_id,
                     trait_generics: TraitGenerics { ordered, named },
-                    span: Span::default(),
+                    location: Location::dummy(),
                 },
             }
         };
@@ -1597,7 +1597,7 @@ impl NodeInterner {
                     trait_bound: ResolvedTraitBound {
                         trait_id,
                         trait_generics,
-                        span: Span::default(),
+                        location: Location::dummy(),
                     },
                 };
                 matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
@@ -1708,7 +1708,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), (Location, FileId)> {
+    ) -> Result<(), Location> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
@@ -1760,7 +1760,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err((existing_impl.ident.location(), existing_impl.file));
+            return Err(existing_impl.ident.location());
         }
 
         for method in &trait_impl.borrow().methods {
@@ -2030,15 +2030,14 @@ impl NodeInterner {
         index
     }
 
-    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<(CompilationError, FileId)> {
+    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
         let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         let mut errors = Vec::new();
 
         let mut push_error = |item: String, scc: &[_], i, location: Location| {
             let cycle = self.get_cycle_error_string(scc, i);
-            let span = location.span;
-            let error = ResolverError::DependencyCycle { item, cycle, span };
-            errors.push((error.into(), location.file));
+            let error = ResolverError::DependencyCycle { item, cycle, location };
+            errors.push(error.into());
         };
 
         for scc in strongly_connected_components {

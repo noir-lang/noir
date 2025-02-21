@@ -905,7 +905,7 @@ impl Expression {
                     block_expression.accept(None, visitor);
                 }
             }
-            ExpressionKind::Unsafe(block_expression, _) => {
+            ExpressionKind::Unsafe(block_expression, _, _) => {
                 if visitor.visit_unsafe(block_expression, span) {
                     block_expression.accept(None, visitor);
                 }

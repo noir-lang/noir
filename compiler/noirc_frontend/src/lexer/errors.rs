@@ -6,7 +6,6 @@ use super::token::LocatedToken;
 use super::token::Token;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
-use noirc_errors::Span;
 use thiserror::Error;
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
@@ -82,7 +81,7 @@ impl LexerErrorKind {
         }
     }
 
-    fn parts(&self) -> (String, String, Span) {
+    fn parts(&self) -> (String, String, Location) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
                 location,
@@ -94,7 +93,7 @@ impl LexerErrorKind {
                 (
                     "An unexpected character was found".to_string(),
                     format!("Expected {expected}, but found {found}"),
-                    location.span,
+                    *location,
                 )
             },
             LexerErrorKind::NotADoubleChar { location, found } => (
@@ -102,47 +101,47 @@ impl LexerErrorKind {
                 format!(
                     " {found:?} is not a double char, this is an internal error"
                 ),
-                location.span,
+                *location,
             ),
             LexerErrorKind::InvalidIntegerLiteral { location, found } => (
                 "Invalid integer literal".to_string(),
                 format!(" {found} is not an integer"),
-                location.span,
+                *location,
             ),
             LexerErrorKind::IntegerLiteralTooLarge { location, limit } => (
                 "Integer literal is too large".to_string(),
                 format!("value exceeds limit of {limit}"),
-                location.span,
+                *location,
             ),
             LexerErrorKind::MalformedFuncAttribute { location, found } => (
                 "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
-                location.span,
+                *location,
             ),
             LexerErrorKind::MalformedTestAttribute { location } => (
                 "Malformed test attribute".to_string(),
                 "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
-                location.span,
+                *location,
             ),
             LexerErrorKind::InvalidInnerAttribute { location, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
-                location.span,
+                *location,
             ),
             LexerErrorKind::LogicalAnd { location } => (
                 "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
-                location.span,
+                *location,
             ),
-            LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), location.span),
+            LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *location),
             LexerErrorKind::UnterminatedStringLiteral { location } =>
-                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), location.span),
+                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *location),
             LexerErrorKind::InvalidFormatString { found, location } => {
                 if found == &'}' {
                     (
                         "Invalid format string: unmatched '}}' found".to_string(),
                         "If you intended to print '}', you can escape it using '}}'".to_string(),
-                        location.span,
+                        *location,
                     )
                 } else {
                     (
@@ -152,7 +151,7 @@ impl LexerErrorKind {
                         } else {
                             "If you intended to print '{', you can escape it using '{{'".to_string()
                         },
-                        location.span,
+                        *location,
                     )
                 }
             }
@@ -160,19 +159,19 @@ impl LexerErrorKind {
                 (
                     "Invalid format string: expected letter or underscore, found '}}'".to_string(),
                     "If you intended to print '{' or '}', you can escape them using '{{' and '}}' respectively".to_string(),
-                    location.span,
+                    *location,
                 )
             }
             LexerErrorKind::InvalidEscape { escaped, location } =>
-                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), location.span),
+                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *location),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
-                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.span())
+                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
             },
             LexerErrorKind::NonAsciiComment { location } => {
-                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), location.span)
+                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
-                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.span())
+                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
             }
         }
     }

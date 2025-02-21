@@ -23,7 +23,7 @@ use crate::parse_program;
 /// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
-    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
 ) -> T {
     let file = FileId::default();
 

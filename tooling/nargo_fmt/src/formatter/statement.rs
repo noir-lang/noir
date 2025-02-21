@@ -52,7 +52,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 ExpressionKind::Block(block) => group.group(self.format_block_expression(
                     block, true, // force multiple lines
                 )),
-                ExpressionKind::Unsafe(block, _) => {
+                ExpressionKind::Unsafe(block, _, _) => {
                     group.group(self.format_unsafe_expression(
                         block, true, // force multiple lines
                     ));

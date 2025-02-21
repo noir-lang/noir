@@ -232,15 +232,14 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
-        errors: &mut Vec<(CompilationError, FileId)>,
-        file_id: FileId,
+        errors: &mut Vec<CompilationError>,
     ) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push((err.into(), file_id));
+                errors.push(err.into());
                 // When there's an error, unify with any other kinds
                 Kind::Any
             });

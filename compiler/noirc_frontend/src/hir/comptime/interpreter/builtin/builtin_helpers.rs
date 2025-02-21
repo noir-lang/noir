@@ -509,9 +509,8 @@ where
     let (result, warnings) =
         parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        let location = warning.location();
         let warning: CompilationError = warning.into();
-        elaborator.push_err(warning, location.file);
+        elaborator.push_err(warning);
     }
     Ok(result)
 }

@@ -6,7 +6,7 @@ use iter_extended::vecmap;
 use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
 };
-use noirc_errors::Span;
+use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
 use noirc_frontend::ast::{Signedness, Visibility};
 use noirc_frontend::TypeBinding;
@@ -42,11 +42,11 @@ pub(super) fn gen_abi(
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails
-fn get_main_function_span(context: &Context) -> Span {
+fn get_main_function_location(context: &Context) -> Location {
     if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
-        context.function_meta(&func_id).location.span
+        context.function_meta(&func_id).location
     } else {
-        Span::default()
+        Location::dummy()
     }
 }
 
@@ -54,7 +54,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
     match typ {
         ErrorType::Dynamic(typ) => {
             if let Type::FmtString(len, item_types) = typ {
-                let span = get_main_function_span(context);
+                let span = get_main_function_location(context);
                 let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
                 let Type::Tuple(item_types) = item_types.as_ref() else {
                     unreachable!("FmtString items must be a tuple")
@@ -74,7 +74,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(size, typ) => {
-            let span = get_main_function_span(context);
+            let span = get_main_function_location(context);
             let length = size
                 .evaluate_to_u32(span)
                 .expect("Cannot have variable sized arrays as a parameter to main");
@@ -103,7 +103,7 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
-            let span = get_main_function_span(context);
+            let span = get_main_function_location(context);
             let size = size
                 .evaluate_to_u32(span)
                 .expect("Cannot have variable sized strings as a parameter to main");

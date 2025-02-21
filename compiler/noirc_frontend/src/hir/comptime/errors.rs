@@ -11,7 +11,6 @@ use crate::{
     Type,
 };
 use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
-use fm::FileId;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -172,7 +171,6 @@ pub enum InterpreterError {
     },
     NoMatchingImplFound {
         error: NoMatchingImplFoundError,
-        file: FileId,
     },
     ImplMethodTypeMismatch {
         expected: Type,
@@ -274,12 +272,7 @@ impl From<InterpreterError> for CompilationError {
 }
 
 impl InterpreterError {
-    pub fn into_compilation_error_pair(self) -> (CompilationError, fm::FileId) {
-        let location = self.get_location();
-        (CompilationError::InterpreterError(self), location.file)
-    }
-
-    pub fn get_location(&self) -> Location {
+    pub fn location(&self) -> Location {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
@@ -340,9 +333,7 @@ impl InterpreterError {
             | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
 
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
-            InterpreterError::NoMatchingImplFound { error, file } => {
-                Location::new(error.span, *file)
-            }
+            InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::Break | InterpreterError::Continue => {
                 panic!("Tried to get the location of Break/Continue error!")
             }
@@ -358,7 +349,7 @@ impl InterpreterError {
         let diagnostic = CustomDiagnostic::simple_info(
             "`comptime` expression ran:".to_string(),
             format!("After evaluation: {}", formatted_result),
-            location.span,
+            location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
@@ -377,21 +368,21 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 let few_many = if actual < expected { "few" } else { "many" };
                 let secondary = format!("Too {few_many} arguments");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::TypeMismatch { expected, actual, location } => {
                 let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
                 let secondary = "Non-comptime variables can't be used in comptime code".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::VariableNotInScope { location } => {
                 let msg = "Variable not in scope".to_string();
                 let secondary = "Could not find variable".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
                 let int = match value.try_into_u128() {
@@ -399,44 +390,44 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     None => value.to_string(),
                 };
                 let msg = format!("{int} is outside the range of the {typ} type");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ErrorNodeEncountered { location } => {
                 let msg = "Internal Compiler Error: Error node encountered".to_string();
                 let secondary = "This is a bug, please report this if found!".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonFunctionCalled { typ, location } => {
                 let msg = "Only functions may be called".to_string();
                 let secondary = format!("Expression has type {typ}");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonBoolUsedInIf { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 let secondary = "If conditions must be a boolean value".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonBoolUsedInWhile { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 let secondary = "While conditions must be a boolean value".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonBoolUsedInConstrain { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FailingConstraint { message, location, call_stack } => {
                 let (primary, secondary) = match message {
                     Some(msg) => (msg.clone(), "Assertion failed".into()),
                     None => ("Assertion failed".into(), String::new()),
                 };
-                let diagnostic = CustomDiagnostic::simple_error(primary, secondary, location.span);
+                let diagnostic = CustomDiagnostic::simple_error(primary, secondary, *location);
 
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
             InterpreterError::NoMethodFound { name, typ, location } => {
                 let msg = format!("No method named `{name}` found for type `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
@@ -445,31 +436,31 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 } else {
                     String::new()
                 };
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonPointerDereferenced { typ, location } => {
                 let msg = format!("Only references may be dereferenced, but found `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonTupleOrStructInMemberAccess { typ, location } => {
                 let msg = format!("The type `{typ}` has no fields to access");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonArrayIndexed { typ, location } => {
                 let msg = format!("Expected an array or slice but found a(n) {typ}");
                 let secondary = "Only arrays or slices may be indexed".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
                 let msg = format!("Expected an integer but found a(n) {typ}");
                 let secondary =
                     "Only integers may be indexed. Note that this excludes `field`s".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonIntegerIntegerLiteral { typ, location } => {
                 let msg = format!("This integer literal somehow has the type `{typ}`");
                 let secondary = "This is likely a bug".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
@@ -478,59 +469,59 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 } else {
                     "Array lengths must be integers".to_string()
                 };
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonNumericCasted { typ, location } => {
                 let msg = "Only numeric types may be casted".into();
                 let secondary = format!("`{typ}` is non-numeric");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
                 let msg = format!("{index} is out of bounds for the array of length {length}");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
                 let msg = format!("The type `{typ}` has no field named `{field_name}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::TypeUnsupported { typ, location } => {
                 let msg =
                     format!("The type `{typ}` is currently unsupported in comptime expressions");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValueForUnary { typ, operator, location } => {
                 let msg = format!("`{typ}` cannot be used with unary {operator}");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
                 let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`",);
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CastToNonNumericType { typ, location } => {
                 let msg = format!("Cannot cast to non-numeric type `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::QuoteInRuntimeCode { location } => {
                 let msg = "`quote` may only be used in comptime code".into();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonStructInConstructor { typ, location } => {
                 let msg = format!("`{typ}` is not a struct type");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonEnumInConstructor { typ, location } => {
                 let msg = format!("`{typ}` is not an enum type");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CannotInlineMacro { value, typ, location } => {
                 let msg = format!("Cannot inline values of type `{typ}` into this position");
                 let secondary = format!("Cannot inline value `{value}`");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::UnquoteFoundDuringEvaluation { location } => {
                 let msg = "Unquote found during comptime evaluation".into();
                 let secondary = "This is a bug".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
             InterpreterError::FailedToParseMacro { error, tokens, rule, location } => {
@@ -550,7 +541,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 // Given more prominence to where the parser error happened, but still show that it's
                 // because of a failure to parse a macro's token stream, and where that happens.
                 let message = format!("Failed to parse macro's token stream into {rule}");
-                diagnostic.add_secondary_with_file(message, location.span, location.file);
+                diagnostic.add_secondary(message, *location);
 
                 diagnostic.add_note(token_stream);
                 diagnostic.add_note(push_the_problem_on_the_library_author);
@@ -560,7 +551,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "Unsupported statement type to unquote".into();
                 let secondary =
                     "Only functions, structs, globals, and impls can be unquoted here".into();
-                let mut error = CustomDiagnostic::simple_error(msg, secondary, location.span);
+                let mut error = CustomDiagnostic::simple_error(msg, secondary, *location);
                 error.add_note(format!("Unquoted item was:\n{item}"));
                 error
             }
@@ -568,63 +559,63 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("Comptime dependency cycle while resolving `{function}`");
                 let secondary =
                     "This function uses comptime code internally which calls into itself".into();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::Unimplemented { item, location } => {
                 let msg = format!("{item} is currently unimplemented");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidInComptimeContext { item, location, explanation } => {
                 let msg = format!("{item} is invalid in comptime context");
-                CustomDiagnostic::simple_error(msg, explanation.clone(), location.span)
+                CustomDiagnostic::simple_error(msg, explanation.clone(), *location)
             }
             InterpreterError::BreakNotInLoop { location } => {
                 let msg = "There is no loop to break out of!".into();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ContinueNotInLoop { location } => {
                 let msg = "There is no loop to continue!".into();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NoImpl { location } => {
                 let msg = "No impl found due to prior type error".into();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
                 let msg = format!(
                     "Impl method type {actual} does not unify with trait method type {expected}"
                 );
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::BlackBoxError(error, location) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), location.span)
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             InterpreterError::FailedToResolveTraitBound { trait_bound, location } => {
                 let msg = format!("Failed to resolve trait bound `{trait_bound}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NoMatchingImplFound { error, .. } => error.into(),
             InterpreterError::Break => unreachable!("Uncaught InterpreterError::Break"),
             InterpreterError::Continue => unreachable!("Uncaught InterpreterError::Continue"),
             InterpreterError::TraitDefinitionMustBeAPath { location } => {
                 let msg = "Trait definition arguments must be a variable or path".to_string();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FunctionAlreadyResolved { location } => {
                 let msg = "Function already resolved".to_string();
                 let secondary =
                     "The function was previously called at compile-time or is in another crate"
                         .to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::MultipleMatchingImpls { object_type, candidates, location } => {
                 let message = format!("Multiple trait impls match the object type `{object_type}`");
                 let secondary = "Ambiguous impl".to_string();
-                let mut error = CustomDiagnostic::simple_error(message, secondary, location.span);
+                let mut error = CustomDiagnostic::simple_error(message, secondary, *location);
                 for (i, candidate) in candidates.iter().enumerate() {
                     error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
                 }
@@ -634,7 +625,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let mut error = CustomDiagnostic::simple_error(
                     "Object type is unknown in method call".to_string(),
                     "Type must be known by this point to know which method to call".to_string(),
-                    location.span,
+                    *location,
                 );
                 let message =
                     "Try adding a type annotation for the object type before this method call";
@@ -646,19 +637,19 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Quoted value in index {index} of this slice is not a valid field name"
                 );
                 let secondary = format!("`{value}` is not a valid field name for `set_fields`");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::InvalidAttribute { attribute, location } => {
                 let msg = format!("`{attribute}` is not a valid attribute");
                 let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
                 let msg =
                     "Generic name needs to be a valid identifier (one word beginning with a letter)"
                         .to_string();
                 let secondary = format!("`{name}` is not a valid identifier");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::DuplicateGeneric {
                 name,
@@ -668,47 +659,42 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             } => {
                 let msg = format!("`{struct_name}` already has a generic named `{name}`");
                 let secondary = format!("`{name}` added here a second time");
-                let mut error =
-                    CustomDiagnostic::simple_error(msg, secondary, duplicate_location.span);
+                let mut error = CustomDiagnostic::simple_error(msg, secondary, *duplicate_location);
 
                 let existing_msg = format!("`{name}` was previously defined here");
-                error.add_secondary_with_file(
-                    existing_msg,
-                    existing_location.span,
-                    existing_location.file,
-                );
+                error.add_secondary(existing_msg, *existing_location);
                 error
             }
             InterpreterError::CannotResolveExpression { location, expression } => {
                 let msg = format!("Cannot resolve expression `{expression}`");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CannotSetFunctionBody { location, expression } => {
                 let msg = format!("`{expression}` is not a valid function body");
-                CustomDiagnostic::simple_error(msg, String::new(), location.span)
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::UnknownArrayLength { length, err, location } => {
                 let msg = format!("Could not determine array length `{length}`");
                 let secondary = format!("Evaluating the length failed with: `{err}`");
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::CannotInterpretFormatStringWithErrors { location } => {
                 let msg = "Cannot interpret format string with errors".to_string();
                 let secondary =
                     "Some of the variables to interpolate could not be evaluated".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::GlobalsDependencyCycle { location } => {
                 let msg = "This global recursively depends on itself".to_string();
                 let secondary = String::new();
-                CustomDiagnostic::simple_error(msg, secondary, location.span)
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::LoopHaltedForUiResponsiveness { location } => {
                 let msg = "This loop took too much time to execute so it was halted for UI responsiveness"
                     .to_string();
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
-                CustomDiagnostic::simple_warning(msg, secondary, location.span)
+                CustomDiagnostic::simple_warning(msg, secondary, *location)
             }
         }
     }
@@ -722,25 +708,26 @@ pub enum ComptimeError {
     ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
 }
 
+impl ComptimeError {
+    pub fn location(&self) -> Location {
+        match self {
+            ComptimeError::ErrorRunningAttribute { location, .. }
+            | ComptimeError::ErrorAddingItemToModule { location, .. } => *location,
+        }
+    }
+}
+
 impl<'a> From<&'a ComptimeError> for CustomDiagnostic {
     fn from(error: &'a ComptimeError) -> Self {
         match error {
             ComptimeError::ErrorRunningAttribute { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
-                diagnostic.add_secondary_with_file(
-                    "While running this function attribute".into(),
-                    location.span,
-                    location.file,
-                );
+                diagnostic.add_secondary("While running this function attribute".into(), *location);
                 diagnostic
             }
             ComptimeError::ErrorAddingItemToModule { error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
-                diagnostic.add_secondary_with_file(
-                    "While interpreting `Module::add_item`".into(),
-                    location.span,
-                    location.file,
-                );
+                diagnostic.add_secondary("While interpreting `Module::add_item`".into(), *location);
                 diagnostic
             }
         }

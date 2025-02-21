@@ -29,7 +29,7 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
-            MonomorphizationError::InterpreterError(error) => error.get_location(),
+            MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
 }
@@ -61,7 +61,7 @@ impl MonomorphizationError {
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
@@ -69,16 +69,16 @@ impl MonomorphizationError {
                 let message = format!("Comptime function {name} used in runtime code");
                 let secondary =
                     "Comptime functions must be in a comptime block to be called".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
-                return CustomDiagnostic::simple_error(message, secondary, location.span);
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 
         let location = self.location();
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
+        CustomDiagnostic::simple_error(message, String::new(), location)
     }
 }
