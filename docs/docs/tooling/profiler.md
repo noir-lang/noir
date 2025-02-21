@@ -5,8 +5,6 @@ keywords: [profiling, profiler, flamegraph]
 sidebar_position: 0
 ---
 
-## Noir Profiler
-
 `noir-profiler` is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
 
 ### Installation
