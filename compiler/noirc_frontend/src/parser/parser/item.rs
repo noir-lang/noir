@@ -255,8 +255,8 @@ mod tests {
     #[test]
     fn errors_on_eof_in_nested_mod() {
         let src = "
-        mod foo { fn foo() {} 
-                             ^
+        mod foo { fn foo() {}
+                            ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let (module, errors) = parse_program_with_dummy_file(&src);

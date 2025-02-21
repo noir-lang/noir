@@ -1,3 +1,5 @@
+use crate::elaborator::FrontendOptions;
+
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::resolution::errors::ResolverError;
@@ -650,9 +652,9 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
         fn main() {}
     "#;
 
-    let (_, _, errors) = get_program_with_maybe_parser_errors(
-        src, true, // allow parser errors
-    );
+    let allow_parser_errors = true;
+    let options = FrontendOptions::test_default();
+    let (_, _, errors) = get_program_with_maybe_parser_errors(src, allow_parser_errors, options);
     assert!(!errors.is_empty());
 }
 

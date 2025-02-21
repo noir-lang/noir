@@ -1059,6 +1059,8 @@ impl<'context> Elaborator<'context> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
+        self.use_unstable_feature(super::UnstableFeature::Enums, location);
+
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 

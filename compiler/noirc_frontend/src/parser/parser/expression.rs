@@ -505,7 +505,6 @@ impl<'a> Parser<'a> {
 
     /// MatchExpression = 'match' ExpressionExceptConstructor '{' MatchRule* '}'
     pub(super) fn parse_match_expr(&mut self) -> Option<ExpressionKind> {
-        let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Match) {
             return None;
         }
@@ -520,10 +519,6 @@ impl<'a> Parser<'a> {
             Self::parse_match_rule,
         );
 
-        self.push_error(
-            ParserErrorReason::ExperimentalFeature("Match expressions"),
-            start_location,
-        );
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
