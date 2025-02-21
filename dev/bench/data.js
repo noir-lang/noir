@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740153418941,
+  "lastUpdate": 1740153424168,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11652,75 +11652,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "38eeee39a98a62747dcca3b31b409151761d4ef1",
-          "message": "fix(ssa): Do not deduplicate division by a zero constant (#7393)",
-          "timestamp": "2025-02-14T17:27:28Z",
-          "tree_id": "c5910078cee05fc0b1a1864a860c0ad430c69923",
-          "url": "https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1"
-        },
-        "date": 1739555425006,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 651.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 590.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 536.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1230,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 529.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 536.58,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14845,6 +14776,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c254c3ca07c65c7845d5affb17cb37114c5a3051"
         },
         "date": 1740094279244,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 443.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fd213f6cdfa2518c0c3b6b0bf8573296809c0b68",
+          "message": "feat(cli)!: Add `--unstable-features` to gate unstable features (#7449)",
+          "timestamp": "2025-02-21T15:32:03Z",
+          "tree_id": "b2aa16dcf2f871da44b1eee772b8d155772854af",
+          "url": "https://github.com/noir-lang/noir/commit/fd213f6cdfa2518c0c3b6b0bf8573296809c0b68"
+        },
+        "date": 1740153421684,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
