@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740153265806,
+  "lastUpdate": 1740153270790,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8455,75 +8455,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "38eeee39a98a62747dcca3b31b409151761d4ef1",
-          "message": "fix(ssa): Do not deduplicate division by a zero constant (#7393)",
-          "timestamp": "2025-02-14T17:27:28Z",
-          "tree_id": "c5910078cee05fc0b1a1864a860c0ad430c69923",
-          "url": "https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1"
-        },
-        "date": 1739555155141,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.303,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.464,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.187,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.039,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 33.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.042,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11653,6 +11584,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 35.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fd213f6cdfa2518c0c3b6b0bf8573296809c0b68",
+          "message": "feat(cli)!: Add `--unstable-features` to gate unstable features (#7449)",
+          "timestamp": "2025-02-21T15:32:03Z",
+          "tree_id": "b2aa16dcf2f871da44b1eee772b8d155772854af",
+          "url": "https://github.com/noir-lang/noir/commit/fd213f6cdfa2518c0c3b6b0bf8573296809c0b68"
+        },
+        "date": 1740153268251,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.296,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.461,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.181,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.1,
             "unit": "s"
           },
           {
