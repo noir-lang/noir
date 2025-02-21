@@ -863,8 +863,8 @@ impl Elaborator<'_> {
         let let_ = self.interner.push_stmt(let_);
         let body = self.interner.push_stmt(HirStatement::Expression(body));
 
-        self.interner.push_stmt_location(let_, location.span, location.file);
-        self.interner.push_stmt_location(body, location.span, location.file);
+        self.interner.push_stmt_location(let_, location);
+        self.interner.push_stmt_location(body, location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
         let block = self.interner.push_expr(block);

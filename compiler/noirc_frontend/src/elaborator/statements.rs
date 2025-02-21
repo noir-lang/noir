@@ -71,7 +71,7 @@ impl<'context> Elaborator<'context> {
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, location.span, location.file);
+        self.interner.push_stmt_location(id, location);
         (id, typ)
     }
 

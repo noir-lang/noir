@@ -911,11 +911,11 @@ impl NodeInterner {
         comptime: bool,
     ) -> GlobalId {
         let statement = self.push_stmt(HirStatement::Error);
-        let span = name.span();
+        let location = name.location();
 
         let id = self
             .push_global(name, local_id, crate_id, statement, file, attributes, mutable, comptime);
-        self.push_stmt_location(statement, span, file);
+        self.push_stmt_location(statement, location);
         id
     }
 
@@ -1223,8 +1223,8 @@ impl NodeInterner {
         self.id_location(stmt_id)
     }
 
-    pub fn push_stmt_location(&mut self, id: StmtId, span: Span, file: FileId) {
-        self.id_to_location.insert(id.into(), Location::new(span, file));
+    pub fn push_stmt_location(&mut self, id: StmtId, location: Location) {
+        self.id_to_location.insert(id.into(), location);
     }
 
     pub fn get_type(&self, id: TypeId) -> Shared<DataType> {

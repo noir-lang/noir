@@ -1059,7 +1059,6 @@ impl<'context> Elaborator<'context> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        let span = location.span;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 
@@ -1070,7 +1069,7 @@ impl<'context> Elaborator<'context> {
         self.interner.push_expr_location(tree, location);
 
         let tree = self.interner.push_stmt(HirStatement::Expression(tree));
-        self.interner.push_stmt_location(tree, span, self.file);
+        self.interner.push_stmt_location(tree, location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, tree] });
         (block, result_type)
@@ -1086,7 +1085,7 @@ impl<'context> Elaborator<'context> {
         let pattern = HirPattern::Identifier(HirIdent::non_trait_method(variable, location));
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr_id));
         let let_ = self.interner.push_stmt(let_);
-        self.interner.push_stmt_location(let_, location.span, location.file);
+        self.interner.push_stmt_location(let_, location);
         (let_, variable)
     }
 
