@@ -127,7 +127,7 @@ fn run_with_generator(
         &debug_artifact,
         artifact_path.to_str().unwrap(),
         "main",
-        &Path::new(&output_path).join(Path::new(&format!("{}.svg", "main"))),
+        &Path::new(&output_path).join(Path::new(&format!("{}_brillig_trace.svg", "main"))),
     )?;
 
     Ok(())
