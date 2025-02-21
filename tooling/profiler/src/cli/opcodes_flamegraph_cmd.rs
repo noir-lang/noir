@@ -274,7 +274,7 @@ mod tests {
         super::run_with_generator(&artifact_path, &flamegraph_generator, temp_dir.path(), false)
             .expect("should run without errors");
 
-        // Check that the output files that were written
+        // Check that the output files were written
         let output_file = temp_dir.path().join("main_acir_opcodes.svg");
         assert!(output_file.exists());
 
