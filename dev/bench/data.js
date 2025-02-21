@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740173024768,
+  "lastUpdate": 1740173025854,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3710,105 +3710,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "582f56e6b6ea43ab79b08aacfe7f1ba67a097f26",
-          "message": "feat: while statement (#7280)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-02-17T14:12:58Z",
-          "tree_id": "07d00a3112cf89a5f403bac527552d1dd43ac77b",
-          "url": "https://github.com/noir-lang/noir/commit/582f56e6b6ea43ab79b08aacfe7f1ba67a097f26"
-        },
-        "date": 1739802915729,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.01,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.838,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21.1,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.638,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.258,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.266,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.036,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.764,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.826,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 1.476,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.924,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 71.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 68.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.932,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.488,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8381,6 +8282,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.54,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e68ce6403e99ff5af4fb9973b203070d8a9898c",
+          "message": "fix(experimental): Allow shadowing in match patterns (#7484)",
+          "timestamp": "2025-02-21T20:59:25Z",
+          "tree_id": "cfadb43e385c3b3320fb1a88e0221122e40786c0",
+          "url": "https://github.com/noir-lang/noir/commit/8e68ce6403e99ff5af4fb9973b203070d8a9898c"
+        },
+        "date": 1740173023299,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.933,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.7,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.494,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.106,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.318,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.968,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.022,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 88.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 95.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.975,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.526,
             "unit": "s"
           }
         ]
