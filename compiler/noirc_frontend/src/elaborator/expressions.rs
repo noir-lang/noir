@@ -75,8 +75,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.location, target_type)
             }
-            ExpressionKind::Unsafe(block_expression, location) => {
-                self.elaborate_unsafe_block(block_expression, location, target_type)
+            ExpressionKind::Unsafe(block_expression, _, unsafe_keyword_location) => {
+                self.elaborate_unsafe_block(block_expression, unsafe_keyword_location, target_type)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -185,7 +185,7 @@ impl<'context> Elaborator<'context> {
     fn elaborate_unsafe_block(
         &mut self,
         block: BlockExpression,
-        location: Location,
+        unsafe_keyword_location: Location,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
@@ -193,8 +193,10 @@ impl<'context> Elaborator<'context> {
         let is_nested_unsafe_block =
             !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
         if is_nested_unsafe_block {
-            // TODO: only error on the "unsafe" keyword
-            self.push_err(TypeCheckError::NestedUnsafeBlock { location }, location.file);
+            self.push_err(
+                TypeCheckError::NestedUnsafeBlock { location: unsafe_keyword_location },
+                unsafe_keyword_location.file,
+            );
         }
 
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
@@ -203,8 +205,10 @@ impl<'context> Elaborator<'context> {
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
-            // TODO: only error on the "unsafe" keyword
-            self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { location }, location.file);
+            self.push_err(
+                TypeCheckError::UnnecessaryUnsafeBlock { location: unsafe_keyword_location },
+                unsafe_keyword_location.file,
+            );
         }
 
         // Finally, we restore the original value of `self.in_unsafe_block`,

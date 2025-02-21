@@ -398,7 +398,7 @@ impl Elaborator<'_> {
             | ExpressionKind::Quote(_)
             | ExpressionKind::Unquote(_)
             | ExpressionKind::Comptime(_, _)
-            | ExpressionKind::Unsafe(_, _)
+            | ExpressionKind::Unsafe(_, _, _)
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::TypePath(_)
             | ExpressionKind::Resolved(_)

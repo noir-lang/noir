@@ -406,7 +406,7 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(block) = self.parse_block() {
-            Some(ExpressionKind::Unsafe(block, self.location_since(start_location)))
+            Some(ExpressionKind::Unsafe(block, self.location_since(start_location), start_location))
         } else {
             Some(ExpressionKind::Error)
         }
@@ -1091,7 +1091,7 @@ mod tests {
         // Safety: test
         unsafe { 1 }";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+        let ExpressionKind::Unsafe(block, _, _) = expr.kind else {
             panic!("Expected unsafe expression");
         };
         assert_eq!(block.statements.len(), 1);
@@ -1105,7 +1105,7 @@ mod tests {
 
         let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression().unwrap();
-        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+        let ExpressionKind::Unsafe(block, _, _) = expr.kind else {
             panic!("Expected unsafe expression");
         };
         assert_eq!(block.statements.len(), 1);

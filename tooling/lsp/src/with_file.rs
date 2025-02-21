@@ -671,10 +671,13 @@ fn expression_kind_with_file(kind: ExpressionKind, file: FileId) -> ExpressionKi
             block_expression_with_file(block_expression, file),
             location_with_file(location, file),
         ),
-        ExpressionKind::Unsafe(block_expression, location) => ExpressionKind::Unsafe(
-            block_expression_with_file(block_expression, file),
-            location_with_file(location, file),
-        ),
+        ExpressionKind::Unsafe(block_expression, location, unsafe_keyword_location) => {
+            ExpressionKind::Unsafe(
+                block_expression_with_file(block_expression, file),
+                location_with_file(location, file),
+                location_with_file(unsafe_keyword_location, file),
+            )
+        }
         ExpressionKind::AsTraitPath(as_trait_path) => {
             ExpressionKind::AsTraitPath(as_trait_path_with_file(as_trait_path, file))
         }

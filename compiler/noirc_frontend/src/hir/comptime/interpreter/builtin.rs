@@ -2220,7 +2220,7 @@ fn expr_as_unsafe(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
-        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _)) = expr {
+        if let ExprValue::Expression(ExpressionKind::Unsafe(block_expr, _, _)) = expr {
             Some(block_expression_to_value(block_expr))
         } else {
             None

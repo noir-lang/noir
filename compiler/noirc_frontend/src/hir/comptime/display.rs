@@ -645,10 +645,14 @@ fn remove_interned_in_expression_kind(
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Comptime(BlockExpression { statements }, span)
         }
-        ExpressionKind::Unsafe(block, span) => {
+        ExpressionKind::Unsafe(block, location, unsafe_keyword_location) => {
             let statements =
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-            ExpressionKind::Unsafe(BlockExpression { statements }, span)
+            ExpressionKind::Unsafe(
+                BlockExpression { statements },
+                location,
+                unsafe_keyword_location,
+            )
         }
         ExpressionKind::AsTraitPath(mut path) => {
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);

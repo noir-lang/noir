@@ -203,7 +203,7 @@ impl HirExpression {
                 ExpressionKind::Comptime(block.to_display_ast(interner), location)
             }
             HirExpression::Unsafe(block) => {
-                ExpressionKind::Unsafe(block.to_display_ast(interner), location)
+                ExpressionKind::Unsafe(block.to_display_ast(interner), location, location)
             }
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 

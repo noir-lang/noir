@@ -40,7 +40,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
-    Unsafe(BlockExpression, Location),
+    Unsafe(BlockExpression, Location, Location /* unsafe keyword location */),
     AsTraitPath(AsTraitPath),
     TypePath(TypePath),
 
@@ -255,7 +255,7 @@ impl Expression {
         match &self.kind {
             ExpressionKind::Block(block_expression)
             | ExpressionKind::Comptime(block_expression, _)
-            | ExpressionKind::Unsafe(block_expression, _) => {
+            | ExpressionKind::Unsafe(block_expression, _, _) => {
                 if let Some(statement) = block_expression.statements.last() {
                     statement.type_location()
                 } else {
@@ -663,7 +663,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
-            Unsafe(block, _) => write!(f, "unsafe {block}"),
+            Unsafe(block, _, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Interned(_) => write!(f, "?Interned"),

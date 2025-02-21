@@ -3943,10 +3943,12 @@ fn warns_on_nested_unsafe() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        &errors[0].0,
-        CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { .. })
-    ));
+    let CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { location }) = &errors[0].0
+    else {
+        panic!("Expected NestedUnsafeBlock");
+    };
+
+    assert_eq!(&src[location.span.start() as usize..location.span.end() as usize], "unsafe");
 }
 
 #[test]
