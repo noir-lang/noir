@@ -221,9 +221,9 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
                     let _ = writeln!(output, "    {}", path.display());
                     output
                 });
-                // NOTE: this span is empty as it is not expected to be displayed
-                let dummy_span = Span::default();
-                CustomDiagnostic::simple_error(msg, secondary, dummy_span)
+                // NOTE: this location is empty as it is not expected to be displayed
+                let dummy_location = Location::dummy();
+                CustomDiagnostic::simple_error(msg, secondary, dummy_location)
             }
         }
     }

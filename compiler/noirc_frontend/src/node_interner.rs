@@ -1513,7 +1513,7 @@ impl NodeInterner {
                 trait_bound: ResolvedTraitBound {
                     trait_id,
                     trait_generics: TraitGenerics { ordered, named },
-                    span: Span::default(),
+                    location: Location::dummy(),
                 },
             }
         };
@@ -1597,7 +1597,7 @@ impl NodeInterner {
                     trait_bound: ResolvedTraitBound {
                         trait_id,
                         trait_generics,
-                        span: Span::default(),
+                        location: Location::dummy(),
                     },
                 };
                 matching_impls.push((impl_kind.clone(), fresh_bindings, constraint));
@@ -2036,8 +2036,7 @@ impl NodeInterner {
 
         let mut push_error = |item: String, scc: &[_], i, location: Location| {
             let cycle = self.get_cycle_error_string(scc, i);
-            let span = location.span;
-            let error = ResolverError::DependencyCycle { item, cycle, span };
+            let error = ResolverError::DependencyCycle { item, cycle, location };
             errors.push((error.into(), location.file));
         };
 

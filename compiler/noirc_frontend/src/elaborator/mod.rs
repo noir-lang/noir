@@ -565,7 +565,7 @@ impl<'context> Elaborator<'context> {
                     elaborator.interner,
                     id,
                     || elaborator.interner.definition_name(func_meta.name.id),
-                    func_meta.name.location.span,
+                    func_meta.name.location,
                     hir_func.as_expr(),
                 )
                 .map(Into::into)
@@ -677,8 +677,8 @@ impl<'context> Elaborator<'context> {
                     self.push_err(
                         ResolverError::DuplicateDefinition {
                             name: name_owned,
-                            first_span: generic.location.span,
-                            second_span: location.span,
+                            first_location: generic.location,
+                            second_location: location,
                         },
                         location.file,
                     );
@@ -711,7 +711,7 @@ impl<'context> Elaborator<'context> {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
-                        span: location.span,
+                        location: *location,
                         typ: other.clone(),
                     }),
                 }
@@ -919,7 +919,7 @@ impl<'context> Elaborator<'context> {
             self.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(ResolvedTraitBound { trait_id, trait_generics, span: location.span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
     /// Extract metadata from a NoirFunction
@@ -1155,8 +1155,7 @@ impl<'context> Elaborator<'context> {
         if (is_entry_point && !typ.is_valid_for_program_input())
             || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
         {
-            let span = location.span;
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { span }, location.file);
+            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location }, location.file);
         }
     }
 
@@ -1237,7 +1236,6 @@ impl<'context> Elaborator<'context> {
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) {
-        let span = location.span;
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
@@ -1246,7 +1244,7 @@ impl<'context> Elaborator<'context> {
                 let trait_name = the_trait.name.to_string();
                 let typ = object.clone();
                 self.push_err(
-                    TypeCheckError::UnneededTraitConstraint { trait_name, typ, span },
+                    TypeCheckError::UnneededTraitConstraint { trait_name, typ, location },
                     location.file,
                 );
             }
@@ -1353,7 +1351,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let impl_trait = the_trait.name.to_string();
-        let the_trait_file = the_trait.location.file;
 
         let mut bindings = TypeBindings::new();
         bind_ordered_generics(
@@ -1390,8 +1387,8 @@ impl<'context> Elaborator<'context> {
                         impl_trait: impl_trait.clone(),
                         missing_trait,
                         type_missing_trait: trait_constraint_type.to_string(),
-                        span: trait_impl.object_type.location.span,
-                        missing_trait_location: Location::new(trait_bound.span, the_trait_file),
+                        location: trait_impl.object_type.location,
+                        missing_trait_location: trait_bound.location,
                     },
                     trait_impl.object_type.location.file,
                 );
@@ -1417,7 +1414,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let impl_trait = the_trait.name.to_string();
-        let the_trait_file = the_trait.location.file;
 
         let mut bindings = TypeBindings::new();
         bind_ordered_generics(
@@ -1460,11 +1456,8 @@ impl<'context> Elaborator<'context> {
                         impl_trait: impl_trait.clone(),
                         missing_trait,
                         type_missing_trait: trait_impl.object_type.to_string(),
-                        span: trait_impl.object_type.location.span,
-                        missing_trait_location: Location::new(
-                            parent_trait_bound.span,
-                            the_trait_file,
-                        ),
+                        location: trait_impl.object_type.location,
+                        missing_trait_location: parent_trait_bound.location,
                     },
                     trait_impl.object_type.location.file,
                 );
@@ -1501,9 +1494,8 @@ impl<'context> Elaborator<'context> {
         let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type, Type::MutableReference(_)) {
-            let span = self_type_location.span;
             self.push_err(
-                DefCollectorErrorKind::MutableReferenceInTraitImpl { span },
+                DefCollectorErrorKind::MutableReferenceInTraitImpl { location: self_type_location },
                 self_type_location.file,
             );
         }
@@ -1571,7 +1563,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(
                     DefCollectorErrorKind::OverlappingImpl {
                         typ: self_type.clone(),
-                        span: self_type_location.span,
+                        location: self_type_location,
                     },
                     self_type_location.file,
                 );
@@ -1580,7 +1572,7 @@ impl<'context> Elaborator<'context> {
                 // since it may be in a different file and all errors have the same file id.
                 self.file = prev_file;
                 self.push_err(
-                    DefCollectorErrorKind::OverlappingImplNote { span: prev_location.span },
+                    DefCollectorErrorKind::OverlappingImplNote { location: prev_location },
                     prev_location.file,
                 );
                 self.file = trait_impl.file_id;
@@ -1609,7 +1601,6 @@ impl<'context> Elaborator<'context> {
         functions: &mut UnresolvedFunctions,
         location: Location,
     ) {
-        let span = location.span;
         let self_type = functions.self_type.as_ref();
         let self_type =
             self_type.expect("Expected struct type to be set before declare_methods_on_struct");
@@ -1623,7 +1614,7 @@ impl<'context> Elaborator<'context> {
             if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
                 self.push_err(
-                    DefCollectorErrorKind::ForeignImpl { span, type_name },
+                    DefCollectorErrorKind::ForeignImpl { location, type_name },
                     location.file,
                 );
                 return;
@@ -1671,7 +1662,10 @@ impl<'context> Elaborator<'context> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span }, location.file);
+                self.push_err(
+                    DefCollectorErrorKind::NonStructTypeInImpl { location },
+                    location.file,
+                );
             }
         }
     }
@@ -1687,8 +1681,8 @@ impl<'context> Elaborator<'context> {
                 let second_location = self.interner.function_ident(method_id).location();
                 let error = ResolverError::DuplicateDefinition {
                     name: method_name,
-                    first_span: first_location.span,
-                    second_span: second_location.span,
+                    first_location,
+                    second_location,
                 };
                 self.push_err(error, second_location.file);
             }
@@ -1772,7 +1766,7 @@ impl<'context> Elaborator<'context> {
                                 ResolverError::TypeIsMorePrivateThenItem {
                                     typ: struct_type.name.to_string(),
                                     item: name.to_string(),
-                                    span: location.span,
+                                    location,
                                 },
                                 location.file,
                             );
@@ -1899,9 +1893,8 @@ impl<'context> Elaborator<'context> {
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
-                        let span = location.span;
                         self.file = location.file;
-                        self.push_err(ResolverError::NestedSlices { span }, location.file);
+                        self.push_err(ResolverError::NestedSlices { location }, location.file);
                     }
                 }
             }
@@ -1997,16 +1990,15 @@ impl<'context> Elaborator<'context> {
         };
 
         let location = let_stmt.pattern.location();
-        let span = location.span;
 
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { span }, location.file);
+            self.push_err(ResolverError::AbiAttributeOutsideContract { location }, location.file);
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-            self.push_err(ResolverError::MutableGlobal { span }, location.file);
+            self.push_err(ResolverError::MutableGlobal { location }, location.file);
         }
 
         let (let_statement, _typ) = self
@@ -2104,10 +2096,12 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
                     let location = trait_impl.r#trait.location;
-                    let span = location.span;
                     let Type::TraitAsType(trait_id, _, trait_generics) = typ else {
                         let found = typ.to_string();
-                        self.push_err(ResolverError::ExpectedTrait { span, found }, location.file);
+                        self.push_err(
+                            ResolverError::ExpectedTrait { location, found },
+                            location.file,
+                        );
                         continue;
                     };
 
@@ -2134,9 +2128,8 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => {
                     let location = trait_impl.r#trait.location;
-                    let span = location.span;
                     let found = trait_impl.r#trait.typ.to_string();
-                    self.push_err(ResolverError::ExpectedTrait { span, found }, location.file);
+                    self.push_err(ResolverError::ExpectedTrait { location, found }, location.file);
                     continue;
                 }
             };

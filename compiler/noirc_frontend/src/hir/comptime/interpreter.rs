@@ -623,9 +623,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         Err(InterpreterError::NonIntegerArrayLength { typ, err: None, location })
                     }
                     TypeBinding::Bound(binding) => {
-                        let span = self.elaborator.interner.id_location(id).span;
+                        let location = self.elaborator.interner.id_location(id);
                         binding
-                            .evaluate_to_field_element(&Kind::Numeric(numeric_typ.clone()), span)
+                            .evaluate_to_field_element(
+                                &Kind::Numeric(numeric_typ.clone()),
+                                location,
+                            )
                             .map_err(|err| {
                                 let typ = Type::TypeVariable(type_variable.clone());
                                 let err = Some(Box::new(err));
@@ -855,8 +858,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let element = self.evaluate(repeated_element)?;
 
-                let span = self.elaborator.interner.id_location(id).span;
-                match length.evaluate_to_u32(span) {
+                let location = self.elaborator.interner.id_location(id);
+                match length.evaluate_to_u32(location) {
                     Ok(length) => {
                         let elements = (0..length).map(|_| element.clone()).collect();
                         Ok(Value::Array(elements, typ))
@@ -1392,7 +1395,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             TypeCheckError::TypeMismatch {
                 expected_typ: expected.to_string(),
                 expr_typ: actual.to_string(),
-                expr_span: location.span,
+                expr_location: location,
             }
         });
     }

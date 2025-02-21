@@ -260,7 +260,7 @@ fn turbofish_in_type_before_call_errors() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
+        expr_location: _,
     }) = &errors[0].0
     else {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
@@ -320,7 +320,7 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
+        expr_location: _,
     }) = &errors[0].0
     else {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
@@ -379,7 +379,7 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
+        expr_location: _,
     }) = &errors[0].0
     else {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
@@ -415,7 +415,7 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
+        expr_location: _,
     }) = &errors[0].0
     else {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);
@@ -448,7 +448,7 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
+        expr_location: _,
     }) = &errors[0].0
     else {
         panic!("Expected a type mismatch error, got {:?}", errors[0].0);

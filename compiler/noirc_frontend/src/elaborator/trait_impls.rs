@@ -78,7 +78,7 @@ impl<'context> Elaborator<'context> {
                         DefCollectorErrorKind::TraitMissingMethod {
                             trait_name: self.interner.get_trait(trait_id).name.clone(),
                             method_name: method.name.clone(),
-                            trait_impl_span: trait_impl.object_type.location.span,
+                            trait_impl_location: trait_impl.object_type.location,
                         },
                         trait_impl.object_type.location.file,
                     );
@@ -216,9 +216,9 @@ impl<'context> Elaborator<'context> {
                         constraint_typ: override_trait_constraint.typ,
                         constraint_name: the_trait.name.0.contents.clone(),
                         constraint_generics: override_trait_constraint.trait_bound.trait_generics,
-                        constraint_span: override_trait_constraint.trait_bound.span,
+                        constraint_location: override_trait_constraint.trait_bound.location,
                         trait_method_name: method.name.0.contents.clone(),
-                        trait_method_span: method.location.span,
+                        trait_method_location: method.location,
                     },
                     method.location.file,
                 );
@@ -243,7 +243,7 @@ impl<'context> Elaborator<'context> {
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
             self.push_err(
                 DefCollectorErrorKind::TraitImplOrphaned {
-                    span: trait_impl.object_type.location.span,
+                    location: trait_impl.object_type.location,
                 },
                 trait_impl.object_type.location.file,
             );

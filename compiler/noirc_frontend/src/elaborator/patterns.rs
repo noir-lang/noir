@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -66,7 +66,7 @@ impl<'context> Elaborator<'context> {
         pattern: Pattern,
         expected_type: Type,
         definition: DefinitionKind,
-        mutable: Option<Span>,
+        mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
     ) -> HirPattern {
@@ -99,7 +99,7 @@ impl<'context> Elaborator<'context> {
             Pattern::Mutable(pattern, location, _) => {
                 if let Some(first_mut) = mutable {
                     self.push_err(
-                        ResolverError::UnnecessaryMut { first_mut, second_mut: location.span },
+                        ResolverError::UnnecessaryMut { first_mut, second_mut: location },
                         location.file,
                     );
                 }
@@ -108,7 +108,7 @@ impl<'context> Elaborator<'context> {
                     *pattern,
                     expected_type,
                     definition,
-                    Some(location.span),
+                    Some(location),
                     new_definitions,
                     warn_if_unused,
                 );
@@ -126,7 +126,7 @@ impl<'context> Elaborator<'context> {
                             TypeCheckError::TypeMismatchWithSource {
                                 expected: expected_type,
                                 actual: tuple,
-                                span: location.span,
+                                location,
                                 source: Source::Assignment,
                             },
                             location.file,
@@ -179,7 +179,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         expected_type: Type,
         definition: DefinitionKind,
-        mutable: Option<Span>,
+        mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> HirPattern {
         let last_segment = name.last_segment();
@@ -205,7 +205,7 @@ impl<'context> Elaborator<'context> {
             Some(typ) => {
                 let typ = typ.to_string();
                 self.push_err(
-                    ResolverError::NonStructUsedInConstructor { typ, span: location.span },
+                    ResolverError::NonStructUsedInConstructor { typ, location },
                     location.file,
                 );
                 return error_identifier(self);
@@ -227,7 +227,7 @@ impl<'context> Elaborator<'context> {
             TypeCheckError::TypeMismatchWithSource {
                 expected: expected_type.clone(),
                 actual: actual_type.clone(),
-                span: location.span,
+                location,
                 source: Source::Assignment,
             }
         });
@@ -266,7 +266,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         expected_type: Type,
         definition: DefinitionKind,
-        mutable: Option<Span>,
+        mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
     ) -> Vec<(Ident, HirPattern)> {
         let mut ret = Vec::with_capacity(fields.len());
@@ -322,7 +322,7 @@ impl<'context> Elaborator<'context> {
         if !unseen_fields.is_empty() {
             self.push_err(
                 ResolverError::MissingFields {
-                    span: location.span,
+                    location,
                     missing_fields: unseen_fields
                         .into_iter()
                         .map(|field| field.to_string())
@@ -366,8 +366,8 @@ impl<'context> Elaborator<'context> {
                     self.push_err(
                         ResolverError::DuplicateDefinition {
                             name,
-                            first_span: old_value.ident.location.span,
-                            second_span: location.span,
+                            first_location: old_value.ident.location,
+                            second_location: location,
                         },
                         location.file,
                     );
@@ -385,15 +385,14 @@ impl<'context> Elaborator<'context> {
         warn_if_unused: bool,
     ) {
         let second_location = ident.location;
-        let second_span = second_location.span;
         let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
         if let Some(old_value) = old_value {
-            let first_span = old_value.ident.location.span;
+            let first_location = old_value.ident.location;
             self.push_err(
-                ResolverError::DuplicateDefinition { name, first_span, second_span },
+                ResolverError::DuplicateDefinition { name, first_location, second_location },
                 second_location.file,
             );
         }
@@ -411,9 +410,9 @@ impl<'context> Elaborator<'context> {
             let file = name.location().file;
             self.push_err(
                 ResolverError::DuplicateDefinition {
-                    second_span: name.span(),
+                    first_location: old_global_value.ident.location,
+                    second_location: name.location(),
                     name: name.0.contents,
-                    first_span: old_global_value.ident.location.span,
                 },
                 file,
             );
@@ -440,7 +439,7 @@ impl<'context> Elaborator<'context> {
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
-                span: name.0.span(),
+                location: name.0.location(),
             })
         }
     }
@@ -460,7 +459,7 @@ impl<'context> Elaborator<'context> {
                 let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: direct_generic_kinds.len(),
                     actual_count: unresolved_turbofish.len(),
-                    span: location.span,
+                    location,
                 };
                 self.push_err(type_check_err, location.file);
             }
@@ -542,7 +541,7 @@ impl<'context> Elaborator<'context> {
                     item: format!("{item_kind} {item_name}"),
                     expected: generics.len(),
                     found: turbofish_generics.len(),
-                    span: location.span,
+                    location,
                 },
                 location.file,
             );
@@ -774,14 +773,13 @@ impl<'context> Elaborator<'context> {
             _ => 0,
         });
 
-        let span = self.interner.expr_span(&expr_id);
         let location = self.interner.expr_location(&expr_id);
 
         // This instantiates a trait's generics as well which need to be set
         // when the constraint below is later solved for when the function is
         // finished. How to link the two?
         let (typ, bindings) =
-            self.instantiate(t, bindings, generics, function_generic_count, span, location);
+            self.instantiate(t, bindings, generics, function_generic_count, location);
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
@@ -828,7 +826,6 @@ impl<'context> Elaborator<'context> {
         bindings: TypeBindings,
         turbofish_generics: Option<Vec<Type>>,
         function_generic_count: usize,
-        span: Span,
         location: Location,
     ) -> (Type, TypeBindings) {
         match turbofish_generics {
@@ -837,7 +834,7 @@ impl<'context> Elaborator<'context> {
                     let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
                         actual_count: turbofish_generics.len(),
-                        span,
+                        location,
                     };
                     self.push_err(CompilationError::TypeError(type_check_err), location.file);
                     typ.instantiate_with_bindings(bindings, self.interner)

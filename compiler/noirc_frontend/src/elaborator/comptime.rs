@@ -200,19 +200,25 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error =
-                    ResolverError::AttributeFunctionIsNotAPath { function: function_string, span };
+                let error = ResolverError::AttributeFunctionIsNotAPath {
+                    function: function_string,
+                    location,
+                };
                 return Err((error.into(), location.file));
             }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error = ResolverError::AttributeFunctionNotInScope { name: function_string, span };
+            let error =
+                ResolverError::AttributeFunctionNotInScope { name: function_string, location };
             return Err((error.into(), location.file));
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
-            return Err((ResolverError::NonFunctionInAnnotation { span }.into(), location.file));
+            return Err((
+                ResolverError::NonFunctionInAnnotation { location }.into(),
+                location.file,
+            ));
         };
 
         attributes_to_run.push((function, item, arguments, attribute_context, span));

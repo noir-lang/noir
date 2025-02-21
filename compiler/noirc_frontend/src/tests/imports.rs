@@ -28,14 +28,14 @@ fn no_super() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
+        PathResolutionError::NoSuper(location),
     )) = &errors[0].0
     else {
         panic!("Expected a 'no super' error, got {:?}", errors[0].0);
     };
 
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
+    assert_eq!(location.span.start(), 4);
+    assert_eq!(location.span.end(), 9);
 }
 
 #[test]

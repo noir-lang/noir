@@ -219,7 +219,7 @@ impl<'context> Elaborator<'context> {
                     if last_segment_generics.is_some() {
                         errors.push(PathResolutionError::TurbofishNotAllowedOnItem {
                             item: format!("module `{last_ident}`"),
-                            span: last_segment.turbofish_span(),
+                            location: last_segment.turbofish_location(),
                         });
                     }
 

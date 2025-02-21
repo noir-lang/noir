@@ -282,7 +282,7 @@ impl Elaborator<'_> {
                 TypeCheckError::TypeMismatch {
                     expected_typ: result_type.to_string(),
                     expr_typ: body_type.to_string(),
-                    expr_span: body_location.span,
+                    expr_location: body_location,
                 }
             });
 
@@ -300,7 +300,7 @@ impl Elaborator<'_> {
                 TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
                     expr_typ: actual.to_string(),
-                    expr_span: expr_location.span,
+                    expr_location,
                 }
             });
         };
@@ -458,8 +458,6 @@ impl Elaborator<'_> {
         expected_type: &Type,
         location: Location,
     ) -> Pattern {
-        let span = location.span;
-
         let (actual_type, expected_arg_types, variant_index) = match name {
             PathResolutionItem::Global(id) => {
                 // variant constant
@@ -506,7 +504,7 @@ impl Elaborator<'_> {
         self.unify(&actual_type, expected_type, location.file, || TypeCheckError::TypeMismatch {
             expected_typ: expected_type.to_string(),
             expr_typ: actual_type.to_string(),
-            expr_span: span,
+            expr_location: location,
         });
 
         if args.len() != expected_arg_types.len() {

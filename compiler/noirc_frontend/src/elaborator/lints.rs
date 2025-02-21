@@ -16,7 +16,7 @@ use crate::{
     Type,
 };
 
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -34,7 +34,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,
-        span: location.span,
+        location,
     })
 }
 
@@ -97,7 +97,7 @@ pub(super) fn oracle_called_from_constrained_function(
     interner: &NodeInterner,
     called_func: &FuncId,
     calling_from_constrained_runtime: bool,
-    span: Span,
+    location: Location,
 ) -> Option<ResolverError> {
     if !calling_from_constrained_runtime {
         return None;
@@ -106,7 +106,7 @@ pub(super) fn oracle_called_from_constrained_function(
     let function_attributes = interner.function_attributes(called_func);
     let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
     if is_oracle_call {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
+        Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
         None
     }
@@ -133,8 +133,7 @@ pub(super) fn unconstrained_function_args(
         .iter()
         .filter_map(|(typ, _, location)| {
             if !typ.is_valid_for_unconstrained_boundary() {
-                let span = location.span;
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span })
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { location: *location })
             } else {
                 None
             }
@@ -145,12 +144,12 @@ pub(super) fn unconstrained_function_args(
 /// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
-    span: Span,
+    location: Location,
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
-        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
+        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {
-        Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
+        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
     }
@@ -198,7 +197,7 @@ pub(crate) fn overflowing_int(
     annotated_type: &Type,
 ) -> Vec<TypeCheckError> {
     let expr = interner.expression(rhs_expr);
-    let span = interner.expr_span(rhs_expr);
+    let location = interner.expr_location(rhs_expr);
 
     let mut errors = Vec::with_capacity(2);
     match expr {
@@ -211,7 +210,7 @@ pub(crate) fn overflowing_int(
                         expr: if negative { -value } else { value },
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max),
-                        span,
+                        location,
                     });
                 }
             }
@@ -224,7 +223,7 @@ pub(crate) fn overflowing_int(
                         expr: if negative { -value } else { value },
                         ty: annotated_type.clone(),
                         range: format!("-{}..={}", min, max),
-                        span,
+                        location,
                     });
                 }
             }
@@ -235,7 +234,7 @@ pub(crate) fn overflowing_int(
             if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
                 errors.push(TypeCheckError::InvalidUnaryOp {
                     kind: annotated_type.to_string(),
-                    span,
+                    location,
                 });
             }
         }
@@ -258,13 +257,13 @@ pub(crate) fn unbounded_recursion<'a>(
     interner: &'a NodeInterner,
     func_id: FuncId,
     func_name: impl FnOnce() -> &'a str,
-    func_span: Span,
+    func_location: Location,
     body_id: ExprId,
 ) -> Option<ResolverError> {
     if !can_return_without_recursing(interner, func_id, body_id) {
         Some(ResolverError::UnconditionalRecursion {
             name: func_name().to_string(),
-            span: func_span,
+            location: func_location,
         })
     } else {
         None

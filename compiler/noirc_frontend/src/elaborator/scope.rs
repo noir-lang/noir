@@ -83,7 +83,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
-        let span = path.span();
+        let location = path.location;
         let item = self.resolve_path_or_error(path)?;
 
         if let Some(function) = item.function_id() {
@@ -97,7 +97,7 @@ impl<'context> Elaborator<'context> {
 
         let expected = "global variable";
         let got = "local variable";
-        Err(ResolverError::Expected { span, expected, got })
+        Err(ResolverError::Expected { location, expected, got })
     }
 
     pub fn push_scope(&mut self) {
@@ -151,7 +151,7 @@ impl<'context> Elaborator<'context> {
                         ResolverError::Expected {
                             expected: "trait",
                             got: item.description(),
-                            span: location.span,
+                            location,
                         },
                         location.file,
                     );
@@ -177,7 +177,7 @@ impl<'context> Elaborator<'context> {
                         ResolverError::Expected {
                             expected: "type",
                             got: item.description(),
-                            span: location.span,
+                            location,
                         },
                         location.file,
                     );
@@ -218,7 +218,7 @@ impl<'context> Elaborator<'context> {
                     ResolverError::Expected {
                         expected: "type",
                         got: other.description(),
-                        span: location.span,
+                        location,
                     },
                     location.file,
                 );

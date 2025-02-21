@@ -268,7 +268,7 @@ fn check_trait_wrong_method_return_type() {
             CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ,
                 expr_typ,
-                expr_span: _,
+                expr_location: _,
             }) => {
                 assert_eq!(expected_typ, "Foo");
                 assert_eq!(expr_typ, "Field");
@@ -310,7 +310,7 @@ fn check_trait_wrong_method_return_type2() {
             CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ,
                 expr_typ,
-                expr_span: _,
+                expr_location: _,
             }) => {
                 assert_eq!(expected_typ, "Foo");
                 assert_eq!(expr_typ, "Field");
@@ -355,7 +355,7 @@ fn check_trait_missing_implementation() {
             CompilationError::DefinitionError(DefCollectorErrorKind::TraitMissingMethod {
                 trait_name,
                 method_name,
-                trait_impl_span: _,
+                trait_impl_location: _,
             }) => {
                 assert_eq!(trait_name, "Default");
                 assert_eq!(method_name, "method2");
@@ -987,7 +987,10 @@ fn resolve_unresolved_var() {
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
     // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
     match &errors[0].0 {
-        CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, span: _ }) => {
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared {
+            name,
+            location: _,
+        }) => {
             assert_eq!(name, "z");
         }
         _ => unimplemented!("we should only have an unresolved variable"),
@@ -1233,9 +1236,11 @@ fn resolve_fmt_strings() {
             }
             CompilationError::TypeError(TypeCheckError::UnusedResultError {
                 expr_type: _,
-                expr_span,
+                expr_location,
             }) => {
-                let a = src.get(expr_span.start() as usize..expr_span.end() as usize).unwrap();
+                let a = src
+                    .get(expr_location.span.start() as usize..expr_location.span.end() as usize)
+                    .unwrap();
                 assert!(
                     a == "println(string)" || a == "println(f\"random_string{new_val}{new_val}\")"
                 );

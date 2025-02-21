@@ -212,14 +212,14 @@ impl<'a> ModCollector<'a> {
             for (_, func_id, noir_function) in &mut unresolved_functions.functions {
                 if noir_function.def.attributes.is_test_function() {
                     let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                        span: noir_function.name_ident().span(),
+                        location: noir_function.name_ident().location(),
                     };
                     errors.push((error.into(), self.file_id));
                 }
 
                 if noir_function.def.attributes.has_export() {
                     let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
-                        span: noir_function.name_ident().span(),
+                        location: noir_function.name_ident().location(),
                     };
                     errors.push((error.into(), self.file_id));
                 }
@@ -766,13 +766,13 @@ impl<'a> ModCollector<'a> {
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
                 mod_name: mod_decl.ident.clone(),
-                span: location.span,
+                location,
             };
             errors.push((error.into(), location.file));
 
             let error = DefCollectorErrorKind::ModuleOriginallyDefined {
                 mod_name: mod_decl.ident.clone(),
-                span: old_location.span,
+                location: *old_location,
             };
             errors.push((error.into(), old_location.file));
             return errors;
@@ -876,8 +876,8 @@ impl<'a> ModCollector<'a> {
             UnresolvedTypeData::FieldElement => Type::FieldElement,
             UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
             _ => {
-                let span = typ.location.span;
-                let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
+                let error =
+                    ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
                 errors.push((error.into(), self.file_id));
                 Type::Error
             }
@@ -1233,14 +1233,14 @@ pub fn collect_impl(
 
         if method.def.attributes.is_test_function() {
             let error = DefCollectorErrorKind::TestOnAssociatedFunction {
-                span: method.name_ident().span(),
+                location: method.name_ident().location(),
             };
             errors.push((error.into(), file_id));
             continue;
         }
         if method.def.attributes.has_export() {
             let error = DefCollectorErrorKind::ExportOnAssociatedFunction {
-                span: method.name_ident().span(),
+                location: method.name_ident().location(),
             };
             errors.push((error.into(), file_id));
         }

@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
@@ -48,7 +48,7 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
         let (hir_expr, typ) = match expr.kind {
-            ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location.span),
+            ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
             ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.location),
             ExpressionKind::Index(index) => self.elaborate_index(*index),
@@ -90,14 +90,14 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
                 self.push_err(
-                    ResolverError::UnquoteUsedOutsideQuote { span: expr.location.span },
+                    ResolverError::UnquoteUsedOutsideQuote { location: expr.location },
                     expr.location.file,
                 );
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(_) => {
                 self.push_err(
-                    ResolverError::AsTraitPathNotYetImplemented { span: expr.location.span },
+                    ResolverError::AsTraitPathNotYetImplemented { location: expr.location },
                     expr.location.file,
                 );
                 (HirExpression::Error, Type::Error)
@@ -127,10 +127,7 @@ impl<'context> Elaborator<'context> {
             other => {
                 let statement = other.to_string();
                 self.push_err(
-                    ResolverError::InvalidInternedStatementInExpr {
-                        statement,
-                        span: location.span,
-                    },
+                    ResolverError::InvalidInternedStatementInExpr { statement, location },
                     location.file,
                 );
                 let expr = Expression::new(ExpressionKind::Error, location);
@@ -167,12 +164,11 @@ impl<'context> Elaborator<'context> {
             if let HirStatement::Semi(expr) = self.interner.statement(&id) {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
-                let span = location.span;
 
                 self.unify(&inner_expr_type, &Type::Unit, location.file, || {
                     TypeCheckError::UnusedResultError {
                         expr_type: inner_expr_type.clone(),
-                        expr_span: span,
+                        expr_location: location,
                     }
                 });
             }
@@ -193,13 +189,12 @@ impl<'context> Elaborator<'context> {
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
-        let span = location.span;
         let old_in_unsafe_block = self.unsafe_block_status;
         let is_nested_unsafe_block =
             !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
         if is_nested_unsafe_block {
-            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
-            self.push_err(TypeCheckError::NestedUnsafeBlock { span }, location.file);
+            // TODO: only error on the "unsafe" keyword
+            self.push_err(TypeCheckError::NestedUnsafeBlock { location }, location.file);
         }
 
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
@@ -208,8 +203,8 @@ impl<'context> Elaborator<'context> {
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
-            let span = Span::from(span.start()..span.start() + 6); // Only highlight the `unsafe` keyword
-            self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { span }, location.file);
+            // TODO: only error on the "unsafe" keyword
+            self.push_err(TypeCheckError::UnnecessaryUnsafeBlock { location }, location.file);
         }
 
         // Finally, we restore the original value of `self.in_unsafe_block`,
@@ -222,7 +217,7 @@ impl<'context> Elaborator<'context> {
         (HirExpression::Unsafe(hir_block_expression), typ)
     }
 
-    fn elaborate_literal(&mut self, literal: Literal, span: Span) -> (HirExpression, Type) {
+    fn elaborate_literal(&mut self, literal: Literal, location: Location) -> (HirExpression, Type) {
         use HirExpression::Literal as Lit;
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
@@ -237,10 +232,10 @@ impl<'context> Elaborator<'context> {
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
             Literal::Array(array_literal) => {
-                self.elaborate_array_literal(array_literal, span, true)
+                self.elaborate_array_literal(array_literal, location, true)
             }
             Literal::Slice(array_literal) => {
-                self.elaborate_array_literal(array_literal, span, false)
+                self.elaborate_array_literal(array_literal, location, false)
             }
         }
     }
@@ -248,25 +243,25 @@ impl<'context> Elaborator<'context> {
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
-        span: Span,
+        location: Location,
         is_array: bool,
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
                 let first_elem_type = self.interner.next_type_variable();
-                let first_span = elements.first().map(|elem| elem.location.span).unwrap_or(span);
+                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
-                    let span = elem.location.span;
+                    let location = elem.location;
                     let file = elem.location.file;
                     let (elem_id, elem_type) = self.elaborate_expression(elem);
 
                     self.unify(&elem_type, &first_elem_type, file, || {
                         TypeCheckError::NonHomogeneousArray {
-                            first_span,
+                            first_location,
                             first_type: first_elem_type.to_string(),
                             first_index: 0,
-                            second_span: span,
+                            second_location: location,
                             second_type: elem_type.to_string(),
                             second_index: i,
                         }
@@ -328,7 +323,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(
                         ResolverError::VariableNotDeclared {
                             name: ident_name.to_owned(),
-                            span: location.span,
+                            location: *location,
                         },
                         location.file,
                     );
@@ -384,7 +379,7 @@ impl<'context> Elaborator<'context> {
                         self.push_err(
                             TypeCheckError::CannotMutateImmutableVariable {
                                 name: definition.name.clone(),
-                                span: location.span,
+                                location,
                             },
                             location.file,
                         );
@@ -399,7 +394,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
-        let span = index_expr.index.location.span;
+        let location = index_expr.index.location;
         let file = index_expr.index.location.file;
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
@@ -408,13 +403,12 @@ impl<'context> Elaborator<'context> {
         self.unify(&index_type, &expected, file, || TypeCheckError::TypeMismatch {
             expected_typ: "an integer".to_owned(),
             expr_typ: index_type.to_string(),
-            expr_span: span,
+            expr_location: location,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
         // times as needed to get the underlying array.
         let lhs_location = index_expr.collection.location;
-        let lhs_span = lhs_location.span;
         let (lhs, lhs_type) = self.elaborate_expression(index_expr.collection);
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
@@ -426,7 +420,7 @@ impl<'context> Elaborator<'context> {
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
                 self.push_err(
-                    TypeCheckError::TypeAnnotationsNeededForIndex { span: lhs_span },
+                    TypeCheckError::TypeAnnotationsNeededForIndex { location: lhs_location },
                     lhs_location.file,
                 );
                 Type::Error
@@ -436,7 +430,7 @@ impl<'context> Elaborator<'context> {
                     TypeCheckError::TypeMismatch {
                         expected_typ: "Array".to_owned(),
                         expr_typ: typ.to_string(),
-                        expr_span: lhs_span,
+                        expr_location: lhs_location,
                     },
                     lhs_location.file,
                 );
@@ -628,7 +622,6 @@ impl<'context> Elaborator<'context> {
         mut expr: ConstrainExpression,
     ) -> (HirExpression, Type) {
         let location = expr.location;
-        let span = location.span;
         let min_args_count = expr.kind.required_arguments_count();
         let max_args_count = min_args_count + 1;
         let actual_args_count = expr.arguments.len();
@@ -638,7 +631,7 @@ impl<'context> Elaborator<'context> {
                 TypeCheckError::AssertionParameterCountMismatch {
                     kind: expr.kind,
                     found: actual_args_count,
-                    span,
+                    location,
                 },
                 location.file,
             );
@@ -667,7 +660,7 @@ impl<'context> Elaborator<'context> {
             (message, expr)
         };
 
-        let expr_span = expr.location.span;
+        let expr_location = expr.location;
         let expr_file = expr.location.file;
         let (expr_id, expr_type) = self.elaborate_expression(expr);
 
@@ -677,7 +670,7 @@ impl<'context> Elaborator<'context> {
         self.unify(&expr_type, &Type::Bool, expr_file, || TypeCheckError::TypeMismatch {
             expr_typ: expr_type.to_string(),
             expected_typ: Type::Bool.to_string(),
-            expr_span,
+            expr_location,
         });
 
         (HirExpression::Constrain(HirConstrainExpression(expr_id, location.file, msg)), Type::Unit)
@@ -744,10 +737,7 @@ impl<'context> Elaborator<'context> {
         }
         let UnresolvedTypeData::Named(mut path, generics, _) = typ else {
             self.push_err(
-                ResolverError::NonStructUsedInConstructor {
-                    typ: typ.to_string(),
-                    span: location.span,
-                },
+                ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), location },
                 location.file,
             );
             return (HirExpression::Error, Type::Error);
@@ -788,10 +778,7 @@ impl<'context> Elaborator<'context> {
             }
             typ => {
                 self.push_err(
-                    ResolverError::NonStructUsedInConstructor {
-                        typ: typ.to_string(),
-                        span: location.span,
-                    },
+                    ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), location },
                     location.file,
                 );
                 return (HirExpression::Error, Type::Error);
@@ -890,7 +877,7 @@ impl<'context> Elaborator<'context> {
                     || TypeCheckError::TypeMismatch {
                         expected_typ: expected_type.to_string(),
                         expr_typ: field_type.to_string(),
-                        expr_span: field_location.span,
+                        expr_location: field_location,
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -930,7 +917,7 @@ impl<'context> Elaborator<'context> {
         if !unseen_fields.is_empty() {
             self.push_err(
                 ResolverError::MissingFields {
-                    span: location.span,
+                    location,
                     missing_fields: unseen_fields
                         .into_iter()
                         .map(|field| field.to_string())
@@ -1030,7 +1017,7 @@ impl<'context> Elaborator<'context> {
                         trait_bound: ResolvedTraitBound {
                             trait_id: trait_id.trait_id,
                             trait_generics: TraitGenerics::default(),
-                            span: location.span,
+                            location,
                         },
                     };
                     self.push_trait_constraint(
@@ -1062,7 +1049,7 @@ impl<'context> Elaborator<'context> {
         self.unify(&cond_type, &Type::Bool, expr_location.file, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
-            expr_span: expr_location.span,
+            expr_location,
         });
 
         let (alternative, else_type, error_location) =
@@ -1079,7 +1066,7 @@ impl<'context> Elaborator<'context> {
             let err = TypeCheckError::TypeMismatch {
                 expected_typ: ret_type.to_string(),
                 expr_typ: else_type.to_string(),
-                expr_span: error_location.span,
+                expr_location: error_location,
             };
 
             let context = if ret_type == Type::Unit {
@@ -1214,7 +1201,7 @@ impl<'context> Elaborator<'context> {
         self.unify(&body_type, &return_type, body_location.file, || TypeCheckError::TypeMismatch {
             expected_typ: return_type.to_string(),
             expr_typ: body_type.to_string(),
-            expr_span: body_location.span,
+            expr_location: body_location,
         });
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
@@ -1235,7 +1222,7 @@ impl<'context> Elaborator<'context> {
         if self.in_comptime_context() {
             (HirExpression::Quote(tokens), Type::Quoted(QuotedType::Quoted))
         } else {
-            self.push_err(ResolverError::QuoteInRuntimeCode { span: location.span }, location.file);
+            self.push_err(ResolverError::QuoteInRuntimeCode { location }, location.file);
             (HirExpression::Error, Type::Quoted(QuotedType::Quoted))
         }
     }
@@ -1309,17 +1296,17 @@ impl<'context> Elaborator<'context> {
                         if meta.is_comptime {
                             Ok(Some(function))
                         } else {
-                            Err(ResolverError::MacroIsNotComptime { span: location.span })
+                            Err(ResolverError::MacroIsNotComptime { location })
                         }
                     } else {
-                        Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span })
+                        Err(ResolverError::InvalidSyntaxInMacroCall { location })
                     }
                 } else {
                     // Assume a name resolution error has already been issued
                     Ok(None)
                 }
             }
-            _ => Err(ResolverError::InvalidSyntaxInMacroCall { span: location.span }),
+            _ => Err(ResolverError::InvalidSyntaxInMacroCall { location }),
         }
     }
 
@@ -1333,7 +1320,7 @@ impl<'context> Elaborator<'context> {
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
         self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), location.file, || {
-            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), span: location.span }
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
         });
 
         let function = match self.try_get_comptime_function(func, location) {
