@@ -137,16 +137,12 @@ noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_t
 This matches the `opcodes` command, except that now we need to accept a `Prover.toml` file to profile execution with a specific set of inputs.
 
 We will get the following flamegraph with 1,582 opcodes executed:
-<picture>
-  <img src="../../static/img/tooling/profiler/brillig-trace-initial-32.png">
-</picture>
+![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
 
 Circuit programming (ACIR) is an entirely different execution paradigm compared to regular programming. To demonstrate this point further, let's generate an execution trace for our optimized ACIR program once we have modified `main` to be `unconstrained`.
 
 We then get the following flamegraph with 2,125 opcodes executed:
-<picture>
-  <img src="../../static/img/tooling/profiler/brillig-trace-opt-32.png">
-</picture>
+![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
 
 In the above graph we are searching for `new_array`, which shows up zero matches in the initial program. In the unconstrained environment, the updated program essentially just adds extra unnecessary checks. Thus, we see a longer execution trace.
 
