@@ -222,8 +222,8 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
-        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .run_pass(Ssa::brillig_array_gets, "Brillig Array Get Optimizations")
+        .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
         .finish())
 }
 

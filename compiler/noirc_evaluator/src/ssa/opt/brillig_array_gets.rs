@@ -61,7 +61,6 @@ impl Function {
                         1u128
                     } else {
                         3u128
-                        // continue;
                     };
                     let index = self.dfg.make_constant(
                         index_constant + offset.into(),
