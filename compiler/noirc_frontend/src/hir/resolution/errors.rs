@@ -696,7 +696,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             }
             ResolverError::InvalidSyntaxInPattern { span } => {
                 Diagnostic::simple_error(
-                    format!("Invalid syntax in match pattern"), 
+                    "Invalid syntax in match pattern".into(), 
                     "Only literal, constructor, and variable patterns are allowed".into(),
                     *span)
             },
