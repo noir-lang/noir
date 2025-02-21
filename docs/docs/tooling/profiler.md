@@ -143,7 +143,7 @@ We will get the following flamegraph with 1,582 opcodes executed:
 
 Circuit programming (ACIR) is an entirely different execution paradigm compared to regular programming. To demonstrate this point further, let's generate an execution trace for our optimized ACIR program once we have modified `main` to be `unconstrained`.
 
-We then get the follwoing flamegraph with 2,125 opcodes executed:
+We then get the following flamegraph with 2,125 opcodes executed:
 <picture>
   <img src="../../static/img/tooling/profiler/brillig-trace-opt-32.png">
 </picture>
