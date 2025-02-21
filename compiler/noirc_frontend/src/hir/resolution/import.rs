@@ -227,8 +227,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
 
     fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
-            // TODO: only error on "super"
-            return Err(PathResolutionError::NoSuper(path.location));
+            return Err(PathResolutionError::NoSuper(path.kind_location));
         };
 
         let current_module =

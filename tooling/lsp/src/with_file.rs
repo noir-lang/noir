@@ -426,6 +426,7 @@ fn path_with_file(path: Path, file: FileId) -> Path {
     Path {
         segments: vecmap(path.segments, |segment| path_segment_with_file(segment, file)),
         kind: path.kind,
+        kind_location: location_with_file(path.kind_location, file),
         location: location_with_file(path.location, file),
     }
 }

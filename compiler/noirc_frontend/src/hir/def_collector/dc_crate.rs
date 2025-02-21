@@ -22,8 +22,8 @@ use crate::node_interner::{
 
 use crate::ast::{
     ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathKind, PathSegment, UnresolvedGenerics,
-    UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType,
+    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
+    UnresolvedType, UnsupportedNumericGenericType,
 };
 
 use crate::parser::{ParserError, SortedModule};
@@ -547,11 +547,7 @@ fn inject_prelude(
             })
             .collect();
 
-        let path = Path {
-            segments: segments.clone(),
-            kind: crate::ast::PathKind::Plain,
-            location: Location::dummy(),
-        };
+        let path = Path::plain(segments.clone(), Location::dummy());
 
         if let Ok(resolved_import) = resolve_import(
             path,
@@ -576,7 +572,7 @@ fn inject_prelude(
                     ImportDirective {
                         visibility: ItemVisibility::Private,
                         module_id: crate_root,
-                        path: Path { segments, kind: PathKind::Plain, location: Location::dummy() },
+                        path: Path::plain(segments, Location::dummy()),
                         alias: None,
                         is_prelude: true,
                     },
