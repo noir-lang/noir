@@ -23,8 +23,6 @@ impl<'a> Parser<'a> {
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location);
-
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_enum(
@@ -218,7 +216,7 @@ mod tests {
     fn parse_unclosed_enum() {
         let src = "enum Foo {";
         let (module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Enum(noir_enum) = &item.kind else {
@@ -256,7 +254,8 @@ mod tests {
         assert_eq!("Foo", noir_enum.name.to_string());
         assert_eq!(noir_enum.variants.len(), 1);
 
-        let error = &errors[1];
+        assert_eq!(errors.len(), 1);
+        let error = &errors[0];
         assert_eq!(error.to_string(), "Expected an identifier but found '42'");
     }
 }

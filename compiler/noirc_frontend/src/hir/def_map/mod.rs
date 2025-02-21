@@ -1,3 +1,4 @@
+use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
@@ -77,8 +78,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        debug_comptime_in_file: Option<&str>,
-        pedantic_solving: bool,
+        options: FrontendOptions,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -120,8 +120,7 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            options,
         ));
 
         errors.extend(

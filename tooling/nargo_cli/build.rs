@@ -198,6 +198,9 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     // Allow more bytecode in exchange to catch illegal states.
     nargo.arg("--enable-brillig-debug-assertions");
 
+    // Enable enums as an unstable feature
+    nargo.arg("-Zenums");
+
     if force_brillig.0 {{
         nargo.arg("--force-brillig");
 

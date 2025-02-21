@@ -36,6 +36,7 @@ use crate::{
         DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
+    parser::{ParserError, ParserErrorReason},
     token::SecondaryAttribute,
     EnumVariant, Shared, Type, TypeVariable,
 };
@@ -52,6 +53,7 @@ mod comptime;
 mod enums;
 mod expressions;
 mod lints;
+mod options;
 mod path_resolution;
 mod patterns;
 mod scope;
@@ -63,7 +65,9 @@ mod unquote;
 
 use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location};
+use noirc_errors::{Located, Location, Span};
+pub(crate) use options::ElaboratorOptions;
+pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
 use path_resolution::{PathResolution, PathResolutionItem};
 use types::bind_ordered_generics;
@@ -179,9 +183,6 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
-    /// The scope of --debug-comptime, or None if unset
-    debug_comptime_in_file: Option<FileId>,
-
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
@@ -195,8 +196,8 @@ pub struct Elaborator<'context> {
     /// that comptime value and any visibility errors were already reported.
     silence_field_visibility_errors: usize,
 
-    /// Use pedantic ACVM solving
-    pedantic_solving: bool,
+    /// Options from the nargo cli
+    options: ElaboratorOptions<'context>,
 
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
@@ -211,6 +212,7 @@ pub enum ElaborateReason {
     /// Evaluating `Module::add_item`
     AddingItemToModule,
 }
+
 impl ElaborateReason {
     fn to_macro_error(self, error: CompilationError, location: Location) -> ComptimeError {
         match self {
@@ -250,9 +252,8 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         crate_id: CrateId,
-        debug_comptime_in_file: Option<FileId>,
         interpreter_call_stack: im::Vector<Location>,
-        pedantic_solving: bool,
+        options: ElaboratorOptions<'context>,
         elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
     ) -> Self {
         Self {
@@ -275,13 +276,12 @@ impl<'context> Elaborator<'context> {
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
-            debug_comptime_in_file,
             unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
             silence_field_visibility_errors: 0,
-            pedantic_solving,
+            options,
             elaborate_reasons,
         }
     }
@@ -289,8 +289,7 @@ impl<'context> Elaborator<'context> {
     pub fn from_context(
         context: &'context mut Context,
         crate_id: CrateId,
-        debug_comptime_in_file: Option<FileId>,
-        pedantic_solving: bool,
+        options: ElaboratorOptions<'context>,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -298,9 +297,8 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             crate_id,
-            debug_comptime_in_file,
             im::Vector::new(),
-            pedantic_solving,
+            options,
             im::Vector::new(),
         )
     }
@@ -309,28 +307,18 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
-        debug_comptime_in_file: Option<FileId>,
-        pedantic_solving: bool,
+        options: ElaboratorOptions<'context>,
     ) -> Vec<(CompilationError, FileId)> {
-        Self::elaborate_and_return_self(
-            context,
-            crate_id,
-            items,
-            debug_comptime_in_file,
-            pedantic_solving,
-        )
-        .errors
+        Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
     pub fn elaborate_and_return_self(
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
-        debug_comptime_in_file: Option<FileId>,
-        pedantic_solving: bool,
+        options: ElaboratorOptions<'context>,
     ) -> Self {
-        let mut this =
-            Self::from_context(context, crate_id, debug_comptime_in_file, pedantic_solving);
+        let mut this = Self::from_context(context, crate_id, options);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -412,6 +400,11 @@ impl<'context> Elaborator<'context> {
         }
 
         self.push_errors(self.interner.check_for_dependency_cycles());
+    }
+
+    /// True if we should use pedantic ACVM solving
+    pub fn pedantic_solving(&self) -> bool {
+        self.options.pedantic_solving
     }
 
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
@@ -1941,8 +1934,12 @@ impl<'context> Elaborator<'context> {
             self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
-            let generics = datatype.borrow().generic_types();
-            self.add_existing_generics(&typ.enum_def.generics, &datatype.borrow().generics);
+            let datatype_ref = datatype.borrow();
+            let generics = datatype_ref.generic_types();
+            self.add_existing_generics(&typ.enum_def.generics, &datatype_ref.generics);
+
+            self.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.span());
+            drop(datatype_ref);
 
             let self_type = Type::DataType(datatype.clone(), generics);
             let self_type_id = self.interner.push_quoted_type(self_type.clone());
@@ -2226,5 +2223,15 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => true,
             })
+    }
+
+    /// Register a use of the given unstable feature. Errors if the feature has not
+    /// been explicitly enabled in this package.
+    pub fn use_unstable_feature(&mut self, feature: UnstableFeature, span: Span) {
+        if !self.options.enabled_unstable_features.contains(&feature) {
+            let reason = ParserErrorReason::ExperimentalFeature(feature);
+            let location = Location::new(span, self.file);
+            self.push_err(ParserError::with_reason(reason, location), self.file);
+        }
     }
 }

@@ -95,9 +95,8 @@ impl<'context> Elaborator<'context> {
             self.usage_tracker,
             self.crate_graph,
             self.crate_id,
-            self.debug_comptime_in_file,
             self.interpreter_call_stack.clone(),
-            self.pedantic_solving,
+            self.options,
             self.elaborate_reasons.clone(),
         );
 
@@ -496,7 +495,7 @@ impl<'context> Elaborator<'context> {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
-        Interpreter::new(self, self.crate_id, current_function, self.pedantic_solving)
+        Interpreter::new(self, self.crate_id, current_function)
     }
 
     pub(super) fn debug_comptime<T: Display, F: FnMut(&mut NodeInterner) -> T>(
@@ -504,7 +503,7 @@ impl<'context> Elaborator<'context> {
         location: Location,
         mut expr_f: F,
     ) {
-        if Some(location.file) == self.debug_comptime_in_file {
+        if Some(location.file) == self.options.debug_comptime_in_file {
             let displayed_expr = expr_f(self.interner);
             let error: CompilationError =
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into();
