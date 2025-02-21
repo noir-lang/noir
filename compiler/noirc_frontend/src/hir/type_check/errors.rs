@@ -373,7 +373,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
             TypeCheckError::MutableCaptureWithoutRef { name, span } => Diagnostic::simple_error(
-                format!("Variable {name} captured in lambda must be a mutable reference"),
+                format!("Mutable variable {name} captured in lambda must be a mutable reference"),
                 "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
                 *span,
             ),
