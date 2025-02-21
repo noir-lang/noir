@@ -55,15 +55,20 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
     // We can have repeated names if there are functions with the same name in different
     // modules or functions that use generics.
-    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    let mut seen_names: HashMap<String, usize> = HashMap::default();
     for (func_idx, bytecode) in bytecode.functions.iter().enumerate() {
-        let func_name = acir_names[func_idx].as_str();
-        let count = seen_names.entry(func_name).and_modify(|c| *c += 1).or_insert(0);
+        let original_name = acir_names[func_idx].as_str();
+        let mut function_name = original_name.to_owned();
 
-        let func_name =
-            if *count == 0 { func_name.to_owned() } else { format!("{}_{}", func_name, count) };
+        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
+        // Ensure uniqueness by checking existing names
+        while seen_names.contains_key(&function_name) {
+            counter += 1;
+            function_name = format!("{}_{}", original_name, counter);
+        }
+        seen_names.insert(function_name.clone(), counter);
 
-        println!("Opcode count for {}: {}", func_name, bytecode.opcodes.len());
+        println!("Opcode count for {}: {}", function_name, bytecode.opcodes.len());
 
         let samples = bytecode
             .opcodes
@@ -82,8 +87,9 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
-            &func_name,
-            &Path::new(&output_path).join(Path::new(&format!("{}_acir_opcodes.svg", &func_name))),
+            &function_name,
+            &Path::new(&output_path)
+                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
         )?;
     }
 
@@ -93,7 +99,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
     // We can have repeated names if there are functions with the same name in different
     // modules or functions that use generics.
-    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    let mut seen_names: HashMap<String, usize> = HashMap::default();
+    // let mut seen_names: HashMap<&str, usize> = HashMap::default();
     for (brillig_fn_index, brillig_bytecode) in
         bytecode.unconstrained_functions.into_iter().enumerate()
     {
@@ -102,15 +109,16 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             continue;
         };
 
-        let function_name = brillig_names[brillig_fn_index].as_str();
+        let original_name = brillig_names[brillig_fn_index].as_str();
+        let mut function_name = original_name.to_owned();
 
-        let count = seen_names.entry(function_name).and_modify(|c| *c += 1).or_insert(0);
-
-        let function_name = if *count == 0 {
-            function_name.to_owned()
-        } else {
-            format!("{}_{}", function_name, count)
-        };
+        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
+        // Ensure uniqueness by checking existing names
+        while seen_names.contains_key(&function_name) {
+            counter += 1;
+            function_name = format!("{}_{}", original_name, counter);
+        }
+        seen_names.insert(function_name.clone(), counter);
 
         println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
 
@@ -248,6 +256,12 @@ mod tests {
                 outputs: vec![],
                 predicate: None,
             },
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(2),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
         ];
 
         let artifact = ProgramArtifact {
@@ -259,12 +273,13 @@ mod tests {
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
+                    BrilligBytecode::default(),
                 ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
-            brillig_names: vec!["main".to_string(), "main".to_string()],
+            brillig_names: vec!["main".to_string(), "main".to_string(), "main_1".to_string()],
         };
 
         // Write the artifact to a file
@@ -284,6 +299,9 @@ mod tests {
         assert!(output_file.exists());
 
         let output_file = temp_dir.path().join("main_1_brillig_opcodes.svg");
+        assert!(output_file.exists());
+
+        let output_file = temp_dir.path().join("main_1_2_brillig_opcodes.svg");
         assert!(output_file.exists());
     }
 }

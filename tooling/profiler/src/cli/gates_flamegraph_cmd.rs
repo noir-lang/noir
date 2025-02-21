@@ -75,15 +75,20 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
     // We can have repeated names if there are functions with the same name in different
     // modules or functions that use generics.
-    let mut seen_names: HashMap<&str, usize> = HashMap::default();
+    let mut seen_names: HashMap<String, usize> = HashMap::default();
     for (func_idx, (func_gates, bytecode)) in
         backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
     {
-        let func_name = function_names[func_idx].as_str();
-        let count = seen_names.entry(func_name).and_modify(|c| *c += 1).or_insert(0);
+        let original_name = function_names[func_idx].as_str();
+        let mut function_name = original_name.to_owned();
 
-        let func_name =
-            if *count == 0 { func_name.to_owned() } else { format!("{}_{}", func_name, count) };
+        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
+        // Ensure uniqueness by checking existing names
+        while seen_names.contains_key(&function_name) {
+            counter += 1;
+            function_name = format!("{}_{}", original_name, counter);
+        }
+        seen_names.insert(function_name.clone(), counter);
 
         println!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
@@ -106,16 +111,16 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .collect();
 
         let output_filename = if let Some(output_filename) = &output_filename {
-            format!("{}_{}_gates.svg", output_filename, func_name)
+            format!("{}_{}_gates.svg", output_filename, function_name)
         } else {
-            format!("{}_gates.svg", func_name)
+            format!("{}_gates.svg", function_name)
         };
         flamegraph_generator.generate_flamegraph(
             samples,
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
-            &func_name,
+            &function_name,
             &Path::new(&output_path).join(Path::new(&output_filename)),
         )?;
     }
