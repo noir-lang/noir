@@ -273,11 +273,11 @@ impl From<InterpreterError> for CompilationError {
 
 impl InterpreterError {
     pub fn into_compilation_error_pair(self) -> (CompilationError, fm::FileId) {
-        let location = self.get_location();
+        let location = self.location();
         (CompilationError::InterpreterError(self), location.file)
     }
 
-    pub fn get_location(&self) -> Location {
+    pub fn location(&self) -> Location {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
@@ -711,6 +711,15 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 pub enum ComptimeError {
     ErrorRunningAttribute { error: Box<CompilationError>, location: Location },
     ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
+}
+
+impl ComptimeError {
+    pub fn location(&self) -> Location {
+        match self {
+            ComptimeError::ErrorRunningAttribute { location, .. }
+            | ComptimeError::ErrorAddingItemToModule { location, .. } => *location,
+        }
+    }
 }
 
 impl<'a> From<&'a ComptimeError> for CustomDiagnostic {

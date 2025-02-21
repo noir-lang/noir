@@ -238,6 +238,86 @@ impl TypeCheckError {
     pub(crate) fn is_non_constant_evaluated(&self) -> bool {
         matches!(self, TypeCheckError::NonConstantEvaluated { .. })
     }
+
+    pub fn location(&self) -> Location {
+        match self {
+            TypeCheckError::OpCannotBeUsed { location, .. }
+            | TypeCheckError::DivisionByZero { location, .. }
+            | TypeCheckError::ModuloOnFields { location, .. }
+            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::TypeCannotBeUsed { location, .. }
+            | TypeCheckError::TypeMismatch { expr_location: location, .. }
+            | TypeCheckError::TypeMismatchWithSource { location, .. }
+            | TypeCheckError::TypeKindMismatch { expr_location: location, .. }
+            | TypeCheckError::TypeCanonicalizationMismatch { location, .. }
+            | TypeCheckError::ArityMisMatch { location, .. }
+            | TypeCheckError::PublicReturnType { location, .. }
+            | TypeCheckError::InvalidCast { location, .. }
+            | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::ExpectedFunction { location, .. }
+            | TypeCheckError::AccessUnknownMember { location, .. }
+            | TypeCheckError::ParameterCountMismatch { location, .. }
+            | TypeCheckError::AssertionParameterCountMismatch { location, .. }
+            | TypeCheckError::GenericCountMismatch { location, .. }
+            | TypeCheckError::UnconstrainedMismatch { location, .. }
+            | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotMutateImmutableVariable { location, .. }
+            | TypeCheckError::UnresolvedMethodCall { location, .. }
+            | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
+            | TypeCheckError::IntegerSignedness { location, .. }
+            | TypeCheckError::IntegerBitWidth { location, .. }
+            | TypeCheckError::InvalidInfixOp { location, .. }
+            | TypeCheckError::InvalidUnaryOp { location, .. }
+            | TypeCheckError::FieldBitwiseOp { location }
+            | TypeCheckError::IntegerTypeMismatch { location, .. }
+            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
+            | TypeCheckError::FieldModulo { location }
+            | TypeCheckError::FieldNot { location }
+            | TypeCheckError::FieldComparison { location }
+            | TypeCheckError::InvalidShiftSize { location }
+            | TypeCheckError::AmbiguousBitWidth { location }
+            | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
+            | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
+            | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
+            | TypeCheckError::MultipleMatchingImpls { location, .. }
+            | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UnusedResultError { expr_location: location, .. }
+            | TypeCheckError::TraitMethodParameterTypeMismatch {
+                parameter_location: location,
+                ..
+            }
+            | TypeCheckError::UnneededTraitConstraint { location, .. }
+            | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
+            | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
+            | TypeCheckError::UnconstrainedReferenceToConstrained { location }
+            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::Unsafe { location }
+            | TypeCheckError::UnsafeFn { location }
+            | TypeCheckError::NonConstantEvaluated { location, .. }
+            | TypeCheckError::NonConstantSliceLength { location }
+            | TypeCheckError::InvalidTypeForEntryPoint { location }
+            | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
+            | TypeCheckError::StringIndexAssign { location }
+            | TypeCheckError::MacroReturningNonExpr { location, .. }
+            | TypeCheckError::MissingNamedTypeArg { location, .. }
+            | TypeCheckError::UnspecifiedType { location }
+            | TypeCheckError::CyclicType { location, .. }
+            | TypeCheckError::TypeAnnotationsNeededForIndex { location }
+            | TypeCheckError::UnnecessaryUnsafeBlock { location }
+            | TypeCheckError::NestedUnsafeBlock { location } => *location,
+            TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
+            | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
+            TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
+                no_matching_impl_found_error.location
+            }
+            TypeCheckError::Context { err, .. } => err.location(),
+            TypeCheckError::ResolverError(resolver_error) => resolver_error.location(),
+        }
+    }
 }
 
 impl<'a> From<&'a TypeCheckError> for Diagnostic {

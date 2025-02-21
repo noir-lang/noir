@@ -189,7 +189,22 @@ pub enum CompilationError {
     TypeError(TypeCheckError),
     InterpreterError(InterpreterError),
     ComptimeError(ComptimeError),
-    DebugComptimeScopeNotFound(Vec<PathBuf>),
+    DebugComptimeScopeNotFound(Vec<PathBuf>, Location),
+}
+
+impl CompilationError {
+    /// Returns the primary location where this error happened.
+    pub fn location(&self) -> Location {
+        match self {
+            CompilationError::ParseError(error) => error.location(),
+            CompilationError::DefinitionError(error) => error.location(),
+            CompilationError::ResolverError(error) => error.location(),
+            CompilationError::TypeError(error) => error.location(),
+            CompilationError::InterpreterError(error) => error.location(),
+            CompilationError::ComptimeError(error) => error.location(),
+            CompilationError::DebugComptimeScopeNotFound(_, location) => *location,
+        }
+    }
 }
 
 impl std::fmt::Display for CompilationError {
@@ -200,7 +215,7 @@ impl std::fmt::Display for CompilationError {
             CompilationError::ResolverError(error) => write!(f, "{}", error),
             CompilationError::TypeError(error) => write!(f, "{}", error),
             CompilationError::InterpreterError(error) => write!(f, "{:?}", error),
-            CompilationError::DebugComptimeScopeNotFound(error) => write!(f, "{:?}", error),
+            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{:?}", error),
             CompilationError::ComptimeError(error) => write!(f, "{:?}", error),
         }
     }
@@ -215,7 +230,7 @@ impl<'a> From<&'a CompilationError> for CustomDiagnostic {
             CompilationError::TypeError(error) => error.into(),
             CompilationError::InterpreterError(error) => error.into(),
             CompilationError::ComptimeError(error) => error.into(),
-            CompilationError::DebugComptimeScopeNotFound(error) => {
+            CompilationError::DebugComptimeScopeNotFound(error, _) => {
                 let msg = "multiple files found matching --debug-comptime path".into();
                 let secondary = error.iter().fold(String::new(), |mut output, path| {
                     let _ = writeln!(output, "    {}", path.display());
@@ -473,7 +488,11 @@ impl DefCollector {
         let debug_comptime_in_file = debug_comptime_in_file.and_then(|debug_comptime_in_file| {
             let file = context.file_manager.find_by_path_suffix(debug_comptime_in_file);
             file.unwrap_or_else(|error| {
-                errors.push((CompilationError::DebugComptimeScopeNotFound(error), root_file_id));
+                let location = Location::new(Span::empty(0), root_file_id);
+                errors.push((
+                    CompilationError::DebugComptimeScopeNotFound(error, location),
+                    root_file_id,
+                ));
                 None
             })
         });

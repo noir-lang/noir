@@ -57,6 +57,23 @@ pub enum PathResolutionError {
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
 }
 
+impl PathResolutionError {
+    pub fn location(&self) -> Location {
+        match self {
+            PathResolutionError::NoSuper(location)
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
+            PathResolutionError::Unresolved(ident)
+            | PathResolutionError::Private(ident)
+            | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::TraitMethodNotInScope { ident, .. }
+            | PathResolutionError::MultipleTraitsInScope { ident, .. }
+            | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. } => {
+                ident.location()
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ResolvedImport {
     // The symbol which we have resolved to

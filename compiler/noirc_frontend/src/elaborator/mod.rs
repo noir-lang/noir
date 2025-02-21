@@ -749,6 +749,7 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
         let error: CompilationError = error.into();
+        let file = error.location().file;
         self.errors.push((error, file));
     }
 

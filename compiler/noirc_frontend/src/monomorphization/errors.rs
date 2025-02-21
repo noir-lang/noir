@@ -29,7 +29,7 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
-            MonomorphizationError::InterpreterError(error) => error.get_location(),
+            MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
 }

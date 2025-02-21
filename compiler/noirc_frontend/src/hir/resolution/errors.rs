@@ -188,6 +188,86 @@ impl ResolverError {
     pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
         Diagnostic::from(self).in_file(file)
     }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ResolverError::DuplicateDefinition { first_location: location, .. }
+            | ResolverError::UnconditionalRecursion { location, .. }
+            | ResolverError::PathIsNotIdent { location }
+            | ResolverError::Expected { location, .. }
+            | ResolverError::VariableNotDeclared { location, .. }
+            | ResolverError::MissingFields { location, .. }
+            | ResolverError::UnnecessaryMut { second_mut: location, .. }
+            | ResolverError::TypeIsMorePrivateThenItem { location, .. }
+            | ResolverError::UnableToParseAttribute { location, .. }
+            | ResolverError::AttributeFunctionIsNotAPath { location, .. }
+            | ResolverError::AttributeFunctionNotInScope { location, .. }
+            | ResolverError::TraitNotImplemented { location, .. }
+            | ResolverError::LoopNotYetSupported { location }
+            | ResolverError::ExpectedTrait { location, .. }
+            | ResolverError::MissingRhsExpr { location, .. }
+            | ResolverError::InvalidArrayLengthExpr { location }
+            | ResolverError::IntegerTooLarge { location }
+            | ResolverError::CapturedMutableVariable { location }
+            | ResolverError::TestFunctionHasParameters { location }
+            | ResolverError::NonStructUsedInConstructor { location, .. }
+            | ResolverError::NonStructWithGenerics { location }
+            | ResolverError::GenericsOnSelfType { location }
+            | ResolverError::GenericsOnAssociatedType { location }
+            | ResolverError::MutableReferenceToImmutableVariable { location, .. }
+            | ResolverError::MutableReferenceToArrayElement { location }
+            | ResolverError::InvalidClosureEnvironment { location, .. }
+            | ResolverError::NestedSlices { location }
+            | ResolverError::AbiAttributeOutsideContract { location }
+            | ResolverError::UnconstrainedOracleReturnToConstrained { location }
+            | ResolverError::DependencyCycle { location, .. }
+            | ResolverError::JumpInConstrainedFn { location, .. }
+            | ResolverError::LoopInConstrainedFn { location }
+            | ResolverError::LoopWithoutBreak { location }
+            | ResolverError::WhileInConstrainedFn { location }
+            | ResolverError::JumpOutsideLoop { location, .. }
+            | ResolverError::MutableGlobal { location }
+            | ResolverError::UnspecifiedGlobalType { location, .. }
+            | ResolverError::UnevaluatedGlobalType { location }
+            | ResolverError::NegativeGlobalType { location, .. }
+            | ResolverError::NonIntegralGlobalType { location, .. }
+            | ResolverError::GlobalLargerThanKind { location, .. }
+            | ResolverError::SelfReferentialType { location }
+            | ResolverError::NumericGenericUsedForType { location, .. }
+            | ResolverError::UnquoteUsedOutsideQuote { location }
+            | ResolverError::AsTraitPathNotYetImplemented { location }
+            | ResolverError::InvalidSyntaxInMacroCall { location }
+            | ResolverError::MacroIsNotComptime { location }
+            | ResolverError::NonFunctionInAnnotation { location }
+            | ResolverError::MacroResultInGenericsListNotAGeneric { location, .. }
+            | ResolverError::NamedTypeArgs { location, .. }
+            | ResolverError::AssociatedConstantsMustBeNumeric { location }
+            | ResolverError::BinaryOpError { location, .. }
+            | ResolverError::QuoteInRuntimeCode { location }
+            | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
+            | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
+            | ResolverError::InvalidInternedStatementInExpr { location, .. } => *location,
+            ResolverError::UnusedVariable { ident }
+            | ResolverError::UnusedItem { ident, .. }
+            | ResolverError::DuplicateField { field: ident }
+            | ResolverError::NoSuchField { field: ident, .. }
+            | ResolverError::UnnecessaryPub { ident, .. }
+            | ResolverError::NecessaryPub { ident }
+            | ResolverError::LowLevelFunctionOutsideOfStdlib { ident }
+            | ResolverError::OracleMarkedAsConstrained { ident }
+            | ResolverError::NoPredicatesAttributeOnUnconstrained { ident }
+            | ResolverError::FoldAttributeOnUnconstrained { ident } => ident.location(),
+            ResolverError::ArrayLengthInterpreter { error } => error.location(),
+            ResolverError::PathResolutionError(path_resolution_error) => {
+                path_resolution_error.location()
+            }
+            ResolverError::NoSuchNumericTypeVariable { path } => path.location,
+            ResolverError::ParserError(parser_error) => parser_error.location(),
+            ResolverError::UnsupportedNumericGenericType(unsupported_numeric_generic_type) => {
+                unsupported_numeric_generic_type.ident.location()
+            }
+        }
+    }
 }
 
 impl<'a> From<&'a ResolverError> for Diagnostic {
@@ -196,7 +276,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
     /// soundness of the generated program
     fn from(error: &'a ResolverError) -> Diagnostic {
         match error {
-            ResolverError::DuplicateDefinition { name, first_location, second_location } => {
+            ResolverError::DuplicateDefinition { name, first_location, second_location} => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {name} found"),
                     "first definition found here".to_string(),
