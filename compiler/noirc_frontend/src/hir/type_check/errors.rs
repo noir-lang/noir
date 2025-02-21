@@ -94,6 +94,8 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, span: Span },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, span: Span },
+    #[error("Variable {name} captured in lambda must be a mutable reference")]
+    MutableCaptureWithoutRef { name: String, span: Span },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -370,6 +372,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { span } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *span)
             }
+            TypeCheckError::MutableCaptureWithoutRef { name, span } => Diagnostic::simple_error(
+                format!("Variable {name} captured in lambda must be a mutable reference"),
+                "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
+                *span,
+            ),
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),

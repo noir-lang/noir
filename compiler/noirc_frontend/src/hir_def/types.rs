@@ -1245,6 +1245,10 @@ impl Type {
         }
     }
 
+    pub(crate) fn is_mutable_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::MutableReference(_))
+    }
+
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.

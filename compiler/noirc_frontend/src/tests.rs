@@ -4475,3 +4475,59 @@ fn errors_on_unspecified_unstable_match() {
 
     assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
+
+#[test]
+fn mutate_with_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+    
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn mutate_with_reference_marked_mutable_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            x += 2;
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::TypeError(TypeCheckError::MutableCaptureWithoutRef { .. })
+    ));
+}
