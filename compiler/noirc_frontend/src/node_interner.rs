@@ -1779,18 +1779,20 @@ impl NodeInterner {
     }
 
     /// Looks up a method that's directly defined in the given type.
+    /// If `check_self_param` is `true`, only a method that has a `self` parameter with a type
+    /// that unifies with `typ` will be returned.
     pub fn lookup_direct_method(
         &self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
+        check_self_param: bool,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
         self.methods
             .get(&key)
             .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
+            .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
     /// Looks up a methods that apply to the given type but are defined in traits.
@@ -2347,11 +2349,11 @@ impl Methods {
     pub fn find_direct_method(
         &self,
         typ: &Type,
-        has_self_param: bool,
+        check_self_param: bool,
         interner: &NodeInterner,
     ) -> Option<FuncId> {
         for method in &self.direct {
-            if Self::method_matches(typ, has_self_param, *method, None, interner) {
+            if Self::method_matches(typ, check_self_param, *method, None, interner) {
                 return Some(*method);
             }
         }
@@ -2382,14 +2384,14 @@ impl Methods {
 
     fn method_matches(
         typ: &Type,
-        has_self_param: bool,
+        check_self_param: bool,
         method: FuncId,
         method_type: Option<&Type>,
         interner: &NodeInterner,
     ) -> bool {
         match interner.function_meta(&method).typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
-                if has_self_param {
+                if check_self_param {
                     if let Some(object) = args.first() {
                         if object.unify(typ).is_ok() {
                             return true;
