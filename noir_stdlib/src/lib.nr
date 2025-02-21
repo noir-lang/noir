@@ -6,8 +6,6 @@ pub mod merkle;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
 pub mod embedded_curve_ops;
-pub mod sha256;
-pub mod sha512;
 pub mod field;
 pub mod collections;
 pub mod compat;
