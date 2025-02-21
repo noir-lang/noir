@@ -1107,6 +1107,8 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) -> (HirExpression, Type) {
         let span = location.span;
+        self.use_unstable_feature(super::UnstableFeature::Enums, span);
+
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 

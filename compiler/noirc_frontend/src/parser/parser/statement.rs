@@ -295,8 +295,6 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        self.push_error(ParserErrorReason::ExperimentalFeature("loops"), start_location);
-
         let block_start_location = self.current_token_location;
         let block = if let Some(block) = self.parse_block() {
             Expression {
@@ -320,8 +318,6 @@ impl<'a> Parser<'a> {
         if !self.eat_keyword(Keyword::While) {
             return None;
         }
-
-        self.push_error(ParserErrorReason::ExperimentalFeature("while loops"), start_location);
 
         let condition = self.parse_expression_except_constructor_or_error();
 

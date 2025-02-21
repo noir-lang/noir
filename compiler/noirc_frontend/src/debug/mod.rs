@@ -123,7 +123,7 @@ impl DebugInstrumenter {
         let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
-        self.walk_scope(&mut statements, func.location.span);
+        self.walk_scope(&mut statements, func.location);
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");
@@ -139,7 +139,7 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -166,8 +166,8 @@ impl DebugInstrumenter {
             }
         };
 
-        let span = Span::empty(span.end());
-        let location = Location::new(span, FileId::dummy());
+        let span = Span::empty(location.span.end());
+        let location = Location::new(span, location.file);
 
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
@@ -384,7 +384,7 @@ impl DebugInstrumenter {
         match &mut expr.kind {
             ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.location.span);
+                self.walk_scope(statements, expr.location);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
