@@ -3,7 +3,6 @@ use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
 use acvm::{acir::AcirField, FieldElement};
-use fm::FileId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -222,11 +221,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_module<T>(
         &mut self,
         module: ModuleId,
-        file: FileId,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, file, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, f);
         self.rebind_generics_from_previous_function();
         result
     }

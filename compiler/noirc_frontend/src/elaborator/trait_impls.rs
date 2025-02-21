@@ -28,7 +28,6 @@ impl<'context> Elaborator<'context> {
         trait_impl_where_clause: &[TraitConstraint],
     ) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -222,7 +221,6 @@ impl<'context> Elaborator<'context> {
         trait_impl: &UnresolvedTraitImpl,
     ) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),

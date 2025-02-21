@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{Documented, Expression, ExpressionKind},
@@ -29,21 +28,17 @@ use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
 struct AttributeContext {
-    // The file where generated items should be added
-    file: FileId,
     // The module where generated items should be added
     module: LocalModuleId,
-    // The file where the attribute is located
-    attribute_file: FileId,
     // The module where the attribute is located
     attribute_module: LocalModuleId,
 }
 
-type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Span)>;
+type CollectedAttributes = Vec<(FuncId, Value, Vec<Expression>, AttributeContext, Location)>;
 
 impl AttributeContext {
-    fn new(file: FileId, module: LocalModuleId) -> Self {
-        Self { file, module, attribute_file: file, attribute_module: module }
+    fn new(module: LocalModuleId) -> Self {
+        Self { module, attribute_module: module }
     }
 }
 
@@ -62,7 +57,6 @@ impl<'context> Elaborator<'context> {
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = meta.source_crate;
                 elaborator.local_module = meta.source_module;
-                elaborator.file = meta.source_file;
                 elaborator.introduce_generics_into_scope(meta.all_generics.clone());
             }
         })
@@ -71,14 +65,12 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
-        file: FileId,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
         self.elaborate_item_from_comptime(f, |elaborator| {
             elaborator.current_item = None;
             elaborator.crate_id = module.krate;
             elaborator.local_module = module.local_id;
-            elaborator.file = file;
         })
     }
 
@@ -105,7 +97,6 @@ impl<'context> Elaborator<'context> {
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
-        elaborator.file = self.file;
 
         setup(&mut elaborator);
 
@@ -182,10 +173,8 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
-        self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
         let location = attribute.location;
-        let span = location.span;
 
         let function =
             Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
@@ -218,7 +207,7 @@ impl<'context> Elaborator<'context> {
             return Err(ResolverError::NonFunctionInAnnotation { location }.into());
         };
 
-        attributes_to_run.push((function, item, arguments, attribute_context, span));
+        attributes_to_run.push((function, item, arguments, attribute_context, location));
         Ok(())
     }
 
@@ -231,7 +220,6 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
-        self.file = attribute_context.file;
         self.local_module = attribute_context.module;
 
         let mut interpreter = self.setup_interpreter();
@@ -529,7 +517,7 @@ impl<'context> Elaborator<'context> {
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
-            let context = AttributeContext::new(trait_.file_id, trait_.module_id);
+            let context = AttributeContext::new(trait_.module_id);
             self.collect_comptime_attributes_on_item(
                 attributes,
                 item,
@@ -541,7 +529,7 @@ impl<'context> Elaborator<'context> {
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
             let item = Value::StructDefinition(*struct_id);
-            let context = AttributeContext::new(struct_def.file_id, struct_def.module_id);
+            let context = AttributeContext::new(struct_def.module_id);
             self.collect_comptime_attributes_on_item(
                 attributes,
                 item,
@@ -556,9 +544,7 @@ impl<'context> Elaborator<'context> {
         self.sort_attributes_by_run_order(&mut attributes_to_run);
 
         // run
-        for (attribute, item, args, context, span) in attributes_to_run {
-            let location = Location::new(span, context.attribute_file);
-
+        for (attribute, item, args, context, location) in attributes_to_run {
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
@@ -591,8 +577,8 @@ impl<'context> Elaborator<'context> {
 
         // Sort each attribute by (module, location in file) so that we can execute in
         // the order they were defined in, running attributes in child modules first.
-        attributes.sort_by_key(|(_, _, _, ctx, span)| {
-            (module_order[&ctx.attribute_module], span.start())
+        attributes.sort_by_key(|(_, _, _, ctx, location)| {
+            (module_order[&ctx.attribute_module], location.span.start())
         });
     }
 
@@ -608,9 +594,7 @@ impl<'context> Elaborator<'context> {
             let attribute = &module_attribute.attribute;
 
             let context = AttributeContext {
-                file: module_attribute.file_id,
                 module: module_attribute.module_id,
-                attribute_file: module_attribute.attribute_file_id,
                 attribute_module: module_attribute.attribute_module_id,
             };
 
@@ -627,7 +611,7 @@ impl<'context> Elaborator<'context> {
             self.self_type = function_set.self_type.clone();
 
             for (local_module, function_id, function) in &function_set.functions {
-                let context = AttributeContext::new(function_set.file_id, *local_module);
+                let context = AttributeContext::new(*local_module);
                 let attributes = function.secondary_attributes();
                 let item = Value::FunctionDefinition(*function_id);
                 self.collect_comptime_attributes_on_item(

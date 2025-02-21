@@ -97,7 +97,6 @@ impl<'context> Elaborator<'context> {
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
         self.local_module = unresolved_trait.module_id;
-        self.file = self.def_maps[&self.crate_id].file_id(unresolved_trait.module_id);
 
         let mut functions = vec![];
 

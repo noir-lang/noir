@@ -2765,8 +2765,7 @@ fn module_add_item(
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
-    let module_data = interpreter.elaborator.get_module(module_id);
-    interpreter.elaborate_in_module(module_id, module_data.location.file, |elaborator| {
+    interpreter.elaborate_in_module(module_id, |elaborator| {
         let previous_errors = elaborator
             .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
 

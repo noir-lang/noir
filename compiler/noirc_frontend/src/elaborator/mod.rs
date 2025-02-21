@@ -112,8 +112,6 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
 
-    pub(crate) file: FileId,
-
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
 
@@ -262,7 +260,6 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
-            file: FileId::dummy(),
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -473,7 +470,6 @@ impl<'context> Elaborator<'context> {
         );
 
         self.local_module = func_meta.source_module;
-        self.file = func_meta.source_file;
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 
@@ -1265,13 +1261,11 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
-            self.file = functions.file_id;
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
         self.generics = trait_impl.resolved_generics.clone();
@@ -1457,7 +1451,6 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
-            self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(None, unresolved, *location);
@@ -1467,7 +1460,6 @@ impl<'context> Elaborator<'context> {
 
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
         self.current_trait_impl = trait_impl.impl_id;
 
         let self_type = trait_impl.methods.self_type.clone();
@@ -1536,7 +1528,7 @@ impl<'context> Elaborator<'context> {
 
             let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-            if let Err((prev_location, prev_file)) = self.interner.add_trait_implementation(
+            if let Err(prev_location) = self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
                 trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
@@ -1548,13 +1540,12 @@ impl<'context> Elaborator<'context> {
                     location: self_type_location,
                 });
 
+                // TODO: this comment isn't accurate anymore, maybe the two errors can be merged now?
                 // The 'previous impl defined here' note must be a separate error currently
                 // since it may be in a different file and all errors have the same file id.
-                self.file = prev_file;
                 self.push_err(DefCollectorErrorKind::OverlappingImplNote {
                     location: prev_location,
                 });
-                self.file = trait_impl.file_id;
             }
         }
 
@@ -1663,7 +1654,6 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.file = alias.file_id;
         self.local_module = alias.module_id;
 
         let name = &alias.type_alias_def.name;
@@ -1810,7 +1800,6 @@ impl<'context> Elaborator<'context> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.file = typ.file_id;
             self.local_module = typ.module_id;
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
@@ -1863,7 +1852,6 @@ impl<'context> Elaborator<'context> {
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
-                        self.file = location.file;
                         self.push_err(ResolverError::NestedSlices { location });
                     }
                 }
@@ -1899,7 +1887,6 @@ impl<'context> Elaborator<'context> {
 
     fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
-            self.file = typ.file_id;
             self.local_module = typ.module_id;
             self.generics.clear();
 
@@ -1946,7 +1933,6 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
-        let old_file = std::mem::replace(&mut self.file, global.file_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -1990,7 +1976,6 @@ impl<'context> Elaborator<'context> {
         }
 
         self.local_module = old_module;
-        self.file = old_file;
         self.current_item = old_item;
     }
 
@@ -2043,7 +2028,6 @@ impl<'context> Elaborator<'context> {
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
-                self.file = function_set.file_id;
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
@@ -2055,7 +2039,6 @@ impl<'context> Elaborator<'context> {
         }
 
         for trait_impl in trait_impls {
-            self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
@@ -2166,8 +2149,6 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_function_metas_for_functions(&mut self, function_set: &mut UnresolvedFunctions) {
-        self.file = function_set.file_id;
-
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
