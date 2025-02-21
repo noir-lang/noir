@@ -304,8 +304,8 @@ impl DefCollector {
         root_file_id: FileId,
         debug_comptime_in_file: Option<&str>,
         pedantic_solving: bool,
-    ) -> Vec<(CompilationError, FileId)> {
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+    ) -> Vec<CompilationError> {
+        let mut errors: Vec<CompilationError> = vec![];
         let crate_id = def_map.krate;
 
         // Recursively resolve the dependencies
@@ -394,10 +394,7 @@ impl DefCollector {
 
                     let has_path_resolution_error = !resolved_import.errors.is_empty();
                     for error in resolved_import.errors {
-                        errors.push((
-                            DefCollectorErrorKind::PathResolutionError(error).into(),
-                            file_id,
-                        ));
+                        errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
                     }
 
                     // Populate module namespaces according to the imports used
@@ -408,14 +405,13 @@ impl DefCollector {
                         resolved_import.namespace.iter_items()
                     {
                         if item_visibility < visibility {
-                            errors.push((
+                            errors.push(
                                 DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                                     item_name: name.clone(),
                                     desired_visibility: visibility,
                                 }
                                 .into(),
-                                file_id,
-                            ));
+                            );
                         }
                         let visibility = visibility.min(item_visibility);
 
@@ -472,15 +468,13 @@ impl DefCollector {
                                 first_def,
                                 second_def,
                             };
-                            errors.push((err.into(), root_file_id));
+                            errors.push(err.into());
                         }
                     }
                 }
                 Err(error) => {
-                    let current_def_map = context.def_maps.get(&crate_id).unwrap();
-                    let file_id = current_def_map.file_id(collected_import.module_id);
                     let error = DefCollectorErrorKind::PathResolutionError(error);
-                    errors.push((error.into(), file_id));
+                    errors.push(error.into());
                 }
             }
         }
@@ -489,10 +483,7 @@ impl DefCollector {
             let file = context.file_manager.find_by_path_suffix(debug_comptime_in_file);
             file.unwrap_or_else(|error| {
                 let location = Location::new(Span::empty(0), root_file_id);
-                errors.push((
-                    CompilationError::DebugComptimeScopeNotFound(error, location),
-                    root_file_id,
-                ));
+                errors.push(CompilationError::DebugComptimeScopeNotFound(error, location));
                 None
             })
         });
@@ -515,7 +506,7 @@ impl DefCollector {
     fn check_unused_items(
         context: &Context,
         crate_id: CrateId,
-        errors: &mut Vec<(CompilationError, FileId)>,
+        errors: &mut Vec<CompilationError>,
     ) {
         let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
@@ -523,12 +514,10 @@ impl DefCollector {
         errors.extend(unused_imports.flat_map(|(_, usage_tracker)| {
             usage_tracker.iter().map(|(ident, unused_item)| {
                 let ident = ident.clone();
-                let file = ident.location().file;
-                let error = CompilationError::ResolverError(ResolverError::UnusedItem {
+                CompilationError::ResolverError(ResolverError::UnusedItem {
                     ident,
                     item: *unused_item,
-                });
-                (error, file)
+                })
             })
         }));
     }

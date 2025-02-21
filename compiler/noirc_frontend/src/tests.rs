@@ -46,12 +46,12 @@ use crate::{parse_program, ParsedModule};
 use fm::FileManager;
 use noirc_arena::Arena;
 
-pub(crate) fn has_parser_error(errors: &[(CompilationError, FileId)]) -> bool {
-    errors.iter().any(|(e, _f)| matches!(e, CompilationError::ParseError(_)))
+pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {
+    errors.iter().any(|e| matches!(e, CompilationError::ParseError(_)))
 }
 
-pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, FileId)>) {
-    errors.retain(|(error, _)| match error {
+pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
+    errors.retain(|error| match error {
         CompilationError::ParseError(error) => {
             !matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(..)))
         }
@@ -59,7 +59,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
     });
 }
 
-pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
     get_program_with_maybe_parser_errors(
         src, false, // allow parser errors
     )
@@ -71,7 +71,7 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+) -> (ParsedModule, Context, Vec<CompilationError>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -81,7 +81,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
     let (program, parser_errors) = parse_program(src, root_file_id);
-    let mut errors = vecmap(parser_errors, |e| (e.into(), root_file_id));
+    let mut errors = vecmap(parser_errors, |e| e.into());
     remove_experimental_warnings(&mut errors);
 
     if allow_parser_errors || !has_parser_error(&errors) {
@@ -132,7 +132,7 @@ pub(crate) fn get_program_with_maybe_parser_errors(
     (program, context, errors)
 }
 
-pub(crate) fn get_program_errors(src: &str) -> Vec<(CompilationError, FileId)> {
+pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program(src).2
 }
 
@@ -221,7 +221,7 @@ fn check_trait_implementation_duplicate_method() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
                 typ,
@@ -263,7 +263,7 @@ fn check_trait_wrong_method_return_type() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ,
@@ -305,7 +305,7 @@ fn check_trait_wrong_method_return_type2() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ,
@@ -350,7 +350,7 @@ fn check_trait_missing_implementation() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::TraitMissingMethod {
                 trait_name,
@@ -389,7 +389,7 @@ fn check_trait_not_in_scope() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::TraitNotFound {
                 trait_path,
@@ -432,7 +432,7 @@ fn check_trait_wrong_method_name() {
         compilation_errors
     );
 
-    for (err, _file_id) in compilation_errors {
+    for err in compilation_errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::MethodNotInTrait {
                 trait_name,
@@ -472,7 +472,7 @@ fn check_trait_wrong_parameter() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::TypeError(TypeCheckError::TraitMethodParameterTypeMismatch {
                 method_name,
@@ -516,7 +516,7 @@ fn check_trait_wrong_parameter2() {
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::TypeError(TypeCheckError::TraitMethodParameterTypeMismatch {
                 method_name,
@@ -552,7 +552,7 @@ fn check_trait_wrong_parameter_type() {
     // In the elaborator there is no duplicate and only 1 error is issued
     assert!(errors.len() <= 2, "Expected 1 or 2 errors, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::PathResolutionError(
                 PathResolutionError::Unresolved(ident),
@@ -590,7 +590,7 @@ fn check_trait_wrong_parameters_count() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::TypeError(TypeCheckError::MismatchTraitImplNumParameters {
                 actual_num_parameters,
@@ -629,7 +629,7 @@ fn check_trait_impl_for_non_type() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::Expected { expected, got, .. }) => {
                 assert_eq!(*expected, "type");
@@ -669,7 +669,7 @@ fn check_impl_struct_not_trait() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::NotATrait {
                 not_a_trait_name,
@@ -711,7 +711,7 @@ fn check_trait_duplicate_declaration() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
                 typ,
@@ -749,7 +749,7 @@ fn check_trait_duplicate_implementation() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
                 ..
@@ -788,7 +788,7 @@ fn check_trait_duplicate_implementation_with_alias() {
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
     assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
                 ..
@@ -967,7 +967,7 @@ fn resolve_unused_var() {
     let errors = get_program_errors(src);
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
     // It should be regarding the unused variable
-    match &errors[0].0 {
+    match &errors[0] {
         CompilationError::ResolverError(ResolverError::UnusedVariable { ident }) => {
             assert_eq!(&ident.0.contents, "y");
         }
@@ -986,7 +986,7 @@ fn resolve_unresolved_var() {
     let errors = get_program_errors(src);
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
     // It should be regarding the unresolved var `z` (Maybe change to undeclared and special case)
-    match &errors[0].0 {
+    match &errors[0] {
         CompilationError::ResolverError(ResolverError::VariableNotDeclared {
             name,
             location: _,
@@ -1006,7 +1006,7 @@ fn unresolved_path() {
     ";
     let errors = get_program_errors(src);
     assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-    for (compilation_error, _file_id) in errors {
+    for compilation_error in errors {
         match compilation_error {
             CompilationError::ResolverError(err) => {
                 match err {
@@ -1048,7 +1048,7 @@ fn multiple_resolution_errors() {
     // `a` is undeclared
     // `z` is unused
     // `foo::bar` does not exist
-    for (compilation_error, _file_id) in errors {
+    for compilation_error in errors {
         match compilation_error {
             CompilationError::ResolverError(err) => {
                 match err {
@@ -1227,7 +1227,7 @@ fn resolve_fmt_strings() {
     let errors = get_program_errors(src);
     assert!(errors.len() == 3, "Expected 5 errors, got: {:?}", errors);
 
-    for (err, _file_id) in errors {
+    for err in errors {
         match &err {
             CompilationError::ResolverError(ResolverError::VariableNotDeclared {
                 name, ..
@@ -1311,7 +1311,7 @@ fn deny_cyclic_globals() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
     ));
 }
@@ -1437,7 +1437,7 @@ fn deny_inline_attribute_on_unconstrained() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::NoPredicatesAttributeOnUnconstrained { .. })
     ));
 }
@@ -1453,7 +1453,7 @@ fn deny_fold_attribute_on_unconstrained() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::FoldAttributeOnUnconstrained { .. })
     ));
 }
@@ -1553,7 +1553,7 @@ fn incorrect_turbofish_count_function_call() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
     ));
 }
@@ -1591,7 +1591,7 @@ fn incorrect_turbofish_count_method_call() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::IncorrectTurbofishGenericCount { .. }),
     ));
 }
@@ -1610,7 +1610,7 @@ fn struct_numeric_generic_in_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 }
@@ -1627,7 +1627,7 @@ fn struct_numeric_generic_in_struct() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType(_)),
     ));
 }
@@ -1646,7 +1646,7 @@ fn bool_numeric_generic() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 }
@@ -1663,7 +1663,7 @@ fn numeric_generic_binary_operation_type_mismatch() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }),
     ));
 }
@@ -1682,18 +1682,18 @@ fn bool_generic_as_loop_bound() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 3);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::UnsupportedNumericGenericType { .. }),
     ));
 
     assert!(matches!(
-        errors[1].0,
+        errors[1],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ, expr_typ, ..
-    }) = &errors[2].0
+    }) = &errors[2]
     else {
         panic!("Got an error other than a type mismatch");
     };
@@ -1721,7 +1721,7 @@ fn numeric_generic_as_struct_field_type_fails() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1737,7 +1737,7 @@ fn normal_generic_as_array_length() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1755,17 +1755,17 @@ fn numeric_generic_as_param_type() {
 
     // Error from the parameter type
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Error from the let statement annotated type
     assert!(matches!(
-        errors[1].0,
+        errors[1],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Error from the return type
     assert!(matches!(
-        errors[2].0,
+        errors[2],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1778,7 +1778,7 @@ fn numeric_generic_as_unused_param_type() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1793,14 +1793,13 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // Foo is unused
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
-    ));
+    assert!(
+        matches!(errors[1], CompilationError::ResolverError(ResolverError::UnusedItem { .. }),)
+    );
 }
 
 #[test]
@@ -1822,14 +1821,13 @@ fn numeric_generic_as_return_type() {
 
     // Error from the return type
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // foo is unused
-    assert!(matches!(
-        errors[1].0,
-        CompilationError::ResolverError(ResolverError::UnusedItem { .. }),
-    ));
+    assert!(
+        matches!(errors[1], CompilationError::ResolverError(ResolverError::UnusedItem { .. }),)
+    );
 }
 
 #[test]
@@ -1846,7 +1844,7 @@ fn numeric_generic_used_in_nested_type_fails() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1865,7 +1863,7 @@ fn normal_generic_used_in_nested_array_length_fail() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -1995,11 +1993,11 @@ fn numeric_generic_u16_array_size() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     assert!(matches!(
-        errors[1].0,
+        errors[1],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -2053,7 +2051,7 @@ fn cast_256_to_u8_size_checks() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::DownsizingCast { .. }),
     ));
 }
@@ -2109,7 +2107,7 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 
@@ -2129,20 +2127,20 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 4);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     assert!(matches!(
-        errors[1].0,
+        errors[1],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     assert!(matches!(
-        errors[2].0,
+        errors[2],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
     // N
     assert!(matches!(
-        errors[3].0,
+        errors[3],
         CompilationError::ResolverError(ResolverError::VariableNotDeclared { .. }),
     ));
 }
@@ -2169,7 +2167,7 @@ fn numeric_generics_type_kind_mismatch() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. }),
     ));
 }
@@ -2205,7 +2203,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::IntegerBitWidth {
             bit_width_x: IntegerBitSize::SixtyFour,
             bit_width_y: IntegerBitSize::ThirtyTwo,
@@ -2234,7 +2232,7 @@ fn quote_code_fragments() {
     assert_eq!(errors.len(), 1);
 
     use InterpreterError::FailingConstraint;
-    assert!(matches!(&errors[0].0, CompilationError::InterpreterError(FailingConstraint { .. })));
+    assert!(matches!(&errors[0], CompilationError::InterpreterError(FailingConstraint { .. })));
 }
 
 #[test]
@@ -2285,7 +2283,7 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait { .. })
     ));
 }
@@ -2314,11 +2312,11 @@ fn impl_stricter_than_trait_different_generics() {
     if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
         constraint_typ,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "B"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 }
 
@@ -2382,36 +2380,36 @@ fn impl_stricter_than_trait_different_object_generics() {
         constraint_typ,
         constraint_name,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "Option<B>"));
         assert!(matches!(constraint_name.as_str(), "MyTrait"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 
     if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
         constraint_typ,
         constraint_name,
         ..
-    }) = &errors[1].0
+    }) = &errors[1]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "[B; 8]"));
         assert!(matches!(constraint_name.as_str(), "MyTrait"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 
     if let CompilationError::DefinitionError(DefCollectorErrorKind::ImplIsStricterThanTrait {
         constraint_typ,
         constraint_name,
         ..
-    }) = &errors[2].0
+    }) = &errors[2]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "(Option<B>, Option<A>)"));
         assert!(matches!(constraint_name.as_str(), "MyTrait"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 }
 
@@ -2447,12 +2445,12 @@ fn impl_stricter_than_trait_different_trait() {
         constraint_typ,
         constraint_name,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "Option<A>"));
         assert!(matches!(constraint_name.as_str(), "OtherDefault"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 }
 
@@ -2488,12 +2486,12 @@ fn trait_impl_where_clause_stricter_pass() {
         constraint_typ,
         constraint_name,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "OtherTrait"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 }
 
@@ -2519,13 +2517,13 @@ fn impl_stricter_than_trait_different_trait_generics() {
         constraint_name,
         constraint_generics,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     {
         assert!(matches!(constraint_typ.to_string().as_str(), "A"));
         assert!(matches!(constraint_name.as_str(), "T2"));
         assert!(matches!(constraint_generics.ordered[0].to_string().as_str(), "B"));
     } else {
-        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0].0);
+        panic!("Expected DefCollectorErrorKind::ImplIsStricterThanTrait but got {:?}", errors[0]);
     }
 }
 
@@ -2574,7 +2572,7 @@ fn impl_not_found_for_inner_impl() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::TypeError(TypeCheckError::NoMatchingImplFound { .. })
     ));
 }
@@ -2591,8 +2589,8 @@ fn cannot_call_unconstrained_function_outside_of_unsafe() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
-        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0] else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0]);
     };
 }
 
@@ -2617,8 +2615,8 @@ fn cannot_call_unconstrained_first_class_function_outside_of_unsafe() {
     assert_eq!(errors.len(), 2);
 
     for error in &errors {
-        let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &error.0 else {
-            panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+        let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = error else {
+            panic!("Expected an 'unsafe' error, got {:?}", errors[0]);
         };
     }
 }
@@ -2660,8 +2658,8 @@ fn missing_unsafe_block_when_needing_type_annotations() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0].0 else {
-        panic!("Expected an 'unsafe' error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::Unsafe { .. }) = &errors[0] else {
+        panic!("Expected an 'unsafe' error, got {:?}", errors[0]);
     };
 }
 
@@ -2681,8 +2679,8 @@ fn cannot_pass_unconstrained_function_to_regular_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
-        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0] else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0]);
     };
 }
 
@@ -2699,15 +2697,15 @@ fn cannot_assign_unconstrained_and_regular_fn_to_variable() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
-        panic!("Expected a context error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0] else {
+        panic!("Expected a context error, got {:?}", errors[0]);
     };
 
     if let TypeCheckError::TypeMismatch { expected_typ, expr_typ, .. } = err.as_ref() {
         assert_eq!(expected_typ, "fn() -> ()");
         assert_eq!(expr_typ, "unconstrained fn() -> ()");
     } else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 }
 
@@ -2741,8 +2739,8 @@ fn cannot_pass_unconstrained_function_to_constrained_function() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0].0 else {
-        panic!("Expected an UnsafeFn error, got {:?}", errors[0].0);
+    let CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }) = &errors[0] else {
+        panic!("Expected an UnsafeFn error, got {:?}", errors[0]);
     };
 }
 
@@ -2790,9 +2788,9 @@ fn trait_impl_generics_count_mismatch() {
         expected,
         found,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(item, "Foo");
@@ -2827,9 +2825,9 @@ fn duplicate_struct_field() {
         typ: _,
         first_def,
         second_def,
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a 'duplicate' error, got {:?}", errors[0].0);
+        panic!("Expected a 'duplicate' error, got {:?}", errors[0]);
     };
 
     assert_eq!(first_def.to_string(), "x");
@@ -2884,9 +2882,9 @@ fn incorrect_generic_count_on_struct_impl() {
 
     let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
         found, expected, ..
-    }) = errors[0].0
+    }) = errors[0]
     else {
-        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(found, 1);
@@ -2908,9 +2906,9 @@ fn incorrect_generic_count_on_type_alias() {
 
     let CompilationError::TypeError(TypeCheckError::GenericCountMismatch {
         found, expected, ..
-    }) = errors[0].0
+    }) = errors[0]
     else {
-        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0].0);
+        panic!("Expected an incorrect generic count mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(found, 1);
@@ -2990,15 +2988,15 @@ fn uses_self_type_in_trait_where_clause() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
 
-    let CompilationError::ResolverError(ResolverError::TraitNotImplemented { .. }) = &errors[0].0
+    let CompilationError::ResolverError(ResolverError::TraitNotImplemented { .. }) = &errors[0]
     else {
-        panic!("Expected a trait not implemented error, got {:?}", errors[0].0);
+        panic!("Expected a trait not implemented error, got {:?}", errors[0]);
     };
 
     let CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall { method_name, .. }) =
-        &errors[1].0
+        &errors[1]
     else {
-        panic!("Expected an unresolved method call error, got {:?}", errors[1].0);
+        panic!("Expected an unresolved method call error, got {:?}", errors[1]);
     };
 
     assert_eq!(method_name, "trait_func");
@@ -3035,10 +3033,7 @@ fn error_on_cast_over_type_variable() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })));
 }
 
 #[test]
@@ -3127,7 +3122,7 @@ fn impl_missing_associated_type() {
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::TypeError(TypeCheckError::MissingNamedTypeArg { .. })
     ));
 }
@@ -3159,8 +3154,8 @@ fn as_trait_path_syntax_resolves_outside_impl() {
 
     use CompilationError::TypeError;
     use TypeCheckError::TypeMismatch;
-    let TypeError(TypeMismatch { expected_typ, expr_typ, .. }) = errors[0].0.clone() else {
-        panic!("Expected TypeMismatch error, found {:?}", errors[0].0);
+    let TypeError(TypeMismatch { expected_typ, expr_typ, .. }) = errors[0].clone() else {
+        panic!("Expected TypeMismatch error, found {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "i64".to_string());
@@ -3191,7 +3186,7 @@ fn as_trait_path_syntax_no_impl() {
     assert_eq!(errors.len(), 1);
 
     use CompilationError::TypeError;
-    assert!(matches!(&errors[0].0, TypeError(TypeCheckError::NoMatchingImplFound { .. })));
+    assert!(matches!(&errors[0], TypeError(TypeCheckError::NoMatchingImplFound { .. })));
 }
 
 #[test]
@@ -3210,13 +3205,13 @@ fn dont_infer_globals_to_u32_from_type_use() {
 
     let mut errors = get_program_errors(src);
     assert_eq!(errors.len(), 6);
-    for (error, _file_id) in errors.drain(0..3) {
+    for error in errors.drain(0..3) {
         assert!(matches!(
             error,
             CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
         ));
     }
-    for (error, _file_id) in errors {
+    for error in errors {
         assert!(matches!(
             error,
             CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
@@ -3240,7 +3235,7 @@ fn dont_infer_partial_global_types() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 6);
-    for (error, _file_id) in errors {
+    for error in errors {
         assert!(matches!(
             error,
             CompilationError::ResolverError(ResolverError::UnspecifiedGlobalType { .. })
@@ -3290,7 +3285,7 @@ fn struct_array_len() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::UnusedVariable { .. })
     ));
 }
@@ -3310,7 +3305,7 @@ fn non_u32_as_array_length() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::TypeKindMismatch { .. })
     ));
 }
@@ -3395,7 +3390,7 @@ fn error_if_attribute_not_in_scope() {
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::AttributeFunctionNotInScope { .. })
     ));
 }
@@ -3429,10 +3424,7 @@ fn arithmetic_generics_rounding_fail() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })));
 }
 
 #[test]
@@ -3455,10 +3447,7 @@ fn arithmetic_generics_rounding_fail_on_struct() {
 
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })));
 }
 
 #[test]
@@ -3537,7 +3526,7 @@ fn unconditional_recursion_fail() {
             "expected 'unconditional recursion' error, got nothing; src = {src}"
         );
 
-        for (error, _) in errors {
+        for error in errors {
             let CompilationError::ResolverError(ResolverError::UnconditionalRecursion { .. }) =
                 error
             else {
@@ -3754,9 +3743,9 @@ fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_funct
     let CompilationError::TypeError(TypeCheckError::CannotInvokeStructFieldFunctionType {
         method_name,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a 'CannotInvokeStructFieldFunctionType' error, got {:?}", errors[0].0);
+        panic!("Expected a 'CannotInvokeStructFieldFunctionType' error, got {:?}", errors[0]);
     };
 
     assert_eq!(method_name, "wrapped");
@@ -3780,7 +3769,7 @@ fn test_disallows_attribute_on_impl_method(
     );
     let errors = get_program_errors(&src);
     assert_eq!(errors.len(), 1);
-    check_error(&errors[0].0);
+    check_error(&errors[0]);
 }
 
 fn test_disallows_attribute_on_trait_impl_method(
@@ -3805,7 +3794,7 @@ fn test_disallows_attribute_on_trait_impl_method(
     );
     let errors = get_program_errors(&src);
     assert_eq!(errors.len(), 1);
-    check_error(&errors[0].0);
+    check_error(&errors[0]);
 }
 
 #[test]
@@ -3878,9 +3867,9 @@ fn disallows_underscore_on_right_hand_side() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
-        &errors[0].0
+        &errors[0]
     else {
-        panic!("Expected a VariableNotDeclared error, got {:?}", errors[0].0);
+        panic!("Expected a VariableNotDeclared error, got {:?}", errors[0]);
     };
 
     assert_eq!(name, "_");
@@ -3896,11 +3885,11 @@ fn errors_on_cyclic_globals() {
     "#;
     let errors = get_program_errors(src);
 
-    assert!(errors.iter().any(|(error, _)| matches!(
+    assert!(errors.iter().any(|error| matches!(
         error,
         CompilationError::InterpreterError(InterpreterError::GlobalsDependencyCycle { .. })
     )));
-    assert!(errors.iter().any(|(error, _)| matches!(
+    assert!(errors.iter().any(|error| matches!(
         error,
         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
     )));
@@ -3921,7 +3910,7 @@ fn warns_on_unneeded_unsafe() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::TypeError(TypeCheckError::UnnecessaryUnsafeBlock { .. })
     ));
 }
@@ -3943,7 +3932,7 @@ fn warns_on_nested_unsafe() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    let CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { location }) = &errors[0].0
+    let CompilationError::TypeError(TypeCheckError::NestedUnsafeBlock { location }) = &errors[0]
     else {
         panic!("Expected NestedUnsafeBlock");
     };
@@ -4248,11 +4237,11 @@ fn error_with_duplicate_enum_variant() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate { .. })
     ));
     assert!(matches!(
-        &errors[1].0,
+        &errors[1],
         CompilationError::ResolverError(ResolverError::UnusedItem { .. })
     ));
 }
@@ -4274,7 +4263,7 @@ fn errors_on_empty_loop_no_break() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
     ));
 }
@@ -4302,7 +4291,7 @@ fn errors_on_loop_without_break() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
     ));
 }
@@ -4334,7 +4323,7 @@ fn errors_on_loop_without_break_with_nested_loop() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::ResolverError(ResolverError::LoopWithoutBreak { .. })
     ));
 }
@@ -4367,7 +4356,7 @@ fn errors_on_if_without_else_type_mismatch() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0].0 else {
+    let CompilationError::TypeError(TypeCheckError::Context { err, .. }) = &errors[0] else {
         panic!("Expected a Context error");
     };
     assert!(matches!(**err, TypeCheckError::TypeMismatch { .. }));
@@ -4391,7 +4380,7 @@ fn errors_if_for_body_type_is_not_unit() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0] else {
         panic!("Expected a TypeMismatch error");
     };
 }
@@ -4410,7 +4399,7 @@ fn errors_if_loop_body_type_is_not_unit() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0] else {
         panic!("Expected a TypeMismatch error");
     };
 }
@@ -4427,7 +4416,7 @@ fn errors_if_while_body_type_is_not_unit() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
+    let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0] else {
         panic!("Expected a TypeMismatch error");
     };
 }

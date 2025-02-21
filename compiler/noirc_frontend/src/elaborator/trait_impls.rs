@@ -74,14 +74,11 @@ impl<'context> Elaborator<'context> {
                         *default_impl_clone,
                     ));
                 } else {
-                    self.push_err(
-                        DefCollectorErrorKind::TraitMissingMethod {
-                            trait_name: self.interner.get_trait(trait_id).name.clone(),
-                            method_name: method.name.clone(),
-                            trait_impl_location: trait_impl.object_type.location,
-                        },
-                        trait_impl.object_type.location.file,
-                    );
+                    self.push_err(DefCollectorErrorKind::TraitMissingMethod {
+                        trait_name: self.interner.get_trait(trait_id).name.clone(),
+                        method_name: method.name.clone(),
+                        trait_impl_location: trait_impl.object_type.location,
+                    });
                 }
             } else {
                 for (_, func_id, _) in &overrides {
@@ -98,14 +95,11 @@ impl<'context> Elaborator<'context> {
                 }
 
                 if overrides.len() > 1 {
-                    self.push_err(
-                        DefCollectorErrorKind::Duplicate {
-                            typ: DuplicateType::TraitAssociatedFunction,
-                            first_def: overrides[0].2.name_ident().clone(),
-                            second_def: overrides[1].2.name_ident().clone(),
-                        },
-                        overrides[1].2.name_ident().location().file,
-                    );
+                    self.push_err(DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::TraitAssociatedFunction,
+                        first_def: overrides[0].2.name_ident().clone(),
+                        second_def: overrides[1].2.name_ident().clone(),
+                    });
                 }
 
                 ordered_methods.push(overrides[0].clone());
@@ -123,11 +117,10 @@ impl<'context> Elaborator<'context> {
         for (_, func_id, func) in &trait_impl.methods.functions {
             if !func_ids_in_trait.contains(func_id) {
                 let trait_name = trait_name.clone();
-                let trait_name_file = trait_name.location().file;
                 let impl_method = func.name_ident().clone();
                 let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
                 let error: CompilationError = error.into();
-                self.push_err(error, trait_name_file);
+                self.push_err(error);
             }
         }
 
@@ -211,17 +204,14 @@ impl<'context> Elaborator<'context> {
             )) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
-                self.push_err(
-                    DefCollectorErrorKind::ImplIsStricterThanTrait {
-                        constraint_typ: override_trait_constraint.typ,
-                        constraint_name: the_trait.name.0.contents.clone(),
-                        constraint_generics: override_trait_constraint.trait_bound.trait_generics,
-                        constraint_location: override_trait_constraint.trait_bound.location,
-                        trait_method_name: method.name.0.contents.clone(),
-                        trait_method_location: method.location,
-                    },
-                    method.location.file,
-                );
+                self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
+                    constraint_typ: override_trait_constraint.typ,
+                    constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_generics: override_trait_constraint.trait_bound.trait_generics,
+                    constraint_location: override_trait_constraint.trait_bound.location,
+                    trait_method_name: method.name.0.contents.clone(),
+                    trait_method_location: method.location,
+                });
             }
         }
     }
@@ -241,12 +231,9 @@ impl<'context> Elaborator<'context> {
 
         let the_trait = self.interner.get_trait(trait_id);
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
-            self.push_err(
-                DefCollectorErrorKind::TraitImplOrphaned {
-                    location: trait_impl.object_type.location,
-                },
-                trait_impl.object_type.location.file,
-            );
+            self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
+                location: trait_impl.object_type.location,
+            });
         }
     }
 
@@ -260,7 +247,7 @@ impl<'context> Elaborator<'context> {
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
                 Err(error) => {
-                    self.push_err(error, location.file);
+                    self.push_err(error);
                     UnresolvedTypeData::Error.with_location(location)
                 }
             };

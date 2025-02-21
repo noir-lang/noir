@@ -272,11 +272,6 @@ impl From<InterpreterError> for CompilationError {
 }
 
 impl InterpreterError {
-    pub fn into_compilation_error_pair(self) -> (CompilationError, fm::FileId) {
-        let location = self.location();
-        (CompilationError::InterpreterError(self), location.file)
-    }
-
     pub fn location(&self) -> Location {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }

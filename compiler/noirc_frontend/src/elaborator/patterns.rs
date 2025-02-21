@@ -98,10 +98,10 @@ impl<'context> Elaborator<'context> {
             }
             Pattern::Mutable(pattern, location, _) => {
                 if let Some(first_mut) = mutable {
-                    self.push_err(
-                        ResolverError::UnnecessaryMut { first_mut, second_mut: location },
-                        location.file,
-                    );
+                    self.push_err(ResolverError::UnnecessaryMut {
+                        first_mut,
+                        second_mut: location,
+                    });
                 }
 
                 let pattern = self.elaborate_pattern_mut(
@@ -122,15 +122,12 @@ impl<'context> Elaborator<'context> {
                         let tuple =
                             Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
 
-                        self.push_err(
-                            TypeCheckError::TypeMismatchWithSource {
-                                expected: expected_type,
-                                actual: tuple,
-                                location,
-                                source: Source::Assignment,
-                            },
-                            location.file,
-                        );
+                        self.push_err(TypeCheckError::TypeMismatchWithSource {
+                            expected: expected_type,
+                            actual: tuple,
+                            location,
+                            source: Source::Assignment,
+                        });
                         Vec::new()
                     }
                 };
@@ -204,10 +201,7 @@ impl<'context> Elaborator<'context> {
             None => return error_identifier(self),
             Some(typ) => {
                 let typ = typ.to_string();
-                self.push_err(
-                    ResolverError::NonStructUsedInConstructor { typ, location },
-                    location.file,
-                );
+                self.push_err(ResolverError::NonStructUsedInConstructor { typ, location });
                 return error_identifier(self);
             }
         };
@@ -223,13 +217,11 @@ impl<'context> Elaborator<'context> {
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
 
-        self.unify(&actual_type, &expected_type, location.file, || {
-            TypeCheckError::TypeMismatchWithSource {
-                expected: expected_type.clone(),
-                actual: actual_type.clone(),
-                location,
-                source: Source::Assignment,
-            }
+        self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
+            expected: expected_type.clone(),
+            actual: actual_type.clone(),
+            location,
+            source: Source::Assignment,
         });
 
         let typ = struct_type.clone();
@@ -301,36 +293,24 @@ impl<'context> Elaborator<'context> {
                 );
             } else if seen_fields.contains(&field) {
                 // duplicate field
-                self.push_err(
-                    ResolverError::DuplicateField { field: field.clone() },
-                    field.location().file,
-                );
+                self.push_err(ResolverError::DuplicateField { field: field.clone() });
             } else {
                 // field not required by struct
-                self.push_err(
-                    ResolverError::NoSuchField {
-                        field: field.clone(),
-                        struct_definition: struct_type.borrow().name.clone(),
-                    },
-                    field.location().file,
-                );
+                self.push_err(ResolverError::NoSuchField {
+                    field: field.clone(),
+                    struct_definition: struct_type.borrow().name.clone(),
+                });
             }
 
             ret.push((field, resolved));
         }
 
         if !unseen_fields.is_empty() {
-            self.push_err(
-                ResolverError::MissingFields {
-                    location,
-                    missing_fields: unseen_fields
-                        .into_iter()
-                        .map(|field| field.to_string())
-                        .collect(),
-                    struct_definition: struct_type.borrow().name.clone(),
-                },
-                location.file,
-            );
+            self.push_err(ResolverError::MissingFields {
+                location,
+                missing_fields: unseen_fields.into_iter().map(|field| field.to_string()).collect(),
+                struct_definition: struct_type.borrow().name.clone(),
+            });
         }
 
         ret
@@ -363,14 +343,11 @@ impl<'context> Elaborator<'context> {
 
             if !allow_shadowing {
                 if let Some(old_value) = old_value {
-                    self.push_err(
-                        ResolverError::DuplicateDefinition {
-                            name,
-                            first_location: old_value.ident.location,
-                            second_location: location,
-                        },
-                        location.file,
-                    );
+                    self.push_err(ResolverError::DuplicateDefinition {
+                        name,
+                        first_location: old_value.ident.location,
+                        second_location: location,
+                    });
                 }
             }
         }
@@ -391,10 +368,11 @@ impl<'context> Elaborator<'context> {
 
         if let Some(old_value) = old_value {
             let first_location = old_value.ident.location;
-            self.push_err(
-                ResolverError::DuplicateDefinition { name, first_location, second_location },
-                second_location.file,
-            );
+            self.push_err(ResolverError::DuplicateDefinition {
+                name,
+                first_location,
+                second_location,
+            });
         }
     }
 
@@ -407,15 +385,11 @@ impl<'context> Elaborator<'context> {
 
         let old_global_value = scope.add_key_value(name.0.contents.clone(), resolver_meta);
         if let Some(old_global_value) = old_global_value {
-            let file = name.location().file;
-            self.push_err(
-                ResolverError::DuplicateDefinition {
-                    first_location: old_global_value.ident.location,
-                    second_location: name.location(),
-                    name: name.0.contents,
-                },
-                file,
-            );
+            self.push_err(ResolverError::DuplicateDefinition {
+                first_location: old_global_value.ident.location,
+                second_location: name.location(),
+                name: name.0.contents,
+            });
         }
         ident
     }
@@ -461,7 +435,7 @@ impl<'context> Elaborator<'context> {
                     actual_count: unresolved_turbofish.len(),
                     location,
                 };
-                self.push_err(type_check_err, location.file);
+                self.push_err(type_check_err);
             }
 
             self.resolve_turbofish_generics(direct_generic_kinds, unresolved_turbofish)
@@ -536,15 +510,12 @@ impl<'context> Elaborator<'context> {
         };
 
         if turbofish_generics.len() != generics.len() {
-            self.push_err(
-                TypeCheckError::GenericCountMismatch {
-                    item: format!("{item_kind} {item_name}"),
-                    expected: generics.len(),
-                    found: turbofish_generics.len(),
-                    location,
-                },
-                location.file,
-            );
+            self.push_err(TypeCheckError::GenericCountMismatch {
+                item: format!("{item_kind} {item_name}"),
+                expected: generics.len(),
+                found: turbofish_generics.len(),
+                location,
+            });
             return generics;
         }
 
@@ -670,7 +641,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_variable(&mut self, path: Path) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             for error in trait_path_resolution.errors {
-                self.push_err(error, path.location.file);
+                self.push_err(error);
             }
 
             (
@@ -836,7 +807,7 @@ impl<'context> Elaborator<'context> {
                         actual_count: turbofish_generics.len(),
                         location,
                     };
-                    self.push_err(CompilationError::TypeError(type_check_err), location.file);
+                    self.push_err(CompilationError::TypeError(type_check_err));
                     typ.instantiate_with_bindings(bindings, self.interner)
                 } else {
                     // Fetch the count of any implicit generics on the function, such as
@@ -874,7 +845,7 @@ impl<'context> Elaborator<'context> {
                 Err(error) => error,
             },
         };
-        self.push_err(error, location.file);
+        self.push_err(error);
         let id = DefinitionId::dummy_id();
         ((HirIdent::non_trait_method(id, location), 0), None)
     }

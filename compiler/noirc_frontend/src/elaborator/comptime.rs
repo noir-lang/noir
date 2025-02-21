@@ -162,13 +162,13 @@ impl<'context> Elaborator<'context> {
     ) {
         if let SecondaryAttribute::Meta(attribute) = attribute {
             self.elaborate_in_comptime_context(|this| {
-                if let Err((error, file)) = this.collect_comptime_attribute_name_on_item(
+                if let Err(error) = this.collect_comptime_attribute_name_on_item(
                     attribute,
                     item.clone(),
                     attribute_context,
                     attributes_to_run,
                 ) {
-                    this.push_err(error, file);
+                    this.push_err(error);
                 }
             });
         }
@@ -181,7 +181,7 @@ impl<'context> Elaborator<'context> {
         item: Value,
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
-    ) -> Result<(), (CompilationError, FileId)> {
+    ) -> Result<(), CompilationError> {
         self.file = attribute_context.attribute_file;
         self.local_module = attribute_context.attribute_module;
         let location = attribute.location;
@@ -204,21 +204,18 @@ impl<'context> Elaborator<'context> {
                     function: function_string,
                     location,
                 };
-                return Err((error.into(), location.file));
+                return Err(error.into());
             }
         };
 
         let Some(definition) = self.interner.try_definition(definition_id) else {
             let error =
                 ResolverError::AttributeFunctionNotInScope { name: function_string, location };
-            return Err((error.into(), location.file));
+            return Err(error.into());
         };
 
         let DefinitionKind::Function(function) = definition.kind else {
-            return Err((
-                ResolverError::NonFunctionInAnnotation { location }.into(),
-                location.file,
-            ));
+            return Err(ResolverError::NonFunctionInAnnotation { location }.into());
         };
 
         attributes_to_run.push((function, item, arguments, attribute_context, span));
@@ -233,7 +230,7 @@ impl<'context> Elaborator<'context> {
         item: Value,
         location: Location,
         generated_items: &mut CollectedItems,
-    ) -> Result<(), (CompilationError, FileId)> {
+    ) -> Result<(), CompilationError> {
         self.file = attribute_context.file;
         self.local_module = attribute_context.module;
 
@@ -245,20 +242,19 @@ impl<'context> Elaborator<'context> {
             arguments,
             location,
         )
-        .map_err(|error| error.into_compilation_error_pair())?;
+        .map_err(CompilationError::from)?;
 
         arguments.insert(0, (item, location));
 
         let value = interpreter
             .call_function(function, arguments, TypeBindings::new(), location)
-            .map_err(|error| error.into_compilation_error_pair())?;
+            .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
-            let items = value
-                .into_top_level_items(location, self)
-                .map_err(|error| error.into_compilation_error_pair())?;
+            let items =
+                value.into_top_level_items(location, self).map_err(CompilationError::from)?;
 
             self.add_items(items, generated_items, location);
         }
@@ -439,8 +435,8 @@ impl<'context> Elaborator<'context> {
                 );
 
                 generated_items.globals.push(global);
-                if let Some((error, file)) = error {
-                    self.push_err(error, file);
+                if let Some(error) = error {
+                    self.push_err(error);
                 }
             }
             ItemKind::Struct(struct_def) => {
@@ -491,8 +487,8 @@ impl<'context> Elaborator<'context> {
                 let location = item.location;
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                let (error, file) = error.into_compilation_error_pair();
-                self.push_err(error, file);
+                let error: CompilationError = error.into();
+                self.push_err(error);
             }
         }
     }
@@ -514,7 +510,7 @@ impl<'context> Elaborator<'context> {
             let displayed_expr = expr_f(self.interner);
             let error: CompilationError =
                 InterpreterError::debug_evaluate_comptime(displayed_expr, location).into();
-            self.push_err(error, location.file);
+            self.push_err(error);
         }
     }
 
@@ -565,7 +561,7 @@ impl<'context> Elaborator<'context> {
 
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
-                if let Err((error, file)) = this.run_attribute(
+                if let Err(error) = this.run_attribute(
                     context,
                     attribute,
                     args,
@@ -573,7 +569,7 @@ impl<'context> Elaborator<'context> {
                     location,
                     &mut generated_items,
                 ) {
-                    this.push_err(error, file);
+                    this.push_err(error);
                 }
             });
 
@@ -679,17 +675,14 @@ impl<'context> Elaborator<'context> {
         &mut self,
         reason: ElaborateReason,
         location: Location,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<CompilationError> {
         self.elaborate_reasons.push_back((reason, location));
         std::mem::take(&mut self.errors)
     }
 
     /// Pops en ElaborateREason. Receives the errors that were returned by `push_elaborate_reason`
     /// so they are restored, while also wrapping errors in the current Elaborator in a ComptimeError.
-    pub(crate) fn pop_elaborate_reason(
-        &mut self,
-        previous_errors: Vec<(CompilationError, FileId)>,
-    ) {
+    pub(crate) fn pop_elaborate_reason(&mut self, previous_errors: Vec<CompilationError>) {
         let new_errors = std::mem::take(&mut self.errors);
         let new_errors = self.wrap_errors_in_macro_error(new_errors);
         self.errors = previous_errors;
@@ -697,11 +690,8 @@ impl<'context> Elaborator<'context> {
         self.elaborate_reasons.pop_back();
     }
 
-    fn wrap_errors_in_macro_error(
-        &self,
-        errors: Vec<(CompilationError, FileId)>,
-    ) -> Vec<(CompilationError, FileId)> {
-        vecmap(errors, |(error, file_id)| (self.wrap_error_in_macro_error(error), file_id))
+    fn wrap_errors_in_macro_error(&self, errors: Vec<CompilationError>) -> Vec<CompilationError> {
+        vecmap(errors, |error| self.wrap_error_in_macro_error(error))
     }
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {

@@ -100,7 +100,7 @@ impl<'context> Elaborator<'context> {
             let expected_type = annotated_type.clone();
             let error =
                 ResolverError::UnspecifiedGlobalType { location: expr_location, expected_type };
-            self.push_err(error, expr_location.file);
+            self.push_err(error);
         }
 
         let definition = match global_id {
@@ -121,7 +121,7 @@ impl<'context> Elaborator<'context> {
         if annotated_type.is_integer() {
             let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
             for error in errors {
-                self.push_err(error, expr_location.file);
+                self.push_err(error);
             }
         }
 
@@ -152,10 +152,7 @@ impl<'context> Elaborator<'context> {
 
         if !mutable {
             let (name, location) = self.get_lvalue_name_and_location(&lvalue);
-            self.push_err(
-                TypeCheckError::VariableMustBeMutable { name, location },
-                expr_location.file,
-            );
+            self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -206,22 +203,18 @@ impl<'context> Elaborator<'context> {
 
         // Check that start range and end range have the same types
         let range_location = start_location.merge(end_location);
-        self.unify(&start_range_type, &end_range_type, range_location.file, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: start_range_type.to_string(),
-                expr_typ: end_range_type.to_string(),
-                expr_location: range_location,
-            }
+        self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
+            expected_typ: start_range_type.to_string(),
+            expr_typ: end_range_type.to_string(),
+            expr_location: range_location,
         });
 
         let expected_type = self.polymorphic_integer();
 
-        self.unify(&start_range_type, &expected_type, range_location.file, || {
-            TypeCheckError::TypeCannotBeUsed {
-                typ: start_range_type.clone(),
-                place: "for loop",
-                location: range_location,
-            }
+        self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
+            typ: start_range_type.clone(),
+            place: "for loop",
+            location: range_location,
         });
 
         self.interner.push_definition_type(identifier.id, start_range_type);
@@ -229,12 +222,10 @@ impl<'context> Elaborator<'context> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, block_location.file, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: Type::Unit.to_string(),
-                expr_typ: block_type.to_string(),
-                expr_location: block_location,
-            }
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
         });
 
         self.pop_scope();
@@ -253,7 +244,7 @@ impl<'context> Elaborator<'context> {
     ) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
-            self.push_err(ResolverError::LoopInConstrainedFn { location }, location.file);
+            self.push_err(ResolverError::LoopInConstrainedFn { location });
         }
 
         let old_loop = std::mem::take(&mut self.current_loop);
@@ -263,12 +254,10 @@ impl<'context> Elaborator<'context> {
         let block_location = block.type_location();
         let (block, block_type) = self.elaborate_expression(block);
 
-        self.unify(&block_type, &Type::Unit, block_location.file, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: Type::Unit.to_string(),
-                expr_typ: block_type.to_string(),
-                expr_location: block_location,
-            }
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
         });
 
         self.pop_scope();
@@ -276,7 +265,7 @@ impl<'context> Elaborator<'context> {
         let last_loop =
             std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
         if !last_loop.has_break {
-            self.push_err(ResolverError::LoopWithoutBreak { location }, location.file);
+            self.push_err(ResolverError::LoopWithoutBreak { location });
         }
 
         let statement = HirStatement::Loop(block);
@@ -287,10 +276,9 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
-            self.push_err(
-                ResolverError::WhileInConstrainedFn { location: while_.while_keyword_location },
-                while_.while_keyword_location.file,
-            );
+            self.push_err(ResolverError::WhileInConstrainedFn {
+                location: while_.while_keyword_location,
+            });
         }
 
         let old_loop = std::mem::take(&mut self.current_loop);
@@ -300,7 +288,7 @@ impl<'context> Elaborator<'context> {
         let location = while_.condition.type_location();
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
 
-        self.unify(&cond_type, &Type::Bool, location.file, || TypeCheckError::TypeMismatch {
+        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
             expected_typ: Type::Bool.to_string(),
             expr_typ: cond_type.to_string(),
             expr_location: location,
@@ -309,12 +297,10 @@ impl<'context> Elaborator<'context> {
         let block_location = while_.body.type_location();
         let (block, block_type) = self.elaborate_expression(while_.body);
 
-        self.unify(&block_type, &Type::Unit, block_location.file, || {
-            TypeCheckError::TypeMismatch {
-                expected_typ: Type::Unit.to_string(),
-                expr_typ: block_type.to_string(),
-                expr_location: block_location,
-            }
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
         });
 
         self.pop_scope();
@@ -330,7 +316,7 @@ impl<'context> Elaborator<'context> {
         let in_constrained_function = self.in_constrained_function();
 
         if in_constrained_function {
-            self.push_err(ResolverError::JumpInConstrainedFn { is_break, location }, location.file);
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
         }
 
         if let Some(current_loop) = &mut self.current_loop {
@@ -338,7 +324,7 @@ impl<'context> Elaborator<'context> {
                 current_loop.has_break = true;
             }
         } else {
-            self.push_err(ResolverError::JumpOutsideLoop { is_break, location }, location.file);
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, location });
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
@@ -379,13 +365,10 @@ impl<'context> Elaborator<'context> {
                         mutable = definition.mutable;
 
                         if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(
-                                ResolverError::MutatingComptimeInNonComptimeContext {
-                                    name: definition.name.clone(),
-                                    location: ident.location,
-                                },
-                                ident.location.file,
-                            );
+                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+                                name: definition.name.clone(),
+                                location: ident.location,
+                            });
                         }
                     }
 
@@ -439,12 +422,10 @@ impl<'context> Elaborator<'context> {
                 let (index, index_type) = self.elaborate_expression(index);
 
                 let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, expr_location.file, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "an integer".to_owned(),
-                        expr_typ: index_type.to_string(),
-                        expr_location,
-                    }
+                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
+                    expected_typ: "an integer".to_owned(),
+                    expr_typ: index_type.to_string(),
+                    expr_location,
                 });
 
                 let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
@@ -467,28 +448,21 @@ impl<'context> Elaborator<'context> {
                     Type::String(_) => {
                         let (_lvalue_name, lvalue_location) =
                             self.get_lvalue_name_and_location(&lvalue);
-                        self.push_err(
-                            TypeCheckError::StringIndexAssign { location: lvalue_location },
-                            location.file,
-                        );
+                        self.push_err(TypeCheckError::StringIndexAssign {
+                            location: lvalue_location,
+                        });
                         Type::Error
                     }
                     Type::TypeVariable(_) => {
-                        self.push_err(
-                            TypeCheckError::TypeAnnotationsNeededForIndex { location },
-                            location.file,
-                        );
+                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { location });
                         Type::Error
                     }
                     other => {
-                        self.push_err(
-                            TypeCheckError::TypeMismatch {
-                                expected_typ: "array".to_string(),
-                                expr_typ: other.to_string(),
-                                expr_location: location,
-                            },
-                            location.file,
-                        );
+                        self.push_err(TypeCheckError::TypeMismatch {
+                            expected_typ: "array".to_string(),
+                            expr_typ: other.to_string(),
+                            expr_location: location,
+                        });
                         Type::Error
                     }
                 };
@@ -504,12 +478,10 @@ impl<'context> Elaborator<'context> {
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
                 let expected_type = Type::MutableReference(Box::new(element_type.clone()));
 
-                self.unify(&reference_type, &expected_type, location.file, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: reference_type.to_string(),
-                        expr_location: location,
-                    }
+                self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
+                    expected_typ: expected_type.to_string(),
+                    expr_typ: reference_type.to_string(),
+                    expr_location: location,
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
@@ -551,15 +523,12 @@ impl<'context> Elaborator<'context> {
                     if index < length {
                         return Some((elements[index].clone(), index));
                     } else {
-                        self.push_err(
-                            TypeCheckError::TupleIndexOutOfBounds {
-                                index,
-                                lhs_type,
-                                length,
-                                location,
-                            },
-                            location.file,
-                        );
+                        self.push_err(TypeCheckError::TupleIndexOutOfBounds {
+                            index,
+                            lhs_type,
+                            length,
+                            location,
+                        });
                         return None;
                     }
                 }
@@ -587,19 +556,13 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(
-                TypeCheckError::TypeAnnotationsNeededForFieldAccess { location },
-                location.file,
-            );
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
         } else if lhs_type != Type::Error {
-            self.push_err(
-                TypeCheckError::AccessUnknownMember {
-                    lhs_type,
-                    field_name: field_name.to_string(),
-                    location,
-                },
-                location.file,
-            );
+            self.push_err(TypeCheckError::AccessUnknownMember {
+                lhs_type,
+                field_name: field_name.to_string(),
+                location,
+            });
         }
 
         None
@@ -617,13 +580,9 @@ impl<'context> Elaborator<'context> {
         }
 
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
-            self.push_err(
-                ResolverError::PathResolutionError(PathResolutionError::Private(Ident::new(
-                    field_name.to_string(),
-                    location,
-                ))),
-                location.file,
-            );
+            self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
+                Ident::new(field_name.to_string(), location),
+            )));
         }
     }
 

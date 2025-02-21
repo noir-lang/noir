@@ -2030,14 +2030,14 @@ impl NodeInterner {
         index
     }
 
-    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<(CompilationError, FileId)> {
+    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
         let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         let mut errors = Vec::new();
 
         let mut push_error = |item: String, scc: &[_], i, location: Location| {
             let cycle = self.get_cycle_error_string(scc, i);
             let error = ResolverError::DependencyCycle { item, cycle, location };
-            errors.push((error.into(), location.file));
+            errors.push(error.into());
         };
 
         for scc in strongly_connected_components {
