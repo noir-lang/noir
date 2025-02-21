@@ -15,7 +15,6 @@ use crate::{
     Type,
 };
 
-use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
@@ -61,9 +60,7 @@ impl<'context> Elaborator<'context> {
 
                     let func_id = self.interner.push_empty_fn();
                     let module = self.module_id();
-                    // TODO: check this, it doesn't make sense to mix locations from two different files
-                    let location =
-                        Location::new(default_impl.def.location.span, trait_impl.file_id);
+                    let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
                     self.define_function_meta(&mut default_impl_clone, func_id, None);
                     func_ids_in_trait.insert(func_id);
