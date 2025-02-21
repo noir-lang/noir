@@ -182,6 +182,8 @@ pub enum ResolverError {
     LoopNotYetSupported { span: Span },
     #[error("Expected a trait but found {found}")]
     ExpectedTrait { found: String, span: Span },
+    #[error("Invalid syntax in match pattern")]
+    InvalidSyntaxInPattern { span: Span },
 }
 
 impl ResolverError {
@@ -691,8 +693,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
-
             }
+            ResolverError::InvalidSyntaxInPattern { span } => {
+                Diagnostic::simple_error(
+                    format!("Invalid syntax in match pattern"), 
+                    "Only literal, constructor, and variable patterns are allowed".into(),
+                    *span)
+            },
         }
     }
 }
