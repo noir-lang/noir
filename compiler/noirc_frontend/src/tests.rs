@@ -4488,7 +4488,7 @@ fn mutate_with_reference_in_lambda() {
         assert(*x == 5);
     }
     "#;
-    
+
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
 }
