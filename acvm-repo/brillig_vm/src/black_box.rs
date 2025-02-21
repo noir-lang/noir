@@ -497,7 +497,7 @@ mod tests {
         }
 
         #[test]
-        fn to_radix_be_nibbles(input: u128, num_limbs in 1..32usize) {
+        fn to_radix_be_nibbles(input: u128, num_limbs in 1..64usize) {
             let input_field = FieldElement::from(input);
             let required_limbs = input_field.to_be_bytes().len() * 2;
             let num_limbs = std::cmp::max(num_limbs,required_limbs);
@@ -517,7 +517,7 @@ mod tests {
         }
 
         #[test]
-        fn to_radix_be_crumbs(input: u128, num_limbs in 1..32usize) {
+        fn to_radix_be_crumbs(input: u128, num_limbs in 1..128usize) {
             let input_field = FieldElement::from(input);
             let required_limbs = input_field.to_be_bytes().len() * 4;
             let num_limbs = std::cmp::max(num_limbs,required_limbs);
