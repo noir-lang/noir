@@ -66,19 +66,24 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
     let backend_gates_response =
         gates_provider.get_gates(artifact_path).context("Error querying backend for gates")?;
 
-    let function_names = program.names.clone();
+    let function_names = std::mem::take(&mut program.names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
 
     let debug_artifact: DebugArtifact = program.into();
 
-    for (func_idx, ((func_gates, func_name), bytecode)) in backend_gates_response
-        .functions
-        .into_iter()
-        .zip(function_names)
-        .zip(bytecode.functions)
-        .enumerate()
+    let num_functions = bytecode.functions.len();
+    for (func_idx, (func_gates, circuit)) in
+        backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
     {
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = if num_functions > 1 {
+            format!("{}_{}", function_names[func_idx].as_str(), func_idx)
+        } else {
+            function_names[func_idx].to_owned()
+        };
+
         println!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
             func_gates.acir_opcodes,
@@ -89,7 +94,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         let samples = func_gates
             .gates_per_opcode
             .into_iter()
-            .zip(bytecode.opcodes)
+            .zip(circuit.opcodes)
             .enumerate()
             .map(|(index, (gates, opcode))| CompilationSample {
                 opcode: Some(format_acir_opcode(&opcode)),
@@ -100,16 +105,16 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .collect();
 
         let output_filename = if let Some(output_filename) = &output_filename {
-            format!("{}::{}::gates.svg", output_filename, func_name)
+            format!("{}_{}_gates.svg", output_filename, function_name)
         } else {
-            format!("{}::gates.svg", func_name)
+            format!("{}_gates.svg", function_name)
         };
         flamegraph_generator.generate_flamegraph(
             samples,
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
-            &func_name,
+            &function_name,
             &Path::new(&output_path).join(Path::new(&output_filename)),
         )?;
     }
@@ -212,7 +217,7 @@ mod tests {
         .expect("should run without errors");
 
         // Check that the output file was written to
-        let output_file = temp_dir.path().join("test_filename::main::gates.svg");
+        let output_file = temp_dir.path().join("test_filename_main_gates.svg");
         assert!(output_file.exists());
     }
 }

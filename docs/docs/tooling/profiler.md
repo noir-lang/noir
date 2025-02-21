@@ -5,8 +5,6 @@ keywords: [profiling, profiler, flamegraph]
 sidebar_position: 0
 ---
 
-## Noir Profiler
-
 `noir-profiler` is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
 
 ### Installation
@@ -113,3 +111,25 @@ In the optimized flamegraph, we searched for the backend gates due to `i > ptr` 
 
 For posterity, here is the flamegraph for the same program with a size 2048 array:
 ![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
+
+### Generate an unconstrained execution trace flamegraph
+
+The profiler also enables developers to generate a flamegraph of the unconstrained execution trace. For unconstrained functions Noir compiles down to Brillig bytecode, thus we will be seeing a flamegraph of Brillig opcodes, rather than ACIR opcodes.
+
+Let's take our initial program and simply add an `unconstrained` modifier before main (e.g. `unconstrained fn main`). Then run the following command:
+```sh
+noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_toml_path Prover.toml --output ./target
+```
+This matches the `opcodes` command, except that now we need to accept a `Prover.toml` file to profile execution with a specific set of inputs.
+
+We will get the following flamegraph with 1,582 opcodes executed:
+![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
+
+Circuit programming (ACIR) is an entirely different execution paradigm compared to regular programming. To demonstrate this point further, let's generate an execution trace for our optimized ACIR program once we have modified `main` to be `unconstrained`.
+
+We then get the following flamegraph with 2,125 opcodes executed:
+![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
+
+In the above graph we are searching for `new_array`, which shows up zero matches in the initial program. In the unconstrained environment, the updated program essentially just adds extra unnecessary checks. Thus, we see a longer execution trace.
+
+`execution-opcodes` is useful for when you are searching for bottlenecks in unconstrained code. This can be especially meaningful for optimizing witness generation. Even though unconstrained execution helps us skip proving steps, we still need to compute the relevant inputs/outputs outside of the circuit before proving.

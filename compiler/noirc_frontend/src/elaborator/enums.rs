@@ -5,7 +5,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        EnumVariant, Expression, ExpressionKind, FunctionKind, Literal, NoirEnumeration,
+        EnumVariant, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirEnumeration,
         StatementKind, UnresolvedType, Visibility,
     },
     elaborator::path_resolution::PathResolutionItem,
@@ -271,7 +271,8 @@ impl Elaborator<'_> {
 
         let rows = vecmap(rules, |(pattern, branch)| {
             self.push_scope();
-            let pattern = self.expression_to_pattern(pattern, &expected_pattern_type);
+            let pattern =
+                self.expression_to_pattern(pattern, &expected_pattern_type, &mut Vec::new());
             let columns = vec![Column::new(variable_to_match, pattern)];
 
             let guard = None;
@@ -293,7 +294,12 @@ impl Elaborator<'_> {
     }
 
     /// Convert an expression into a Pattern, defining any variables within.
-    fn expression_to_pattern(&mut self, expression: Expression, expected_type: &Type) -> Pattern {
+    fn expression_to_pattern(
+        &mut self,
+        expression: Expression,
+        expected_type: &Type,
+        variables_defined: &mut Vec<Ident>,
+    ) -> Pattern {
         let expr_location = expression.type_location();
         let unify_with_expected_type = |this: &mut Self, actual| {
             this.unify(actual, expected_type, expr_location.file, || {
@@ -341,13 +347,25 @@ impl Elaborator<'_> {
                         Vec::new(),
                         expected_type,
                         location,
+                        variables_defined,
                     ),
                     Err(_) if path_len == 1 => {
                         // Define the variable
                         let kind = DefinitionKind::Local(None);
-                        // TODO: `allow_shadowing` is false while I'm too lazy to add a check that we
-                        // don't define the same name multiple times in one pattern.
-                        let id = self.add_variable_decl(last_ident, false, false, true, kind).id;
+
+                        if let Some(existing) =
+                            variables_defined.iter().find(|elem| *elem == &last_ident)
+                        {
+                            let error = ResolverError::VariableAlreadyDefinedInPattern {
+                                existing: existing.clone(),
+                                new_span: last_ident.span(),
+                            };
+                            self.push_err(error, self.file);
+                        } else {
+                            variables_defined.push(last_ident.clone());
+                        }
+
+                        let id = self.add_variable_decl(last_ident, false, true, true, kind).id;
                         self.interner.push_definition_type(id, expected_type.clone());
                         Pattern::Binding(id)
                     }
@@ -357,9 +375,12 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            ExpressionKind::Call(call) => {
-                self.expression_to_constructor(*call.func, call.arguments, expected_type)
-            }
+            ExpressionKind::Call(call) => self.expression_to_constructor(
+                *call.func,
+                call.arguments,
+                expected_type,
+                variables_defined,
+            ),
             ExpressionKind::Constructor(_) => todo!("handle constructors"),
             ExpressionKind::Tuple(fields) => {
                 let field_types = vecmap(0..fields.len(), |_| self.interner.next_type_variable());
@@ -368,21 +389,23 @@ impl Elaborator<'_> {
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
                     let expected = field_types.get(i).unwrap_or(&Type::Error);
-                    self.expression_to_pattern(field, expected)
+                    self.expression_to_pattern(field, expected, variables_defined)
                 });
 
                 Pattern::Constructor(Constructor::Tuple(field_types.clone()), fields)
             }
 
-            ExpressionKind::Parenthesized(expr) => self.expression_to_pattern(*expr, expected_type),
+            ExpressionKind::Parenthesized(expr) => {
+                self.expression_to_pattern(*expr, expected_type, variables_defined)
+            }
             ExpressionKind::Interned(id) => {
                 let kind = self.interner.get_expression_kind(id);
                 let expr = Expression::new(kind.clone(), expression.location);
-                self.expression_to_pattern(expr, expected_type)
+                self.expression_to_pattern(expr, expected_type, variables_defined)
             }
             ExpressionKind::InternedStatement(id) => {
                 if let StatementKind::Expression(expr) = self.interner.get_statement_kind(id) {
-                    self.expression_to_pattern(expr.clone(), expected_type)
+                    self.expression_to_pattern(expr.clone(), expected_type, variables_defined)
                 } else {
                     syntax_error(self)
                 }
@@ -416,6 +439,7 @@ impl Elaborator<'_> {
         name: Expression,
         args: Vec<Expression>,
         expected_type: &Type,
+        variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         match name.kind {
             ExpressionKind::Variable(path) => {
@@ -427,6 +451,7 @@ impl Elaborator<'_> {
                         args,
                         expected_type,
                         location,
+                        variables_defined,
                     ),
                     Err(error) => {
                         self.push_err(error, location.file);
@@ -436,16 +461,21 @@ impl Elaborator<'_> {
                 }
             }
             ExpressionKind::Parenthesized(expr) => {
-                self.expression_to_constructor(*expr, args, expected_type)
+                self.expression_to_constructor(*expr, args, expected_type, variables_defined)
             }
             ExpressionKind::Interned(id) => {
                 let kind = self.interner.get_expression_kind(id);
                 let expr = Expression::new(kind.clone(), name.location);
-                self.expression_to_constructor(expr, args, expected_type)
+                self.expression_to_constructor(expr, args, expected_type, variables_defined)
             }
             ExpressionKind::InternedStatement(id) => {
                 if let StatementKind::Expression(expr) = self.interner.get_statement_kind(id) {
-                    self.expression_to_constructor(expr.clone(), args, expected_type)
+                    self.expression_to_constructor(
+                        expr.clone(),
+                        args,
+                        expected_type,
+                        variables_defined,
+                    )
                 } else {
                     panic!("Invalid expr kind {name}")
                 }
@@ -460,6 +490,7 @@ impl Elaborator<'_> {
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
+        variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let span = location.span;
 
@@ -518,7 +549,7 @@ impl Elaborator<'_> {
 
         let args = args.into_iter().zip(expected_arg_types);
         let args = vecmap(args, |(arg, expected_arg_type)| {
-            self.expression_to_pattern(arg, &expected_arg_type)
+            self.expression_to_pattern(arg, &expected_arg_type, variables_defined)
         });
         let constructor = Constructor::Variant(actual_type, variant_index);
         Pattern::Constructor(constructor, args)
