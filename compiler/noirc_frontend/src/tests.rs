@@ -4486,7 +4486,7 @@ fn errors_on_repeated_match_variables_in_pattern() {
     }
     "#;
 
-    let errors = dbg!(get_program_errors(src));
+    let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
