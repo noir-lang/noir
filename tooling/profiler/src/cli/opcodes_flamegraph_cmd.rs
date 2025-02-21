@@ -81,7 +81,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
-            &Path::new(&output_path).join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
+            &Path::new(&output_path)
+                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
         )?;
     }
 
@@ -99,7 +100,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
-        let function_name = format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
+        let function_name =
+            format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
 
         println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
 
