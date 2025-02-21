@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740153686849,
+  "lastUpdate": 1740153688151,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8444,75 +8444,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "efb401108483c558d3064b482ebb7601a9d6d6fd",
-          "message": "chore: pull out refactored methods from u128 branch (#7385)",
-          "timestamp": "2025-02-14T18:58:23Z",
-          "tree_id": "6ecb75f5bba2310f1bb9931a504880b085fea9d2",
-          "url": "https://github.com/noir-lang/noir/commit/efb401108483c558d3064b482ebb7601a9d6d6fd"
-        },
-        "date": 1739560735373,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.068,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.299,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.465,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.183,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-merge",
-            "value": 0.039,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.039,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "30c4b2d4773bd17db4d92fde4b6e7a22bbb4f659",
           "message": "chore: box `ExprValue` in `Value` enum (#7388)",
@@ -11623,6 +11554,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 35.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a598f20ee2237d3958e3028cd0d10c73aacb9a7d",
+          "message": "chore(docs): Profiler images reference (#7481)",
+          "timestamp": "2025-02-21T15:39:19Z",
+          "tree_id": "6003b74a4fe2cceedfd2812c1c9bfb26698709dc",
+          "url": "https://github.com/noir-lang/noir/commit/a598f20ee2237d3958e3028cd0d10c73aacb9a7d"
+        },
+        "date": 1740153685306,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.299,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.459,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.182,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 35.4,
             "unit": "s"
           },
           {
