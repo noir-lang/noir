@@ -417,7 +417,7 @@ fn to_radix_be<F: AcirField>(
             // Note that brillig does not have a u4 type so these are represented as u8s
             let lowest_bits_le = bytes_le
                 .flat_map(|limb| {
-                    [MemoryValue::U8((limb & 0xf0) >> 4), MemoryValue::U8(limb & 0x0f)].into_iter()
+                    [MemoryValue::U8(limb & 0x0f), MemoryValue::U8((limb & 0xf0) >> 4)].into_iter()
                 })
                 .take(num_limbs);
             // We need to collect in order to reverse due to `flat_map`
@@ -479,7 +479,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn to_radix_be_bytes(input: u128, num_limbs in 0..32usize) {
+        fn to_radix_be_bytes(input: u128, num_limbs in 1..32usize) {
             let input_field = FieldElement::from(input);
             let num_limbs = std::cmp::max(num_limbs, input_field.to_be_bytes().len());
 
@@ -497,21 +497,66 @@ mod tests {
         }
 
         #[test]
-        fn to_radix_be_bits(input: u128, num_limbs in 0..254usize) {
+        fn to_radix_be_nibbles(input: u128, num_limbs in 1..32usize) {
             let input_field = FieldElement::from(input);
-            let required_num_bits = input_field.num_bits() as usize;
+            let required_limbs = input_field.to_be_bytes().len() * 2;
+            let num_limbs = std::cmp::max(num_limbs,required_limbs);
+
+            let nibbles_be = to_radix_be(input_field, 16, num_limbs, false);
+            prop_assert_eq!(nibbles_be.len(), num_limbs);
+
+            let nibbles_be: Vec<u8> = nibbles_be.into_iter().map(|byte| byte.expect_u8().unwrap()).collect();
+            // `nibbles_be` may have leading zeros so we assert that these are all zero.
+            let num_padding_limbs = num_limbs - required_limbs;
+            prop_assert!(&nibbles_be.iter().take(num_padding_limbs).all(|byte| *byte == 0));
+
+            // We need to check that the byte decompositions are equivalent.
+            let bytes_be: Vec<u8> = nibbles_be[num_padding_limbs..].chunks(2).map(|byte_slice| (byte_slice[0] << 4) + byte_slice[1]).collect();
+            prop_assert_eq!(&bytes_be, &input_field.to_be_bytes());
+            prop_assert_eq!(FieldElement::from_be_bytes_reduce(&bytes_be), input_field);
+        }
+
+        #[test]
+        fn to_radix_be_crumbs(input: u128, num_limbs in 1..32usize) {
+            let input_field = FieldElement::from(input);
+            let required_limbs = input_field.to_be_bytes().len() * 4;
+            let num_limbs = std::cmp::max(num_limbs,required_limbs);
+
+            let crumbs_be = to_radix_be(input_field, 4, num_limbs, false);
+            prop_assert_eq!(crumbs_be.len(), num_limbs);
+
+            let crumbs_be: Vec<u8> = crumbs_be.into_iter().map(|byte| byte.expect_u8().unwrap()).collect();
+            // `crumbs_be` may have leading zeros so we assert that these are all zero.
+            let num_padding_limbs = num_limbs - required_limbs;
+            prop_assert!(&crumbs_be.iter().take(num_padding_limbs).all(|byte| *byte == 0));
+
+            // We need to check that the byte decompositions are equivalent.
+            let bytes_be: Vec<u8> = crumbs_be[num_padding_limbs..].chunks(4).map(|byte_slice| byte_slice.iter().fold(0, |acc, limb| (acc << 2) + limb)).collect();
+            prop_assert_eq!(&bytes_be, &input_field.to_be_bytes());
+            prop_assert_eq!(FieldElement::from_be_bytes_reduce(&bytes_be), input_field);
+        }
+
+        #[test]
+        fn to_radix_be_bits(input: u128, num_limbs in 1..254usize) {
+            let input_field = FieldElement::from(input);
+            let required_num_bits = input_field.to_be_bytes().len() * 8;
             let num_limbs = std::cmp::max(num_limbs, required_num_bits);
 
             let bits_be = to_radix_be(input_field, 2, num_limbs, true);
             prop_assert_eq!(bits_be.len(), num_limbs);
 
             let bits_be: Vec<bool> = bits_be.into_iter().map(| byte| byte.expect_u1().unwrap()).collect();
-            let num_padding_bits = num_limbs - required_num_bits;
+            let num_padding_limbs = num_limbs - required_num_bits;
 
             // We need to check that the bit decompositions are equivalent.
-            // `bytes_be` may have leading zeros so we assert that these are all zero.
-            prop_assert!(&bits_be.iter().take(num_padding_bits).all(|byte| !byte));
-            // TODO: assert correct decomposition
+            // `bits_be` may have leading zeros so we assert that these are all zero.
+            prop_assert!(&bits_be.iter().take(num_padding_limbs).all(|byte| !byte));
+
+            // Check that each set of 8 bits are equivalent to the expected byte value.
+            for (bits, expected_byte) in bits_be[num_padding_limbs..].chunks(8).zip(input_field.to_be_bytes().iter()){
+                let byte = bits.iter().fold(0, |acc, limb| (acc << 1) + *limb as u8);
+                prop_assert_eq!(byte, *expected_byte);
+            }
         }
     }
 }
