@@ -4,7 +4,6 @@ use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
-use fxhash::FxHashMap as HashMap;
 use noirc_artifacts::debug::DebugArtifact;
 
 use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
@@ -73,22 +72,17 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
     let debug_artifact: DebugArtifact = program.into();
 
-    // We can have repeated names if there are functions with the same name in different
-    // modules or functions that use generics.
-    let mut seen_names: HashMap<String, usize> = HashMap::default();
-    for (func_idx, (func_gates, bytecode)) in
+    let num_functions = bytecode.functions.len();
+    for (func_idx, (func_gates, circuit)) in
         backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
     {
-        let original_name = function_names[func_idx].as_str();
-        let mut function_name = original_name.to_owned();
-
-        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
-        // Ensure uniqueness by checking existing names
-        while seen_names.contains_key(&function_name) {
-            counter += 1;
-            function_name = format!("{}_{}", original_name, counter);
-        }
-        seen_names.insert(function_name.clone(), counter);
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = if num_functions > 1 {
+            format!("{}_{}", function_names[func_idx].as_str(), func_idx)
+        } else {
+            function_names[func_idx].to_owned()
+        };
 
         println!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
@@ -100,7 +94,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         let samples = func_gates
             .gates_per_opcode
             .into_iter()
-            .zip(bytecode.opcodes)
+            .zip(circuit.opcodes)
             .enumerate()
             .map(|(index, (gates, opcode))| CompilationSample {
                 opcode: Some(format_acir_opcode(&opcode)),

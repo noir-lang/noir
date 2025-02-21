@@ -1,4 +1,3 @@
-use fxhash::FxHashMap as HashMap;
 use std::path::{Path, PathBuf};
 
 use acir::circuit::brillig::BrilligFunctionId;
@@ -53,24 +52,18 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
     let debug_artifact: DebugArtifact = program.into();
 
-    // We can have repeated names if there are functions with the same name in different
-    // modules or functions that use generics.
-    let mut seen_names: HashMap<String, usize> = HashMap::default();
-    for (func_idx, bytecode) in bytecode.functions.iter().enumerate() {
-        let original_name = acir_names[func_idx].as_str();
-        let mut function_name = original_name.to_owned();
+    for (func_idx, circuit) in bytecode.functions.iter().enumerate() {
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = if bytecode.functions.len() > 1 {
+            format!("{}_{}", acir_names[func_idx].as_str(), func_idx)
+        } else {
+            acir_names[func_idx].to_owned()
+        };
 
-        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
-        // Ensure uniqueness by checking existing names
-        while seen_names.contains_key(&function_name) {
-            counter += 1;
-            function_name = format!("{}_{}", original_name, counter);
-        }
-        seen_names.insert(function_name.clone(), counter);
+        println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
 
-        println!("Opcode count for {}: {}", function_name, bytecode.opcodes.len());
-
-        let samples = bytecode
+        let samples = circuit
             .opcodes
             .iter()
             .enumerate()
@@ -88,8 +81,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
-            &Path::new(&output_path)
-                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
+            &Path::new(&output_path).join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
         )?;
     }
 
@@ -97,10 +89,6 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         return Ok(());
     }
 
-    // We can have repeated names if there are functions with the same name in different
-    // modules or functions that use generics.
-    let mut seen_names: HashMap<String, usize> = HashMap::default();
-    // let mut seen_names: HashMap<&str, usize> = HashMap::default();
     for (brillig_fn_index, brillig_bytecode) in
         bytecode.unconstrained_functions.into_iter().enumerate()
     {
@@ -109,16 +97,9 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             continue;
         };
 
-        let original_name = brillig_names[brillig_fn_index].as_str();
-        let mut function_name = original_name.to_owned();
-
-        let mut counter = seen_names.get(original_name).copied().unwrap_or(0);
-        // Ensure uniqueness by checking existing names
-        while seen_names.contains_key(&function_name) {
-            counter += 1;
-            function_name = format!("{}_{}", original_name, counter);
-        }
-        seen_names.insert(function_name.clone(), counter);
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
 
         println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
 
@@ -295,7 +276,7 @@ mod tests {
         let output_file = temp_dir.path().join("main_acir_opcodes.svg");
         assert!(output_file.exists());
 
-        let output_file = temp_dir.path().join("main_brillig_opcodes.svg");
+        let output_file = temp_dir.path().join("main_0_brillig_opcodes.svg");
         assert!(output_file.exists());
 
         let output_file = temp_dir.path().join("main_1_brillig_opcodes.svg");
