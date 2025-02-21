@@ -4,6 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 mod cli;
+mod errors;
 mod flamegraph;
 mod fs;
 mod gates_provider;
@@ -33,7 +34,7 @@ fn main() {
     }
 
     if let Err(report) = cli::start_cli() {
-        eprintln!("{report:?}");
+        eprintln!("{report}");
         std::process::exit(1);
     }
 }

@@ -1,5 +1,5 @@
 use lsp_types::TextEdit;
-use noirc_errors::{Location, Span};
+use noirc_errors::Span;
 use noirc_frontend::{
     ast::{ConstructorExpression, UnresolvedTypeData},
     node_interner::ReferenceId,
@@ -19,7 +19,7 @@ impl<'a> CodeActionFinder<'a> {
             return;
         };
 
-        let location = Location::new(path.span, self.file);
+        let location = path.location;
         let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };

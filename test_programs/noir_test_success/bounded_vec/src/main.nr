@@ -269,4 +269,3 @@ fn test_vec_any_not_default() {
     vec.extend_from_array([2, 4]);
     assert(!vec.any(|v| v == default_value));
 }
-

@@ -3,7 +3,7 @@ use std::{borrow::Cow, rc::Rc, vec};
 use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
@@ -13,14 +13,17 @@ use crate::{
         UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
-    hir::{def_map::ModuleId, type_check::generics::TraitGenerics},
+    hir::{
+        def_collector::dc_crate::CompilationError, def_map::ModuleId,
+        type_check::generics::TraitGenerics,
+    },
     hir_def::expr::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
         HirIdent, HirLambda, HirLiteral, ImplKind,
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    token::{SpannedToken, Token, Tokens},
+    token::{LocatedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -44,6 +47,7 @@ pub enum Value {
     U16(u16),
     U32(u32),
     U64(u64),
+    U128(u128),
     String(Rc<String>),
     FormatString(Rc<String>, Type),
     CtString(Rc<String>),
@@ -59,10 +63,7 @@ pub enum Value {
     Pointer(Shared<Value>, /* auto_deref */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
-    /// Quoted tokens don't have spans because otherwise inserting them in the middle of other
-    /// tokens can cause larger spans to be before lesser spans, causing an assert. They may also
-    /// be inserted into separate files entirely.
-    Quoted(Rc<Vec<Token>>),
+    Quoted(Rc<Vec<LocatedToken>>),
     StructDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
@@ -130,6 +131,9 @@ impl Value {
             Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
             Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
+            Value::U128(_) => {
+                Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
+            }
             Value::String(value) => {
                 let length = Type::Constant(value.len().into(), Kind::u32());
                 Type::String(Box::new(length))
@@ -216,6 +220,7 @@ impl Value {
             Value::U64(value) => {
                 ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
             }
+            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(value.into(), false)),
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -228,7 +233,7 @@ impl Value {
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
                 let expr_id = elaborator.interner.push_expr(HirExpression::Ident(ident, None));
-                elaborator.interner.push_expr_location(expr_id, location.span, location.file);
+                elaborator.interner.push_expr_location(expr_id, location);
                 elaborator.interner.push_expr_type(expr_id, typ);
                 elaborator.interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 ExpressionKind::Resolved(expr_id)
@@ -241,7 +246,7 @@ impl Value {
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                    Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
                 let struct_type = match typ.follow_bindings_shallow().as_ref() {
@@ -250,7 +255,7 @@ impl Value {
                 };
 
                 // Since we've provided the struct_type, the path should be ignored.
-                let type_name = Path::from_single(String::new(), location.span);
+                let type_name = Path::from_single(String::new(), location);
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
                     typ: UnresolvedType::from_path(type_name),
                     fields,
@@ -273,29 +278,31 @@ impl Value {
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
-                let mut tokens_to_parse = add_token_spans(tokens.clone(), location.span);
-                tokens_to_parse.0.insert(0, SpannedToken::new(Token::LeftBrace, location.span));
-                tokens_to_parse.0.push(SpannedToken::new(Token::RightBrace, location.span));
+                let mut tokens_to_parse = unwrap_rc(tokens.clone());
+                tokens_to_parse.insert(0, LocatedToken::new(Token::LeftBrace, location));
+                tokens_to_parse.push(LocatedToken::new(Token::RightBrace, location));
+
+                let tokens_to_parse = Tokens(tokens_to_parse);
 
                 let parser = Parser::for_tokens(tokens_to_parse);
                 return match parser.parse_result(Parser::parse_expression_or_error) {
                     Ok((expr, warnings)) => {
                         for warning in warnings {
-                            elaborator.errors.push((warning.into(), location.file));
+                            let location = warning.location();
+                            let warning: CompilationError = warning.into();
+                            elaborator.push_err(warning, location.file);
                         }
 
                         Ok(expr)
                     }
                     Err(mut errors) => {
                         let error = Box::new(errors.swap_remove(0));
-                        let file = location.file;
                         let rule = "an expression";
-                        let tokens = tokens_to_string(tokens, elaborator.interner);
-                        Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+                        let tokens = tokens_to_string(&tokens, elaborator.interner);
+                        Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
                     }
                 };
             }
-
             Value::Expr(ref expr) => {
                 // We need to do some shenanigans to get around the borrow checker here due to using a boxed value.
 
@@ -314,7 +321,7 @@ impl Value {
                 match *expr {
                     ExprValue::Expression(expr) => expr,
                     ExprValue::Statement(statement) => ExpressionKind::Block(BlockExpression {
-                        statements: vec![Statement { kind: statement, span: location.span }],
+                        statements: vec![Statement { kind: statement, location }],
                     }),
                     ExprValue::LValue(lvalue) => lvalue.as_expression().kind,
                     ExprValue::Pattern(_) => unreachable!("this case is handled above"),
@@ -338,7 +345,7 @@ impl Value {
             }
         };
 
-        Ok(Expression::new(kind, location.span))
+        Ok(Expression::new(kind, location))
     }
 
     pub(crate) fn into_hir_expression(
@@ -391,6 +398,7 @@ impl Value {
             Value::U64(value) => {
                 HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
             }
+            Value::U128(value) => HirExpression::Literal(HirLiteral::Integer(value.into(), false)),
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
             }
@@ -403,7 +411,7 @@ impl Value {
                 let impl_kind = ImplKind::NotATraitMethod;
                 let ident = HirIdent { location, id, impl_kind };
                 let expr_id = interner.push_expr(HirExpression::Ident(ident, None));
-                interner.push_expr_location(expr_id, location.span, location.file);
+                interner.push_expr_location(expr_id, location);
                 interner.push_expr_type(expr_id, typ);
                 interner.store_instantiation_bindings(expr_id, unwrap_rc(bindings));
                 return Ok(expr_id);
@@ -416,7 +424,7 @@ impl Value {
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
                     let field = field.into_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location.span), field))
+                    Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
                 let (r#type, struct_generics) = match typ.follow_bindings() {
@@ -458,7 +466,7 @@ impl Value {
                 })?;
                 HirExpression::Literal(HirLiteral::Slice(HirArrayLiteral::Standard(elements)))
             }
-            Value::Quoted(tokens) => HirExpression::Unquote(add_token_spans(tokens, location.span)),
+            Value::Quoted(tokens) => HirExpression::Unquote(Tokens(unwrap_rc(tokens))),
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
@@ -485,7 +493,7 @@ impl Value {
         };
 
         let id = interner.push_expr(expression);
-        interner.push_expr_location(id, location.span, location.file);
+        interner.push_expr_location(id, location);
         interner.push_expr_type(id, typ);
         Ok(id)
     }
@@ -494,74 +502,77 @@ impl Value {
         self,
         interner: &mut NodeInterner,
         location: Location,
-    ) -> IResult<Vec<Token>> {
-        let token = match self {
+    ) -> IResult<Vec<LocatedToken>> {
+        let tokens: Vec<Token> = match self {
             Value::Unit => {
-                return Ok(vec![Token::LeftParen, Token::RightParen]);
+                vec![Token::LeftParen, Token::RightParen]
             }
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
-            Value::Type(typ) => Token::QuotedType(interner.push_quoted_type(typ)),
+            Value::Type(typ) => vec![Token::QuotedType(interner.push_quoted_type(typ))],
             Value::Expr(expr) => match *expr {
                 ExprValue::Expression(expr) => {
-                    Token::InternedExpr(interner.push_expression_kind(expr))
+                    vec![Token::InternedExpr(interner.push_expression_kind(expr))]
                 }
                 ExprValue::Statement(StatementKind::Expression(expr)) => {
-                    Token::InternedExpr(interner.push_expression_kind(expr.kind))
+                    vec![Token::InternedExpr(interner.push_expression_kind(expr.kind))]
                 }
                 ExprValue::Statement(statement) => {
-                    Token::InternedStatement(interner.push_statement_kind(statement))
+                    vec![Token::InternedStatement(interner.push_statement_kind(statement))]
                 }
-                ExprValue::LValue(lvalue) => Token::InternedLValue(interner.push_lvalue(lvalue)),
+                ExprValue::LValue(lvalue) => {
+                    vec![Token::InternedLValue(interner.push_lvalue(lvalue))]
+                }
                 ExprValue::Pattern(pattern) => {
-                    Token::InternedPattern(interner.push_pattern(pattern))
+                    vec![Token::InternedPattern(interner.push_pattern(pattern))]
                 }
             },
             Value::UnresolvedType(typ) => {
-                Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))
+                vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
                 let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
                 let typ = Type::TraitAsType(trait_id, name, generics);
-                Token::QuotedType(interner.push_quoted_type(typ))
+                vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
-            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => Token::UnquoteMarker(expr_id),
-            Value::U1(bool) => Token::Bool(bool),
-            Value::U8(value) => Token::Int((value as u128).into()),
-            Value::U16(value) => Token::Int((value as u128).into()),
-            Value::U32(value) => Token::Int((value as u128).into()),
-            Value::U64(value) => Token::Int((value as u128).into()),
+            Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
+            Value::U1(bool) => vec![Token::Bool(bool)],
+            Value::U8(value) => vec![Token::Int((value as u128).into())],
+            Value::U16(value) => vec![Token::Int((value as u128).into())],
+            Value::U32(value) => vec![Token::Int((value as u128).into())],
+            Value::U64(value) => vec![Token::Int((value as u128).into())],
             Value::I8(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    return Ok(vec![Token::Minus, Token::Int((-value as u128).into())]);
+                    vec![Token::Minus, Token::Int((-value as u128).into())]
                 } else {
-                    Token::Int((value as u128).into())
+                    vec![Token::Int((value as u128).into())]
                 }
             }
-            Value::Field(value) => Token::Int(value),
-            other => Token::UnquoteMarker(other.into_hir_expression(interner, location)?),
+            Value::Field(value) => vec![Token::Int(value)],
+            other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
-        Ok(vec![token])
+        let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
+        Ok(tokens)
     }
 
     /// Returns false for non-integral `Value`s.
@@ -619,7 +630,7 @@ pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
 }
 
 fn parse_tokens<'a, T, F>(
-    tokens: Rc<Vec<Token>>,
+    tokens: Rc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,
@@ -628,24 +639,20 @@ fn parse_tokens<'a, T, F>(
 where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
-    let parser = Parser::for_tokens(add_token_spans(tokens.clone(), location.span));
+    let parser = Parser::for_tokens(Tokens(unwrap_rc(tokens.clone())));
     match parser.parse_result(parsing_function) {
         Ok((expr, warnings)) => {
             for warning in warnings {
-                elaborator.errors.push((warning.into(), location.file));
+                let location = warning.location();
+                let warning: CompilationError = warning.into();
+                elaborator.push_err(warning, location.file);
             }
             Ok(expr)
         }
         Err(mut errors) => {
             let error = Box::new(errors.swap_remove(0));
-            let file = location.file;
-            let tokens = tokens_to_string(tokens, elaborator.interner);
-            Err(InterpreterError::FailedToParseMacro { error, file, tokens, rule })
+            let tokens = tokens_to_string(&tokens, elaborator.interner);
+            Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
     }
-}
-
-pub(crate) fn add_token_spans(tokens: Rc<Vec<Token>>, span: Span) -> Tokens {
-    let tokens = unwrap_rc(tokens);
-    Tokens(vecmap(tokens, |token| SpannedToken::new(token, span)))
 }

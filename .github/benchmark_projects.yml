@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 6c0b83d4b73408f87acfa080d52a81c411e47336
+define: &AZ_COMMIT 481d3beaba9fcc85743919bc640a849dad7b7b88
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -73,7 +73,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_runs: 1
     timeout: 60
-    compilation-timeout: 100
+    compilation-timeout: 110
     execution-timeout: 40
     compilation-memory-limit: 7000
     execution-memory-limit: 1500

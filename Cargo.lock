@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir_field",
  "base64 0.21.7",
@@ -26,12 +26,14 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
+ "ark-std 0.5.0",
  "cfg-if",
+ "criterion",
  "hex",
  "num-bigint",
  "proptest",
@@ -40,7 +42,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -63,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "blake2",
@@ -90,10 +92,10 @@ dependencies = [
  "color-eyre",
  "const_format",
  "nargo",
+ "noir_artifact_cli",
  "paste",
  "proptest",
  "rand",
- "thiserror",
  "toml",
  "tracing-appender",
  "tracing-subscriber",
@@ -101,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -765,7 +767,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -783,7 +785,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir_field",
  "serde",
@@ -791,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1750,7 +1752,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2554,7 +2556,7 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 
 [[package]]
 name = "itertools"
@@ -2988,7 +2990,7 @@ dependencies = [
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "fm",
@@ -3013,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "ark-bn254 0.4.0",
@@ -3079,8 +3081,9 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
+ "noirc_errors",
  "noirc_frontend",
  "serde",
  "similar-asserts",
@@ -3090,7 +3093,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "dirs",
  "fm",
@@ -3156,8 +3159,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_artifact_cli"
+version = "1.0.0-beta.3"
+dependencies = [
+ "acir",
+ "acvm",
+ "bn254_blackbox_solver",
+ "clap",
+ "color-eyre",
+ "const_format",
+ "fm",
+ "nargo",
+ "noirc_abi",
+ "noirc_artifacts",
+ "noirc_artifacts_info",
+ "noirc_driver",
+ "noirc_errors",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3181,7 +3208,7 @@ dependencies = [
 
 [[package]]
 name = "noir_fuzzer"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "noirc_abi",
@@ -3192,7 +3219,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "clap",
@@ -3206,7 +3233,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3214,6 +3241,7 @@ dependencies = [
  "convert_case",
  "fm",
  "fxhash",
+ "iter-extended",
  "lsp-types 0.94.1",
  "nargo",
  "nargo_fmt",
@@ -3234,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3254,13 +3282,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror",
  "tracing-appender",
  "tracing-subscriber",
 ]
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -3284,7 +3313,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3303,7 +3332,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -3320,11 +3349,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "codespan-reporting",
@@ -3339,7 +3368,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acir",
  "acvm",
@@ -3354,7 +3383,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "build-data",
@@ -3373,7 +3402,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -3390,7 +3419,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -3420,7 +3449,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "base64 0.21.7",
@@ -3452,7 +3481,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
  "proptest",

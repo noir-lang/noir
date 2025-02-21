@@ -171,7 +171,7 @@ pub struct FuncMeta {
 
 #[derive(Debug, Clone)]
 pub enum FunctionBody {
-    Unresolved(FunctionKind, BlockExpression, Span),
+    Unresolved(FunctionKind, BlockExpression, Location),
     Resolving,
     Resolved,
 }

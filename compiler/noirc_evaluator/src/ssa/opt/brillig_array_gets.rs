@@ -13,7 +13,11 @@ use fxhash::FxHashMap as HashMap;
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
-        ir::{function::Function, instruction::Instruction, types::{NumericType, Type}},
+        ir::{
+            function::Function,
+            instruction::Instruction,
+            types::{NumericType, Type},
+        },
         Ssa,
     },
 };
@@ -37,17 +41,14 @@ impl Function {
 
         let mut instructions_to_update = HashMap::default();
         for block_id in reachable_blocks.into_iter() {
-            for instruction_id in self.dfg[block_id].instructions().to_vec() {
-                match self.dfg[instruction_id] {
-                    Instruction::ArrayGet { array, index } => {
-                        if self.dfg.is_constant(index) {
-                            instructions_to_update.insert(
-                                instruction_id,
-                                (Instruction::ArrayGet { array, index }, block_id),
-                            );
-                        }
+            for instruction_id in self.dfg[block_id].instructions() {
+                if let Instruction::ArrayGet { array, index } = self.dfg[*instruction_id] {
+                    if self.dfg.is_constant(index) {
+                        instructions_to_update.insert(
+                            *instruction_id,
+                            (Instruction::ArrayGet { array, index }, block_id),
+                        );
                     }
-                    _ => {}
                 }
             }
         }

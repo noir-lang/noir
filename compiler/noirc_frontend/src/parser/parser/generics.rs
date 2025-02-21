@@ -71,11 +71,11 @@ impl<'a> Parser<'a> {
             // If we didn't get a type after the colon, error and assume it's u32
             self.push_error(
                 ParserErrorReason::MissingTypeForNumericGeneric,
-                self.current_token_span,
+                self.current_token_location,
             );
             let typ = UnresolvedType {
                 typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             };
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
@@ -85,7 +85,7 @@ impl<'a> Parser<'a> {
             if matches!(signedness, Signedness::Signed)
                 || matches!(bit_size, IntegerBitSize::SixtyFour)
             {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.span);
+                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.location);
             }
         }
 
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         let token = self.eat_kind(TokenKind::QuotedType)?;
         match token.into_token() {
             Token::QuotedType(id) => {
-                Some(UnresolvedGeneric::Resolved(id, self.previous_token_span))
+                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location))
             }
             _ => unreachable!(),
         }
@@ -175,14 +175,14 @@ mod tests {
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let generics = parser.parse_generics();
         expect_no_errors(&parser.errors);
         generics
     }
 
     fn parse_generic_type_args_no_errors(src: &str) -> GenericTypeArgs {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let generics = parser.parse_generic_type_args();
         expect_no_errors(&parser.errors);
         generics
@@ -263,7 +263,7 @@ mod tests {
                 ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_generics();
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));

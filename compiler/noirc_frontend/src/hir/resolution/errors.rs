@@ -182,6 +182,8 @@ pub enum ResolverError {
     LoopNotYetSupported { span: Span },
     #[error("Expected a trait but found {found}")]
     ExpectedTrait { found: String, span: Span },
+    #[error("Variable '{existing}' was already defined in the same match pattern")]
+    VariableAlreadyDefinedInPattern { existing: Ident, new_span: Span },
 }
 
 impl ResolverError {
@@ -419,7 +421,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
@@ -691,8 +693,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
-
             }
+            ResolverError::VariableAlreadyDefinedInPattern { existing, new_span } => {
+                let message = format!("Variable `{existing}` was already defined in the same match pattern");
+                let secondary = format!("`{existing}` redefined here");
+                let mut error = Diagnostic::simple_error(message, secondary, *new_span);
+                error.add_secondary(format!("`{existing}` was previously defined here"), existing.span());
+                error
+            },
         }
     }
 }

@@ -72,7 +72,7 @@ pub(crate) fn on_completion_request(
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
                 let byte = source.as_bytes().get(byte_index - 1).copied();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = NodeFinder::new(
                     args.files,
@@ -196,7 +196,7 @@ impl<'a> NodeFinder<'a> {
         let span = if let UnresolvedTypeData::Named(path, _, _) = &constructor_expression.typ.typ {
             path.last_ident().span()
         } else {
-            constructor_expression.typ.span
+            constructor_expression.typ.location.span
         };
 
         let location = Location::new(span, self.file);
@@ -241,7 +241,7 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
         mut in_the_middle: bool,
     ) {
-        if !self.includes_span(path.span) {
+        if !self.includes_span(path.location.span) {
             return;
         }
 
@@ -268,7 +268,10 @@ impl<'a> NodeFinder<'a> {
                 let substring = ident.0.contents[0..offset].to_string();
                 let ident = Ident::new(
                     substring,
-                    Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                    Location::new(
+                        Span::from(ident.span().start()..ident.span().start() + offset as u32),
+                        ident.location().file,
+                    ),
                 );
                 idents.push(ident);
                 in_the_middle = true;
@@ -1020,7 +1023,7 @@ impl<'a> NodeFinder<'a> {
         noir_function: &NoirFunction,
     ) {
         // First find the trait
-        let location = Location::new(noir_trait_impl.r#trait.span, self.file);
+        let location = noir_trait_impl.r#trait.location;
         let Some(ReferenceId::Trait(trait_id)) = self.interner.find_referenced(location) else {
             return;
         };
@@ -1202,13 +1205,13 @@ impl<'a> NodeFinder<'a> {
 impl<'a> Visitor for NodeFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
             self.use_segment_positions.add(use_tree);
         }
 
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_import(
@@ -1342,11 +1345,11 @@ impl<'a> Visitor for NodeFinder<'a> {
         self.type_parameters.clear();
         self.collect_type_parameters_in_generics(&type_impl.generics);
 
-        for (method, span) in &type_impl.methods {
-            method.item.accept(*span, self);
+        for (method, location) in &type_impl.methods {
+            method.item.accept(location.span, self);
 
             // Optimization: stop looking in functions past the completion cursor
-            if span.end() as usize > self.byte_index {
+            if location.span.end() as usize > self.byte_index {
                 break;
             }
         }
@@ -1425,7 +1428,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if let ExpressionKind::Variable(path) = &call_expression.func.kind {
-            if self.includes_span(path.span) {
+            if self.includes_span(path.location.span) {
                 self.find_in_path_impl(path, RequestedItems::AnyItems, true);
                 return false;
             }
@@ -1439,8 +1442,8 @@ impl<'a> Visitor for NodeFinder<'a> {
         // as "foo(...)" but if we are at a dot right after "foo" it means it's
         // the above case and we want to suggest methods of foo's type.
         let after_dot = self.byte == Some(b'.');
-        if after_dot && call_expression.func.span.end() as usize == self.byte_index - 1 {
-            let location = Location::new(call_expression.func.span, self.file);
+        if after_dot && call_expression.func.location.span.end() as usize == self.byte_index - 1 {
+            let location = call_expression.func.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
@@ -1470,7 +1473,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         // we don't want to insert arguments, because they are already there (even if
         // they could be wrong) just because inserting them would lead to broken code.
         if self.includes_span(method_call_expression.method_name.span()) {
-            let location = Location::new(method_call_expression.object.span, self.file);
+            let location = method_call_expression.object.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = method_call_expression.method_name.to_string();
                 let offset =
@@ -1500,7 +1503,7 @@ impl<'a> Visitor for NodeFinder<'a> {
             statement.accept(self);
 
             // Optimization: stop looking in statements past the completion cursor
-            if statement.span.end() as usize > self.byte_index {
+            if statement.location.span.end() as usize > self.byte_index {
                 break;
             }
         }
@@ -1648,9 +1651,9 @@ impl<'a> Visitor for NodeFinder<'a> {
         // to complete for `bar`, not for `foo & bar`.
         if self.completion_items.is_empty()
             && self.byte == Some(b'.')
-            && expression.span.end() as usize == self.byte_index - 1
+            && expression.location.span.end() as usize == self.byte_index - 1
         {
-            let location = Location::new(expression.span, self.file);
+            let location = expression.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = "";
                 let self_prefix = false;
@@ -1723,7 +1726,7 @@ impl<'a> Visitor for NodeFinder<'a> {
 
         if self.byte_index == ident.span().end() as usize {
             // Assuming member_access_expression is of the form `foo.bar`, we are right after `bar`
-            let location = Location::new(member_access_expression.lhs.span, self.file);
+            let location = member_access_expression.lhs.location;
             if let Some(typ) = self.interner.type_at_location(location) {
                 let prefix = ident.to_string().to_case(Case::Snake);
                 let self_prefix = false;
@@ -1780,7 +1783,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_unresolved_type(&mut self, unresolved_type: &UnresolvedType) -> bool {
-        self.includes_span(unresolved_type.span)
+        self.includes_span(unresolved_type.location.span)
     }
 
     fn visit_named_type(
@@ -1833,7 +1836,7 @@ impl<'a> Visitor for NodeFinder<'a> {
     }
 
     fn visit_meta_attribute(&mut self, attribute: &MetaAttribute, target: AttributeTarget) -> bool {
-        if self.byte_index == attribute.name.span.end() as usize {
+        if self.byte_index == attribute.name.location.span.end() as usize {
             self.suggest_builtin_attributes(&attribute.name.to_string(), target);
         }
 
@@ -1846,7 +1849,7 @@ impl<'a> Visitor for NodeFinder<'a> {
         let mut last_was_dollar = false;
 
         for token in &tokens.0 {
-            let span = token.to_span();
+            let span = token.span();
             if span.end() as usize > self.byte_index {
                 break;
             }
