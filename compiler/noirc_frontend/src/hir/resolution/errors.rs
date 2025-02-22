@@ -182,6 +182,8 @@ pub enum ResolverError {
     LoopNotYetSupported { span: Span },
     #[error("Expected a trait but found {found}")]
     ExpectedTrait { found: String, span: Span },
+    #[error("Invalid syntax in match pattern")]
+    InvalidSyntaxInPattern { span: Span },
     #[error("Variable '{existing}' was already defined in the same match pattern")]
     VariableAlreadyDefinedInPattern { existing: Ident, new_span: Span },
 }
@@ -694,6 +696,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     String::new(),
                     *span)
             }
+            ResolverError::InvalidSyntaxInPattern { span } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in match pattern".into(), 
+                    "Only literal, constructor, and variable patterns are allowed".into(),
+                    *span)
+            },
             ResolverError::VariableAlreadyDefinedInPattern { existing, new_span } => {
                 let message = format!("Variable `{existing}` was already defined in the same match pattern");
                 let secondary = format!("`{existing}` redefined here");
