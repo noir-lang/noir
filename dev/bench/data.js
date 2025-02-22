@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740187707133,
+  "lastUpdate": 1740187847656,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3eb8e38e04c526f5d7e1c34f6bf2de3e48c238c6",
-          "message": "chore(ci): lock aztec-packages commit in CI (#7414)",
-          "timestamp": "2025-02-18T11:04:20Z",
-          "tree_id": "a474fdf9c97262aab141a88ca333dfd4e66f9b2c",
-          "url": "https://github.com/noir-lang/noir/commit/3eb8e38e04c526f5d7e1c34f6bf2de3e48c238c6"
-        },
-        "date": 1739878583684,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 276.93,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 588.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 200.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 953.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 818.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 329.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 5090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 5100,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 327.51,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 375.18,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3679,6 +3605,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 338.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 337.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 384.76,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ffcc6f891152a9dc89fceb33aefae935cecf6946",
+          "message": "fix(performance): Accurately mark safe constant indices for arrays of complex types (#7491)",
+          "timestamp": "2025-02-22T01:06:27Z",
+          "tree_id": "4fcf047b7963a9120f5dc9423b8aed948a48984a",
+          "url": "https://github.com/noir-lang/noir/commit/ffcc6f891152a9dc89fceb33aefae935cecf6946"
+        },
+        "date": 1740187845905,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 285.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 597.57,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 955.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 828.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 338.69,
             "unit": "MB"
           },
           {
