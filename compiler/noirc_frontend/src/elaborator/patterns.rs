@@ -885,8 +885,11 @@ impl<'context> Elaborator<'context> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let location = path.item.location();
         let typ = self.resolve_type(path.typ);
+        let check_self_param = false;
 
-        let Some(method) = self.lookup_method(&typ, &path.item.0.contents, location, false) else {
+        let Some(method) =
+            self.lookup_method(&typ, &path.item.0.contents, location, check_self_param)
+        else {
             let error = Expression::new(ExpressionKind::Error, location);
             return self.elaborate_expression(error);
         };

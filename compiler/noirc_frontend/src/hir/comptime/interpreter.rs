@@ -1406,10 +1406,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
+        let check_self_param = true;
 
         let method = self
             .elaborator
-            .lookup_method(&typ, method_name, location, true)
+            .lookup_method(&typ, method_name, location, check_self_param)
             .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {

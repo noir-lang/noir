@@ -1478,7 +1478,7 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         location: Location,
-        has_self_arg: bool,
+        check_self_param: bool,
     ) -> Option<HirMethodReference> {
         let span = location.span;
         let file = location.file;
@@ -1502,7 +1502,7 @@ impl<'context> Elaborator<'context> {
             // Mutable references to another type should resolve to methods of their element type.
             // This may be a data type or a primitive type.
             Type::MutableReference(element) => {
-                self.lookup_method(&element, method_name, location, has_self_arg)
+                self.lookup_method(&element, method_name, location, check_self_param)
             }
 
             // If we fail to resolve the object to a data type, we have no way of type
@@ -1515,9 +1515,12 @@ impl<'context> Elaborator<'context> {
                 None
             }
 
-            other => {
-                self.lookup_type_or_primitive_method(&other, method_name, location, has_self_arg)
-            }
+            other => self.lookup_type_or_primitive_method(
+                &other,
+                method_name,
+                location,
+                check_self_param,
+            ),
         }
     }
 
@@ -1526,21 +1529,21 @@ impl<'context> Elaborator<'context> {
         object_type: &Type,
         method_name: &str,
         location: Location,
-        has_self_arg: bool,
+        check_self_param: bool,
     ) -> Option<HirMethodReference> {
         let span = location.span;
         let file = location.file;
 
         // First search in the type methods. If there is one, that's the one.
         if let Some(method_id) =
-            self.interner.lookup_direct_method(object_type, method_name, has_self_arg)
+            self.interner.lookup_direct_method(object_type, method_name, check_self_param)
         {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
         // Next lookup all matching trait methods.
         let trait_methods =
-            self.interner.lookup_trait_methods(object_type, method_name, has_self_arg);
+            self.interner.lookup_trait_methods(object_type, method_name, check_self_param);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
@@ -1550,7 +1553,7 @@ impl<'context> Elaborator<'context> {
         // If we couldn't find any trait methods, search in
         // impls for all types `T`, e.g. `impl<T> Foo for T`
         let generic_methods =
-            self.interner.lookup_generic_methods(object_type, method_name, has_self_arg);
+            self.interner.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
         }

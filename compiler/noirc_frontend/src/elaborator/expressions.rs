@@ -515,7 +515,8 @@ impl<'context> Elaborator<'context> {
 
         let method_name_location = method_call.method_name.location();
         let method_name = method_call.method_name.0.contents.as_str();
-        match self.lookup_method(&object_type, method_name, location, true) {
+        let check_self_param = true;
+        match self.lookup_method(&object_type, method_name, location, check_self_param) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
