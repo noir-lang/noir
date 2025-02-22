@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0-beta.4](https://github.com/noir-lang/noir/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2025-02-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** Add `--unstable-features` to gate unstable features ([#7449](https://github.com/noir-lang/noir/issues/7449))
+
+### Features
+
+* **cli:** Add `--unstable-features` to gate unstable features ([#7449](https://github.com/noir-lang/noir/issues/7449)) ([fd213f6](https://github.com/noir-lang/noir/commit/fd213f6cdfa2518c0c3b6b0bf8573296809c0b68))
+* **experimental:** Add invalid pattern syntax error ([#7487](https://github.com/noir-lang/noir/issues/7487)) ([7aa23ec](https://github.com/noir-lang/noir/commit/7aa23ec674b2877745595b1584ade4733abeac71))
+* Sync from aztec-packages ([#7474](https://github.com/noir-lang/noir/issues/7474)) ([c254c3c](https://github.com/noir-lang/noir/commit/c254c3ca07c65c7845d5affb17cb37114c5a3051))
+
+
+### Bug Fixes
+
+* Don't panic when shifting too much ([#7429](https://github.com/noir-lang/noir/issues/7429)) ([5073370](https://github.com/noir-lang/noir/commit/50733708b0a7312c74229601a76f68afe1737b1d))
+* Don't use dummy location when inserting debug code ([#7482](https://github.com/noir-lang/noir/issues/7482)) ([87196fe](https://github.com/noir-lang/noir/commit/87196fe6cee097c6e948fa8c61b91ac382e13fd1))
+* **experimental:** Allow shadowing in match patterns ([#7484](https://github.com/noir-lang/noir/issues/7484)) ([8e68ce6](https://github.com/noir-lang/noir/commit/8e68ce6403e99ff5af4fb9973b203070d8a9898c))
+* **performance:** Accurately mark safe constant indices for arrays of complex types ([#7491](https://github.com/noir-lang/noir/issues/7491)) ([ffcc6f8](https://github.com/noir-lang/noir/commit/ffcc6f891152a9dc89fceb33aefae935cecf6946))
+
 ## [1.0.0-beta.3](https://github.com/noir-lang/noir/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2025-02-20)
 
 
