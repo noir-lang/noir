@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740187934448,
+  "lastUpdate": 1740187935201,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11582,70 +11582,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "de64e212ba0def04e5b6ebe0ae1c8bd9018e4ca6",
-          "message": "chore: deprecate `merkle` module of stdlib (#7413)",
-          "timestamp": "2025-02-18T12:10:54Z",
-          "tree_id": "d43e42ebdf20d87e4d1905a862a8d64bdb86ff27",
-          "url": "https://github.com/noir-lang/noir/commit/de64e212ba0def04e5b6ebe0ae1c8bd9018e4ca6"
-        },
-        "date": 1739882011482,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 216.23,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 250.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 186.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 434.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 373.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1040,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 311.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 319.31,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "7f804f67b3e37d76d991a882c94574322f3f22b2",
           "message": "chore: bump aztec-packages commit (#7415)",
           "timestamp": "2025-02-18T13:49:58Z",
@@ -14725,6 +14661,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ffcc6f891152a9dc89fceb33aefae935cecf6946"
         },
         "date": 1740187846074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.77,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 441.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7aa23ec674b2877745595b1584ade4733abeac71",
+          "message": "feat(experimental): Add invalid pattern syntax error (#7487)",
+          "timestamp": "2025-02-22T01:07:04Z",
+          "tree_id": "5e0a880e8fc1215fe64c59d342ca88e8ddb416dc",
+          "url": "https://github.com/noir-lang/noir/commit/7aa23ec674b2877745595b1584ade4733abeac71"
+        },
+        "date": 1740187933329,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
