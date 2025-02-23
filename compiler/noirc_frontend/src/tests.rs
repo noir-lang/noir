@@ -755,20 +755,11 @@ fn check_trait_duplicate_implementation() {
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
-    for err in errors {
-        match &err {
-            CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
-                ..
-            }) => (),
-            CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImplNote {
-                ..
-            }) => (),
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    assert!(errors.len() == 1, "Expected 1 errors, got: {:?}", errors);
+    assert!(matches!(
+        errors[0],
+        CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl { .. })
+    ));
 }
 
 #[test]
@@ -794,20 +785,11 @@ fn check_trait_duplicate_implementation_with_alias() {
     ";
     let errors = get_program_errors(src);
     assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
-    for err in errors {
-        match &err {
-            CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl {
-                ..
-            }) => (),
-            CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImplNote {
-                ..
-            }) => (),
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    assert!(errors.len() == 1, "Expected 2 errors, got: {:?}", errors);
+    assert!(matches!(
+        errors[0],
+        CompilationError::DefinitionError(DefCollectorErrorKind::OverlappingImpl { .. })
+    ));
 }
 
 #[test]

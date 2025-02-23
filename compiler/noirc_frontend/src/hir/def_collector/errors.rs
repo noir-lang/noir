@@ -41,9 +41,7 @@ pub enum DefCollectorErrorKind {
     #[error("Cannot implement trait on a mutable reference type")]
     MutableReferenceInTraitImpl { location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
-    OverlappingImpl { location: Location, typ: crate::Type },
-    #[error("Previous impl defined here")]
-    OverlappingImplNote { location: Location },
+    OverlappingImpl { typ: crate::Type, location: Location, prev_location: Location },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { location: Location, type_name: String },
     #[error("Method is not defined in trait")]
@@ -108,7 +106,6 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::NonStructTypeInImpl { location }
             | DefCollectorErrorKind::MutableReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
-            | DefCollectorErrorKind::OverlappingImplNote { location }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
             | DefCollectorErrorKind::TraitImplOrphaned { location }
@@ -212,22 +209,14 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Try using a struct type here instead".into(),
                 *location,
             ),
-            DefCollectorErrorKind::OverlappingImpl { location, typ } => {
-                Diagnostic::simple_error(
+            DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     format!("Impl for type `{typ}` overlaps with existing impl"),
                     "Overlapping impl".into(),
                     *location,
-                )
-            }
-            DefCollectorErrorKind::OverlappingImplNote { location } => {
-                // This should be a note or part of the previous error eventually.
-                // This must be an error to appear next to the previous OverlappingImpl
-                // error since we sort warnings first.
-                Diagnostic::simple_error(
-                    "Previous impl defined here".into(),
-                    "Previous impl defined here".into(),
-                    *location,
-                )
+                );
+                diagnostic.add_secondary("Previous impl defined here".into(), *prev_location);
+                diagnostic
             }
             DefCollectorErrorKind::ForeignImpl { location, type_name } => Diagnostic::simple_error(
                 "Cannot `impl` a type that was defined outside the current crate".into(),

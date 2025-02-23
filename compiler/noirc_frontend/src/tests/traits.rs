@@ -1259,14 +1259,12 @@ fn error_on_duplicate_impl_with_associated_type() {
     "#;
 
     // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1);
 
     use CompilationError::DefinitionError;
     use DefCollectorErrorKind::*;
     assert!(matches!(&errors[0], DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1], DefinitionError(OverlappingImplNote { .. })));
 }
 
 #[test]
@@ -1288,14 +1286,12 @@ fn error_on_duplicate_impl_with_associated_constant() {
     "#;
 
     // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1);
 
     use CompilationError::DefinitionError;
     use DefCollectorErrorKind::*;
     assert!(matches!(&errors[0], DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1], DefinitionError(OverlappingImplNote { .. })));
 }
 
 // See https://github.com/noir-lang/noir/issues/6530

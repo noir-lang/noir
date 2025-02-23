@@ -1530,13 +1530,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(DefCollectorErrorKind::OverlappingImpl {
                     typ: self_type.clone(),
                     location: self_type_location,
-                });
-
-                // TODO: this comment isn't accurate anymore, maybe the two errors can be merged now?
-                // The 'previous impl defined here' note must be a separate error currently
-                // since it may be in a different file and all errors have the same file id.
-                self.push_err(DefCollectorErrorKind::OverlappingImplNote {
-                    location: prev_location,
+                    prev_location,
                 });
             }
         }
