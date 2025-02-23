@@ -22,7 +22,7 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             enable_brillig_constraints_check: false,
             inliner_aggressiveness: 0,
-            max_bytecode_increase_percent: None,
+            max_bytecode_increase_percent: i32::MAX,
         };
 
         let builder = SsaBuilder {
