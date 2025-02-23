@@ -355,6 +355,13 @@ impl UseTree {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UnsafeExpression {
+    pub block: BlockExpression,
+    pub location: Location,
+    pub unsafe_keyword_location: Location,
+}
+
 /// A special kind of path in the form `<MyType as Trait>::ident`.
 /// Note that this path must consist of exactly two segments.
 ///

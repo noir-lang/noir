@@ -10,6 +10,7 @@ use crate::{
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
         PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
+        UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -76,8 +77,8 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Comptime(comptime, _) => {
                 return self.elaborate_comptime_block(comptime, expr.location, target_type)
             }
-            ExpressionKind::Unsafe(block_expression, _, unsafe_keyword_location) => {
-                self.elaborate_unsafe_block(block_expression, unsafe_keyword_location, target_type)
+            ExpressionKind::Unsafe(unsafe_expression) => {
+                self.elaborate_unsafe_block(unsafe_expression, target_type)
             }
             ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
             ExpressionKind::Interned(id) => {
@@ -179,8 +180,7 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_unsafe_block(
         &mut self,
-        block: BlockExpression,
-        unsafe_keyword_location: Location,
+        unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
         // Before entering the block we cache the old value of `in_unsafe_block` so it can be restored.
@@ -188,17 +188,20 @@ impl<'context> Elaborator<'context> {
         let is_nested_unsafe_block =
             !matches!(old_in_unsafe_block, UnsafeBlockStatus::NotInUnsafeBlock);
         if is_nested_unsafe_block {
-            self.push_err(TypeCheckError::NestedUnsafeBlock { location: unsafe_keyword_location });
+            self.push_err(TypeCheckError::NestedUnsafeBlock {
+                location: unsafe_expression.unsafe_keyword_location,
+            });
         }
 
         self.unsafe_block_status = UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
 
-        let (hir_block_expression, typ) = self.elaborate_block_expression(block, target_type);
+        let (hir_block_expression, typ) =
+            self.elaborate_block_expression(unsafe_expression.block, target_type);
 
         if let UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls = self.unsafe_block_status
         {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
-                location: unsafe_keyword_location,
+                location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
