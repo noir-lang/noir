@@ -21,7 +21,6 @@
 use std::collections::BTreeSet;
 
 use acvm::{acir::AcirField, FieldElement};
-use im::HashSet;
 
 use crate::{
     errors::RuntimeError,
@@ -41,7 +40,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -54,14 +53,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn unroll_loops_iteratively(
         mut self,
-        max_bytecode_increase_percent: Option<i32>,
+        max_bytecode_increase_percent: i32,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
             let is_brillig = function.runtime().is_brillig();
 
             // Take a snapshot in case we have to restore it.
             let orig_function =
-                (max_bytecode_increase_percent.is_some() && is_brillig).then(|| function.clone());
+                (max_bytecode_increase_percent < i32::MAX && is_brillig).then(|| function.clone());
 
             // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
             let has_unrolled = function.unroll_loops_iteratively()?;
@@ -71,11 +70,14 @@ impl Ssa {
             // more finessing to convince the borrow checker that it's okay to share a read-only reference
             // to the globals and a mutable reference to the function at the same time, both part of the `Ssa`.
             if has_unrolled && is_brillig {
-                if let Some(max_incr_pct) = max_bytecode_increase_percent {
+                // TODO: As we unroll more loops, this is potentially going to lead to panics
+                // when we have a non-aggressiveness inliner as the compiler is not going to have yet resolved
+                // certain intrinsics which we expect to be entirely known at compile-time (e.g. DerivePedersenGenerators).
+                if max_bytecode_increase_percent < i32::MAX {
                     let orig_function = orig_function.expect("took snapshot to compare");
                     let new_size = function.num_instructions();
                     let orig_size = orig_function.num_instructions();
-                    if !is_new_size_ok(orig_size, new_size, max_incr_pct) {
+                    if !is_new_size_ok(orig_size, new_size, max_bytecode_increase_percent) {
                         *function = orig_function;
                     }
                 }
@@ -127,6 +129,7 @@ impl Function {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(super) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -143,10 +146,10 @@ pub(super) struct Loop {
 pub(super) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
-    failed_to_unroll: HashSet<BasicBlockId>,
+    failed_to_unroll: im::HashSet<BasicBlockId>,
 
     pub(super) yet_to_unroll: Vec<Loop>,
-    modified_blocks: HashSet<BasicBlockId>,
+    modified_blocks: im::HashSet<BasicBlockId>,
     pub(super) cfg: ControlFlowGraph,
 }
 
@@ -206,9 +209,9 @@ impl Loops {
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
         Self {
-            failed_to_unroll: HashSet::default(),
+            failed_to_unroll: im::HashSet::default(),
             yet_to_unroll: loops,
-            modified_blocks: HashSet::default(),
+            modified_blocks: im::HashSet::default(),
             cfg,
         }
     }
@@ -570,7 +573,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<HashSet<ValueId>> {
+    ) -> Option<im::HashSet<ValueId>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -601,10 +604,11 @@ impl Loop {
     fn count_loads_and_stores(
         &self,
         function: &Function,
-        refs: &HashSet<ValueId>,
+        refs: &im::HashSet<ValueId>,
     ) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
+        // let mut
         for block in &self.blocks {
             for instruction in function.dfg[*block].instructions() {
                 match &function.dfg[*instruction] {
@@ -633,28 +637,108 @@ impl Loop {
     /// Count the number of increments to the induction variable.
     /// It should be one, but it can be duplicated.
     /// The increment should be in the block where the back-edge was found.
-    fn count_induction_increments(&self, function: &Function) -> usize {
-        let back = &function.dfg[self.back_edge_start];
-        let header = &function.dfg[self.header];
-        let induction_var = header.parameters()[0];
-
-        back.instructions()
-            .iter()
-            .filter(|instruction| {
-                let instruction = &function.dfg[**instruction];
-                matches!(instruction,
-                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
-                        if *lhs == induction_var
-                )
-            })
-            .count()
-    }
+    // fn count_induction_increments(&self, function: &Function) -> usize {
+    //     let back = &function.dfg[self.back_edge_start];
+    //     let header = &function.dfg[self.header];
+    //     let induction_var = header.parameters()[0];
+    //     back.instructions()
+    //         .iter()
+    //         .filter(|instruction| {
+    //             let instruction = &function.dfg[**instruction];
+    //             matches!(instruction,
+    //                 Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
+    //                     if *lhs == induction_var
+    //             )
+    //         })
+    //         .count()
+    // }
 
     /// Decide if this loop is small enough that it can be inlined in a way that the number
     /// of unrolled instructions times the number of iterations would result in smaller bytecode
     /// than if we keep the loops with their overheads.
     fn is_small_loop(&self, function: &Function, cfg: &ControlFlowGraph) -> bool {
         self.boilerplate_stats(function, cfg).map(|s| s.is_small()).unwrap_or_default()
+    }
+
+    // TODO: unify this method with the one in the loop invariant pass
+    // probably can unify some other code too
+    fn values_defined_in_loop(&self, function: &Function) -> HashSet<ValueId> {
+        let mut defined_in_loop = HashSet::default();
+        for block in self.blocks.iter() {
+            let params = function.dfg.block_parameters(*block);
+            defined_in_loop.extend(params);
+            for instruction_id in function.dfg[*block].instructions() {
+                let results = function.dfg.instruction_results(*instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        defined_in_loop
+    }
+
+    /// Given the values defined inside the loop, we should be able to determine which instructions
+    /// are "useless" inside of a loop.
+    /// Certain instructions are "useless" instruction when they have certain properties:
+    /// All values are either:
+    /// - Constant
+    /// - Induction variable
+    /// - Or not defined in the loop
+    fn redefine_useful_results(
+        &self,
+        function: &Function,
+        mut defined_in_loop: HashSet<ValueId>,
+        refs: &im::HashSet<ValueId>,
+    ) -> usize {
+        let mut useless_instructions = 0;
+        let induction_var = self.get_induction_variable(function);
+        for block in &self.blocks {
+            for instruction in function.dfg[*block].instructions() {
+                let results = function.dfg.instruction_results(*instruction);
+                let instruction = &function.dfg[*instruction];
+                // TODO: unify how all these instructions are analyzed
+                match instruction {
+                    Instruction::Load { address } if refs.contains(address) => {
+                        if !defined_in_loop.contains(address) {
+                            defined_in_loop.remove(&results[0]);
+                        }
+                    }
+                    Instruction::ArrayGet { array, index } => {
+                        let index_is_useless = induction_var == *index
+                            || function.dfg.is_constant(*index)
+                            || !defined_in_loop.contains(index);
+                        if !defined_in_loop.contains(array) && index_is_useless {
+                            defined_in_loop.remove(&results[0]);
+                            useless_instructions += 1;
+                        }
+                    }
+                    Instruction::ArraySet { array, index, value, .. } => {
+                        let index_is_useless = induction_var == *index
+                            || function.dfg.is_constant(*index)
+                            || !defined_in_loop.contains(index);
+                        if !defined_in_loop.contains(array)
+                            && index_is_useless
+                            && !defined_in_loop.contains(value)
+                        {
+                            defined_in_loop.remove(&results[0]);
+                            useless_instructions += 1;
+                        }
+                    }
+                    Instruction::Binary(_) => {
+                        let mut is_useless = true;
+                        instruction.for_each_value(|value| {
+                            is_useless &= !defined_in_loop.contains(&value)
+                                || value == induction_var
+                                || function.dfg.is_constant(value);
+                        });
+                        if is_useless {
+                            defined_in_loop.remove(&results[0]);
+                            useless_instructions += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        useless_instructions
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -670,16 +754,45 @@ impl Loop {
         let upper = upper.try_to_u64()?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
+        // If we have a break block, we can potentially directly use the induction variable in that break.
+        // If we then unroll the loop, the induction variable will not exist anymore.
+        // TODO: we should appropriately unroll and account for the break
+        // TODO 2: move this logic out into its own method
+        let induction_var = self.get_induction_variable(function);
+        let mut uses_induction_var_outside = false;
+        for block in self.blocks.iter() {
+            let successors = function.dfg[*block].successors();
+            for successor in successors {
+                if !self.blocks.contains(&successor) {
+                    for instruction in function.dfg[successor].instructions() {
+                        let instruction = &function.dfg[*instruction];
+                        instruction.for_each_value(|value| {
+                            if value == induction_var {
+                                uses_induction_var_outside = true;
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        let defined_in_loop = self.values_defined_in_loop(function);
+
+        let useless_instructions = if uses_induction_var_outside {
+            0
+        } else {
+            self.redefine_useful_results(function, defined_in_loop, &refs)
+        };
+
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
-        let increments = self.count_induction_increments(function);
         let all_instructions = self.count_all_instructions(function);
 
         Some(BoilerplateStats {
             iterations: (upper - lower) as usize,
             loads,
             stores,
-            increments,
             all_instructions,
+            useless_instructions,
         })
     }
 }
@@ -709,11 +822,13 @@ struct BoilerplateStats {
     loads: usize,
     /// Number of stores into pre-header references in the loop.
     stores: usize,
-    /// Number of increments to the induction variable (might be duplicated).
-    increments: usize,
     /// Number of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
+    /// "Useless instructions"
+    /// TODO: find a better term for this
+    /// We do not have a loop invariant, but something that becomes simpler upon unrolling
+    useless_instructions: usize,
 }
 
 impl BoilerplateStats {
@@ -726,12 +841,15 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound
-        let boilerplate = 3;
+        // Boilerplate only includes two jumps for induction variable comparison
+        // and the back edge jump to the header.
+        // The comparison with the upper bound and the increments to the induction variable
+        // are included in the `useless_instructions`
+        let boilerplate = 2;
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
-        self.all_instructions - self.increments - load_and_store - boilerplate
+        self.all_instructions - load_and_store - boilerplate - self.useless_instructions
     }
 
     /// Estimated number of instructions if we unroll the loop.
@@ -802,7 +920,7 @@ struct LoopIteration<'f> {
 
     /// Maps unrolled block ids back to the original source block ids
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
-    visited_blocks: HashSet<BasicBlockId>,
+    visited_blocks: im::HashSet<BasicBlockId>,
 
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
@@ -828,7 +946,7 @@ impl<'f> LoopIteration<'f> {
             source_block,
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
-            visited_blocks: HashSet::default(),
+            visited_blocks: im::HashSet::default(),
             induction_value: None,
         }
     }
@@ -1178,7 +1296,7 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 4);
         assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 1);
+                                                   // assert_eq!(stats.increments, 1);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useful_instructions(), 1); // Adding to sum
@@ -1192,7 +1310,7 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 3);
         assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 2);
+                                                   // assert_eq!(stats.increments, 2);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useful_instructions(), 3); // array get, add, array set
@@ -1300,7 +1418,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(-90).unwrap();
         // Check that it's still the original
         assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
     }
@@ -1308,7 +1426,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(50)).unwrap();
+        let ssa = ssa.unroll_loops_iteratively(50).unwrap();
         // Check that it did the unroll
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
     }
