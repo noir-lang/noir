@@ -5,6 +5,24 @@ use crate::runtime::is_unconstrained;
 mod check_shuffle;
 mod quicksort;
 
+/// Creates a new array by applying a function to each index.
+/// This is a utility function to create arrays with custom initialization.
+///
+/// Example:
+/// ```noir
+/// fn main() {
+///     let arr = std::array::from_fn(5, |i| i * 2);
+///     assert(arr == [0, 2, 4, 6, 8]);
+/// }
+/// ```
+pub fn from_fn<T>(size: u32, f: fn(u32) -> T) -> [T] {
+    let mut result = [];
+    for i in 0..size {
+        result.push(f(i));
+    }
+    result
+}
+
 /// Creates a new array containing numbers from 0 to N-1.
 /// This is a utility function to create arrays from ranges.
 ///
@@ -15,12 +33,8 @@ mod quicksort;
 ///     assert(arr == [0, 1, 2, 3, 4]);
 /// }
 /// ```
-pub fn range<T>(size: Field) -> [Field] {
-    let mut result = [];
-    for i in 0..size {
-        result.push(i);
-    }
-    result
+pub fn range(size: u32) -> [u32] {
+    from_fn(size, |i| i)
 }
 
 impl<T, let N: u32> [T; N] {
@@ -277,10 +291,19 @@ mod test {
     #[test]
     fn test_range() {
         let arr = range(5);
-        assert_eq(arr, [0, 1, 2, 3, 4]);
+        assert_eq(arr, [0_u32, 1_u32, 2_u32, 3_u32, 4_u32]);
 
         let empty = range(0);
         assert_eq(empty, []);
+    }
+
+    #[test]
+    fn test_from_fn() {
+        let arr = from_fn(5, |i| i * 2);
+        assert_eq(arr, [0_u32, 2_u32, 4_u32, 6_u32, 8_u32]);
+
+        let field_arr = from_fn(3, |i| i as Field);
+        assert_eq(field_arr, [0_Field, 1_Field, 2_Field]);
     }
 
     #[test]
