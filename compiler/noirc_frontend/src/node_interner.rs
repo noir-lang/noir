@@ -2308,6 +2308,12 @@ impl NodeInterner {
     pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[Reexport] {
         self.get_reexports(ModuleDefId::TraitId(trait_id))
     }
+
+    pub fn oracle_functions(&self) -> impl Iterator<Item = (&FuncId, &String)> {
+        self.function_modifiers.iter().filter_map(|(func_id, modifiers)| {
+            Some((func_id, modifiers.attributes.function.as_ref()?.0.oracle()?))
+        })
+    }
 }
 
 impl Methods {
