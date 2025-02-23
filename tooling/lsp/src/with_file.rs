@@ -671,10 +671,9 @@ fn expression_kind_with_file(kind: ExpressionKind, file: FileId) -> ExpressionKi
             block_expression_with_file(block_expression, file),
             location_with_file(location, file),
         ),
-        ExpressionKind::Unsafe(UnsafeExpression { block, location, unsafe_keyword_location }) => {
+        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) => {
             ExpressionKind::Unsafe(UnsafeExpression {
                 block: block_expression_with_file(block, file),
-                location: location_with_file(location, file),
                 unsafe_keyword_location: location_with_file(unsafe_keyword_location, file),
             })
         }

@@ -204,7 +204,6 @@ impl HirExpression {
             }
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
                 block: block.to_display_ast(interner),
-                location,
                 unsafe_keyword_location: location,
             }),
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),

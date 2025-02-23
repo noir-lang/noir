@@ -358,7 +358,6 @@ impl UseTree {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UnsafeExpression {
     pub block: BlockExpression,
-    pub location: Location,
     pub unsafe_keyword_location: Location,
 }
 

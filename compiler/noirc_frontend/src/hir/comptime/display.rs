@@ -645,12 +645,11 @@ fn remove_interned_in_expression_kind(
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Comptime(BlockExpression { statements }, span)
         }
-        ExpressionKind::Unsafe(UnsafeExpression { block, location, unsafe_keyword_location }) => {
+        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) => {
             let statements =
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Unsafe(UnsafeExpression {
                 block: BlockExpression { statements },
-                location,
                 unsafe_keyword_location,
             })
         }

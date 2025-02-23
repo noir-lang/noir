@@ -408,7 +408,6 @@ impl<'a> Parser<'a> {
         if let Some(block) = self.parse_block() {
             Some(ExpressionKind::Unsafe(UnsafeExpression {
                 block,
-                location: self.location_since(start_location),
                 unsafe_keyword_location: start_location,
             }))
         } else {
