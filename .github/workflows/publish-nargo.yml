@@ -1,6 +1,20 @@
 name: Publish Nargo
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The tag to build Nargo from (leave empty to build a nightly release from master)
+        required: false
+        type: string
+      features:
+        description: Extra feature flags to release with
+        required: false
+        type: string
+      publish:
+        description: Whether to publish the build artifacts
+        type: boolean
+        default: false
   workflow_dispatch:
     # Allow pushing a manual nightly release
     inputs:

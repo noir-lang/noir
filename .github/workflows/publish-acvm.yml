@@ -1,6 +1,12 @@
 name: Publish ACVM crates
 
 on:
+  workflow_call:
+    inputs:
+      noir-ref:
+        description: The acvm reference to checkout
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       noir-ref:
