@@ -182,6 +182,10 @@ pub enum ResolverError {
     LoopNotYetSupported { location: Location },
     #[error("Expected a trait but found {found}")]
     ExpectedTrait { found: String, location: Location },
+    #[error("Invalid syntax in match pattern")]
+    InvalidSyntaxInPattern { location: Location },
+    #[error("Variable '{existing}' was already defined in the same match pattern")]
+    VariableAlreadyDefinedInPattern { existing: Ident, new_location: Location },
 }
 
 impl ResolverError {
@@ -246,7 +250,11 @@ impl ResolverError {
             | ResolverError::QuoteInRuntimeCode { location }
             | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
-            | ResolverError::InvalidInternedStatementInExpr { location, .. } => *location,
+            | ResolverError::InvalidInternedStatementInExpr { location, .. }
+            | ResolverError::InvalidSyntaxInPattern { location }
+            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
+                *location
+            }
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -773,6 +781,19 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location)
 
             }
+            ResolverError::InvalidSyntaxInPattern { location } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in match pattern".into(), 
+                    "Only literal, constructor, and variable patterns are allowed".into(),
+                    *location)
+            },
+            ResolverError::VariableAlreadyDefinedInPattern { existing, new_location } => {
+                let message = format!("Variable `{existing}` was already defined in the same match pattern");
+                let secondary = format!("`{existing}` redefined here");
+                let mut error = Diagnostic::simple_error(message, secondary, *new_location);
+                error.add_secondary(format!("`{existing}` was previously defined here"), existing.location());
+                error
+            },
         }
     }
 }
