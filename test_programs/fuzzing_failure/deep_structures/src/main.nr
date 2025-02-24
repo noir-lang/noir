@@ -1,11 +1,11 @@
-struct R { }
+struct R {}
 struct Q {
     q: bool,
-    r: R
+    r: R,
 }
 struct P {
     p: bool,
-    q:Q,
+    q: Q,
 }
 struct O {
     o: bool,
