@@ -235,8 +235,9 @@ impl Context<'_> {
         // pow = add pow_when_is_less_than_bit_size, pow_when_is_not_less_than_bit_size
         //
         // All operations here are unchecked because they work on field types.
-        let bit_size_as_field = self.numeric_constant(bit_size as u128, typ);
-        let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size_as_field);
+        let rhs_typ = self.function.dfg.type_of_value(rhs).unwrap_numeric();
+        let bit_size = self.numeric_constant(bit_size as u128, rhs_typ);
+        let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size);
         let rhs_is_not_less_than_bit_size = self.insert_not(rhs_is_less_than_bit_size);
         let rhs_is_less_than_bit_size =
             self.insert_cast(rhs_is_less_than_bit_size, NumericType::NativeField);
