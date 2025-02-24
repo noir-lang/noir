@@ -17,6 +17,7 @@ mod visibility;
 // A test harness will allow for more expressive and readable tests
 use std::collections::BTreeMap;
 
+use crate::elaborator::{FrontendOptions, UnstableFeature};
 use fm::FileId;
 
 use iter_extended::vecmap;
@@ -60,9 +61,18 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<(CompilationError, F
 }
 
 pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
-    get_program_with_maybe_parser_errors(
-        src, false, // allow parser errors
-    )
+    let allow_parser_errors = false;
+    get_program_with_maybe_parser_errors(src, allow_parser_errors, FrontendOptions::test_default())
+}
+
+pub(crate) fn get_program_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> (ParsedModule, Context<'static, 'static>, Vec<(CompilationError, FileId)>) {
+    let allow_parser_errors = false;
+    let mut options = FrontendOptions::test_default();
+    options.enabled_unstable_features = features;
+    get_program_with_maybe_parser_errors(src, allow_parser_errors, options)
 }
 
 /// Compile a program.
@@ -71,7 +81,8 @@ pub(crate) fn get_program(src: &str) -> (ParsedModule, Context, Vec<(Compilation
 pub(crate) fn get_program_with_maybe_parser_errors(
     src: &str,
     allow_parser_errors: bool,
-) -> (ParsedModule, Context, Vec<(CompilationError, FileId)>) {
+    options: FrontendOptions,
+) -> (ParsedModule, Context<'static, 'static>, Vec<(CompilationError, FileId)>) {
     let root = std::path::Path::new("/");
     let fm = FileManager::new(root);
 
@@ -116,17 +127,13 @@ pub(crate) fn get_program_with_maybe_parser_errors(
             extern_prelude: BTreeMap::new(),
         };
 
-        let debug_comptime_in_file = None;
-        let pedantic_solving = true;
-
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
             def_map,
             &mut context,
             program.clone().into_sorted(),
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            options,
         ));
     }
     (program, context, errors)
@@ -4423,4 +4430,163 @@ fn errors_if_while_body_type_is_not_unit() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch { .. }) = &errors[0].0 else {
         panic!("Expected a TypeMismatch error");
     };
+}
+
+#[test]
+fn errors_on_unspecified_unstable_enum() {
+    // Enums are experimental - this will need to be updated when they are stabilized
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        let _x = Foo::Bar;
+    }
+    "#;
+
+    let no_features = &[];
+    let errors = get_program_using_features(src, no_features).2;
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ParseError(error) = &errors[0].0 else {
+        panic!("Expected a ParseError experimental feature error");
+    };
+
+    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+}
+
+#[test]
+fn errors_on_unspecified_unstable_match() {
+    // Enums are experimental - this will need to be updated when they are stabilized
+    let src = r#"
+    fn main() {
+        match 3 {
+            _ => (),
+        }
+    }
+    "#;
+
+    let no_features = &[];
+    let errors = get_program_using_features(src, no_features).2;
+    assert_eq!(errors.len(), 1);
+
+    let CompilationError::ParseError(error) = &errors[0].0 else {
+        panic!("Expected a ParseError experimental feature error");
+    };
+
+    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
+}
+
+#[test]
+fn errors_on_repeated_match_variables_in_pattern() {
+    let src = r#"
+    fn main() {
+        match (1, 2) {
+            (_x, _x) => (),
+        }
+    }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::VariableAlreadyDefinedInPattern { .. })
+    ));
+}
+
+#[test]
+fn check_impl_duplicate_method_without_self() {
+    let src = "
+    pub struct Foo {}
+
+    impl Foo {
+        fn foo() {}
+        fn foo() {}
+    }
+
+    fn main() {}
+    ";
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        errors[0].0,
+        CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
+    ));
+}
+
+#[test]
+fn duplicate_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _, x: _, y: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::DuplicateField { .. })
+    ));
+}
+
+#[test]
+fn missing_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::MissingFields { .. })
+    ));
+}
+
+#[test]
+fn no_such_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _, y: _, z: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::NoSuchField { .. })
+    ));
 }

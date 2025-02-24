@@ -67,9 +67,6 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
-
-    /// Use pedantic ACVM solving
-    pedantic_solving: bool,
 }
 
 #[allow(unused)]
@@ -78,8 +75,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
-        pedantic_solving: bool,
     ) -> Self {
+        let pedantic_solving = elaborator.pedantic_solving();
         let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
@@ -88,7 +85,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             bound_generics: Vec::new(),
             in_loop: false,
             bigint_solver,
-            pedantic_solving,
         }
     }
 
@@ -1410,10 +1406,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let typ = object.get_type().follow_bindings();
         let method_name = &call.method.0.contents;
+        let check_self_param = true;
 
         let method = self
             .elaborator
-            .lookup_method(&typ, method_name, location, true)
+            .lookup_method(&typ, method_name, location, check_self_param)
             .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {

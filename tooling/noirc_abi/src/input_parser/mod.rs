@@ -357,8 +357,11 @@ fn parse_str_to_signed(
             error: err_msg.to_string(),
         })
         .and_then(|bigint| {
-            let max = BigInt::from(2_u128.pow(width - 1) - 1);
-            let min = BigInt::from(-(2_i128.pow(width - 1)));
+            let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+            let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+            let max = BigInt::from(max);
+            let min = BigInt::from(min);
 
             if bigint < min {
                 return Err(InputParserError::InputUnderflowsMinimum {
@@ -398,8 +401,8 @@ fn parse_integer_to_signed(
     width: u32,
     arg_name: &str,
 ) -> Result<FieldElement, InputParserError> {
-    let min = -(1 << (width - 1));
-    let max = (1 << (width - 1)) - 1;
+    let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+    let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
 
     if integer < min {
         return Err(InputParserError::InputUnderflowsMinimum {
@@ -417,8 +420,12 @@ fn parse_integer_to_signed(
         });
     }
 
-    let integer = if integer < 0 { (1 << width) + integer } else { integer };
-    Ok(FieldElement::from(integer as u128))
+    let integer = if integer < 0 {
+        FieldElement::from(2u32).pow(&width.into()) + FieldElement::from(integer)
+    } else {
+        FieldElement::from(integer)
+    };
+    Ok(integer)
 }
 
 fn field_from_big_uint(bigint: BigUint) -> FieldElement {
@@ -439,9 +446,9 @@ fn field_from_big_int(bigint: BigInt) -> FieldElement {
 
 fn field_to_signed_hex(f: FieldElement, bit_size: u32) -> String {
     let f_u128 = f.to_u128();
-    let max = 2_u128.pow(bit_size - 1) - 1;
+    let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
     if f_u128 > max {
-        let f = FieldElement::from(2_u128.pow(bit_size) - f_u128);
+        let f = FieldElement::from(2u32).pow(&bit_size.into()) - f;
         format!("-0x{}", f.to_hex())
     } else {
         format!("0x{}", f.to_hex())

@@ -515,7 +515,8 @@ impl<'context> Elaborator<'context> {
 
         let method_name_location = method_call.method_name.location();
         let method_name = method_call.method_name.0.contents.as_str();
-        match self.lookup_method(&object_type, method_name, location, true) {
+        let check_self_param = true;
+        match self.lookup_method(&object_type, method_name, location, check_self_param) {
             Some(method_ref) => {
                 // Automatically add `&mut` if the method expects a mutable reference and
                 // the object is not already one.
@@ -760,15 +761,8 @@ impl<'context> Elaborator<'context> {
 
         let last_segment = path.last_segment();
 
-        let typ = if let Some(struct_id) = constructor.struct_type {
-            let typ = self.interner.get_type(struct_id);
-            let generics = typ.borrow().instantiate(self.interner);
-            Type::DataType(typ, generics)
-        } else {
-            match self.lookup_type_or_error(path) {
-                Some(typ) => typ,
-                None => return (HirExpression::Error, Type::Error),
-            }
+        let Some(typ) = self.lookup_type_or_error(path) else {
+            return (HirExpression::Error, Type::Error);
         };
 
         self.elaborate_constructor_with_type(typ, constructor.fields, location, Some(last_segment))
@@ -1107,6 +1101,8 @@ impl<'context> Elaborator<'context> {
         location: Location,
     ) -> (HirExpression, Type) {
         let span = location.span;
+        self.use_unstable_feature(super::UnstableFeature::Enums, span);
+
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 
