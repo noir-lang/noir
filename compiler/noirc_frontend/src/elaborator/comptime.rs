@@ -474,7 +474,6 @@ impl<'context> Elaborator<'context> {
                 let location = item.location;
                 let item = item.kind.to_string();
                 let error = InterpreterError::UnsupportedTopLevelItemUnquote { item, location };
-                let error: CompilationError = error.into();
                 self.push_err(error);
             }
         }
