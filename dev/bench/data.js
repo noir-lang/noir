@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740424947791,
+  "lastUpdate": 1740433803548,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8652072920b3abc5990be5d57db27a7e66221252",
-          "message": "feat(brillig): Hoist shared constants across functions to the global space (#7216)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-18T19:42:56Z",
-          "tree_id": "bbc863618aab34e480c6379dd40ec0cb0b31870f",
-          "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
-        },
-        "date": 1739909132629,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.05,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.743,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.502,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.15,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.57,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.953,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.85,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.288,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.947,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 93.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 94.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.922,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.466,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8396,6 +8302,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.498,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b1e50a07ebdf97e0bab66e0dc5f3014a800d128",
+          "message": "chore(docs): Supplement docs on `modexp` as a required precompile for Barretenberg's Solidity verifier (#7508)",
+          "timestamp": "2025-02-24T21:29:30Z",
+          "tree_id": "564cac36923f35644812ce367334d0f3e6fcc2f7",
+          "url": "https://github.com/noir-lang/noir/commit/8b1e50a07ebdf97e0bab66e0dc5f3014a800d128"
+        },
+        "date": 1740433800968,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.998,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.724,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21.2,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.519,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.042,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.696,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.072,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.534,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4.958,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 90.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 87.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.018,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.584,
             "unit": "s"
           }
         ]
