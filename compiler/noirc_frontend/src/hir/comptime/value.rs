@@ -9,7 +9,7 @@ use strum_macros::Display;
 use crate::{
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
-        IntegerBitSize, LValue, Literal, Path, Pattern, Signedness, Statement, StatementKind,
+        IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
         UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
@@ -249,18 +249,18 @@ impl Value {
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
-                let struct_type = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(def, _) => Some(def.borrow().id),
+                let typ = match typ.follow_bindings_shallow().as_ref() {
+                    Type::DataType(data_type, generics) => {
+                        Type::DataType(data_type.clone(), generics.clone())
+                    }
                     _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
                 };
 
-                // Since we've provided the struct_type, the path should be ignored.
-                let type_name = Path::from_single(String::new(), location);
-                ExpressionKind::Constructor(Box::new(ConstructorExpression {
-                    typ: UnresolvedType::from_path(type_name),
-                    fields,
-                    struct_type,
-                }))
+                let quoted_type_id = elaborator.interner.push_quoted_type(typ);
+
+                let typ = UnresolvedTypeData::Resolved(quoted_type_id);
+                let typ = UnresolvedType { typ, location };
+                ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
             }
             value @ Value::Enum(..) => {
                 let hir = value.into_hir_expression(elaborator.interner, location)?;

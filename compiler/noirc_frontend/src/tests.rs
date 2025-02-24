@@ -4515,3 +4515,78 @@ fn check_impl_duplicate_method_without_self() {
         CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
     ));
 }
+
+#[test]
+fn duplicate_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _, x: _, y: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::DuplicateField { .. })
+    ));
+}
+
+#[test]
+fn missing_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::MissingFields { .. })
+    ));
+}
+
+#[test]
+fn no_such_field_in_match_struct_pattern() {
+    let src = r#"
+fn main() {
+    let foo = Foo { x: 10, y: 20 };
+    match foo {
+        Foo { x: _, y: _, z: _ } => {}
+    }
+}
+
+struct Foo {
+    x: i32,
+    y: Field,
+}
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+
+    assert!(matches!(
+        &errors[0].0,
+        CompilationError::ResolverError(ResolverError::NoSuchField { .. })
+    ));
+}
