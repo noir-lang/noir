@@ -1405,7 +1405,7 @@ impl NodeInterner {
                 });
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = false;
+                    let check_self_param = true;
                     if let Some(existing) =
                         self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
