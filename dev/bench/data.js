@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740433941737,
+  "lastUpdate": 1740434104458,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8652072920b3abc5990be5d57db27a7e66221252",
-          "message": "feat(brillig): Hoist shared constants across functions to the global space (#7216)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-18T19:42:56Z",
-          "tree_id": "bbc863618aab34e480c6379dd40ec0cb0b31870f",
-          "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
-        },
-        "date": 1739909384958,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 275.58,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 586.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 950.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 816.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 326.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 6860,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 6870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.34,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 385,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b1e50a07ebdf97e0bab66e0dc5f3014a800d128",
+          "message": "chore(docs): Supplement docs on `modexp` as a required precompile for Barretenberg's Solidity verifier (#7508)",
+          "timestamp": "2025-02-24T21:29:30Z",
+          "tree_id": "564cac36923f35644812ce367334d0f3e6fcc2f7",
+          "url": "https://github.com/noir-lang/noir/commit/8b1e50a07ebdf97e0bab66e0dc5f3014a800d128"
+        },
+        "date": 1740434102412,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 285.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 597.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 956.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 828.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 338.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 6880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 6880,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 337.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 384.97,
             "unit": "MB"
           }
         ]
