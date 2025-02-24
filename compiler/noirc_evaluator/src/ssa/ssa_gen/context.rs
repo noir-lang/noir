@@ -309,6 +309,7 @@ impl<'a> FunctionContext<'a> {
             match numeric_type {
                 NumericType::NativeField => -value,
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
+                    assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
                     FieldElement::from(base) - value
                 }
@@ -355,7 +356,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
     ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for bit-shifts, because we will convert them to field multiplication
+    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
+    /// bit-shifts, because we will convert them to field multiplication
     ///
     /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
     /// an unsigned value representing the signed integer.

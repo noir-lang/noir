@@ -1,4 +1,5 @@
 use acvm::{acir::AcirField, FieldElement};
+use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -306,14 +307,18 @@ impl Binary {
                             let bitmask_plus_one = bitmask.to_u128() + 1;
                             if bitmask_plus_one.is_power_of_two() {
                                 let value = if lhs_value.is_some() { rhs } else { lhs };
-                                let num_bits = bitmask_plus_one.ilog2();
-                                return SimplifyResult::SimplifiedToInstruction(
-                                    Instruction::Truncate {
-                                        value,
-                                        bit_size: num_bits,
-                                        max_bit_size: lhs_type.bit_size(),
-                                    },
-                                );
+                                let bit_size = bitmask_plus_one.ilog2();
+                                let max_bit_size = lhs_type.bit_size();
+
+                                if bit_size == max_bit_size {
+                                    // If we're truncating a value into the full size of its type then
+                                    // the truncation is a noop.
+                                    return SimplifyResult::SimplifiedTo(value);
+                                } else {
+                                    return SimplifyResult::SimplifiedToInstruction(
+                                        Instruction::Truncate { value, bit_size, max_bit_size },
+                                    );
+                                }
                             }
                         }
 
@@ -509,7 +514,7 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
 }
 
 /// Truncates `int` to fit within `bit_size` bits.
-fn truncate(int: u128, bit_size: u32) -> u128 {
+pub(super) fn truncate(int: u128, bit_size: u32) -> u128 {
     if bit_size == 128 {
         int
     } else {
@@ -574,8 +579,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
     }
 
@@ -591,8 +596,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
     }
 
@@ -621,7 +626,7 @@ mod test {
 
     use super::{
         convert_signed_integer_to_field_element, truncate_field,
-        try_convert_field_element_to_signed_integer,
+        try_convert_field_element_to_signed_integer, BinaryOp,
     };
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
@@ -649,6 +654,17 @@ mod test {
             let truncated_as_bigint = FieldElement::from_be_bytes_reduce(&truncated_as_bigint.to_bytes_be());
             prop_assert_eq!(truncated_as_field, truncated_as_bigint);
         }
+    }
 
+    #[test]
+    fn get_u128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_u128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_u128_function()(1, 128).is_none());
+    }
+
+    #[test]
+    fn get_i128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_i128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_i128_function()(1, 128).is_none());
     }
 }

@@ -1,11 +1,12 @@
 use acvm::FieldElement;
+use fm::FileId;
 use modifiers::Modifiers;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{Lexer, SpannedTokenResult},
-    token::{FmtStrFragment, IntType, Keyword, SpannedToken, Token, TokenKind, Tokens},
+    lexer::{lexer::LocatedTokenResult, Lexer},
+    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
@@ -47,12 +48,16 @@ pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 /// of the program along with any parsing errors encountered. If the parsing errors
 /// Vec is non-empty, there may be Error nodes in the Ast to fill in the gaps that
 /// failed to parse. Otherwise the Ast is guaranteed to have 0 Error nodes.
-pub fn parse_program(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
-    let lexer = Lexer::new(source_program);
+pub fn parse_program(source_program: &str, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
+    let lexer = Lexer::new(source_program, file_id);
     let mut parser = Parser::for_lexer(lexer);
     let program = parser.parse_program();
     let errors = parser.errors;
     (program, errors)
+}
+
+pub fn parse_program_with_dummy_file(source_program: &str) -> (ParsedModule, Vec<ParserError>) {
+    parse_program(source_program, FileId::dummy())
 }
 
 enum TokenStream<'a> {
@@ -61,7 +66,7 @@ enum TokenStream<'a> {
 }
 
 impl<'a> TokenStream<'a> {
-    fn next(&mut self) -> Option<SpannedTokenResult> {
+    fn next(&mut self) -> Option<LocatedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
             TokenStream::Tokens(tokens) => {
@@ -80,10 +85,10 @@ pub struct Parser<'a> {
     // We always have one look-ahead token for these cases:
     // - check if we get `&` or `&mut`
     // - check if we get `>` or `>>`
-    token: SpannedToken,
-    next_token: SpannedToken,
-    current_token_span: Span,
-    previous_token_span: Span,
+    token: LocatedToken,
+    next_token: LocatedToken,
+    current_token_location: Location,
+    previous_token_location: Location,
 
     // We also keep track of comments that appear right before a token,
     // because `unsafe { }` requires one before it.
@@ -111,18 +116,22 @@ impl<'a> Parser<'a> {
         Self::new(TokenStream::Tokens(tokens))
     }
 
-    pub fn for_str(str: &'a str) -> Self {
-        Self::for_lexer(Lexer::new(str))
+    pub fn for_str(str: &'a str, file_id: FileId) -> Self {
+        Self::for_lexer(Lexer::new(str, file_id))
+    }
+
+    pub fn for_str_with_dummy_file(str: &'a str) -> Self {
+        Self::for_str(str, FileId::dummy())
     }
 
     fn new(tokens: TokenStream<'a>) -> Self {
         let mut parser = Self {
             errors: Vec::new(),
             tokens,
-            token: eof_spanned_token(),
-            next_token: eof_spanned_token(),
-            current_token_span: Default::default(),
-            previous_token_span: Default::default(),
+            token: eof_located_token(),
+            next_token: eof_located_token(),
+            current_token_location: Location::dummy(),
+            previous_token_location: Location::dummy(),
             current_token_comments: String::new(),
             next_token_comments: String::new(),
             statement_comments: None,
@@ -171,8 +180,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
-    fn bump(&mut self) -> SpannedToken {
-        self.previous_token_span = self.current_token_span;
+    fn bump(&mut self) -> LocatedToken {
+        self.previous_token_location = self.current_token_location;
         let (next_next_token, next_next_token_comments) = self.read_token_internal();
         let next_token = std::mem::replace(&mut self.next_token, next_next_token);
         let token = std::mem::replace(&mut self.token, next_token);
@@ -181,7 +190,7 @@ impl<'a> Parser<'a> {
             std::mem::replace(&mut self.next_token_comments, next_next_token_comments);
         let _ = std::mem::replace(&mut self.current_token_comments, next_comments);
 
-        self.current_token_span = self.token.to_span();
+        self.current_token_location = self.token.location();
         token
     }
 
@@ -189,14 +198,14 @@ impl<'a> Parser<'a> {
         let (token, comments) = self.read_token_internal();
         self.token = token;
         self.current_token_comments = comments;
-        self.current_token_span = self.token.to_span();
+        self.current_token_location = self.token.location();
 
         let (token, comments) = self.read_token_internal();
         self.next_token = token;
         self.next_token_comments = comments;
     }
 
-    fn read_token_internal(&mut self) -> (SpannedToken, String) {
+    fn read_token_internal(&mut self) -> (LocatedToken, String) {
         let mut last_comments = String::new();
 
         loop {
@@ -211,12 +220,12 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
-                None => return (eof_spanned_token(), last_comments),
+                None => return (eof_located_token(), last_comments),
             }
         }
     }
 
-    fn eat_kind(&mut self, kind: TokenKind) -> Option<SpannedToken> {
+    fn eat_kind(&mut self, kind: TokenKind) -> Option<LocatedToken> {
         if self.token.kind() == kind {
             Some(self.bump())
         } else {
@@ -240,7 +249,7 @@ impl<'a> Parser<'a> {
     fn eat_ident(&mut self) -> Option<Ident> {
         if let Some(token) = self.eat_kind(TokenKind::Ident) {
             match token.into_token() {
-                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_span)),
+                Token::Ident(ident) => Some(Ident::new(ident, self.previous_token_location)),
                 _ => unreachable!(),
             }
         } else {
@@ -375,7 +384,7 @@ impl<'a> Parser<'a> {
     fn eat_commas(&mut self) -> bool {
         if self.eat_comma() {
             while self.eat_comma() {
-                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_span);
+                self.push_error(ParserErrorReason::UnexpectedComma, self.previous_token_location);
             }
             true
         } else {
@@ -390,7 +399,10 @@ impl<'a> Parser<'a> {
     fn eat_semicolons(&mut self) -> bool {
         if self.eat_semicolon() {
             while self.eat_semicolon() {
-                self.push_error(ParserErrorReason::UnexpectedSemicolon, self.previous_token_span);
+                self.push_error(
+                    ParserErrorReason::UnexpectedSemicolon,
+                    self.previous_token_location,
+                );
             }
             true
         } else {
@@ -479,17 +491,35 @@ impl<'a> Parser<'a> {
         self.token.token() == &Token::EOF
     }
 
-    fn span_since(&self, start_span: Span) -> Span {
-        if self.current_token_span == start_span {
+    fn location_since(&self, start_location: Location) -> Location {
+        // When taking the span between locations in different files, just keep the first one
+        if self.current_token_location.file != start_location.file {
+            return start_location;
+        }
+
+        let start_span = start_location.span;
+
+        let span = if self.current_token_location.span == start_location.span {
             start_span
         } else {
-            let end_span = self.previous_token_span;
-            Span::from(start_span.start()..end_span.end())
-        }
+            let end_span = self.previous_token_location.span;
+            if start_span.start() <= end_span.end() {
+                Span::from(start_span.start()..end_span.end())
+            } else {
+                // TODO: workaround for now
+                start_span
+            }
+        };
+
+        Location::new(span, start_location.file)
+    }
+
+    fn location_at_previous_token_end(&self) -> Location {
+        Location::new(self.span_at_previous_token_end(), self.previous_token_location.file)
     }
 
     fn span_at_previous_token_end(&self) -> Span {
-        Span::from(self.previous_token_span.end()..self.previous_token_span.end())
+        Span::from(self.previous_token_location.span.end()..self.previous_token_location.span.end())
     }
 
     fn expected_identifier(&mut self) {
@@ -500,7 +530,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location,
         ));
     }
 
@@ -508,7 +538,7 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location,
         ));
     }
 
@@ -516,18 +546,26 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
-            self.current_token_span,
+            self.current_token_location,
         ));
     }
 
-    fn expected_token_separating_items(&mut self, token: Token, items: &'static str, span: Span) {
-        self.push_error(ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items }, span);
+    fn expected_token_separating_items(
+        &mut self,
+        token: Token,
+        items: &'static str,
+        location: Location,
+    ) {
+        self.push_error(
+            ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items },
+            location,
+        );
     }
 
     fn expected_mut_after_ampersand(&mut self) {
         self.push_error(
             ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },
-            self.current_token_span,
+            self.current_token_location,
         );
     }
 
@@ -543,20 +581,20 @@ impl<'a> Parser<'a> {
                 ParserErrorReason::VisibilityNotFollowedByAnItem {
                     visibility: modifiers.visibility,
                 },
-                modifiers.visibility_span,
+                modifiers.visibility_location,
             );
         }
     }
 
     fn unconstrained_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, span);
+        if let Some(location) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotFollowedByAnItem, location);
         }
     }
 
     fn comptime_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, span);
+        if let Some(location) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, location);
         }
     }
 
@@ -567,28 +605,28 @@ impl<'a> Parser<'a> {
     }
 
     fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.mutable {
-            self.push_error(ParserErrorReason::MutableNotApplicable, span);
+        if let Some(location) = modifiers.mutable {
+            self.push_error(ParserErrorReason::MutableNotApplicable, location);
         }
     }
 
     fn comptime_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.comptime {
-            self.push_error(ParserErrorReason::ComptimeNotApplicable, span);
+        if let Some(location) = modifiers.comptime {
+            self.push_error(ParserErrorReason::ComptimeNotApplicable, location);
         }
     }
 
     fn unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
-        if let Some(span) = modifiers.unconstrained {
-            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, span);
+        if let Some(location) = modifiers.unconstrained {
+            self.push_error(ParserErrorReason::UnconstrainedNotApplicable, location);
         }
     }
 
-    fn push_error(&mut self, reason: ParserErrorReason, span: Span) {
-        self.errors.push(ParserError::with_reason(reason, span));
+    fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
+        self.errors.push(ParserError::with_reason(reason, location));
     }
 }
 
-fn eof_spanned_token() -> SpannedToken {
-    SpannedToken::new(Token::EOF, Default::default())
+fn eof_located_token() -> LocatedToken {
+    LocatedToken::new(Token::EOF, Location::dummy())
 }

@@ -40,7 +40,7 @@ pub(crate) fn on_signature_help_request(
             .and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
                 finder.find(&parsed_module)
@@ -312,7 +312,9 @@ impl<'a> SignatureFinder<'a> {
     fn compute_active_parameter(&self, arguments: &[Expression]) -> Option<u32> {
         let mut active_parameter = None;
         for (index, arg) in arguments.iter().enumerate() {
-            if self.includes_span(arg.span) || arg.span.start() as usize >= self.byte_index {
+            if self.includes_span(arg.location.span)
+                || arg.location.span.start() as usize >= self.byte_index
+            {
                 active_parameter = Some(index as u32);
                 break;
             }
@@ -332,22 +334,23 @@ impl<'a> SignatureFinder<'a> {
 
 impl<'a> Visitor for SignatureFinder<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {
-        self.includes_span(statement.span)
+        self.includes_span(statement.location.span)
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.includes_span(expression.span)
+        self.includes_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 
-        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
-        let span = call_expression.func.span;
+        let arguments_span =
+            Span::from(call_expression.func.location.span.end() + 1..span.end() - 1);
+        let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;
 
@@ -391,7 +394,7 @@ impl<'a> Visitor for SignatureFinder<'a> {
         }
 
         let kind_len = constrain_statement.kind.to_string().len() as u32;
-        let span = constrain_statement.span;
+        let span = constrain_statement.location.span;
         let arguments_span = Span::from(span.start() + kind_len + 1..span.end() - 1);
 
         if !self.includes_span(arguments_span) {

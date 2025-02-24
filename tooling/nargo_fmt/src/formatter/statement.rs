@@ -39,7 +39,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         if ignore_next {
             group.text(self.chunk(|formatter| {
-                formatter.write_and_skip_span_without_formatting(statement.span);
+                formatter.write_and_skip_span_without_formatting(statement.location.span);
             }));
             return;
         }
@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn format_unsafe_statement() {
-        let src = " fn foo() { unsafe { 
+        let src = " fn foo() { unsafe {
         1  } } ";
         let expected = "fn foo() {
     unsafe {
