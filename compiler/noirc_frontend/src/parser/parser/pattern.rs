@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, Path, Pattern},
@@ -29,22 +29,22 @@ impl<'a> Parser<'a> {
         }
 
         self.expected_label(ParsingRuleLabel::Pattern);
-        Pattern::Identifier(Ident::new(String::new(), self.span_at_previous_token_end()))
+        Pattern::Identifier(Ident::new(String::new(), self.location_at_previous_token_end()))
     }
 
     /// Pattern
     ///     = 'mut' PatternNoMut
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let mutable = self.eat_keyword(Keyword::Mut);
-        self.parse_pattern_after_modifiers(mutable, start_span)
+        self.parse_pattern_after_modifiers(mutable, start_location)
     }
 
     /// PatternOrSelf
     ///     = Pattern
     ///     | SelfPattern
     pub(crate) fn parse_pattern_or_self(&mut self) -> Option<PatternOrSelf> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if !self.next_is_colon() && self.eat_self() {
             return Some(PatternOrSelf::SelfPattern(SelfPattern {
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
                 }));
             } else {
                 return Some(PatternOrSelf::Pattern(
-                    self.parse_pattern_after_modifiers(true, start_span)?,
+                    self.parse_pattern_after_modifiers(true, start_location)?,
                 ));
             }
         }
@@ -77,15 +77,15 @@ impl<'a> Parser<'a> {
             } else {
                 self.push_error(
                     ParserErrorReason::RefMutCanOnlyBeUsedWithSelf,
-                    self.current_token_span,
+                    self.current_token_location,
                 );
                 return Some(PatternOrSelf::Pattern(
-                    self.parse_pattern_after_modifiers(true, start_span)?,
+                    self.parse_pattern_after_modifiers(true, start_location)?,
                 ));
             }
         }
 
-        Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(false, start_span)?))
+        Some(PatternOrSelf::Pattern(self.parse_pattern_after_modifiers(false, start_location)?))
     }
 
     fn next_is_colon(&self) -> bool {
@@ -95,13 +95,13 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_pattern_after_modifiers(
         &mut self,
         mutable: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> Option<Pattern> {
         let pattern = self.parse_pattern_no_mut()?;
         Some(if mutable {
             Pattern::Mutable(
                 Box::new(pattern),
-                self.span_since(start_span),
+                self.location_since(start_location),
                 false, // is synthesized
             )
         } else {
@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
     ///
     /// IdentifierPattern = identifier
     fn parse_pattern_no_mut(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if let Some(pattern) = self.parse_interned_pattern() {
             return Some(pattern);
@@ -131,18 +131,18 @@ impl<'a> Parser<'a> {
             if self.at_built_in_type() {
                 self.push_error(
                     ParserErrorReason::ExpectedPatternButFoundType(self.token.token().clone()),
-                    self.current_token_span,
+                    self.current_token_location,
                 );
             }
             return None;
         };
 
         if self.eat_left_brace() {
-            return Some(self.parse_struct_pattern(path, start_span));
+            return Some(self.parse_struct_pattern(path, start_location));
         }
 
         if !path.is_ident() {
-            self.push_error(ParserErrorReason::InvalidPattern, path.span);
+            self.push_error(ParserErrorReason::InvalidPattern, path.location);
 
             let ident = path.segments.pop().unwrap().ident;
             return Some(Pattern::Identifier(ident));
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
 
         match token.into_token() {
             Token::InternedPattern(pattern) => {
-                Some(Pattern::Interned(pattern, self.previous_token_span))
+                Some(Pattern::Interned(pattern, self.previous_token_location))
             }
             _ => unreachable!(),
         }
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
     ///
     /// PatternList = Pattern ( ',' Pattern )* ','?
     fn parse_tuple_pattern(&mut self) -> Option<Pattern> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         if !self.eat_left_paren() {
             return None;
@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
             Self::parse_tuple_pattern_element,
         );
 
-        Some(Pattern::Tuple(patterns, self.span_since(start_span)))
+        Some(Pattern::Tuple(patterns, self.location_since(start_location)))
     }
 
     fn parse_tuple_pattern_element(&mut self) -> Option<Pattern> {
@@ -197,14 +197,14 @@ impl<'a> Parser<'a> {
     /// StructPatternFields = StructPatternField ( ',' StructPatternField )? ','?
     ///
     /// StructPatternField = identifier ( ':' Pattern )?
-    fn parse_struct_pattern(&mut self, path: Path, start_span: Span) -> Pattern {
+    fn parse_struct_pattern(&mut self, path: Path, start_location: Location) -> Pattern {
         let fields = self.parse_many(
             "struct fields",
             separated_by_comma_until_right_brace(),
             Self::parse_struct_pattern_field,
         );
 
-        Pattern::Struct(path, fields, self.span_since(start_span))
+        Pattern::Struct(path, fields, self.location_since(start_location))
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {
@@ -264,7 +264,7 @@ mod tests {
     };
 
     fn parse_pattern_no_errors(src: &str) -> Pattern {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         expect_no_errors(&parser.errors);
         pattern
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn parses_unclosed_tuple_pattern() {
         let src = "(foo,";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
         let Pattern::Tuple(patterns, _) = pattern else { panic!("Expected a tuple pattern") };
@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn parses_struct_pattern_no_fields() {
         let src = "foo::Bar {}";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         expect_no_errors(&parser.errors);
         let Pattern::Struct(path, patterns, _) = pattern else {
@@ -353,7 +353,7 @@ mod tests {
                      ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let pattern = parser.parse_pattern_or_error();
 
         let error = get_single_error(&parser.errors, span);
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn parses_unclosed_struct_pattern() {
         let src = "foo::Bar { x";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let pattern = parser.parse_pattern_or_error();
         assert_eq!(parser.errors.len(), 1);
         let Pattern::Struct(path, _, _) = pattern else { panic!("Expected a struct pattern") };
@@ -391,7 +391,7 @@ mod tests {
         ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let pattern = parser.parse_pattern();
         assert!(pattern.is_none());
 

@@ -1,3 +1,4 @@
+use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
@@ -77,8 +78,7 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        debug_comptime_in_file: Option<&str>,
-        pedantic_solving: bool,
+        options: FrontendOptions,
     ) -> Vec<(CompilationError, FileId)> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -120,8 +120,7 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            options,
         ));
 
         errors.extend(
@@ -373,7 +372,7 @@ pub struct Contract {
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file_source = fm.fetch_file(file_id).expect("File does not exist");
-    parse_program(file_source)
+    parse_program(file_source, file_id)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

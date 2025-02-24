@@ -25,7 +25,7 @@ pub enum DuplicateType {
     EnumVariant,
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum DefCollectorErrorKind {
     #[error("Duplicate {typ}")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },

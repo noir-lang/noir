@@ -16,6 +16,7 @@ use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::{
@@ -105,10 +106,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Disables the builtin Aztec macros being used in the compiler
-    #[arg(long, hide = true)]
-    pub disable_macros: bool,
-
     /// Outputs the monomorphized IR to stdout for debugging
     #[arg(long, hide = true)]
     pub show_monomorphized: bool,
@@ -175,6 +172,11 @@ pub struct CompileOptions {
     /// Used internally to test for non-determinism in the compiler.
     #[clap(long, hide = true)]
     pub check_non_determinism: bool,
+
+    /// Unstable features to enable for this current build
+    #[arg(value_parser = clap::value_parser!(UnstableFeature))]
+    #[clap(long, short = 'Z', value_delimiter = ',')]
+    pub unstable_features: Vec<UnstableFeature>,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -190,6 +192,16 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
             ErrorKind::InvalidInput,
             format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
         )),
+    }
+}
+
+impl CompileOptions {
+    pub fn frontend_options(&self) -> FrontendOptions {
+        FrontendOptions {
+            debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
+            pedantic_solving: self.pedantic_solving,
+            enabled_unstable_features: &self.unstable_features,
+        }
     }
 }
 
@@ -332,12 +344,7 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let diagnostics = CrateDefMap::collect_defs(
-        crate_id,
-        context,
-        options.debug_comptime_in_file.as_deref(),
-        options.pedantic_solving,
-    );
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()

@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
@@ -50,6 +51,7 @@ pub enum IntegerBitSize {
     Sixteen,
     ThirtyTwo,
     SixtyFour,
+    HundredTwentyEight,
 }
 
 impl IntegerBitSize {
@@ -60,6 +62,7 @@ impl IntegerBitSize {
             IntegerBitSize::Sixteen => 16,
             IntegerBitSize::ThirtyTwo => 32,
             IntegerBitSize::SixtyFour => 64,
+            IntegerBitSize::HundredTwentyEight => 128,
         }
     }
 }
@@ -79,6 +82,7 @@ impl From<IntegerBitSize> for u32 {
             Sixteen => 16,
             ThirtyTwo => 32,
             SixtyFour => 64,
+            HundredTwentyEight => 128,
         }
     }
 }
@@ -96,6 +100,7 @@ impl TryFrom<u32> for IntegerBitSize {
             16 => Ok(Sixteen),
             32 => Ok(ThirtyTwo),
             64 => Ok(SixtyFour),
+            128 => Ok(HundredTwentyEight),
             _ => Err(InvalidIntegerBitSizeError(value)),
         }
     }
@@ -165,7 +170,7 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// An argument to a generic type or trait.
@@ -231,12 +236,12 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Span),
+    Constant(FieldElement, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
         Box<UnresolvedTypeExpression>,
-        Span,
+        Location,
     ),
     AsTraitPath(Box<AsTraitPath>),
 }
@@ -352,7 +357,7 @@ impl UnresolvedType {
     }
 
     pub fn from_path(mut path: Path) -> Self {
-        let span = path.span;
+        let location = path.location;
         let last_segment = path.segments.last_mut().unwrap();
         let generics = last_segment.generics.take();
         let generic_type_args = if let Some(generics) = generics {
@@ -365,7 +370,7 @@ impl UnresolvedType {
             GenericTypeArgs::default()
         };
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
-        UnresolvedType { typ, span }
+        UnresolvedType { typ, location }
     }
 
     pub(crate) fn contains_unspecified(&self) -> bool {
@@ -380,7 +385,11 @@ impl UnresolvedTypeData {
         use {IntType::*, UnresolvedTypeData::Integer};
         match token {
             Signed(num_bits) => {
-                Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+                if num_bits == 128 {
+                    Err(InvalidIntegerBitSizeError(128))
+                } else {
+                    Ok(Integer(Signedness::Signed, IntegerBitSize::try_from(num_bits)?))
+                }
             }
             Unsigned(num_bits) => {
                 Ok(Integer(Signedness::Unsigned, IntegerBitSize::try_from(num_bits)?))
@@ -388,8 +397,12 @@ impl UnresolvedTypeData {
         }
     }
 
-    pub fn with_span(&self, span: Span) -> UnresolvedType {
-        UnresolvedType { typ: self.clone(), span }
+    pub fn with_location(&self, location: Location) -> UnresolvedType {
+        UnresolvedType { typ: self.clone(), location }
+    }
+
+    pub fn with_dummy_location(&self) -> UnresolvedType {
+        self.with_location(Location::dummy())
     }
 
     fn contains_unspecified(&self) -> bool {
@@ -455,37 +468,43 @@ impl UnresolvedTypeExpression {
     #[allow(clippy::result_large_err)]
     pub(crate) fn from_expr(
         expr: Expression,
-        span: Span,
+        location: Location,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
         Self::from_expr_helper(expr).map_err(|err_expr| {
-            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), span)
+            ParserError::with_reason(ParserErrorReason::InvalidTypeExpression(err_expr), location)
         })
     }
 
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            UnresolvedTypeExpression::Variable(path) => path.span(),
-            UnresolvedTypeExpression::Constant(_, span) => *span,
-            UnresolvedTypeExpression::BinaryOperation(_, _, _, span) => *span,
+            UnresolvedTypeExpression::Variable(path) => path.location,
+            UnresolvedTypeExpression::Constant(_, location) => *location,
+            UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                path.trait_path.span.merge(path.impl_item.span())
+                path.trait_path.location.merge(path.impl_item.location())
             }
         }
+    }
+
+    pub fn span(&self) -> Span {
+        self.location().span
     }
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.span)),
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
                 None => Err(expr),
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs =
-                    Box::new(UnresolvedTypeExpression::Constant(FieldElement::zero(), expr.span));
+                let lhs = Box::new(UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    expr.location,
+                ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
             ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
                 let lhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.lhs)?);
@@ -511,7 +530,7 @@ impl UnresolvedTypeExpression {
                         unreachable!("impossible via `operator_allowed` check")
                     }
                 };
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.span))
+                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
             ExpressionKind::AsTraitPath(path) => {
                 Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))

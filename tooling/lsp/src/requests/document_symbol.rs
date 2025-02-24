@@ -37,7 +37,7 @@ pub(crate) fn on_document_symbol_request(
         args.files.get_file_id(&PathString::from_path(file_path)).map(|file_id| {
             let file = args.files.get_file(file_id).unwrap();
             let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
             let mut collector = DocumentSymbolCollector::new(file_id, args.files);
             let symbols = collector.collect(&parsed_module);
@@ -75,7 +75,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         };
 
         let span = if let Some(typ) = typ {
-            Span::from(name.span().start()..typ.span.end())
+            Span::from(name.span().start()..typ.location.span.end())
         } else {
             name.span()
         };
@@ -114,11 +114,11 @@ impl<'a> DocumentSymbolCollector<'a> {
         let mut span = name.span();
 
         // If there's a type span, extend the span to include it
-        span = Span::from(span.start()..typ.span.end());
+        span = Span::from(span.start()..typ.location.span.end());
 
         // If there's a default value, extend the span to include it
         if let Some(default_value) = default_value {
-            span = Span::from(span.start()..default_value.span.end());
+            span = Span::from(span.start()..default_value.location.span.end());
         }
 
         let Some(location) = self.to_lsp_location(span) else {
@@ -190,7 +190,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         for field in &noir_struct.fields {
             let field_name = &field.item.name;
             let typ = &field.item.typ;
-            let span = Span::from(field_name.span().start()..typ.span.end());
+            let span = Span::from(field_name.span().start()..typ.location.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
                 continue;
@@ -292,18 +292,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
 
         // If there's a return type, extend the span to include it
         match return_type {
-            FunctionReturnType::Default(return_type_span) => {
-                span = Span::from(span.start()..return_type_span.end());
+            FunctionReturnType::Default(return_type_location) => {
+                span = Span::from(span.start()..return_type_location.span.end());
             }
             FunctionReturnType::Ty(typ) => {
-                span = Span::from(span.start()..typ.span.end());
+                span = Span::from(span.start()..typ.location.span.end());
             }
         }
 
         // If there's a body, extend the span to include it
         if let Some(body) = body {
             if let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.span.end());
+                span = Span::from(span.start()..statement.location.span.end());
             }
         }
 
@@ -349,14 +349,14 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let name_span =
+        let name_location =
             if let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ {
-                trait_name.span
+                trait_name.location
             } else {
-                noir_trait_impl.r#trait.span
+                noir_trait_impl.r#trait.location
             };
 
-        let Some(name_location) = self.to_lsp_location(name_span) else {
+        let Some(name_location) = self.to_lsp_location(name_location.span) else {
             return false;
         };
 
@@ -418,15 +418,15 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         }
 
-        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.location.span) else {
             return false;
         };
 
         let old_symbols = std::mem::take(&mut self.symbols);
         self.symbols = Vec::new();
 
-        for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.item.accept(*noir_function_span, self);
+        for (noir_function, noir_function_location) in &type_impl.methods {
+            noir_function.item.accept(noir_function_location.span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);

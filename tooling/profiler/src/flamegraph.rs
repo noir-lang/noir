@@ -112,7 +112,7 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
         let mut options = Options::default();
         options.hash = true;
         options.deterministic = true;
-        options.title = format!("{}-{}", artifact_name, function_name);
+        options.title = format!("Artifact: {}, Function: {}", artifact_name, function_name);
         options.frame_height = 24;
         options.color_diffusion = true;
         options.min_width = 0.0;

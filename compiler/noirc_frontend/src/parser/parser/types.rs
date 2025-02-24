@@ -15,15 +15,15 @@ impl<'a> Parser<'a> {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
-            UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
         }
     }
 
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let typ = self.parse_unresolved_type_data()?;
-        let span = self.span_since(start_span);
-        Some(UnresolvedType { typ, span })
+        let location = self.location_since(start_location);
+        Some(UnresolvedType { typ, location })
     }
 
     fn parse_unresolved_type_data(&mut self) -> Option<UnresolvedTypeData> {
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
                 Err(err) => {
                     self.push_error(
                         ParserErrorReason::InvalidBitSize(err.0),
-                        self.previous_token_span,
+                        self.previous_token_location,
                     );
                     UnresolvedTypeData::Error
                 }
@@ -139,8 +139,10 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location,
+            );
             return Some(UnresolvedTypeData::String(expr));
         }
 
@@ -148,7 +150,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location,
+                )
             }
         };
 
@@ -164,9 +169,12 @@ impl<'a> Parser<'a> {
 
         if !self.eat_less() {
             self.expected_token(Token::Less);
-            let expr =
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span);
-            let typ = UnresolvedTypeData::Error.with_span(self.span_at_previous_token_end());
+            let expr = UnresolvedTypeExpression::Constant(
+                FieldElement::zero(),
+                self.current_token_location,
+            );
+            let typ =
+                UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end());
             return Some(UnresolvedTypeData::FormatString(expr, Box::new(typ)));
         }
 
@@ -174,7 +182,10 @@ impl<'a> Parser<'a> {
             Ok(expr) => expr,
             Err(error) => {
                 self.errors.push(error);
-                UnresolvedTypeExpression::Constant(FieldElement::zero(), self.current_token_span)
+                UnresolvedTypeExpression::Constant(
+                    FieldElement::zero(),
+                    self.current_token_location,
+                )
             }
         };
 
@@ -257,7 +268,7 @@ impl<'a> Parser<'a> {
             self.eat_or_error(Token::RightBracket);
             typ
         } else {
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         if !self.eat_left_paren() {
@@ -281,7 +292,7 @@ impl<'a> Parser<'a> {
             self.parse_type_or_error()
         } else {
             self.expected_token(Token::Arrow);
-            UnresolvedTypeData::Unit.with_span(self.span_at_previous_token_end())
+            UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
         Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
@@ -422,7 +433,7 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn unspecified_type_at_previous_token_end(&self) -> UnresolvedType {
-        UnresolvedTypeData::Unspecified.with_span(self.span_at_previous_token_end())
+        UnresolvedTypeData::Unspecified.with_location(self.location_at_previous_token_end())
     }
 }
 
@@ -434,13 +445,13 @@ mod tests {
         ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
         parser::{
             parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-            Parser,
+            Parser, ParserErrorReason,
         },
         QuotedType,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         expect_no_errors(&parser.errors);
         typ
@@ -468,6 +479,28 @@ mod tests {
             typ.typ,
             UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
         ));
+    }
+
+    #[test]
+    fn errors_on_invalid_bit_size() {
+        let src = "u31";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
+    }
+
+    #[test]
+    fn errors_on_i128() {
+        let src = "i128";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let typ = parser.parse_type_or_error();
+        assert_eq!(typ.typ, UnresolvedTypeData::Error);
+        assert_eq!(parser.errors.len(), 1);
+        let error = &parser.errors[0];
+        assert!(matches!(error.reason(), Some(ParserErrorReason::InvalidBitSize(..))));
     }
 
     #[test]
@@ -546,7 +579,7 @@ mod tests {
     #[test]
     fn parses_unclosed_parentheses_type() {
         let src = "(Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let typ = parser.parse_type_or_error();
         assert_eq!(parser.errors.len(), 1);
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
@@ -591,7 +624,7 @@ mod tests {
               ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         parser.parse_type();
         let error = get_single_error(&parser.errors, span);
         assert_eq!(error.to_string(), "Expected a ']' but found end of input");
@@ -666,7 +699,7 @@ mod tests {
     #[test]
     fn parses_function_type_with_colon_in_parameter() {
         let src = "fn(value: T) -> Field";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let _ = parser.parse_type_or_error();
         assert!(!parser.errors.is_empty());
     }
