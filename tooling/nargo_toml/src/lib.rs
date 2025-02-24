@@ -552,8 +552,8 @@ mod tests {
         compiler_version = "*"
 
         [dependencies]
-        rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
-        cool = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
+        rand = { tag = "next", git = "https://github.com/rust-random/rand"}
+        cool = { tag = "next", git = "https://github.com/rust-random/rand"}
         hello = {path = "./noir_driver"}
     "#;
 
