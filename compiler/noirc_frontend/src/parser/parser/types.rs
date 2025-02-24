@@ -19,6 +19,26 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Tries to parse a type. If the current token doesn't denote a type and it's not
+    /// one of `stop_tokens`, try to parse a type starting from the next token (and so on).
+    pub(crate) fn parse_type_or_error_with_recovery(
+        &mut self,
+        stop_tokens: &[Token],
+    ) -> UnresolvedType {
+        loop {
+            let typ = self.parse_type_or_error();
+            if typ.typ != UnresolvedTypeData::Error {
+                return typ;
+            }
+
+            if self.at_eof() || stop_tokens.contains(self.token.token()) {
+                return typ;
+            }
+
+            self.bump();
+        }
+    }
+
     pub(crate) fn parse_type(&mut self) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
         let typ = self.parse_unresolved_type_data()?;
