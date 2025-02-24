@@ -1405,7 +1405,7 @@ impl NodeInterner {
                 });
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = true;
+                    let check_self_param = false;
                     if let Some(existing) =
                         self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
@@ -2395,29 +2395,40 @@ impl Methods {
     ) -> bool {
         match interner.function_meta(&method).typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
-                let target_type = if check_self_param {
-                    let Some(object) = args.first() else {
-                        return false;
-                    };
-                    object
+                if check_self_param {
+                    if let Some(object) = args.first() {
+                        if object.unify(typ).is_ok() {
+                            return true;
+                        }
+
+                        // Handle auto-dereferencing `&mut T` into `T`
+                        if let Type::MutableReference(object) = object {
+                            if object.unify(typ).is_ok() {
+                                return true;
+                            }
+                        }
+                    }
                 } else {
-                    method_type
-                };
+                    // We still need to make sure the method is for the given type
+                    // (this might be false if for example a method for `Struct<i32>` was added but
+                    // now we are looking for a method in `Struct<i64>`)
+                    if method_type.unify(typ).is_ok() {
+                        return true;
+                    }
 
-                if target_type.unify(typ).is_ok() {
-                    return true;
+                    // Handle auto-dereferencing `&mut T` into `T`
+                    if let Type::MutableReference(method_type) = method_type {
+                        if method_type.unify(typ).is_ok() {
+                            return true;
+                        }
+                    }
                 }
-
-                // Handle auto-dereferencing `&mut T` into `T`
-                let Type::MutableReference(target_type) = target_type else {
-                    return false;
-                };
-
-                target_type.unify(typ).is_ok()
             }
-            Type::Error => false,
+            Type::Error => (),
             other => unreachable!("Expected function type, found {other}"),
         }
+
+        false
     }
 }
 
