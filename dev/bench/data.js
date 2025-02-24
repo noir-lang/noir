@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740434104458,
+  "lastUpdate": 1740434108882,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11602,70 +11602,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8652072920b3abc5990be5d57db27a7e66221252",
-          "message": "feat(brillig): Hoist shared constants across functions to the global space (#7216)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-18T19:42:56Z",
-          "tree_id": "bbc863618aab34e480c6379dd40ec0cb0b31870f",
-          "url": "https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252"
-        },
-        "date": 1739909381783,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.44,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14755,6 +14691,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ef51d8a38f271dfab8fb282ddd8ee8c3a92f0aa4"
         },
         "date": 1740424944697,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 225.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 441.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 329.09,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b1e50a07ebdf97e0bab66e0dc5f3014a800d128",
+          "message": "chore(docs): Supplement docs on `modexp` as a required precompile for Barretenberg's Solidity verifier (#7508)",
+          "timestamp": "2025-02-24T21:29:30Z",
+          "tree_id": "564cac36923f35644812ce367334d0f3e6fcc2f7",
+          "url": "https://github.com/noir-lang/noir/commit/8b1e50a07ebdf97e0bab66e0dc5f3014a800d128"
+        },
+        "date": 1740434106358,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
