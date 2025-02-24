@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740406867290,
+  "lastUpdate": 1740410089489,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "64890c0d7420adb32d3867e51dd194e48b87bb32",
-          "message": "fix(ssa): Accurately mark binary ops for hoisting and check Div/Mod against induction variable lower bound (#7396)",
-          "timestamp": "2025-02-18T15:25:07Z",
-          "tree_id": "4051ba62d2feefb2ee415328d71ee01696034f3b",
-          "url": "https://github.com/noir-lang/noir/commit/64890c0d7420adb32d3867e51dd194e48b87bb32"
-        },
-        "date": 1739893448900,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.07,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.739,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.607,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.126,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.322,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.95,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.056,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.975,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 94.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 90.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.959,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.472,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8391,6 +8302,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.456,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e26e993d09beafec1dff81014f4b350cf4289656",
+          "message": "feat: use resolved type instead of needing Constructor.struct_type (#7500)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-02-24T14:55:25Z",
+          "tree_id": "abd525ad904d332070fc4d27f9ce3b49b36673a7",
+          "url": "https://github.com/noir-lang/noir/commit/e26e993d09beafec1dff81014f4b350cf4289656"
+        },
+        "date": 1740410087401,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.932,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.686,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.488,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.382,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.95,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 91.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 95.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.963,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.502,
             "unit": "s"
           }
         ]
