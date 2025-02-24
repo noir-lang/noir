@@ -29,7 +29,7 @@ comptime fn output_struct(f: FunctionDefinition) -> Quoted {
 
 pub struct Bar<T> {}
 
-fn main() {
+pub fn bar() {
     let _ = comptime {
         let x = quote { Bar::<i32> };
         let q = quote { $x {} };
