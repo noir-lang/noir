@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
@@ -316,8 +317,8 @@ impl Elaborator<'_> {
         // We want the actual expression's span here, not the innermost one from `type_location()`
         let span = expression.location.span;
         let syntax_error = |this: &mut Self| {
-            let errors = ResolverError::InvalidSyntaxInPattern { span };
-            this.push_err(errors, this.file);
+            let error = ResolverError::InvalidSyntaxInPattern { span };
+            this.push_err(error, this.file);
             Pattern::Error
         };
 
@@ -495,6 +496,12 @@ impl Elaborator<'_> {
         expected_type: &Type,
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
+        let syntax_error = |this: &mut Self| {
+            let error = ResolverError::InvalidSyntaxInPattern { span: name.location.span };
+            this.push_err(error, this.file);
+            Pattern::Error
+        };
+
         match name.kind {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
@@ -531,10 +538,10 @@ impl Elaborator<'_> {
                         variables_defined,
                     )
                 } else {
-                    panic!("Invalid expr kind {name}")
+                    syntax_error(self)
                 }
             }
-            other => todo!("invalid constructor `{other}`"),
+            _ => syntax_error(self),
         }
     }
 
@@ -551,10 +558,20 @@ impl Elaborator<'_> {
         let (actual_type, expected_arg_types, variant_index) = match name {
             PathResolutionItem::Global(id) => {
                 // variant constant
+                self.elaborate_global_if_unresolved(&id);
                 let global = self.interner.get_global(id);
-                let variant_index = match global.value {
-                    GlobalValue::Resolved(Value::Enum(tag, ..)) => tag,
-                    _ => todo!("Value is not an enum constant"),
+                let variant_index = match &global.value {
+                    GlobalValue::Resolved(Value::Enum(tag, ..)) => *tag,
+                    // This may be a global constant. Treat it like a normal constant
+                    GlobalValue::Resolved(value) => {
+                        let value = value.clone();
+                        return self.global_constant_to_integer_constructor(
+                            value,
+                            expected_type,
+                            location,
+                        );
+                    }
+                    other => todo!("Value `{other:?}` is not an enum constant"),
                 };
 
                 let global_type = self.interner.definition_type(global.definition_id);
@@ -607,6 +624,56 @@ impl Elaborator<'_> {
         });
         let constructor = Constructor::Variant(actual_type, variant_index);
         Pattern::Constructor(constructor, args)
+    }
+
+    fn global_constant_to_integer_constructor(
+        &mut self,
+        constant: Value,
+        expected_type: &Type,
+        location: Location,
+    ) -> Pattern {
+        let actual_type = constant.get_type();
+        self.unify(&actual_type, expected_type, location.file, || TypeCheckError::TypeMismatch {
+            expected_typ: expected_type.to_string(),
+            expr_typ: actual_type.to_string(),
+            expr_span: location.span,
+        });
+
+        // Convert a signed integer type like i32 to SignedField
+        macro_rules! signed_to_signed_field {
+            ($value:expr) => {{
+                let negative = $value < 0;
+                // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
+                let mut widened = $value as i128;
+                if negative {
+                    widened = -widened;
+                }
+                SignedField::new(widened.into(), negative)
+            }};
+        }
+
+        let value = match constant {
+            Value::Bool(value) => SignedField::new(value.into(), false),
+            Value::Field(value) => SignedField::new(value, false),
+            Value::I8(value) => signed_to_signed_field!(value),
+            Value::I16(value) => signed_to_signed_field!(value),
+            Value::I32(value) => signed_to_signed_field!(value),
+            Value::I64(value) => signed_to_signed_field!(value),
+            Value::U1(value) => SignedField::new(value.into(), false),
+            Value::U8(value) => SignedField::new((value as u128).into(), false),
+            Value::U16(value) => SignedField::new((value as u128).into(), false),
+            Value::U32(value) => SignedField::new(value.into(), false),
+            Value::U64(value) => SignedField::new(value.into(), false),
+            Value::U128(value) => SignedField::new(value.into(), false),
+            Value::Zeroed(_) => SignedField::new(FieldElement::zero(), false),
+            _ => {
+                let error = ResolverError::NonIntegerGlobalUsedInPattern { location };
+                self.push_err(error, self.file);
+                return Pattern::Error;
+            }
+        };
+
+        Pattern::Int(value)
     }
 
     fn struct_name_and_field_types(

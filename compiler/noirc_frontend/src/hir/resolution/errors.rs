@@ -186,6 +186,8 @@ pub enum ResolverError {
     InvalidSyntaxInPattern { span: Span },
     #[error("Variable '{existing}' was already defined in the same match pattern")]
     VariableAlreadyDefinedInPattern { existing: Ident, new_span: Span },
+    #[error("Only integer globals can be used in match patterns")]
+    NonIntegerGlobalUsedInPattern { location: Location },
 }
 
 impl ResolverError {
@@ -708,6 +710,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 let mut error = Diagnostic::simple_error(message, secondary, *new_span);
                 error.add_secondary(format!("`{existing}` was previously defined here"), existing.span());
                 error
+            },
+            ResolverError::NonIntegerGlobalUsedInPattern { location } => {
+                let message = "Only integer or boolean globals can be used in match patterns".to_string();
+                let secondary = "This global is not an integer or boolean".to_string();
+                Diagnostic::simple_error(message, secondary, location.span)
             },
         }
     }
