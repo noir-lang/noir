@@ -440,11 +440,7 @@ impl<'a> Parser<'a> {
             Self::parse_constructor_field,
         );
 
-        ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            typ,
-            fields,
-            struct_type: None,
-        }))
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 
     fn parse_constructor_field(&mut self) -> Option<(Ident, Expression)> {
