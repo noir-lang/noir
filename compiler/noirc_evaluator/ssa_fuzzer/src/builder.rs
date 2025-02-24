@@ -90,6 +90,7 @@ impl FuzzerBuilder {
     }
 
     pub fn insert_cast_bigger_and_back(&mut self, value: Id<Value>, size: u32) -> Id<Value> {
+        // TODO: this is a hack to avoid timeouts
         if size > 127 {
             return value;
         }

@@ -43,11 +43,11 @@ enum Instructions {
         lhs: u32,
         rhs: u32,
     },
-    Lt {
+    /*Lt {
         lhs: u32,
         rhs: u32,
-    },
-    And {
+    },*/
+    /*And {
         lhs: u32,
         rhs: u32,
     },
@@ -58,7 +58,7 @@ enum Instructions {
     Xor {
         lhs: u32,
         rhs: u32,
-    },
+    },*/
     Mod {
         lhs: u32,
         rhs: u32,
@@ -105,7 +105,7 @@ fn both_indeces_presented(first_index: u32, second_index: u32, acir_witnesses_in
 
 fn get_random_witness_map(seed: u64) -> WitnessMap<FieldElement> {
     let mut witness_map = WitnessMap::new();
-    let mut rng = fastrand::Rng::with_seed(seed);
+    let rng = fastrand::Rng::with_seed(seed);
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);
         let value = FieldElement::from(i + 1);
@@ -246,13 +246,13 @@ impl FuzzerContext {
             Instructions::Div { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_div_instruction(lhs, rhs));
             }
-            Instructions::Lt { lhs, rhs } => {
+            /*Instructions::Lt { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_lt_instruction(lhs, rhs));
-            }
+            }*/
             Instructions::Eq { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_eq_instruction(lhs, rhs));
             }
-            Instructions::And { lhs, rhs } => {
+            /*Instructions::And { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_and_instruction(lhs, rhs));
             }
             Instructions::Or { lhs, rhs } => {
@@ -260,13 +260,14 @@ impl FuzzerContext {
             }
             Instructions::Xor { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs));
-            }
+            }*/
+            /* 
             Instructions::Mod { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_mod_instruction(lhs, rhs));
             }
             Instructions::Not { lhs } => {
                 self.insert_instruction_with_single_arg(lhs, |builder, lhs| builder.insert_not_instruction(lhs));
-            }
+            }*/
             /*Instructions::Shl { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_shl_instruction(lhs, rhs));
             }
@@ -329,23 +330,30 @@ impl FuzzerContext {
 #[derive(Arbitrary, Debug, Clone, Hash)]
 struct FuzzerData {
     methods: Vec<Instructions>,
-    initial_witness: [u64; config::NUMBER_OF_VARIABLES_INITIAL as usize],
+    initial_witness: [String; config::NUMBER_OF_VARIABLES_INITIAL as usize],
 }
 
 
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     // Initialize logger once
     let _ = env_logger::try_init();
-    let type_ = Type::unsigned(64);
+    let type_ = Type::field();
     let mut witness_map = WitnessMap::new();
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);
-        let value = FieldElement::from(data.initial_witness.get(i as usize).copied().unwrap_or(0));
-        witness_map.insert(witness, value);
+        let value = FieldElement::try_from_str(data.initial_witness.get(i as usize).unwrap());
+        match value {
+            Some(value) => {
+                witness_map.insert(witness, value);
+            }
+            None => {
+                return;
+            }
+        }
     }
     let initial_witness = witness_map;
     log::debug!("instructions: {:?}", data.methods.clone());
-    log::debug!("initial_witness: {:?}", data.initial_witness);
+    log::debug!("initial_witness: {:?}", initial_witness);
 
     let mut fuzzer_context = FuzzerContext::new(type_.clone());
     for method in data.methods {
