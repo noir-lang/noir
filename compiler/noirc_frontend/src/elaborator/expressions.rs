@@ -760,9 +760,8 @@ impl<'context> Elaborator<'context> {
 
         let last_segment = path.last_segment();
 
-        let typ = match self.lookup_type_or_error(path) {
-            Some(typ) => typ,
-            None => return (HirExpression::Error, Type::Error),
+        let Some(typ) = self.lookup_type_or_error(path) else {
+            return (HirExpression::Error, Type::Error);
         };
 
         self.elaborate_constructor_with_type(typ, constructor.fields, location, Some(last_segment))
