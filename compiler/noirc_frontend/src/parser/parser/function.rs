@@ -196,7 +196,10 @@ impl<'a> Parser<'a> {
                 UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
             (visibility, typ)
         } else {
-            (self.parse_visibility(), self.parse_type_or_error())
+            (
+                self.parse_visibility(),
+                self.parse_type_or_error_with_recovery(&[Token::Comma, Token::RightParen]),
+            )
         };
 
         Param { visibility, pattern, typ, location: self.location_since(start_location) }
@@ -306,7 +309,10 @@ fn empty_body() -> BlockExpression {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        ast::{
+            IntegerBitSize, ItemVisibility, NoirFunction, Signedness, UnresolvedTypeData,
+            Visibility,
+        },
         parse_program_with_dummy_file,
         parser::{
             parser::tests::{
@@ -519,5 +525,35 @@ mod tests {
         let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
+    }
+
+    #[test]
+    fn parse_function_with_keyword_before_type() {
+        let src = "
+        fn foo(x: mut i32, y: i64) {}
+                  ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (mut module, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a type but found 'mut'");
+
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Function(noir_function) = item.kind else {
+            panic!("Expected function");
+        };
+
+        let params = noir_function.parameters();
+        assert_eq!(params.len(), 2);
+
+        assert_eq!(
+            params[0].typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
+        );
+        assert_eq!(
+            params[1].typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
+        );
     }
 }

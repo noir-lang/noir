@@ -313,6 +313,14 @@ impl Elaborator<'_> {
             });
         };
 
+        // We want the actual expression's span here, not the innermost one from `type_location()`
+        let span = expression.location.span;
+        let syntax_error = |this: &mut Self| {
+            let errors = ResolverError::InvalidSyntaxInPattern { span };
+            this.push_err(errors, this.file);
+            Pattern::Error
+        };
+
         match expression.kind {
             ExpressionKind::Literal(Literal::Integer(value, negative)) => {
                 let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
@@ -365,10 +373,7 @@ impl Elaborator<'_> {
                     }
                     Err(error) => {
                         self.push_err(error, location.file);
-                        // Default to defining a variable of the same name although this could
-                        // cause further match warnings/errors (e.g. redundant cases).
-                        let id = self.fresh_match_variable(expected_type.clone(), location);
-                        Pattern::Binding(id)
+                        Pattern::Error
                     }
                 }
             }
@@ -406,7 +411,7 @@ impl Elaborator<'_> {
                 if let StatementKind::Expression(expr) = self.interner.get_statement_kind(id) {
                     self.expression_to_pattern(expr.clone(), expected_type, variables_defined)
                 } else {
-                    panic!("Invalid expr kind {expression}")
+                    syntax_error(self)
                 }
             }
 
@@ -429,9 +434,7 @@ impl Elaborator<'_> {
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::TypePath(_)
             | ExpressionKind::Resolved(_)
-            | ExpressionKind::Error => {
-                panic!("Invalid expr kind {expression}")
-            }
+            | ExpressionKind::Error => syntax_error(self),
         }
     }
 
@@ -778,6 +781,7 @@ impl Elaborator<'_> {
                 let (key, cons) = match col.pattern {
                     Pattern::Int(val) => ((val, val), Constructor::Int(val)),
                     Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
+                    Pattern::Error => continue,
                     pattern => {
                         eprintln!("Unexpected pattern for integer type: {pattern:?}");
                         continue;
@@ -1007,6 +1011,9 @@ enum Pattern {
     #[allow(unused)]
     Range(SignedField, SignedField),
 
+    /// An error occurred while translating this pattern. This Pattern kind always translates
+    /// to a Fail branch in the decision tree, although the compiler is expected to halt
+    /// with errors before execution.
     Error,
 }
 
