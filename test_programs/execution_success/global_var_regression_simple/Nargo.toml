@@ -1,0 +1,6 @@
+[package]
+name = "global_var_regression_simple"
+type = "bin"
+authors = [""]
+
+[dependencies]

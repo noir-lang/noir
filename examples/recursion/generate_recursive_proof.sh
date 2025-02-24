@@ -4,14 +4,14 @@ set -eu
 BACKEND=${BACKEND:-bb}
 
 nargo execute sum_witness --package sum
-$BACKEND prove -b ./target/sum.json -w ./target/sum_witness.gz -o ./target/sum_proof
+$BACKEND prove -b ./target/sum.json -w ./target/sum_witness.gz -o ./target/sum_proof --recursive
 
 # Once we have generated our inner proof, we must use this to generate inputs to `recurse_leaf``
 
-$BACKEND write_vk -b ./target/sum.json -o ./target/sum_key
+$BACKEND write_vk -b ./target/sum.json -o ./target/sum_key --recursive
 $BACKEND vk_as_fields -k ./target/sum_key -o ./target/sum_vk_as_fields
 VK_HASH=$(jq -r '.[0]' ./target/sum_vk_as_fields)
-VK_AS_FIELDS=$(jq -r '.[1:]' ./target/sum_vk_as_fields) 
+VK_AS_FIELDS=$(jq -r '.[1:]' ./target/sum_vk_as_fields)
 
 FULL_PROOF_AS_FIELDS="$($BACKEND proof_as_fields -p ./target/sum_proof -k ./target/sum_key -o -)"
 # sum has 3 public inputs
@@ -28,17 +28,17 @@ echo "public_inputs = $PUBLIC_INPUTS" >> $RECURSE_LEAF_PROVER_TOML
 # We can now execute and prove `recurse_leaf`
 
 nargo execute recurse_leaf_witness --package recurse_leaf
-$BACKEND prove -b ./target/recurse_leaf.json -w ./target/recurse_leaf_witness.gz -o ./target/recurse_leaf_proof
+$BACKEND prove -b ./target/recurse_leaf.json -w ./target/recurse_leaf_witness.gz -o ./target/recurse_leaf_proof --recursive
 
 # Let's do a sanity check that the proof we've generated so far is valid.
-$BACKEND write_vk -b ./target/recurse_leaf.json -o ./target/recurse_leaf_key
+$BACKEND write_vk -b ./target/recurse_leaf.json -o ./target/recurse_leaf_key --recursive
 $BACKEND verify -p ./target/recurse_leaf_proof -k ./target/recurse_leaf_key
 
 # Now we generate the final `recurse_node` proof similarly to how we did for `recurse_leaf`.
 
 $BACKEND vk_as_fields -k ./target/recurse_leaf_key -o ./target/recurse_leaf_vk_as_fields
 VK_HASH=$(jq -r '.[0]' ./target/recurse_leaf_vk_as_fields)
-VK_AS_FIELDS=$(jq -r '.[1:]' ./target/recurse_leaf_vk_as_fields) 
+VK_AS_FIELDS=$(jq -r '.[1:]' ./target/recurse_leaf_vk_as_fields)
 
 FULL_PROOF_AS_FIELDS="$($BACKEND proof_as_fields -p ./target/recurse_leaf_proof -k ./target/recurse_leaf_key -o -)"
 # recurse_leaf has 4 public inputs (excluding aggregation object)

@@ -1,14 +1,14 @@
 use std::future::{self, Future};
 
+use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
+    foreign_calls::DefaultForeignCallBuilder,
     ops::{run_test, TestStatus},
+    PrintOutput,
 };
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    check_crate, file_manager_with_stdlib, CompileOptions, NOIR_ARTIFACT_VERSION_STRING,
-};
+use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
@@ -50,8 +50,12 @@ fn on_test_run_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
-    insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+    let mut workspace_file_manager = workspace.new_file_manager();
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
     // Since we filtered on crate name, this should be the only item in the iterator
@@ -59,7 +63,7 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (mut context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, false, false, false, None).is_err() {
+            if check_crate(&mut context, crate_id, &Default::default()).is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
@@ -70,7 +74,7 @@ fn on_test_run_request_inner(
 
             let test_functions = context.get_all_test_functions_in_crate_matching(
                 &crate_id,
-                FunctionNameMatch::Exact(function_name),
+                &FunctionNameMatch::Exact(vec![function_name.clone()]),
             );
 
             let (_, test_function) = test_functions.into_iter().next().ok_or_else(|| {
@@ -84,9 +88,18 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                false,
-                None,
+                PrintOutput::Stdout,
                 &CompileOptions::default(),
+                |output, base| {
+                    DefaultForeignCallBuilder {
+                        output,
+                        enable_mocks: true,
+                        resolver_url: None, // NB without this the root and package don't do anything.
+                        root_path: Some(workspace.root_dir.clone()),
+                        package_name: Some(package.name.to_string()),
+                    }
+                    .build_with_base(base)
+                },
             );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
@@ -98,6 +111,11 @@ fn on_test_run_request_inner(
                     id: params.id.clone(),
                     result: "fail".to_string(),
                     message: Some(message),
+                },
+                TestStatus::Skipped => NargoTestRunResult {
+                    id: params.id.clone(),
+                    result: "skipped".to_string(),
+                    message: None,
                 },
                 TestStatus::CompileError(diag) => NargoTestRunResult {
                     id: params.id.clone(),

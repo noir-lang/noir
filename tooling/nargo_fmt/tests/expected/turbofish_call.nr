@@ -3,6 +3,6 @@ fn foo() {
 
     outer_function::<Field>(
         some_function(), // Original inner function call
-        another_function() // Original inner function call
+        another_function(), // Original inner function call
     );
 }

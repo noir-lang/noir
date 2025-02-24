@@ -1,35 +1,55 @@
 use std::path::{Path, PathBuf};
 
+use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
 use noirc_artifacts::debug::DebugArtifact;
 
-use crate::flamegraph::{FlamegraphGenerator, InfernoFlamegraphGenerator};
+use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::read_program_from_file;
 use crate::gates_provider::{BackendGatesProvider, GatesProvider};
+use crate::opcode_formatter::format_acir_opcode;
 
+/// Generates a flamegraph mapping backend opcodes to their associated locations in the source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct GatesFlamegraphCommand {
     /// The path to the artifact JSON file
     #[clap(long, short)]
     artifact_path: String,
 
-    /// Path to the noir backend binary
+    /// Path to the Noir backend binary
     #[clap(long, short)]
     backend_path: String,
+
+    /// Command to get a gates report from the backend. Defaults to "gates"
+    #[clap(long, short = 'g', default_value = "gates")]
+    backend_gates_command: String,
+
+    /// Optional arguments for the backend gates command
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    backend_extra_args: Vec<String>,
 
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
     output: String,
+
+    /// The output name for the flamegraph svg files
+    #[clap(long, short = 'f')]
+    output_filename: Option<String>,
 }
 
 pub(crate) fn run(args: GatesFlamegraphCommand) -> eyre::Result<()> {
     run_with_provider(
         &PathBuf::from(args.artifact_path),
-        &BackendGatesProvider { backend_path: PathBuf::from(args.backend_path) },
+        &BackendGatesProvider {
+            backend_path: PathBuf::from(args.backend_path),
+            gates_command: args.backend_gates_command,
+            extra_args: args.backend_extra_args,
+        },
         &InfernoFlamegraphGenerator { count_name: "gates".to_string() },
         &PathBuf::from(args.output),
+        args.output_filename,
     )
 }
 
@@ -38,6 +58,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
     gates_provider: &Provider,
     flamegraph_generator: &Generator,
     output_path: &Path,
+    output_filename: Option<String>,
 ) -> eyre::Result<()> {
     let mut program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
@@ -45,19 +66,24 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
     let backend_gates_response =
         gates_provider.get_gates(artifact_path).context("Error querying backend for gates")?;
 
-    let function_names = program.names.clone();
+    let function_names = std::mem::take(&mut program.names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
 
     let debug_artifact: DebugArtifact = program.into();
 
-    for (func_idx, ((func_gates, func_name), bytecode)) in backend_gates_response
-        .functions
-        .into_iter()
-        .zip(function_names)
-        .zip(bytecode.functions)
-        .enumerate()
+    let num_functions = bytecode.functions.len();
+    for (func_idx, (func_gates, circuit)) in
+        backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
     {
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = if num_functions > 1 {
+            format!("{}_{}", function_names[func_idx].as_str(), func_idx)
+        } else {
+            function_names[func_idx].to_owned()
+        };
+
         println!(
             "Opcode count: {}, Total gates by opcodes: {}, Circuit size: {}",
             func_gates.acir_opcodes,
@@ -65,14 +91,31 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             func_gates.circuit_size
         );
 
+        let samples = func_gates
+            .gates_per_opcode
+            .into_iter()
+            .zip(circuit.opcodes)
+            .enumerate()
+            .map(|(index, (gates, opcode))| CompilationSample {
+                opcode: Some(format_acir_opcode(&opcode)),
+                call_stack: vec![OpcodeLocation::Acir(index)],
+                count: gates,
+                brillig_function_id: None,
+            })
+            .collect();
+
+        let output_filename = if let Some(output_filename) = &output_filename {
+            format!("{}_{}_gates.svg", output_filename, function_name)
+        } else {
+            format!("{}_gates.svg", function_name)
+        };
         flamegraph_generator.generate_flamegraph(
-            func_gates.gates_per_opcode,
-            bytecode.opcodes,
+            samples,
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
-            &func_name,
-            &Path::new(&output_path).join(Path::new(&format!("{}_gates.svg", &func_name))),
+            &function_name,
+            &Path::new(&output_path).join(Path::new(&output_filename)),
         )?;
     }
 
@@ -81,7 +124,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
 #[cfg(test)]
 mod tests {
-    use acir::circuit::{Circuit, Opcode, Program};
+    use acir::circuit::{Circuit, Program};
     use color_eyre::eyre::{self};
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
@@ -91,14 +134,17 @@ mod tests {
         path::{Path, PathBuf},
     };
 
-    use crate::gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider};
+    use crate::{
+        flamegraph::Sample,
+        gates_provider::{BackendGatesReport, BackendGatesResponse, GatesProvider},
+    };
 
     struct TestGateProvider {
         mock_responses: HashMap<PathBuf, BackendGatesResponse>,
     }
 
     impl GatesProvider for TestGateProvider {
-        fn get_gates(&self, artifact_path: &std::path::Path) -> eyre::Result<BackendGatesResponse> {
+        fn get_gates(&self, artifact_path: &Path) -> eyre::Result<BackendGatesResponse> {
             let response = self
                 .mock_responses
                 .get(artifact_path)
@@ -112,10 +158,9 @@ mod tests {
     struct TestFlamegraphGenerator {}
 
     impl super::FlamegraphGenerator for TestFlamegraphGenerator {
-        fn generate_flamegraph<'files, F>(
+        fn generate_flamegraph<'files, S: Sample>(
             &self,
-            _samples_per_opcode: Vec<usize>,
-            _opcodes: Vec<Opcode<F>>,
+            _samples: Vec<S>,
             _debug_symbols: &DebugInfo,
             _files: &'files impl Files<'files, FileId = fm::FileId>,
             _artifact_name: &str,
@@ -144,6 +189,7 @@ mod tests {
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
+            brillig_names: Vec::new(),
         };
 
         // Write the artifact to a file
@@ -161,11 +207,17 @@ mod tests {
         };
         let flamegraph_generator = TestFlamegraphGenerator::default();
 
-        super::run_with_provider(&artifact_path, &provider, &flamegraph_generator, temp_dir.path())
-            .expect("should run without errors");
+        super::run_with_provider(
+            &artifact_path,
+            &provider,
+            &flamegraph_generator,
+            temp_dir.path(),
+            Some(String::from("test_filename")),
+        )
+        .expect("should run without errors");
 
         // Check that the output file was written to
-        let output_file = temp_dir.path().join("main_gates.svg");
+        let output_file = temp_dir.path().join("test_filename_main_gates.svg");
         assert!(output_file.exists());
     }
 }

@@ -1,5 +1,5 @@
-mod arith;
-mod bit;
+pub(crate) mod arith;
+pub(crate) mod bit;
 
-use arith::{Add, Sub, Mul, Div, Rem, Neg};
-use bit::{Not, BitOr, BitAnd, BitXor, Shl, Shr};
+pub use arith::{Add, Div, Mul, Neg, Rem, Sub};
+pub use bit::{BitAnd, BitOr, BitXor, Not, Shl, Shr};

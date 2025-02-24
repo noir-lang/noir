@@ -25,8 +25,8 @@ fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
 
 proptest::prop_compose! {
     pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
-        let width = (bit_size % 128).clamp(1, 127);
-        let max_value = 2u128.pow(width) - 1;
+        let width = (bit_size % 129).clamp(1, 128);
+        let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << width) - 1 };
         FieldElement::from(value.clamp(0, max_value))
     }
 }
@@ -86,7 +86,7 @@ fn arb_primitive_abi_type() -> SBoxedStrategy<AbiType> {
         Just(AbiType::Field),
         Just(AbiType::Boolean),
         any::<(Sign, u32)>().prop_map(|(sign, width)| {
-            let width = (width % 128).clamp(1, 127);
+            let width = (width % 129).clamp(1, 128);
             AbiType::Integer { sign, width }
         }),
         // restrict length of strings to avoid running out of memory
@@ -107,10 +107,8 @@ pub(super) fn arb_abi_type() -> BoxedStrategy<AbiType> {
                 (1..10u32, inner.clone())
                     .prop_map(|(length, typ)| { AbiType::Array { length, typ: Box::new(typ) } })
                     .boxed(),
-                prop::collection::vec(inner.clone(), 1..10)
-                    .prop_map(|fields| { AbiType::Tuple { fields } })
-                    .boxed(),
-                (".*", prop::collection::vec((".+", inner), 1..10))
+                vec(inner.clone(), 1..10).prop_map(|fields| { AbiType::Tuple { fields } }).boxed(),
+                (".*", vec((".+", inner), 1..10))
                     .prop_map(|(path, mut fields)| {
                         // Require that all field names are unique.
                         ensure_unique_strings(fields.iter_mut().map(|(field_name, _)| field_name));
@@ -141,7 +139,7 @@ fn arb_abi_param(typ: AbiType) -> SBoxedStrategy<AbiParameter> {
 
 prop_compose! {
     pub(super) fn arb_abi_and_input_map()
-        (mut parameters_with_values in proptest::collection::vec(arb_abi_param_and_value(), 0..100), return_type: Option<AbiReturnType>)
+        (mut parameters_with_values in vec(arb_abi_param_and_value(), 0..100), return_type: Option<AbiReturnType>)
         -> (Abi, InputMap) {
             // Require that all parameter names are unique.
             ensure_unique_strings(parameters_with_values.iter_mut().map(|(param_name,_)| &mut param_name.name));

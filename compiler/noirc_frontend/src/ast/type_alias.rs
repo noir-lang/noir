@@ -1,6 +1,6 @@
-use super::{Ident, UnresolvedGenerics, UnresolvedType};
+use super::{Ident, ItemVisibility, UnresolvedGenerics, UnresolvedType};
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 use std::fmt::Display;
 
 /// Ast node for type aliases
@@ -9,18 +9,8 @@ pub struct NoirTypeAlias {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
     pub typ: UnresolvedType,
-    pub span: Span,
-}
-
-impl NoirTypeAlias {
-    pub fn new(
-        name: Ident,
-        generics: UnresolvedGenerics,
-        typ: UnresolvedType,
-        span: Span,
-    ) -> NoirTypeAlias {
-        NoirTypeAlias { name, generics, typ, span }
-    }
+    pub visibility: ItemVisibility,
+    pub location: Location,
 }
 
 impl Display for NoirTypeAlias {

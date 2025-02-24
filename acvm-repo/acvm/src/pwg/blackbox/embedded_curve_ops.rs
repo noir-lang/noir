@@ -15,11 +15,11 @@ pub(super) fn multi_scalar_mul<F: AcirField>(
     outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError<F>> {
     let points: Result<Vec<_>, _> =
-        points.iter().map(|input| input_to_value(initial_witness, *input)).collect();
+        points.iter().map(|input| input_to_value(initial_witness, *input, false)).collect();
     let points: Vec<_> = points?.into_iter().collect();
 
     let scalars: Result<Vec<_>, _> =
-        scalars.iter().map(|input| input_to_value(initial_witness, *input)).collect();
+        scalars.iter().map(|input| input_to_value(initial_witness, *input, false)).collect();
     let mut scalars_lo = Vec::new();
     let mut scalars_hi = Vec::new();
     for (i, scalar) in scalars?.into_iter().enumerate() {
@@ -47,12 +47,12 @@ pub(super) fn embedded_curve_add<F: AcirField>(
     input2: [FunctionInput<F>; 3],
     outputs: (Witness, Witness, Witness),
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let input1_x = input_to_value(initial_witness, input1[0])?;
-    let input1_y = input_to_value(initial_witness, input1[1])?;
-    let input1_infinite = input_to_value(initial_witness, input1[2])?;
-    let input2_x = input_to_value(initial_witness, input2[0])?;
-    let input2_y = input_to_value(initial_witness, input2[1])?;
-    let input2_infinite = input_to_value(initial_witness, input2[2])?;
+    let input1_x = input_to_value(initial_witness, input1[0], false)?;
+    let input1_y = input_to_value(initial_witness, input1[1], false)?;
+    let input1_infinite = input_to_value(initial_witness, input1[2], false)?;
+    let input2_x = input_to_value(initial_witness, input2[0], false)?;
+    let input2_y = input_to_value(initial_witness, input2[1], false)?;
+    let input2_infinite = input_to_value(initial_witness, input2[2], false)?;
     let (res_x, res_y, res_infinite) = backend.ec_add(
         &input1_x,
         &input1_y,

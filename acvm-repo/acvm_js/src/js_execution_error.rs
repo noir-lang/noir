@@ -1,5 +1,5 @@
 use acvm::{
-    acir::circuit::{OpcodeLocation, RawAssertionPayload},
+    acir::circuit::{brillig::BrilligFunctionId, OpcodeLocation, RawAssertionPayload},
     FieldElement,
 };
 use gloo_utils::format::JsValueSerdeExt;
@@ -12,9 +12,11 @@ export type RawAssertionPayload = {
     selector: string;
     data: string[];
 };
+
 export type ExecutionError = Error & {
     callStack?: string[];
     rawAssertionPayload?: RawAssertionPayload;
+    brilligFunctionId?: number;
 };
 "#;
 
@@ -38,6 +40,7 @@ impl JsExecutionError {
         message: String,
         call_stack: Option<Vec<OpcodeLocation>>,
         assertion_payload: Option<RawAssertionPayload<FieldElement>>,
+        brillig_function_id: Option<BrilligFunctionId>,
     ) -> Self {
         let mut error = JsExecutionError::constructor(JsString::from(message));
         let js_call_stack = match call_stack {
@@ -51,13 +54,20 @@ impl JsExecutionError {
             None => JsValue::UNDEFINED,
         };
         let assertion_payload = match assertion_payload {
-            Some(raw) => <wasm_bindgen::JsValue as JsValueSerdeExt>::from_serde(&raw)
+            Some(raw) => <JsValue as JsValueSerdeExt>::from_serde(&raw)
                 .expect("Cannot serialize assertion payload"),
+            None => JsValue::UNDEFINED,
+        };
+
+        let brillig_function_id = match brillig_function_id {
+            Some(function_id) => <JsValue as JsValueSerdeExt>::from_serde(&function_id)
+                .expect("Cannot serialize Brillig function id"),
             None => JsValue::UNDEFINED,
         };
 
         error.set_property("callStack", js_call_stack);
         error.set_property("rawAssertionPayload", assertion_payload);
+        error.set_property("brilligFunctionId", brillig_function_id);
 
         error
     }

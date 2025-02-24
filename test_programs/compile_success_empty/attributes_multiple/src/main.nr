@@ -2,6 +2,6 @@ fn main() {
     another_func()
 }
 
-#[aztec(private)]
-#[internal]
+#['aztec(private)]
+#['internal]
 fn another_func() {}

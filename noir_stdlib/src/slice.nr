@@ -1,6 +1,7 @@
 use crate::append::Append;
 
 impl<T> [T] {
+    /// Returns the length of the slice.
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
@@ -11,8 +12,8 @@ impl<T> [T] {
     pub fn push_back(self, elem: T) -> Self {}
 
     /// Push a new element to the front of the slice, returning a
-    /// new slice with a length one greater than the 
-    /// original unmodified slice. 
+    /// new slice with a length one greater than the
+    /// original unmodified slice.
     #[builtin(slice_push_front)]
     pub fn push_front(self, elem: T) -> Self {}
 
@@ -26,19 +27,19 @@ impl<T> [T] {
     #[builtin(slice_pop_front)]
     pub fn pop_front(self) -> (T, Self) {}
 
-    /// Insert an element at a specified index, shifting all elements 
+    /// Insert an element at a specified index, shifting all elements
     /// after it to the right
     #[builtin(slice_insert)]
     pub fn insert(self, index: u32, elem: T) -> Self {}
 
     /// Remove an element at a specified index, shifting all elements
-    /// after it to the left, returning the altered slice and 
+    /// after it to the left, returning the altered slice and
     /// the removed element
     #[builtin(slice_remove)]
     pub fn remove(self, index: u32) -> (Self, T) {}
 
-    // Append each element of the `other` slice to the end of `self`.
-    // This returns a new slice and leaves both input slices unchanged.
+    /// Append each element of the `other` slice to the end of `self`.
+    /// This returns a new slice and leaves both input slices unchanged.
     pub fn append(mut self, other: Self) -> Self {
         for elem in other {
             self = self.push_back(elem);
@@ -49,7 +50,7 @@ impl<T> [T] {
     pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
-        let mut array = [crate::unsafe::zeroed(); N];
+        let mut array = [crate::mem::zeroed(); N];
         for i in 0..N {
             array[i] = self[i];
         }
@@ -100,7 +101,10 @@ impl<T> [T] {
     }
 
     // Flatten each element in the slice into one value, separated by `separator`.
-    pub fn join(self, separator: T) -> T where T: Append {
+    pub fn join(self, separator: T) -> T
+    where
+        T: Append,
+    {
         let mut ret = T::empty();
 
         if self.len() != 0 {

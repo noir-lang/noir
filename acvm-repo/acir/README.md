@@ -77,7 +77,7 @@ In summary, the workflow is the following:
 1. user program -> (compilation) ACIR, a list of opcodes which constrain
     (partial) witnesses
 2. user inputs + ACIR -> (execution/solving) assign values to all the
-    (partial) witnesses 
+    (partial) witnesses
 3. witness assignment + ACIR -> (proving system) proof
 
 Although the ordering of opcode does not matter in theory, since a system of
@@ -121,7 +121,7 @@ proving system and are only used by the solver.
 Finally, some opcodes will have a predicate, whose value is `0` or `1`. Its
 purpose is to nullify the opcode when the value is `0`, so that it has no
 effect. Note that removing the opcode is not a solution because this modifies
-the circuit (the circuit being mainly the list of the opcodes). 
+the circuit (the circuit being mainly the list of the opcodes).
 
 *Remark*: Opcodes operate on witnesses, but we will see that some opcode work on
     expressions of witnesses. We call an expression a linear combination of
@@ -264,16 +264,6 @@ without adding any constraint.
 
 NOTE: see the [circuit/opcodes.rs](src/circuit/opcodes.rs) file for the most
 up-to-date documentation on these opcodes.
-
-#### Directive
-
-This opcode is a specialization of Brillig opcode. Instead of having some generic
-assembly code like Brillig, a directive has a hardcoded name which tells the
-solver which computation to do: with Brillig, the computation refers to the
-compiled bytecode of an unconstrained Noir function, but with a directive, the
-computation is hardcoded inside the compiler.
-
-Directives will be replaced by Brillig opcodes in the future.
 
 #### MemoryOp: memory abstraction for ACIR
 

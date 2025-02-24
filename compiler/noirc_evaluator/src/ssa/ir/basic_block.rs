@@ -1,9 +1,10 @@
 use super::{
-    dfg::CallStack,
+    call_stack::CallStackId,
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
     value::ValueId,
 };
+use serde::{Deserialize, Serialize};
 
 /// A Basic block is a maximal collection of instructions
 /// such that there are only jumps at the end of block
@@ -11,7 +12,7 @@ use super::{
 ///
 /// This means that if one instruction is executed in a basic
 /// block, then all instructions are executed. ie single-entry single-exit.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub(crate) struct BasicBlock {
     /// Parameters to the basic block.
     parameters: Vec<ValueId>,
@@ -122,7 +123,7 @@ impl BasicBlock {
             terminator,
             TerminatorInstruction::Return {
                 return_values: Vec::new(),
-                call_stack: CallStack::new(),
+                call_stack: CallStackId::root(),
             },
         )
     }

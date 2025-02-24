@@ -21,6 +21,19 @@ pub(crate) struct MemoryOpSolver<F> {
 }
 
 impl<F: AcirField> MemoryOpSolver<F> {
+    fn index_from_field(&self, index: F) -> Result<MemoryIndex, OpcodeResolutionError<F>> {
+        if index.num_bits() <= 32 {
+            let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
+            Ok(memory_index)
+        } else {
+            Err(OpcodeResolutionError::IndexOutOfBounds {
+                opcode_location: ErrorLocation::Unresolved,
+                index,
+                array_size: self.block_len,
+            })
+        }
+    }
+
     fn write_memory_index(
         &mut self,
         index: MemoryIndex,
@@ -29,7 +42,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         if index >= self.block_len {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
-                index,
+                index: F::from(index as u128),
                 array_size: self.block_len,
             });
         }
@@ -40,7 +53,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
-            index,
+            index: F::from(index as u128),
             array_size: self.block_len,
         })
     }
@@ -66,12 +79,13 @@ impl<F: AcirField> MemoryOpSolver<F> {
         op: &MemOp<F>,
         initial_witness: &mut WitnessMap<F>,
         predicate: &Option<Expression<F>>,
+        pedantic_solving: bool,
     ) -> Result<(), OpcodeResolutionError<F>> {
         let operation = get_value(&op.operation, initial_witness)?;
 
         // Find the memory index associated with this memory operation.
         let index = get_value(&op.index, initial_witness)?;
-        let memory_index = index.try_to_u64().unwrap() as MemoryIndex;
+        let memory_index = self.index_from_field(index)?;
 
         // Calculate the value associated with this memory operation.
         //
@@ -83,7 +97,9 @@ impl<F: AcirField> MemoryOpSolver<F> {
         let is_read_operation = operation.is_zero();
 
         // Fetch whether or not the predicate is false (e.g. equal to zero)
-        let skip_operation = is_predicate_false(initial_witness, predicate)?;
+        let opcode_location = ErrorLocation::Unresolved;
+        let skip_operation =
+            is_predicate_false(initial_witness, predicate, pedantic_solving, &opcode_location)?;
 
         if is_read_operation {
             // `value_read = arr[memory_index]`
@@ -131,6 +147,9 @@ mod tests {
 
     use super::MemoryOpSolver;
 
+    // use pedantic_solving for tests
+    const PEDANTIC_SOLVING: bool = true;
+
     #[test]
     fn test_solver() {
         let mut initial_witness = WitnessMap::from(BTreeMap::from_iter([
@@ -150,7 +169,9 @@ mod tests {
         block_solver.init(&init, &initial_witness).unwrap();
 
         for op in trace {
-            block_solver.solve_memory_op(&op, &mut initial_witness, &None).unwrap();
+            block_solver
+                .solve_memory_op(&op, &mut initial_witness, &None, PEDANTIC_SOLVING)
+                .unwrap();
         }
 
         assert_eq!(initial_witness[&Witness(4)], FieldElement::from(2u128));
@@ -175,7 +196,9 @@ mod tests {
         let mut err = None;
         for op in invalid_trace {
             if err.is_none() {
-                err = block_solver.solve_memory_op(&op, &mut initial_witness, &None).err();
+                err = block_solver
+                    .solve_memory_op(&op, &mut initial_witness, &None, PEDANTIC_SOLVING)
+                    .err();
             }
         }
 
@@ -183,9 +206,9 @@ mod tests {
             err,
             Some(crate::pwg::OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: _,
-                index: 2,
+                index,
                 array_size: 2
-            })
+            }) if index == FieldElement::from(2u128)
         ));
     }
 
@@ -209,7 +232,12 @@ mod tests {
         for op in invalid_trace {
             if err.is_none() {
                 err = block_solver
-                    .solve_memory_op(&op, &mut initial_witness, &Some(Expression::zero()))
+                    .solve_memory_op(
+                        &op,
+                        &mut initial_witness,
+                        &Some(Expression::zero()),
+                        PEDANTIC_SOLVING,
+                    )
                     .err();
             }
         }
@@ -241,7 +269,12 @@ mod tests {
         for op in invalid_trace {
             if err.is_none() {
                 err = block_solver
-                    .solve_memory_op(&op, &mut initial_witness, &Some(Expression::zero()))
+                    .solve_memory_op(
+                        &op,
+                        &mut initial_witness,
+                        &Some(Expression::zero()),
+                        PEDANTIC_SOLVING,
+                    )
                     .err();
             }
         }

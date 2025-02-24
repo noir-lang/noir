@@ -1,24 +1,24 @@
 mod foo;
 mod baz;
 
-global M: Field = 32;
+global M: u32 = 32;
 global L: Field = 10; // Unused globals currently allowed
-global N: u64 = 5;
-global T_LEN = 2; // Type inference is allowed on globals
+global N: u32 = 5;
+global T_LEN: u32 = 2;
 
 // Globals can reference other globals
-global DERIVED = M + L;
+global DERIVED: Field = M as Field + L;
 
 struct Dummy {
-     x: [Field; N],
-     y: [Field; foo::MAGIC_NUMBER]
+    x: [Field; N],
+    y: [Field; foo::MAGIC_NUMBER],
 }
 
 struct Test {
     v: Field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
-global NESTED = [VALS, VALS];
+global NESTED: [[Test; 1]; 2] = [VALS, VALS];
 
 unconstrained fn calculate_global_value() -> Field {
     42
@@ -31,7 +31,7 @@ fn main(
     a: [Field; M + N - N],
     b: [Field; 30 + N / 2],
     c: pub [Field; foo::MAGIC_NUMBER],
-    d: [Field; foo::bar::N]
+    d: [Field; foo::bar::N],
 ) {
     let test_struct = Dummy { x: d, y: c };
 
@@ -41,7 +41,7 @@ fn main(
         assert(test_struct.y[i] != NESTED[1][0].v);
     }
 
-    assert(N as Field != M);
+    assert(N as Field != M as Field);
 
     let expected: u32 = 42;
     assert(foo::TYPE_INFERRED == expected);
@@ -49,7 +49,7 @@ fn main(
     let mut y = 5;
     let mut x = M;
     for i in 0..N * N {
-        let M: Field = 10;
+        let M: u32 = 10;
         x = M;
 
         y = i;
@@ -62,14 +62,14 @@ fn main(
 
     arrays_neq(a, b);
 
-    let t: [Field; T_LEN] = [N as Field, M];
+    let t: [Field; T_LEN] = [N as Field, M as Field];
     assert(t[1] == 32);
 
     assert(15 == my_submodule::my_helper());
 
-    let add_submodules_N = my_submodule::N + foo::bar::N as Field;
+    let add_submodules_N = my_submodule::N as Field + foo::bar::N as Field;
     assert(15 == add_submodules_N);
-    let add_from_bar_N = my_submodule::N + foo::bar::from_bar(1);
+    let add_from_bar_N = my_submodule::N as Field + foo::bar::from_bar(1);
     assert(15 == add_from_bar_N);
     // Example showing an array filled with (my_submodule::N + 2) 0's
     let sugared = [0; my_submodule::N + 2];
@@ -80,13 +80,13 @@ fn main(
 
     foo::from_foo(d);
     baz::from_baz(c);
-    assert(DERIVED == M + L);
+    assert(DERIVED == M as Field + L);
 
     assert(CALCULATED_GLOBAL == 42);
 }
 
 fn multiplyByM(x: Field) -> Field {
-    x * M
+    x * M as Field
 }
 
 fn arrays_neq(a: [Field; M], b: [Field; M]) {
@@ -94,7 +94,7 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 }
 
 mod my_submodule {
-    global N: Field = 10;
+    global N: u32 = 10;
     global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
@@ -102,14 +102,14 @@ mod my_submodule {
     }
 
     pub fn my_helper() -> Field {
-        let N: Field = 15; // Like in Rust, local variables override globals
-        let x = N;
+        let N: u32 = 15; // Like in Rust, local variables override globals
+        let x = N as Field;
         x
     }
 }
 
 struct Foo {
-  a: Field,
+    a: Field,
 }
 
 struct Bar {}
@@ -121,6 +121,4 @@ impl Bar {
 }
 
 // Regression for #1440
-global foo = Foo {
-    a: Bar::get_a(),
-};
+global foo: Foo = Foo { a: Bar::get_a() };

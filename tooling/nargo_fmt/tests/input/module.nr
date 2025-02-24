@@ -1,3 +1,6 @@
+#![inner]
+#![inner2]
+
 mod a {
     mod b {
         struct Data {
@@ -13,6 +16,8 @@ mod a {
         Data2 { a }
     }
 
+    #[custom]
+    #[another_custom]
     mod tests {
         #[test]
         fn test() {
@@ -20,4 +25,15 @@ mod a {
             data2(1);
         }
     }
+
+    #[attr]
+    mod baz;
+
+    mod empty {
+        #![inner]
+    }
 }
+
+pub(crate) mod one { }
+
+pub mod two { }

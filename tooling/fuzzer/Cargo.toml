@@ -7,11 +7,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lints]
+workspace = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 acvm.workspace = true
-nargo.workspace = true
 noirc_artifacts.workspace = true
 noirc_abi.workspace = true
 proptest.workspace = true

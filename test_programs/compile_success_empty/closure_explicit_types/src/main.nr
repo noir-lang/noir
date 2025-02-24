@@ -35,7 +35,7 @@ fn add_results<Env1, Env2>(f1: fn[Env1]() -> Field, f2: fn[Env2]() -> Field) -> 
     f1() + f2()
 }
 // a *really* generic function
-fn map<T, U, N, Env>(arr: [T; N], f: fn[Env](T) -> U) -> [U; N] {
+fn map<T, U, let N: u32, Env>(arr: [T; N], f: fn[Env](T) -> U) -> [U; N] {
     let first_elem = f(arr[0]);
     let mut ret = [first_elem; N];
 

@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use acvm::{
     acir::circuit::{
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
-        ResolvedOpcodeLocation,
+        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
+        ResolvedAssertionPayload, ResolvedOpcodeLocation,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
@@ -15,9 +15,10 @@ use noirc_errors::{
 
 pub use noirc_errors::Location;
 
-use noirc_frontend::graph::CrateName;
-use noirc_printable_type::ForeignCallError;
+use noirc_driver::CrateName;
 use thiserror::Error;
+
+use crate::foreign_calls::ForeignCallError;
 
 /// Errors covering situations where a package cannot be compiled.
 #[derive(Debug, Error)]
@@ -64,31 +65,25 @@ impl<F: AcirField> NargoError<F> {
         &self,
         error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     ) -> Option<String> {
-        let execution_error = match self {
-            NargoError::ExecutionError(error) => error,
-            _ => return None,
-        };
-
-        match execution_error {
-            ExecutionError::AssertionFailed(payload, _) => match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                ResolvedAssertionPayload::Raw(raw) => {
-                    let abi_type = error_types.get(&raw.selector)?;
-                    let decoded = display_abi_error(&raw.data, abi_type.clone());
-                    Some(decoded.to_string())
-                }
+        match self {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _, _) => match payload {
+                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::Raw(raw) => {
+                        let abi_type = error_types.get(&raw.selector)?;
+                        let decoded = display_abi_error(&raw.data, abi_type.clone());
+                        Some(decoded.to_string())
+                    }
+                },
+                ExecutionError::SolvingError(error, _) => match error {
+                    OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
+                        Some(reason.to_string())
+                    }
+                    _ => None,
+                },
             },
-            ExecutionError::SolvingError(error, _) => match error {
-                OpcodeResolutionError::IndexOutOfBounds { .. }
-                | OpcodeResolutionError::OpcodeNotSolvable(_)
-                | OpcodeResolutionError::UnsatisfiedConstrain { .. }
-                | OpcodeResolutionError::AcirMainCallAttempted { .. }
-                | OpcodeResolutionError::BrilligFunctionFailed { .. }
-                | OpcodeResolutionError::AcirCallOutputsMismatch { .. } => None,
-                OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                    Some(reason.to_string())
-                }
-            },
+            NargoError::ForeignCallError(error) => Some(error.to_string()),
+            _ => None,
         }
     }
 }
@@ -96,7 +91,11 @@ impl<F: AcirField> NargoError<F> {
 #[derive(Debug, Error)]
 pub enum ExecutionError<F: AcirField> {
     #[error("Failed assertion")]
-    AssertionFailed(ResolvedAssertionPayload<F>, Vec<ResolvedOpcodeLocation>),
+    AssertionFailed(
+        ResolvedAssertionPayload<F>,
+        Vec<ResolvedOpcodeLocation>,
+        Option<BrilligFunctionId>,
+    ),
 
     #[error("Failed to solve program: '{}'", .0)]
     SolvingError(OpcodeResolutionError<F>, Option<Vec<ResolvedOpcodeLocation>>),
@@ -112,9 +111,13 @@ fn extract_locations_from_error<F: AcirField>(
             OpcodeResolutionError::BrilligFunctionFailed { .. },
             acir_call_stack,
         ) => acir_call_stack.clone(),
-        ExecutionError::AssertionFailed(_, call_stack) => Some(call_stack.clone()),
+        ExecutionError::AssertionFailed(_, call_stack, _) => Some(call_stack.clone()),
         ExecutionError::SolvingError(
             OpcodeResolutionError::IndexOutOfBounds { opcode_location: error_location, .. },
+            acir_call_stack,
+        )
+        | ExecutionError::SolvingError(
+            OpcodeResolutionError::InvalidInputBitSize { opcode_location: error_location, .. },
             acir_call_stack,
         )
         | ExecutionError::SolvingError(
@@ -149,13 +152,38 @@ fn extract_locations_from_error<F: AcirField>(
         }
     }
 
+    let brillig_function_id = match error {
+        ExecutionError::SolvingError(
+            OpcodeResolutionError::BrilligFunctionFailed { function_id, .. },
+            _,
+        ) => Some(*function_id),
+        ExecutionError::AssertionFailed(_, _, function_id) => *function_id,
+        _ => None,
+    };
+
     Some(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
                 debug[resolved_location.acir_function_index]
                     .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        if let (Some(brillig_function_id), Some(brillig_location)) = (
+                            brillig_function_id,
+                            &resolved_location.opcode_location.to_brillig_location(),
+                        ) {
+                            let brillig_locations = debug[resolved_location.acir_function_index]
+                                .brillig_locations
+                                .get(&brillig_function_id);
+                            brillig_locations
+                                .unwrap()
+                                .get(brillig_location)
+                                .cloned()
+                                .unwrap_or_default()
+                        } else {
+                            vec![]
+                        }
+                    })
             })
             .collect(),
     )
@@ -168,6 +196,7 @@ fn extract_message_from_error(
     match nargo_err {
         NargoError::ExecutionError(ExecutionError::AssertionFailed(
             ResolvedAssertionPayload::String(message),
+            _,
             _,
         )) => {
             format!("Assertion failed: '{message}'")
@@ -210,11 +239,8 @@ pub fn try_to_diagnose_runtime_error(
     };
     // The location of the error itself will be the location at the top
     // of the call stack (the last item in the Vec).
-    let location = source_locations.last()?;
+    let location = *source_locations.last()?;
     let message = extract_message_from_error(&abi.error_types, nargo_err);
-    Some(
-        CustomDiagnostic::simple_error(message, String::new(), location.span)
-            .in_file(location.file)
-            .with_call_stack(source_locations),
-    )
+    let error = CustomDiagnostic::simple_error(message, String::new(), location.span);
+    Some(error.with_call_stack(source_locations).in_file(location.file))
 }

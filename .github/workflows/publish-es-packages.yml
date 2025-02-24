@@ -16,7 +16,7 @@ run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-
 
 jobs:
   build-noirc_abi_wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
           ref: ${{ inputs.noir-ref }}
       
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -50,7 +50,7 @@ jobs:
           retention-days: 10
 
   build-noir_wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
           ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -87,7 +87,7 @@ jobs:
           retention-days: 3
 
   build-acvm_js:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
           ref: ${{ inputs.noir-ref }}
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.75.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -121,7 +121,7 @@ jobs:
           retention-days: 3
           
   publish-es-packages:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-acvm_js, build-noirc_abi_wasm, build-noir_wasm]
     steps:
       - name: Checkout sources

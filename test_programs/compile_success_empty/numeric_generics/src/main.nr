@@ -14,15 +14,15 @@ fn main() {
     assert(foo(itWorks2).data[0] == itWorks2.data[0] + 1);
 }
 
-fn id<I>(x: [Field; I]) -> [Field; I] {
+fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
     x
 }
 
-struct MyStruct<S> {
+struct MyStruct<let S: u32> {
     data: [Field; S],
 }
 
-impl<S> MyStruct<S> {
+impl<let S: u32> MyStruct<S> {
     fn insert(mut self: Self, index: Field, elem: Field) -> Self {
         // Regression test for numeric generics on impls
         assert(index as u64 < S as u64);
@@ -32,7 +32,7 @@ impl<S> MyStruct<S> {
     }
 }
 
-fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
+fn foo(mut s: MyStruct<2 + 1>) -> MyStruct<10 / 2 - 2> {
     s.data[0] = s.data[0] + 1;
     s
 }

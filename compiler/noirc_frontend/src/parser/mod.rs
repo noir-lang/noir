@@ -12,218 +12,39 @@ mod labels;
 mod parser;
 
 use crate::ast::{
-    Expression, Ident, ImportStatement, LetStatement, ModuleDeclaration, NoirFunction, NoirStruct,
-    NoirTrait, NoirTraitImpl, NoirTypeAlias, Recoverable, StatementKind, TypeImpl, UseTree,
+    Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
+    UseTree,
 };
-use crate::token::{Keyword, Token};
+use crate::token::SecondaryAttribute;
 
-use chumsky::prelude::*;
-use chumsky::primitive::Container;
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
-use noirc_errors::Span;
-pub use parser::{expression, parse_program, top_level_items};
-
-#[derive(Debug, Clone)]
-pub enum TopLevelStatement {
-    Function(NoirFunction),
-    Module(ModuleDeclaration),
-    Import(UseTree),
-    Struct(NoirStruct),
-    Trait(NoirTrait),
-    TraitImpl(NoirTraitImpl),
-    Impl(TypeImpl),
-    TypeAlias(NoirTypeAlias),
-    SubModule(ParsedSubModule),
-    Global(LetStatement),
-    Error,
-}
-
-// Helper trait that gives us simpler type signatures for return types:
-// e.g. impl Parser<T> versus impl Parser<Token, T, Error = Simple<Token>>
-pub trait NoirParser<T>: Parser<Token, T, Error = ParserError> + Sized + Clone {}
-impl<P, T> NoirParser<T> for P where P: Parser<Token, T, Error = ParserError> + Clone {}
-
-// ExprParser just serves as a type alias for NoirParser<Expression> + Clone
-pub trait ExprParser: NoirParser<Expression> {}
-impl<P> ExprParser for P where P: NoirParser<Expression> {}
-
-fn parenthesized<P, T>(parser: P) -> impl NoirParser<T>
-where
-    P: NoirParser<T>,
-    T: Recoverable,
-{
-    use Token::*;
-    parser.delimited_by(just(LeftParen), just(RightParen)).recover_with(nested_delimiters(
-        LeftParen,
-        RightParen,
-        [(LeftBracket, RightBracket)],
-        Recoverable::error,
-    ))
-}
-
-fn spanned<P, T>(parser: P) -> impl NoirParser<(T, Span)>
-where
-    P: NoirParser<T>,
-{
-    parser.map_with_span(|value, span| (value, span))
-}
-
-// Parse with the first parser, then continue by
-// repeating the second parser 0 or more times.
-// The passed in function is then used to combine the
-// results of both parsers along with their spans at
-// each step.
-fn foldl_with_span<P1, P2, T1, T2, F>(
-    first_parser: P1,
-    to_be_repeated: P2,
-    f: F,
-) -> impl NoirParser<T1>
-where
-    P1: NoirParser<T1>,
-    P2: NoirParser<T2>,
-    F: Fn(T1, T2, Span) -> T1 + Clone,
-{
-    spanned(first_parser)
-        .then(spanned(to_be_repeated).repeated())
-        .foldl(move |(a, a_span), (b, b_span)| {
-            let span = a_span.merge(b_span);
-            (f(a, b, span), span)
-        })
-        .map(|(value, _span)| value)
-}
-
-/// Sequence the two parsers.
-/// Fails if the first parser fails, otherwise forces
-/// the second parser to succeed while logging any errors.
-fn then_commit<'a, P1, P2, T1, T2>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<(T1, T2)> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T2: Clone + Recoverable + 'a,
-{
-    let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
-
-    first_parser.then(second_parser)
-}
-
-fn then_commit_ignore<'a, P1, P2, T1, T2>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<T1> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T1: 'a,
-    T2: Clone + 'a,
-{
-    let second_parser = skip_then_retry_until(second_parser);
-    first_parser.then_ignore(second_parser)
-}
-
-fn ignore_then_commit<'a, P1, P2, T1: 'a, T2: Clone + 'a>(
-    first_parser: P1,
-    second_parser: P2,
-) -> impl NoirParser<T2> + 'a
-where
-    P1: NoirParser<T1> + 'a,
-    P2: NoirParser<T2> + 'a,
-    T2: Recoverable,
-{
-    let second_parser = skip_then_retry_until(second_parser)
-        .map_with_span(|option, span| option.unwrap_or_else(|| Recoverable::error(span)));
-
-    first_parser.ignore_then(second_parser)
-}
-
-fn skip_then_retry_until<'a, P, T>(parser: P) -> impl NoirParser<Option<T>> + 'a
-where
-    P: NoirParser<T> + 'a,
-    T: Clone + 'a,
-{
-    let terminators = [
-        Token::EOF,
-        Token::Colon,
-        Token::Semicolon,
-        Token::RightBrace,
-        Token::Keyword(Keyword::Let),
-        Token::Keyword(Keyword::Constrain),
-    ];
-    force(parser.recover_with(chumsky::prelude::skip_then_retry_until(terminators)))
-}
-
-/// General recovery strategy: try to skip to the target token, failing if we encounter the
-/// 'too_far' token beforehand.
-///
-/// Expects all of `too_far` to be contained within `targets`
-fn try_skip_until<T, C1, C2>(targets: C1, too_far: C2) -> impl NoirParser<T>
-where
-    T: Recoverable + Clone,
-    C1: Container<Token> + Clone,
-    C2: Container<Token> + Clone,
-{
-    chumsky::prelude::none_of(targets)
-        .repeated()
-        .ignore_then(one_of(too_far.clone()).rewind())
-        .try_map(move |peek, span| {
-            if too_far.get_iter().any(|t| t == peek) {
-                // This error will never be shown to the user
-                Err(ParserError::empty(Token::EOF, span))
-            } else {
-                Ok(Recoverable::error(span))
-            }
-        })
-}
-
-/// Recovery strategy for statements: If a statement fails to parse skip until the next ';' or fail
-/// if we find a '}' first.
-fn statement_recovery() -> impl NoirParser<StatementKind> {
-    use Token::*;
-    try_skip_until([Semicolon, RightBrace], RightBrace)
-}
-
-fn parameter_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
-    use Token::*;
-    try_skip_until([Comma, RightParen], RightParen)
-}
-
-fn parameter_name_recovery<T: Recoverable + Clone>() -> impl NoirParser<T> {
-    use Token::*;
-    try_skip_until([Colon, RightParen, Comma], [RightParen, Comma])
-}
-
-fn top_level_statement_recovery() -> impl NoirParser<TopLevelStatement> {
-    none_of([Token::RightBrace, Token::EOF])
-        .repeated()
-        .ignore_then(one_of([Token::Semicolon]))
-        .map(|_| TopLevelStatement::Error)
-}
-
-/// Force the given parser to succeed, logging any errors it had
-fn force<'a, T: 'a>(parser: impl NoirParser<T> + 'a) -> impl NoirParser<Option<T>> + 'a {
-    parser.map(Some).recover_via(empty().map(|_| None))
-}
+use noirc_errors::Location;
+pub use parser::{
+    parse_program, parse_program_with_dummy_file, Parser, StatementOrExpressionOrLValue,
+};
 
 #[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
-    pub functions: Vec<NoirFunction>,
-    pub types: Vec<NoirStruct>,
-    pub traits: Vec<NoirTrait>,
+    pub functions: Vec<Documented<NoirFunction>>,
+    pub structs: Vec<Documented<NoirStruct>>,
+    pub enums: Vec<Documented<NoirEnumeration>>,
+    pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<NoirTypeAlias>,
-    pub globals: Vec<LetStatement>,
+    pub type_aliases: Vec<Documented<NoirTypeAlias>>,
+    pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
-    pub module_decls: Vec<ModuleDeclaration>,
+    pub module_decls: Vec<Documented<ModuleDeclaration>>,
 
     /// Full submodules as in `mod foo { ... definitions ... }`
-    pub submodules: Vec<SortedSubModule>,
+    pub submodules: Vec<Documented<SortedSubModule>>,
+
+    pub inner_attributes: Vec<SecondaryAttribute>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl std::fmt::Display for SortedModule {
@@ -236,11 +57,11 @@ impl std::fmt::Display for SortedModule {
             write!(f, "{import}")?;
         }
 
-        for global_const in &self.globals {
+        for (global_const, _visibility) in &self.globals {
             write!(f, "{global_const}")?;
         }
 
-        for type_ in &self.types {
+        for type_ in &self.structs {
             write!(f, "{type_}")?;
         }
 
@@ -268,6 +89,7 @@ impl std::fmt::Display for SortedModule {
 #[derive(Clone, Debug, Default)]
 pub struct ParsedModule {
     pub items: Vec<Item>,
+    pub inner_doc_comments: Vec<String>,
 }
 
 impl ParsedModule {
@@ -276,18 +98,30 @@ impl ParsedModule {
 
         for item in self.items {
             match item.kind {
-                ItemKind::Import(import) => module.push_import(import),
-                ItemKind::Function(func) => module.push_function(func),
-                ItemKind::Struct(typ) => module.push_type(typ),
-                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait),
+                ItemKind::Import(import, visibility) => module.push_import(import, visibility),
+                ItemKind::Function(func) => module.push_function(func, item.doc_comments),
+                ItemKind::Struct(typ) => module.push_struct(typ, item.doc_comments),
+                ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
+                ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
-                ItemKind::TypeAlias(type_alias) => module.push_type_alias(type_alias),
-                ItemKind::Global(global) => module.push_global(global),
-                ItemKind::ModuleDecl(mod_name) => module.push_module_decl(mod_name),
-                ItemKind::Submodules(submodule) => module.push_submodule(submodule.into_sorted()),
+                ItemKind::TypeAlias(type_alias) => {
+                    module.push_type_alias(type_alias, item.doc_comments);
+                }
+                ItemKind::Global(global, visibility) => {
+                    module.push_global(global, visibility, item.doc_comments);
+                }
+                ItemKind::ModuleDecl(mod_name) => {
+                    module.push_module_decl(mod_name, item.doc_comments);
+                }
+                ItemKind::Submodules(submodule) => {
+                    module.push_submodule(submodule.into_sorted(), item.doc_comments);
+                }
+                ItemKind::InnerAttribute(attribute) => module.inner_attributes.push(attribute),
             }
         }
+
+        module.inner_doc_comments = self.inner_doc_comments;
 
         module
     }
@@ -296,37 +130,74 @@ impl ParsedModule {
 #[derive(Clone, Debug)]
 pub struct Item {
     pub kind: ItemKind,
-    pub span: Span,
+    pub location: Location,
+    pub doc_comments: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
 pub enum ItemKind {
-    Import(UseTree),
+    Import(UseTree, ItemVisibility),
     Function(NoirFunction),
     Struct(NoirStruct),
+    Enum(NoirEnumeration),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
     TypeAlias(NoirTypeAlias),
-    Global(LetStatement),
+    Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
+    InnerAttribute(SecondaryAttribute),
+}
+
+impl std::fmt::Display for ItemKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ItemKind::Enum(e) => e.fmt(f),
+            ItemKind::Function(fun) => fun.fmt(f),
+            ItemKind::ModuleDecl(m) => m.fmt(f),
+            ItemKind::Import(tree, visibility) => {
+                if visibility == &ItemVisibility::Private {
+                    write!(f, "use {tree}")
+                } else {
+                    write!(f, "{visibility} use {tree}")
+                }
+            }
+            ItemKind::Trait(t) => t.fmt(f),
+            ItemKind::TraitImpl(i) => i.fmt(f),
+            ItemKind::Struct(s) => s.fmt(f),
+            ItemKind::Impl(i) => i.fmt(f),
+            ItemKind::TypeAlias(t) => t.fmt(f),
+            ItemKind::Submodules(s) => s.fmt(f),
+            ItemKind::Global(c, visibility) => {
+                if visibility != &ItemVisibility::Private {
+                    write!(f, "{visibility} ")?;
+                }
+                c.fmt(f)
+            }
+            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+        }
+    }
 }
 
 /// A submodule defined via `mod name { contents }` in some larger file.
 /// These submodules always share the same file as some larger ParsedModule
 #[derive(Clone, Debug)]
 pub struct ParsedSubModule {
+    pub visibility: ItemVisibility,
     pub name: Ident,
     pub contents: ParsedModule,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 
 impl ParsedSubModule {
     pub fn into_sorted(self) -> SortedSubModule {
         SortedSubModule {
+            visibility: self.visibility,
             name: self.name,
             contents: self.contents.into_sorted(),
+            outer_attributes: self.outer_attributes,
             is_contract: self.is_contract,
         }
     }
@@ -347,21 +218,27 @@ impl std::fmt::Display for SortedSubModule {
 #[derive(Clone)]
 pub struct SortedSubModule {
     pub name: Ident,
+    pub visibility: ItemVisibility,
     pub contents: SortedModule,
+    pub outer_attributes: Vec<SecondaryAttribute>,
     pub is_contract: bool,
 }
 
 impl SortedModule {
-    fn push_function(&mut self, func: NoirFunction) {
-        self.functions.push(func);
+    fn push_function(&mut self, func: NoirFunction, doc_comments: Vec<String>) {
+        self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_type(&mut self, typ: NoirStruct) {
-        self.types.push(typ);
+    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+        self.structs.push(Documented::new(typ, doc_comments));
     }
 
-    fn push_trait(&mut self, noir_trait: NoirTrait) {
-        self.traits.push(noir_trait);
+    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<String>) {
+        self.enums.push(Documented::new(typ, doc_comments));
+    }
+
+    fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {
+        self.traits.push(Documented::new(noir_trait, doc_comments));
     }
 
     fn push_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
@@ -372,119 +249,29 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
-        self.type_aliases.push(type_alias);
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, doc_comments: Vec<String>) {
+        self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 
-    fn push_import(&mut self, import_stmt: UseTree) {
-        self.imports.extend(import_stmt.desugar(None));
+    fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
+        self.imports.extend(import_stmt.desugar(None, visibility));
     }
 
-    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration) {
-        self.module_decls.push(mod_decl);
+    fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<String>) {
+        self.module_decls.push(Documented::new(mod_decl, doc_comments));
     }
 
-    fn push_submodule(&mut self, submodule: SortedSubModule) {
-        self.submodules.push(submodule);
+    fn push_submodule(&mut self, submodule: SortedSubModule, doc_comments: Vec<String>) {
+        self.submodules.push(Documented::new(submodule, doc_comments));
     }
 
-    fn push_global(&mut self, global: LetStatement) {
-        self.globals.push(global);
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd)]
-pub enum Precedence {
-    Lowest,
-    Or,
-    And,
-    Xor,
-    LessGreater,
-    Shift,
-    Sum,
-    Product,
-    Highest,
-}
-
-impl Precedence {
-    // Higher the number, the higher(more priority) the precedence
-    // XXX: Check the precedence is correct for operators
-    fn token_precedence(tok: &Token) -> Option<Precedence> {
-        let precedence = match tok {
-            Token::Equal => Precedence::Lowest,
-            Token::NotEqual => Precedence::Lowest,
-            Token::Pipe => Precedence::Or,
-            Token::Ampersand => Precedence::And,
-            Token::Caret => Precedence::Xor,
-            Token::Less => Precedence::LessGreater,
-            Token::LessEqual => Precedence::LessGreater,
-            Token::Greater => Precedence::LessGreater,
-            Token::GreaterEqual => Precedence::LessGreater,
-            Token::ShiftLeft => Precedence::Shift,
-            Token::ShiftRight => Precedence::Shift,
-            Token::Plus => Precedence::Sum,
-            Token::Minus => Precedence::Sum,
-            Token::Slash => Precedence::Product,
-            Token::Star => Precedence::Product,
-            Token::Percent => Precedence::Product,
-            _ => return None,
-        };
-
-        assert_ne!(precedence, Precedence::Highest, "expression_with_precedence in the parser currently relies on the highest precedence level being uninhabited");
-        Some(precedence)
-    }
-
-    /// Return the next higher precedence. E.g. `Sum.next() == Product`
-    fn next(self) -> Self {
-        use Precedence::*;
-        match self {
-            Lowest => Or,
-            Or => Xor,
-            Xor => And,
-            And => LessGreater,
-            LessGreater => Shift,
-            Shift => Sum,
-            Sum => Product,
-            Product => Highest,
-            Highest => Highest,
-        }
-    }
-
-    /// TypeExpressions only contain basic arithmetic operators and
-    /// notably exclude `>` due to parsing conflicts with generic type brackets.
-    fn next_type_precedence(self) -> Self {
-        use Precedence::*;
-        match self {
-            Lowest => Sum,
-            Sum => Product,
-            Product => Highest,
-            Highest => Highest,
-            other => unreachable!("Unexpected precedence level in type expression: {:?}", other),
-        }
-    }
-
-    /// The operators with the lowest precedence still useable in type expressions
-    /// are '+' and '-' with precedence Sum.
-    fn lowest_type_precedence() -> Self {
-        Precedence::Sum
-    }
-}
-
-impl std::fmt::Display for TopLevelStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TopLevelStatement::Function(fun) => fun.fmt(f),
-            TopLevelStatement::Module(m) => m.fmt(f),
-            TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
-            TopLevelStatement::Trait(t) => t.fmt(f),
-            TopLevelStatement::TraitImpl(i) => i.fmt(f),
-            TopLevelStatement::Struct(s) => s.fmt(f),
-            TopLevelStatement::Impl(i) => i.fmt(f),
-            TopLevelStatement::TypeAlias(t) => t.fmt(f),
-            TopLevelStatement::SubModule(s) => s.fmt(f),
-            TopLevelStatement::Global(c) => c.fmt(f),
-            TopLevelStatement::Error => write!(f, "error"),
-        }
+    fn push_global(
+        &mut self,
+        global: LetStatement,
+        visibility: ItemVisibility,
+        doc_comments: Vec<String>,
+    ) {
+        self.globals.push((Documented::new(global, doc_comments), visibility));
     }
 }
 

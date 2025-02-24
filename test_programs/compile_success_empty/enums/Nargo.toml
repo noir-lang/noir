@@ -1,0 +1,6 @@
+[package]
+name = "enums"
+type = "bin"
+authors = [""]
+
+[dependencies]

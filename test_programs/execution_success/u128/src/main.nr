@@ -22,7 +22,7 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
 
     assert(
         (U128::from_hex("0x71f03a23783f9d9c7a8777") * U128::from_hex("0x8BFCF39041")).hi
-        == U128::from_hex("0x3e4e0471b873470e247c824e61445537").hi
+            == U128::from_hex("0x3e4e0471b873470e247c824e61445537").hi,
     );
     let q = U128::from_hex("0x3e4e0471b873470e247c824e61445537") / U128::from_hex("0x8BFCF39041");
     assert(q == U128::from_hex("0x71f03a23783f9d9c7a8777"));
@@ -39,4 +39,3 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     assert(shift << 127 == U128::from_integer(0));
     assert(U128::from_integer(3).to_integer() == 3);
 }
-

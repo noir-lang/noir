@@ -4,7 +4,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Brillig bytecode is distinct from regular [ACIR][acir] in that it does not generate constraints.
-//! This is a generalization over the fixed directives that exists within in the ACVM.
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
@@ -19,4 +18,4 @@ pub use foreign_call::{ForeignCallParam, ForeignCallResult};
 pub use opcodes::{
     BinaryFieldOp, BinaryIntOp, HeapArray, HeapValueType, HeapVector, MemoryAddress, ValueOrArray,
 };
-pub use opcodes::{BrilligOpcode as Opcode, Label};
+pub use opcodes::{BitSize, BrilligOpcode as Opcode, IntegerBitSize, Label};

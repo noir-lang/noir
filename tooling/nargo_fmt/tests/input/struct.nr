@@ -5,7 +5,7 @@ struct Foo {
 
 struct Pair {
     first: Foo,
-    second: Field,
+    pub second: Field,
 }
 
 impl Foo {

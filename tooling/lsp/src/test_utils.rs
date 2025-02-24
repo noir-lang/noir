@@ -5,7 +5,7 @@ use lsp_types::{Position, Range, Url};
 
 pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, StubbedBlackBoxSolver);
+    let mut state = LspState::new(&client, StubbedBlackBoxSolver::default());
 
     let root_path = std::env::current_dir()
         .unwrap()

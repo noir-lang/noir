@@ -1,5 +1,7 @@
 use acvm::{acir::AcirField, FieldElement};
 
+use crate::ssa::ir::types::NumericType;
+
 use super::{Binary, BinaryOp, ConstrainError, DataFlowGraph, Instruction, Type, Value, ValueId};
 
 /// Try to decompose this constrain instruction. This constraint will be broken down such that it instead constrains
@@ -20,7 +22,7 @@ pub(super) fn decompose_constrain(
         match (&dfg[lhs], &dfg[rhs]) {
             (Value::NumericConstant { constant, typ }, Value::Instruction { instruction, .. })
             | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, typ })
-                if *typ == Type::bool() =>
+                if *typ == NumericType::bool() =>
             {
                 match dfg[*instruction] {
                     Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq })
@@ -42,7 +44,7 @@ pub(super) fn decompose_constrain(
                         vec![Instruction::Constrain(lhs, rhs, msg.clone())]
                     }
 
-                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul })
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
                         if constant.is_one() && dfg.type_of_value(lhs) == Type::bool() =>
                     {
                         // Replace an equality assertion on a boolean multiplication
@@ -61,7 +63,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let one = FieldElement::one();
-                        let one = dfg.make_constant(one, Type::bool());
+                        let one = dfg.make_constant(one, NumericType::bool());
 
                         [
                             decompose_constrain(lhs, one, msg, dfg),
@@ -89,7 +91,7 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v2` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let zero = FieldElement::zero();
-                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs));
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
 
                         [
                             decompose_constrain(lhs, zero, msg, dfg),
@@ -112,8 +114,42 @@ pub(super) fn decompose_constrain(
                         // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
                         // will likely be removed through dead instruction elimination.
                         let reversed_constant = FieldElement::from(!constant.is_one());
-                        let reversed_constant = dfg.make_constant(reversed_constant, Type::bool());
+                        let reversed_constant =
+                            dfg.make_constant(reversed_constant, NumericType::bool());
                         decompose_constrain(value, reversed_constant, msg, dfg)
+                    }
+
+                    _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
+                }
+            }
+
+            (Value::NumericConstant { constant, .. }, Value::Instruction { instruction, .. })
+            | (Value::Instruction { instruction, .. }, Value::NumericConstant { constant, .. }) => {
+                match dfg[*instruction] {
+                    Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Mul { .. } })
+                        if constant.is_zero() && lhs == rhs =>
+                    {
+                        // Replace an assertion that a squared value is zero
+                        //
+                        // v1 = mul v0, v0
+                        // constrain v1 == u1 0
+                        //
+                        // with a direct assertion that value being squared is equal to 0
+                        //
+                        // v1 = mul v0, v0
+                        // constrain v0 == u1 0
+                        //
+                        // This is due to the fact that for `v1` to be 0 then `v0` is 0.
+                        //
+                        // Note that this doesn't remove the value `v1` as it may be used in other instructions, but it
+                        // will likely be removed through dead instruction elimination.
+                        //
+                        // This is safe for all numeric types as the underlying field has a prime modulus so squaring
+                        // a non-zero value should never result in zero.
+
+                        let zero = FieldElement::zero();
+                        let zero = dfg.make_constant(zero, dfg.type_of_value(lhs).unwrap_numeric());
+                        decompose_constrain(lhs, zero, msg, dfg)
                     }
 
                     _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
@@ -139,5 +175,55 @@ pub(super) fn decompose_constrain(
             }
             _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn simplifies_assertions_that_squared_values_are_equal_to_zero() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v1 == Field 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            constrain v0 == Field 0
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn simplifies_out_noop_bitwise_ands() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7451
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+        b0(v0: u8):
+            v1 = and u8 255, v0
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+        b0(v0: u8):
+            return v0
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

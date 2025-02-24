@@ -1,10 +1,10 @@
-struct MyStruct<STR_LEN, BAR_SIZE> {
+struct MyStruct<let STR_LEN: u32, let BAR_SIZE: u32> {
     foo: bool,
     bar: [str<STR_LEN>; BAR_SIZE],
     baz: Field
 }
 
-struct NestedStruct<BAR_SIZE, STR_LEN, NESTED_BAR_SIZE, BAZ_TYP> {
+struct NestedStruct<let BAR_SIZE: u32, let STR_LEN: u32, let NESTED_BAR_SIZE: u32, BAZ_TYP> {
     foo: MyStruct<STR_LEN, NESTED_BAR_SIZE>,
     bar: [MyStruct<STR_LEN, NESTED_BAR_SIZE>; BAR_SIZE],
     baz: BAZ_TYP

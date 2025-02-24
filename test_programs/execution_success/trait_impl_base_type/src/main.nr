@@ -5,7 +5,7 @@ trait Fieldable {
 impl Fieldable for u32 {
     fn to_field(self) -> Field {
         let res = self as Field;
-        res * 3    
+        res * 3
     }
 }
 

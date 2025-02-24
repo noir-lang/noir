@@ -1,0 +1,7 @@
+[package]
+name = "inline_decompose_hint_brillig_call"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

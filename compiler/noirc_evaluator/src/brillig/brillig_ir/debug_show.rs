@@ -28,10 +28,13 @@ impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
         if *self == ReservedRegisters::free_memory_pointer() {
             "FreeMem".into()
-        } else if *self == ReservedRegisters::previous_stack_pointer() {
-            "PrevStack".into()
+        } else if *self == ReservedRegisters::stack_pointer() {
+            "StackPointer".into()
         } else {
-            format!("R{}", self.to_usize())
+            match self {
+                MemoryAddress::Direct(address) => format!("M{}", address),
+                MemoryAddress::Relative(offset) => format!("S{}", offset),
+            }
         }
     }
 }
@@ -114,31 +117,13 @@ impl DebugShow {
     }
 
     /// Emits a `trap` instruction.
-    pub(crate) fn trap_instruction(&self, revert_data: HeapArray) {
+    pub(crate) fn trap_instruction(&self, revert_data: HeapVector) {
         debug_println!(self.enable_debug_trace, "  TRAP {}", revert_data);
     }
 
     /// Emits a `mov` instruction.
     pub(crate) fn mov_instruction(&self, destination: MemoryAddress, source: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
-    }
-
-    /// Emits a conditional `mov` instruction.
-    pub(crate) fn conditional_mov_instruction(
-        &self,
-        destination: MemoryAddress,
-        condition: MemoryAddress,
-        source_a: MemoryAddress,
-        source_b: MemoryAddress,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  CMOV {} = {}? {} : {}",
-            destination,
-            condition,
-            source_a,
-            source_b
-        );
     }
 
     /// Emits a `cast` instruction.
@@ -171,6 +156,15 @@ impl DebugShow {
     /// Stores the value of `constant` in the `result` register
     pub(crate) fn const_instruction<F: DebugToString>(&self, result: MemoryAddress, constant: F) {
         debug_println!(self.enable_debug_trace, "  CONST {} = {}", result, constant);
+    }
+
+    /// Stores the value of `constant` in the `result` register
+    pub(crate) fn indirect_const_instruction<F: DebugToString>(
+        &self,
+        result_pointer: MemoryAddress,
+        constant: F,
+    ) {
+        debug_println!(self.enable_debug_trace, "  ICONST {} = {}", result_pointer, constant);
     }
 
     /// Processes a not instruction. Append with "_" as this is a high-level instruction.
@@ -217,23 +211,14 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STORE *{} = {}", destination_pointer, source);
     }
 
-    /// Emits a stop instruction
-    pub(crate) fn stop_instruction(&self) {
-        debug_println!(self.enable_debug_trace, "  STOP");
+    /// Emits a return instruction
+    pub(crate) fn return_instruction(&self) {
+        debug_println!(self.enable_debug_trace, "  RETURN");
     }
 
-    /// Emits a external stop instruction (returns data)
-    pub(crate) fn external_stop_instruction(
-        &self,
-        return_data_offset: usize,
-        return_data_size: usize,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  EXT_STOP {}..{}",
-            return_data_offset,
-            return_data_offset + return_data_size
-        );
+    /// Emits a stop instruction
+    pub(crate) fn stop_instruction(&self, return_data: HeapVector) {
+        debug_println!(self.enable_debug_trace, "  STOP {}", return_data);
     }
 
     /// Debug function for enter_context
@@ -276,14 +261,8 @@ impl DebugShow {
                     outputs
                 );
             }
-            BlackBoxOp::Sha256 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  SHA256 {} -> {}", message, output);
-            }
-            BlackBoxOp::Keccak256 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  KECCAK256 {} -> {}", message, output);
-            }
-            BlackBoxOp::Keccakf1600 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  KECCAKF1600 {} -> {}", message, output);
+            BlackBoxOp::Keccakf1600 { input, output } => {
+                debug_println!(self.enable_debug_trace, "  KECCAKF1600 {} -> {}", input, output);
             }
             BlackBoxOp::Blake2s { message, output } => {
                 debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);
@@ -344,41 +323,6 @@ impl DebugShow {
                     input1_y,
                     input2_x,
                     input2_y,
-                    result
-                );
-            }
-            BlackBoxOp::PedersenCommitment { inputs, domain_separator, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  PEDERSEN {} {} -> {}",
-                    inputs,
-                    domain_separator,
-                    output
-                );
-            }
-            BlackBoxOp::PedersenHash { inputs, domain_separator, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  PEDERSEN_HASH {} {} -> {}",
-                    inputs,
-                    domain_separator,
-                    output
-                );
-            }
-            BlackBoxOp::SchnorrVerify {
-                public_key_x,
-                public_key_y,
-                message,
-                signature,
-                result,
-            } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  SCHNORR_VERIFY {} {} {} {} -> {}",
-                    public_key_x,
-                    public_key_y,
-                    message,
-                    signature,
                     result
                 );
             }
@@ -453,13 +397,14 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output } => {
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  TO_RADIX {} {} -> {}",
+                    "  TO_RADIX {} {} {} -> {}",
                     input,
                     radix,
-                    output
+                    num_limbs,
+                    output_pointer
                 );
             }
         }

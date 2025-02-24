@@ -1,0 +1,7 @@
+[package]
+name = "arithmetic_generics_move_constant_terms"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

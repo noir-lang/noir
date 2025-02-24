@@ -1,0 +1,7 @@
+[package]
+name = "quote_at_runtime"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

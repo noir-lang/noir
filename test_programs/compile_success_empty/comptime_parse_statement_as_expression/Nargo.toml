@@ -1,0 +1,7 @@
+[package]
+name = "comptime_parse_statement_as_expression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

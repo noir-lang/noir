@@ -1,13 +1,13 @@
-//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffects]
+//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffectsIf]
 //! instructions such that they cover the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffects] is encountered, save this [InstructionId].
+//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffects] is encountered, if so then drop the previous [InstructionId] in favour
+//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId] in favour
 //!       of this one.
-//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffects]
-//!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffects] is encountered.
+//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
+//!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 use std::collections::HashSet;
 
 use acvm::{acir::AcirField, FieldElement};
@@ -16,9 +16,9 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
-        instruction::{BinaryOp, Instruction, Intrinsic},
-        types::Type,
+        function::{Function, RuntimeType},
+        instruction::{BinaryOp, Hint, Instruction, Intrinsic},
+        types::NumericType,
         value::Value,
     },
     ssa_gen::Ssa,
@@ -29,23 +29,30 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            remove_enable_side_effects(function);
+            function.remove_enable_side_effects();
         }
         self
     }
 }
 
-fn remove_enable_side_effects(function: &mut Function) {
-    let mut context = Context::default();
-    context.block_queue.push(function.entry_block());
-
-    while let Some(block) = context.block_queue.pop() {
-        if context.visited_blocks.contains(&block) {
-            continue;
+impl Function {
+    pub(crate) fn remove_enable_side_effects(&mut self) {
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
+            return;
         }
 
-        context.visited_blocks.insert(block);
-        context.remove_enable_side_effects_in_block(function, block);
+        let mut context = Context::default();
+        context.block_queue.push(self.entry_block());
+
+        while let Some(block) = context.block_queue.pop() {
+            if context.visited_blocks.contains(&block) {
+                continue;
+            }
+
+            context.visited_blocks.insert(block);
+            context.remove_enable_side_effects_in_block(self, block);
+        }
     }
 }
 
@@ -63,17 +70,18 @@ impl Context {
     ) {
         let instructions = function.dfg[block].take_instructions();
 
-        let mut active_condition = function.dfg.make_constant(FieldElement::one(), Type::bool());
+        let one = FieldElement::one();
+        let mut active_condition = function.dfg.make_constant(one, NumericType::bool());
         let mut last_side_effects_enabled_instruction = None;
 
         let mut new_instructions = Vec::with_capacity(instructions.len());
         for instruction_id in instructions {
             let instruction = &function.dfg[instruction_id];
 
-            // If we run into another `Instruction::EnableSideEffects` before encountering any
+            // If we run into another `Instruction::EnableSideEffectsIf` before encountering any
             // instructions with side effects then we can drop the instruction we're holding and
-            // continue with the new `Instruction::EnableSideEffects`.
-            if let Instruction::EnableSideEffects { condition } = instruction {
+            // continue with the new `Instruction::EnableSideEffectsIf`.
+            if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 // If this instruction isn't changing the currently active condition then we can ignore it.
                 if active_condition == *condition {
                     continue;
@@ -98,7 +106,7 @@ impl Context {
             }
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
-            // `Instruction::EnableSideEffects` before we insert this new instruction.
+            // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
             if Self::responds_to_side_effects_var(&function.dfg, instruction) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
@@ -118,7 +126,7 @@ impl Context {
         use Instruction::*;
         match instruction {
             Binary(binary) => match binary.operator {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul => {
+                BinaryOp::Add { .. } | BinaryOp::Sub { .. } | BinaryOp::Mul { .. } => {
                     dfg.type_of_value(binary.lhs).is_unsigned()
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
@@ -135,12 +143,15 @@ impl Context {
             | Not(_)
             | Truncate { .. }
             | Constrain(..)
+            | ConstrainNotEqual(..)
             | RangeCheck { .. }
             | IfElse { .. }
             | IncrementRc { .. }
-            | DecrementRc { .. } => false,
+            | DecrementRc { .. }
+            | Noop
+            | MakeArray { .. } => false,
 
-            EnableSideEffects { .. }
+            EnableSideEffectsIf { .. }
             | ArrayGet { .. }
             | ArraySet { .. }
             | Allocate
@@ -158,6 +169,7 @@ impl Context {
                     | Intrinsic::SliceRemove => true,
 
                     Intrinsic::ArrayLen
+                    | Intrinsic::ArrayAsStrUnchecked
                     | Intrinsic::AssertConstant
                     | Intrinsic::StaticAssert
                     | Intrinsic::ApplyRangeConstraint
@@ -165,12 +177,14 @@ impl Context {
                     | Intrinsic::ToBits(_)
                     | Intrinsic::ToRadix(_)
                     | Intrinsic::BlackBox(_)
-                    | Intrinsic::FromField
-                    | Intrinsic::AsField
+                    | Intrinsic::Hint(Hint::BlackBox)
                     | Intrinsic::AsSlice
                     | Intrinsic::AsWitness
                     | Intrinsic::IsUnconstrained
-                    | Intrinsic::DerivePedersenGenerators => false,
+                    | Intrinsic::DerivePedersenGenerators
+                    | Intrinsic::ArrayRefCount
+                    | Intrinsic::SliceRefCount
+                    | Intrinsic::FieldLessThan => false,
                 },
 
                 // We must assume that functions contain a side effect as we cannot inspect more deeply.
@@ -190,7 +204,7 @@ mod test {
         ir::{
             instruction::{BinaryOp, Instruction},
             map::Id,
-            types::Type,
+            types::{NumericType, Type},
         },
     };
 
@@ -221,18 +235,18 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         let v0 = builder.add_parameter(Type::field());
 
-        let two = builder.numeric_constant(2u128, Type::field());
+        let two = builder.field_constant(2u128);
 
-        let one = builder.numeric_constant(1u128, Type::bool());
+        let one = builder.numeric_constant(1u128, NumericType::bool());
 
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
-        builder.insert_binary(v0, BinaryOp::Mul, two);
+        builder.insert_binary(v0, BinaryOp::Mul { unchecked: false }, two);
         builder.insert_enable_side_effects_if(one);
 
         let ssa = builder.finish();
@@ -262,7 +276,10 @@ mod test {
 
         assert_eq!(instructions.len(), 4);
         for instruction in instructions.iter().take(4) {
-            assert_eq!(&main.dfg[*instruction], &Instruction::binary(BinaryOp::Mul, v0, two));
+            assert_eq!(
+                &main.dfg[*instruction],
+                &Instruction::binary(BinaryOp::Mul { unchecked: false }, v0, two)
+            );
         }
     }
 }

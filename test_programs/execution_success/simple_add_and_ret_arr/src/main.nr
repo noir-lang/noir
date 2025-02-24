@@ -1,4 +1,4 @@
-// A simple program to test that SSA array values elements 
+// A simple program to test that SSA array values elements
 // aren't disconnected from their instruction results, and
 // that dead instruction elemination looks inside of arrays
 // when deciding whether of not an instruction should be

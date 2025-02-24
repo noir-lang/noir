@@ -1,0 +1,7 @@
+[package]
+name = "nested_dyn_array_regression_5782"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

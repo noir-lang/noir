@@ -2,8 +2,7 @@ use crate::errors::CliError;
 
 use super::{init_cmd::initialize_project, NargoConfig};
 use clap::Args;
-use nargo::package::PackageType;
-use noirc_frontend::graph::CrateName;
+use nargo::package::{CrateName, PackageType};
 use std::path::PathBuf;
 
 /// Create a Noir project in a new directory.

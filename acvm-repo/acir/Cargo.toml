@@ -2,13 +2,16 @@
 name = "acir"
 description = "ACIR is the IR that the VM processes, it is analogous to LLVM IR"
 # x-release-please-start-version
-version = "0.47.0"
+version = "1.0.0-beta.3"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+
+[lints]
+workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,11 +24,11 @@ flate2.workspace = true
 bincode.workspace = true
 base64.workspace = true
 serde-big-array = "0.5.1"
+strum = { workspace = true }
+strum_macros = { workspace = true }
 
 [dev-dependencies]
 serde_json = "1.0"
-strum = "0.24"
-strum_macros = "0.24"
 serde-reflection = "0.3.6"
 serde-generate = "0.25.1"
 fxhash.workspace = true

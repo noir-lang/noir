@@ -17,7 +17,7 @@ mod logging;
 mod public_witness;
 
 pub use black_box_solvers::{
-    and, blake2s256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccak256, sha256, xor,
+    and, blake2s256, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, sha256_compression, xor,
 };
 pub use build_info::build_info;
 pub use compression::{

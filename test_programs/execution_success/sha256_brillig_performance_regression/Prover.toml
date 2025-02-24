@@ -1,0 +1,16 @@
+input_amount = "1"
+minimum_output_amount = "2"
+secret_hash_for_L1_to_l2_message = "3"
+uniswap_fee_tier = "4"
+
+[aztec_recipient]
+inner = "5"
+
+[caller_on_L1]
+inner = "6"
+
+[input_asset_bridge_portal_address]
+inner = "7"
+
+[output_asset_bridge_portal_address]
+inner = "8"

@@ -1,0 +1,7 @@
+[package]
+name = "associated_types"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

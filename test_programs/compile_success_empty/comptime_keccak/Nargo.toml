@@ -1,0 +1,7 @@
+[package]
+name = "comptime_keccak"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

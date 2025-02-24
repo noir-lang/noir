@@ -1,9 +1,12 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested are array reads and writes
 fn main(x: [Field; 3]) {
-    read_array(x);
-    read_write_array(x);
+    // Safety: testing context
+    unsafe {
+        read_array(x);
+        read_write_array(x);
+    }
 }
 
 unconstrained fn read_array(x: [Field; 3]) {

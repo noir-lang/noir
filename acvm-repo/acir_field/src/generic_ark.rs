@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 
 /// This trait is extremely unstable and WILL have breaking changes.
 pub trait AcirField:
-    std::marker::Sized
+    Sized
     + std::fmt::Display
     + std::fmt::Debug
     + Default
@@ -24,7 +24,7 @@ pub trait AcirField:
     // + From<u8>
     + From<bool>
     + std::hash::Hash
-    + std::cmp::Eq
+    + Eq
 {
     fn one() -> Self;
     fn zero() -> Self;
@@ -74,6 +74,12 @@ pub trait AcirField:
 
     /// Converts bytes into a FieldElement and applies a reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> Self;
+
+    /// Converts bytes in little-endian order into a FieldElement and applies a reduction if needed.
+    fn from_le_bytes_reduce(bytes: &[u8]) -> Self;
+
+    /// Converts the field element to a vector of bytes in little-endian order
+    fn to_le_bytes(self) -> Vec<u8>;
 
     /// Returns the closest number of bytes to the bits specified
     /// This method truncates

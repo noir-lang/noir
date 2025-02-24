@@ -160,7 +160,11 @@ fn merge_slices_else(x: Field) {
 fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = &[0; 2];
     if x != y {
-        if x != 20 { slice.push_back(y) } else { slice }
+        if x != 20 {
+            slice.push_back(y)
+        } else {
+            slice
+        }
     } else {
         slice
     }
@@ -315,7 +319,7 @@ fn regression_2370() {
 }
 
 fn regression_4418(x: Field) {
-    let mut crash = x.to_be_bytes(32);
+    let mut crash: [u8; 32] = x.to_be_bytes();
 
     if x != 0 {
         crash[0] = 10;

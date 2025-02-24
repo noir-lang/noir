@@ -4,10 +4,10 @@
 
 use acvm_blackbox_solver::blake3;
 
-use ark_ec::{short_weierstrass::Affine, AffineRepr, CurveConfig};
+use ark_ec::AffineRepr;
 use ark_ff::Field;
 use ark_ff::{BigInteger, PrimeField};
-use grumpkin::GrumpkinParameters;
+use ark_grumpkin::{Affine, Fq};
 
 /// Hash a seed buffer into a point
 ///
@@ -40,7 +40,7 @@ use grumpkin::GrumpkinParameters;
 ///
 ///  N.B. steps c. and e. are because the `sqrt()` algorithm can return 2 values,
 ///  we need to a way to canonically distinguish between these 2 values and select a "preferred" one
-pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine<GrumpkinParameters> {
+pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine {
     let seed_size = seed.len();
     // expand by 2 bytes to cover incremental hash attempts
     let mut target_seed = seed.to_vec();
@@ -56,10 +56,10 @@ pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine<GrumpkinPa
     hash.extend_from_slice(&hash_lo);
 
     // Here we reduce the 512 bit number modulo the base field modulus to calculate `x`
-    let x = <<GrumpkinParameters as CurveConfig>::BaseField as Field>::BasePrimeField::from_be_bytes_mod_order(&hash);
-    let x = <GrumpkinParameters as CurveConfig>::BaseField::from_base_prime_field(x);
+    let x = Fq::from_be_bytes_mod_order(&hash);
+    let x = Fq::from_base_prime_field(x);
 
-    if let Some(point) = Affine::<GrumpkinParameters>::get_point_from_x_unchecked(x, false) {
+    if let Some(point) = Affine::get_point_from_x_unchecked(x, false) {
         let parity_bit = hash_hi[0] > 127;
         let y_bit_set = point.y().unwrap().into_bigint().get_bit(0);
         if (parity_bit && !y_bit_set) || (!parity_bit && y_bit_set) {

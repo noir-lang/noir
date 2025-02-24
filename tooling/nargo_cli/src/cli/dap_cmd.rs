@@ -23,8 +23,6 @@ use super::debug_cmd::compile_bin_package_for_debugging;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
-use super::NargoConfig;
-
 use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
@@ -50,6 +48,12 @@ pub(crate) struct DapCommand {
 
     #[clap(long)]
     preflight_skip_instrumentation: bool,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[arg(long, default_value = "false")]
+    pedantic_solving: bool,
 }
 
 fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -137,6 +141,7 @@ fn load_and_compile_project(
 fn loop_uninitialized_dap<R: Read, W: Write>(
     mut server: Server<R, W>,
     expression_width: ExpressionWidth,
+    pedantic_solving: bool,
 ) -> Result<(), DapError> {
     loop {
         let req = match server.poll_request()? {
@@ -197,7 +202,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
 
                         noir_debugger::run_dap_loop(
                             server,
-                            &Bn254BlackBoxSolver,
+                            &Bn254BlackBoxSolver(pedantic_solving),
                             compiled_program,
                             initial_witness,
                         )?;
@@ -248,7 +253,7 @@ fn run_preflight_check(
     Ok(())
 }
 
-pub(crate) fn run(args: DapCommand, _config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run(args: DapCommand) -> Result<(), CliError> {
     // When the --preflight-check flag is present, we run Noir's DAP server in "pre-flight mode", which test runs
     // the DAP initialization code without actually starting the DAP server.
     //
@@ -269,5 +274,6 @@ pub(crate) fn run(args: DapCommand, _config: NargoConfig) -> Result<(), CliError
     let input = BufReader::new(std::io::stdin());
     let server = Server::new(input, output);
 
-    loop_uninitialized_dap(server, args.expression_width).map_err(CliError::DapError)
+    loop_uninitialized_dap(server, args.expression_width, args.pedantic_solving)
+        .map_err(CliError::DapError)
 }

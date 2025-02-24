@@ -1,100 +1,311 @@
-use acvm::acir::brillig::MemoryAddress;
+use std::collections::BTreeSet;
+
+use acvm::acir::brillig::{HeapArray, HeapVector, MemoryAddress};
+use iter_extended::vecmap;
 
 use crate::brillig::brillig_ir::entry_point::MAX_STACK_SIZE;
 
-use super::{brillig_variable::SingleAddrVariable, BrilligContext, ReservedRegisters};
+use super::{
+    brillig_variable::SingleAddrVariable,
+    entry_point::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE},
+    BrilligContext, ReservedRegisters,
+};
+
+pub(crate) trait RegisterAllocator {
+    /// First valid memory address
+    fn start() -> usize;
+    /// Last valid memory address
+    fn end() -> usize;
+    /// Allocates a new register.
+    fn allocate_register(&mut self) -> MemoryAddress;
+    /// Push a register to the deallocation list, ready for reuse.
+    fn deallocate_register(&mut self, register_index: MemoryAddress);
+    /// Ensures a register is allocated, allocating it if necessary
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress);
+    /// Creates a new register context from a set of registers allocated previously.
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self;
+    /// Finds the first register that is available based upon the deallocation list
+    fn empty_registers_start(&self) -> MemoryAddress;
+}
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
-///
-/// Each has a stack base pointer from which all stack allocations can be offset.
-pub(crate) struct BrilligRegistersContext {
+pub(crate) struct Stack {
+    storage: DeallocationListAllocator,
+}
+
+impl Stack {
+    pub(crate) fn new() -> Self {
+        Self { storage: DeallocationListAllocator::new(Self::start()) }
+    }
+
+    fn is_within_bounds(register: MemoryAddress) -> bool {
+        let offset = register.unwrap_relative();
+        offset >= Self::start() && offset < Self::end()
+    }
+}
+
+impl RegisterAllocator for Stack {
+    fn start() -> usize {
+        1 // Previous stack pointer is the first stack item
+    }
+
+    fn end() -> usize {
+        MAX_STACK_FRAME_SIZE
+    }
+
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
+        assert!(Self::is_within_bounds(register), "Register out of stack bounds");
+        self.storage.ensure_register_is_allocated(register.unwrap_relative());
+    }
+
+    fn allocate_register(&mut self) -> MemoryAddress {
+        let allocated = MemoryAddress::relative(self.storage.allocate_register());
+        assert!(Self::is_within_bounds(allocated), "Stack frame too deep");
+        allocated
+    }
+
+    fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.storage.deallocate_register(register_index.unwrap_relative());
+    }
+
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+        for register in &preallocated_registers {
+            assert!(Self::is_within_bounds(*register), "Register out of stack bounds");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::start(),
+                vecmap(preallocated_registers, |r| r.unwrap_relative()),
+            ),
+        }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::relative(self.storage.empty_registers_start(Self::start()))
+    }
+}
+
+/// Procedure arguments and returns are passed through scratch space.
+/// This avoids having to dump and restore the stack to call procedures.
+/// The scratch space is a much smaller set of memory cells.
+pub(crate) struct ScratchSpace {
+    storage: DeallocationListAllocator,
+}
+
+impl ScratchSpace {
+    pub(crate) fn new() -> Self {
+        Self { storage: DeallocationListAllocator::new(Self::start()) }
+    }
+
+    fn is_within_bounds(register: MemoryAddress) -> bool {
+        let index = register.unwrap_direct();
+        index >= Self::start() && index < Self::end()
+    }
+}
+
+impl RegisterAllocator for ScratchSpace {
+    fn start() -> usize {
+        ReservedRegisters::len() + MAX_STACK_SIZE
+    }
+
+    fn end() -> usize {
+        Self::start() + MAX_SCRATCH_SPACE
+    }
+
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
+        assert!(Self::is_within_bounds(register), "Register out of scratch space bounds");
+        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+    }
+
+    fn allocate_register(&mut self) -> MemoryAddress {
+        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        assert!(Self::is_within_bounds(allocated), "Scratch space too deep");
+        allocated
+    }
+
+    fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.storage.deallocate_register(register_index.unwrap_direct());
+    }
+
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+        for register in &preallocated_registers {
+            assert!(Self::is_within_bounds(*register), "Register out of scratch space bounds");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::start(),
+                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+            ),
+        }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+    }
+}
+
+/// Globals have a separate memory space
+/// This memory space is initialized once at the beginning of a program
+/// and is read-only.
+#[derive(Default)]
+pub(crate) struct GlobalSpace {
+    storage: DeallocationListAllocator,
+    max_memory_address: usize,
+}
+
+impl GlobalSpace {
+    pub(crate) fn new() -> Self {
+        Self {
+            storage: DeallocationListAllocator::new(Self::start()),
+            max_memory_address: Self::start(),
+        }
+    }
+
+    fn is_within_bounds(register: MemoryAddress) -> bool {
+        let index = register.unwrap_direct();
+        index >= Self::start()
+    }
+
+    fn update_max_address(&mut self, register: MemoryAddress) {
+        let index = register.unwrap_direct();
+        assert!(index >= Self::start(), "Global space malformed");
+        if index > self.max_memory_address {
+            self.max_memory_address = index;
+        }
+    }
+
+    pub(super) fn max_memory_address(&self) -> usize {
+        self.max_memory_address
+    }
+}
+
+impl RegisterAllocator for GlobalSpace {
+    fn start() -> usize {
+        ScratchSpace::end()
+    }
+
+    fn end() -> usize {
+        unreachable!("The global space is set by the program");
+    }
+
+    fn allocate_register(&mut self) -> MemoryAddress {
+        let allocated = MemoryAddress::direct(self.storage.allocate_register());
+        self.update_max_address(allocated);
+        allocated
+    }
+
+    fn deallocate_register(&mut self, register_index: MemoryAddress) {
+        self.storage.deallocate_register(register_index.unwrap_direct());
+    }
+
+    fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
+        self.update_max_address(register);
+        self.storage.ensure_register_is_allocated(register.unwrap_direct());
+    }
+
+    fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+        for register in &preallocated_registers {
+            assert!(Self::is_within_bounds(*register), "Register out of global space bounds");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::start(),
+                vecmap(preallocated_registers, |r| r.unwrap_direct()),
+            ),
+            max_memory_address: Self::start(),
+        }
+    }
+
+    fn empty_registers_start(&self) -> MemoryAddress {
+        MemoryAddress::direct(self.storage.empty_registers_start(Self::start()))
+    }
+}
+
+#[derive(Default)]
+struct DeallocationListAllocator {
     /// A free-list of registers that have been deallocated and can be used again.
-    deallocated_registers: Vec<MemoryAddress>,
+    deallocated_registers: BTreeSet<usize>,
     /// A usize indicating the next un-used register.
     next_free_register_index: usize,
 }
 
-impl BrilligRegistersContext {
-    /// Initial register allocation
-    pub(crate) fn new() -> Self {
-        Self {
-            deallocated_registers: Vec::new(),
-            next_free_register_index: ReservedRegisters::len(),
+impl DeallocationListAllocator {
+    fn new(start: usize) -> Self {
+        Self { deallocated_registers: BTreeSet::new(), next_free_register_index: start }
+    }
+
+    fn ensure_register_is_allocated(&mut self, index: usize) {
+        if index < self.next_free_register_index {
+            // If it could be allocated, check if it's in the deallocated list and remove it from there
+            self.deallocated_registers.retain(|&r| r != index);
+        } else {
+            // If it couldn't yet be, expand the register space.
+            self.next_free_register_index = index + 1;
         }
     }
 
-    /// Creates a new register context from a set of registers allocated previously.
-    pub(crate) fn from_preallocated_registers(preallocated_registers: Vec<MemoryAddress>) -> Self {
+    fn allocate_register(&mut self) -> usize {
+        // If we have a register in our free list of deallocated registers,
+        // consume it first. This prioritizes reuse.
+        if let Some(register) = self.deallocated_registers.pop_first() {
+            return register;
+        }
+        // Otherwise, move to our latest register.
+        let register = self.next_free_register_index;
+        self.next_free_register_index += 1;
+        register
+    }
+
+    fn deallocate_register(&mut self, register_index: usize) {
+        assert!(!self.deallocated_registers.contains(&register_index));
+        self.deallocated_registers.insert(register_index);
+    }
+
+    fn from_preallocated_registers(start: usize, preallocated_registers: Vec<usize>) -> Self {
         let next_free_register_index = preallocated_registers.iter().fold(
-            ReservedRegisters::len(),
-            |free_register_index, preallocated_register| {
-                if preallocated_register.to_usize() < free_register_index {
+            start,
+            |free_register_index, &preallocated_register| {
+                if preallocated_register < free_register_index {
                     free_register_index
                 } else {
-                    preallocated_register.to_usize() + 1
+                    preallocated_register + 1
                 }
             },
         );
-        let mut deallocated_registers = Vec::new();
-        for i in ReservedRegisters::len()..next_free_register_index {
-            if !preallocated_registers.contains(&MemoryAddress::from(i)) {
-                deallocated_registers.push(MemoryAddress::from(i));
+        let mut deallocated_registers = BTreeSet::new();
+        for i in start..next_free_register_index {
+            if !preallocated_registers.contains(&i) {
+                deallocated_registers.insert(i);
             }
         }
 
         Self { deallocated_registers, next_free_register_index }
     }
 
-    /// Ensures a register is allocated.
-    pub(crate) fn ensure_register_is_allocated(&mut self, register: MemoryAddress) {
-        let index = register.to_usize();
-        if index < self.next_free_register_index {
-            // If it could be allocated, check if it's in the deallocated list and remove it from there
-            self.deallocated_registers.retain(|&r| r != register);
-        } else {
-            // If it couldn't yet be, expand the register space.
-            self.next_free_register_index = index + 1;
-            assert!(self.next_free_register_index < MAX_STACK_SIZE, "Stack too deep");
+    fn empty_registers_start(&self, start: usize) -> usize {
+        let mut first_free = self.next_free_register_index;
+        while first_free > start {
+            if !self.deallocated_registers.contains(&(first_free - 1)) {
+                break;
+            }
+            first_free -= 1;
         }
-    }
-
-    /// Creates a new register.
-    pub(crate) fn allocate_register(&mut self) -> MemoryAddress {
-        // If we have a register in our free list of deallocated registers,
-        // consume it first. This prioritizes reuse.
-        if let Some(register) = self.deallocated_registers.pop() {
-            return register;
-        }
-        // Otherwise, move to our latest register.
-        let register = MemoryAddress::from(self.next_free_register_index);
-        self.next_free_register_index += 1;
-        assert!(self.next_free_register_index < MAX_STACK_SIZE, "Stack too deep");
-        register
-    }
-
-    /// Push a register to the deallocation list, ready for reuse.
-    /// TODO(AD): currently, register deallocation is only done with immediate values.
-    /// TODO(AD): See https://github.com/noir-lang/noir/issues/1720
-    pub(crate) fn deallocate_register(&mut self, register_index: MemoryAddress) {
-        assert!(!self.deallocated_registers.contains(&register_index));
-        self.deallocated_registers.push(register_index);
+        first_free
     }
 }
 
-impl<F> BrilligContext<F> {
-    /// Returns the i'th register after the reserved ones
-    pub(crate) fn register(&self, i: usize) -> MemoryAddress {
-        MemoryAddress::from(ReservedRegisters::NUM_RESERVED_REGISTERS + i)
-    }
-
+impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&mut self) -> MemoryAddress {
         self.registers.allocate_register()
     }
 
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        self.registers = BrilligRegistersContext::from_preallocated_registers(allocated_registers);
+        self.registers = Registers::from_preallocated_registers(allocated_registers);
     }
 
     /// Push a register to the deallocation list, ready for reuse.
@@ -105,5 +316,33 @@ impl<F> BrilligContext<F> {
     /// Deallocates the address where the single address variable is stored
     pub(crate) fn deallocate_single_addr(&mut self, var: SingleAddrVariable) {
         self.deallocate_register(var.address);
+    }
+
+    pub(crate) fn deallocate_heap_array(&mut self, arr: HeapArray) {
+        self.deallocate_register(arr.pointer);
+    }
+
+    pub(crate) fn deallocate_heap_vector(&mut self, vec: HeapVector) {
+        self.deallocate_register(vec.pointer);
+        self.deallocate_register(vec.size);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::brillig::brillig_ir::registers::{RegisterAllocator, Stack};
+
+    #[test]
+    fn stack_should_prioritize_returning_low_registers() {
+        let mut stack = Stack::new();
+        let one = stack.allocate_register();
+        let _two = stack.allocate_register();
+        let three = stack.allocate_register();
+
+        stack.deallocate_register(three);
+        stack.deallocate_register(one);
+
+        let one_again = stack.allocate_register();
+        assert_eq!(one, one_again);
     }
 }

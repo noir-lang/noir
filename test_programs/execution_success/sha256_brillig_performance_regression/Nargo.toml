@@ -1,0 +1,7 @@
+[package]
+name = "sha256_brillig_performance_regression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

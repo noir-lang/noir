@@ -3,6 +3,6 @@
 
 #[test(should_fail_with = "attempt to add with overflow")]
 fn main() {
-    let var1: u8 = ((255 + 1) ^ (255 + 1)) - ((255 + 1) - (255 + 1));
-    assert_eq(var1, 0);
+    let var1: u8 = ((255 + 1) ^ (255 + 1) ^ (255 + 1));
+    assert_eq(var1 as Field, 256);
 }

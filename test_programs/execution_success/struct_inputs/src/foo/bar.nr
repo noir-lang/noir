@@ -1,4 +1,4 @@
-global N = 2;
+global N: Field = 2;
 
 struct barStruct {
     val: Field,

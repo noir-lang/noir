@@ -1,4 +1,11 @@
-unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field, out_hash: Field) {
+unconstrained fn main(
+    x: Field,
+    y: Field,
+    salt: Field,
+    out_x: Field,
+    out_y: Field,
+    out_hash: Field,
+) {
     let res = std::hash::pedersen_commitment_with_separator([x, y], 0);
     assert(res.x == out_x);
     assert(res.y == out_y);
@@ -17,4 +24,3 @@ unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Fiel
     let hash = std::hash::pedersen_commitment_with_separator([state], 0);
     assert(std::hash::pedersen_commitment_with_separator([43], 0).x == hash.x);
 }
-

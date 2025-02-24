@@ -3,7 +3,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
     AcirField,
 };
-use acvm_blackbox_solver::{sha256compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
+use acvm_blackbox_solver::{sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
 
 use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
@@ -34,7 +34,7 @@ fn get_hash_input<F: AcirField>(
     for input in inputs.iter() {
         let num_bits = input.num_bits() as usize;
 
-        let witness_assignment = input_to_value(initial_witness, *input)?;
+        let witness_assignment = input_to_value(initial_witness, *input, false)?;
         let bytes = witness_assignment.fetch_nearest_bytes(num_bits);
         message_input.extend(bytes);
     }
@@ -42,13 +42,14 @@ fn get_hash_input<F: AcirField>(
     // Truncate the message if there is a `message_size` parameter given
     match message_size {
         Some(input) => {
-            let num_bytes_to_take = input_to_value(initial_witness, *input)?.to_u128() as usize;
+            let num_bytes_to_take =
+                input_to_value(initial_witness, *input, false)?.to_u128() as usize;
 
             // If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
             if num_bytes_to_take > message_input.len() {
                 return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-                        acir::BlackBoxFunc::Keccak256,
+                        acir::BlackBoxFunc::Blake2s,
                         format!("the number of bytes to take from the message is more than the number of bytes in the message. {} > {}", num_bytes_to_take, message_input.len()),
                     ));
             }
@@ -78,7 +79,7 @@ fn to_u32_array<const N: usize, F: AcirField>(
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
-        let witness_value = input_to_value(initial_witness, *input)?;
+        let witness_value = input_to_value(initial_witness, *input, false)?;
         *it = witness_value.to_u128() as u32;
     }
     Ok(result)
@@ -93,7 +94,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     let message = to_u32_array(initial_witness, inputs)?;
     let mut state = to_u32_array(initial_witness, hash_values)?;
 
-    sha256compression(&mut state, &message);
+    sha256_compression(&mut state, &message);
 
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
         insert_value(output_witness, F::from(value as u128), initial_witness)?;
@@ -133,7 +134,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     // Read witness assignments
     let mut state = Vec::new();
     for input in inputs.iter() {
-        let witness_assignment = input_to_value(initial_witness, *input)?;
+        let witness_assignment = input_to_value(initial_witness, *input, false)?;
         state.push(witness_assignment);
     }
 

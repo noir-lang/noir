@@ -1,8 +1,0 @@
-name: Mirror Repositories
-on:
-  workflow_dispatch: {} 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo Dummy workflow TODO

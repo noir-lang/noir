@@ -28,7 +28,13 @@ yarn build
 ### Local Development
 
 ```
-yarn workspace docs start
+yarn workspace docs version
+```
+
+This command fetches and compiles the list of documentation versions to build with.
+
+```
+yarn workspace docs dev
 ```
 
 This command starts a local development server and opens up a browser window. Most changes are

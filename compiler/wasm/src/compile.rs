@@ -164,10 +164,9 @@ pub fn compile_program(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let compile_options = CompileOptions {
-        expression_width: ExpressionWidth::Bounded { width: 4 },
-        ..CompileOptions::default()
-    };
+    let expression_width = ExpressionWidth::Bounded { width: 4 };
+    let compile_options =
+        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
 
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
@@ -180,8 +179,14 @@ pub fn compile_program(
             })?
             .0;
 
-    let optimized_program =
-        nargo::ops::transform_program(compiled_program, compile_options.expression_width);
+    let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+    nargo::ops::check_program(&optimized_program).map_err(|errs| {
+        CompileError::with_file_diagnostics(
+            "Compiled program is not solvable",
+            errs,
+            &context.file_manager,
+        )
+    })?;
     let warnings = optimized_program.warnings.clone();
 
     Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
@@ -196,10 +201,9 @@ pub fn compile_contract(
     console_error_panic_hook::set_once();
     let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
 
-    let compile_options = CompileOptions {
-        expression_width: ExpressionWidth::Bounded { width: 4 },
-        ..CompileOptions::default()
-    };
+    let expression_width = ExpressionWidth::Bounded { width: 4 };
+    let compile_options =
+        CompileOptions { expression_width: Some(expression_width), ..CompileOptions::default() };
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
@@ -212,8 +216,7 @@ pub fn compile_contract(
             })?
             .0;
 
-    let optimized_contract =
-        nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+    let optimized_contract = nargo::ops::transform_contract(compiled_contract, expression_width);
     let warnings = optimized_contract.warnings.clone();
 
     Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))

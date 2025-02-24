@@ -9,8 +9,7 @@ use acvm::{
     acir::{
         circuit::{
             brillig::{BrilligBytecode, BrilligInputs},
-            directives::Directive,
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
             Circuit, Opcode, Program,
         },
         native_types::Expression,
@@ -34,9 +33,11 @@ pub(super) fn build_dictionary_from_program<F: AcirField>(program: &Program<F>) 
     constants
 }
 
+/// Collect `Field` values used in the opcodes of an ACIR circuit.
 fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<F> {
     let mut constants: HashSet<F> = HashSet::new();
 
+    /// Pull out all the fields from an expression.
     fn insert_expr<F: AcirField>(dictionary: &mut HashSet<F>, expr: &Expression<F>) {
         let quad_coefficients = expr.mul_terms.iter().map(|(k, _, _)| *k);
         let linear_coefficients = expr.linear_combinations.iter().map(|(k, _)| *k);
@@ -60,10 +61,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
         match opcode {
             Opcode::AssertZero(expr)
             | Opcode::Call { predicate: Some(expr), .. }
-            | Opcode::MemoryOp { predicate: Some(expr), .. }
-            | Opcode::Directive(Directive::ToLeRadix { a: expr, .. }) => {
-                insert_expr(&mut constants, expr)
-            }
+            | Opcode::MemoryOp { predicate: Some(expr), .. } => insert_expr(&mut constants, expr),
 
             Opcode::MemoryInit { init, .. } => insert_array_len(&mut constants, init),
 
@@ -83,21 +81,24 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                 }
             }
 
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { input: ConstantOrWitnessEnum::Constant(c), num_bits },
-            }) => {
-                let field = 1u128.wrapping_shl(*num_bits);
-                constants.insert(F::from(field));
-                constants.insert(F::from(field - 1));
-                constants.insert(*c);
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input })
+                if matches!(input.input(), ConstantOrWitnessEnum::Constant(..)) =>
+            {
+                match input.input() {
+                    ConstantOrWitnessEnum::Constant(c) => {
+                        let field = 1u128.wrapping_shl(input.num_bits());
+                        constants.insert(F::from(field));
+                        constants.insert(F::from(field - 1));
+                        constants.insert(c);
+                    }
+                    _ => {
+                        let field = 1u128.wrapping_shl(input.num_bits());
+                        constants.insert(F::from(field));
+                        constants.insert(F::from(field - 1));
+                    }
+                }
             }
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput { input: ConstantOrWitnessEnum::Witness(_), num_bits },
-            }) => {
-                let field = 1u128.wrapping_shl(*num_bits);
-                constants.insert(F::from(field));
-                constants.insert(F::from(field - 1));
-            }
+
             _ => (),
         }
     }
@@ -105,6 +106,7 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
     constants
 }
 
+/// Collect `Field` values used in the opcodes of a Brillig function.
 fn build_dictionary_from_unconstrained_function<F: AcirField>(
     function: &BrilligBytecode<F>,
 ) -> HashSet<F> {
@@ -113,14 +115,18 @@ fn build_dictionary_from_unconstrained_function<F: AcirField>(
     for opcode in &function.bytecode {
         match opcode {
             BrilligOpcode::Cast { bit_size, .. } => {
-                let field = 1u128.wrapping_shl(*bit_size);
+                let bit_size = bit_size.to_u32::<F>();
+
+                let field = 1u128.wrapping_shl(bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }
             BrilligOpcode::Const { bit_size, value, .. } => {
+                let bit_size = bit_size.to_u32::<F>();
+
                 constants.insert(*value);
 
-                let field = 1u128.wrapping_shl(*bit_size);
+                let field = 1u128.wrapping_shl(bit_size);
                 constants.insert(F::from(field));
                 constants.insert(F::from(field - 1));
             }

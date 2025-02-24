@@ -11,11 +11,6 @@ Note that due to hash collisions, the actual maximum number of elements stored b
 hashmap is likely lower than `MaxLen`. This is true even with cryptographic hash functions since
 every hash value will be performed modulo `MaxLen`.
 
-When creating `HashMap`s, the `MaxLen` generic should always be specified if it is not already
-known. Otherwise, the compiler may infer a different value for `MaxLen` (such as zero), which
-will likely change the result of the program. This behavior is set to become an error in future
-versions instead.
-
 Example:
 
 ```rust

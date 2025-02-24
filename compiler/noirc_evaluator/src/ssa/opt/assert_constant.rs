@@ -26,22 +26,31 @@ impl Ssa {
         mut self,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            for block in function.reachable_blocks() {
-                // Unfortunately we can't just use instructions.retain(...) here since
-                // check_instruction can also return an error
-                let instructions = function.dfg[block].take_instructions();
-                let mut filtered_instructions = Vec::with_capacity(instructions.len());
-
-                for instruction in instructions {
-                    if check_instruction(function, instruction)? {
-                        filtered_instructions.push(instruction);
-                    }
-                }
-
-                *function.dfg[block].instructions_mut() = filtered_instructions;
-            }
+            function.evaluate_static_assert_and_assert_constant()?;
         }
         Ok(self)
+    }
+}
+
+impl Function {
+    pub(crate) fn evaluate_static_assert_and_assert_constant(
+        &mut self,
+    ) -> Result<(), RuntimeError> {
+        for block in self.reachable_blocks() {
+            // Unfortunately we can't just use instructions.retain(...) here since
+            // check_instruction can also return an error
+            let instructions = self.dfg[block].take_instructions();
+            let mut filtered_instructions = Vec::with_capacity(instructions.len());
+
+            for instruction in instructions {
+                if check_instruction(self, instruction)? {
+                    filtered_instructions.push(instruction);
+                }
+            }
+
+            *self.dfg[block].instructions_mut() = filtered_instructions;
+        }
+        Ok(())
     }
 }
 
@@ -83,7 +92,7 @@ fn evaluate_assert_constant(
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         Err(RuntimeError::AssertConstantFailed { call_stack })
     }
 }
@@ -104,16 +113,20 @@ fn evaluate_static_assert(
     }
 
     if !function.dfg.is_constant(arguments[1]) {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
     }
 
     if function.dfg.is_constant_true(arguments[0]) {
         Ok(false)
     } else {
-        let call_stack = function.dfg.get_call_stack(instruction);
+        let call_stack = function.dfg.get_instruction_call_stack(instruction);
         if function.dfg.is_constant(arguments[0]) {
-            Err(RuntimeError::StaticAssertFailed { call_stack })
+            let message = function
+                .dfg
+                .get_string(arguments[1])
+                .expect("Expected second argument to be a string");
+            Err(RuntimeError::StaticAssertFailed { message, call_stack })
         } else {
             Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
         }

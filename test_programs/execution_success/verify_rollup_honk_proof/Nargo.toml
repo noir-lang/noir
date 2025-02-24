@@ -1,0 +1,6 @@
+[package]
+name = "verify_rollup_honk_proof"
+type = "bin"
+authors = [""]
+
+[dependencies]

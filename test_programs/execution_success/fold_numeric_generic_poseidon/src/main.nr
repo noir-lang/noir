@@ -1,7 +1,7 @@
-use std::hash::{pedersen_hash_with_separator, poseidon2::Poseidon2};
+use std::hash::poseidon2::Poseidon2;
 
-global NUM_HASHES = 2;
-global HASH_LENGTH = 10;
+global NUM_HASHES: u32 = 2;
+global HASH_LENGTH: u32 = 10;
 
 #[fold]
 pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
@@ -10,7 +10,7 @@ pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
 
 fn main(
     to_hash: [[Field; HASH_LENGTH]; NUM_HASHES],
-    enable: [bool; NUM_HASHES]
+    enable: [bool; NUM_HASHES],
 ) -> pub [Field; NUM_HASHES + 1] {
     let mut result = [0; NUM_HASHES + 1];
     for i in 0..NUM_HASHES {

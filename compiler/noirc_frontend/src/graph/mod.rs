@@ -16,6 +16,10 @@ pub enum CrateId {
     Root(usize),
     Crate(usize),
     Stdlib(usize),
+    /// The special case of running the compiler against the stdlib.
+    /// In that case there's only one crate, and it's both the root
+    /// crate and the stdlib crate.
+    RootAndStdlib(usize),
     Dummy,
 }
 
@@ -25,11 +29,17 @@ impl CrateId {
     }
 
     pub fn is_stdlib(&self) -> bool {
-        matches!(self, CrateId::Stdlib(_))
+        match self {
+            CrateId::Stdlib(_) | CrateId::RootAndStdlib(_) => true,
+            CrateId::Root(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+        }
     }
 
     pub fn is_root(&self) -> bool {
-        matches!(self, CrateId::Root(_))
+        match self {
+            CrateId::Root(_) | CrateId::RootAndStdlib(_) => true,
+            CrateId::Stdlib(_) | CrateId::Crate(_) | CrateId::Dummy => false,
+        }
     }
 }
 
@@ -101,6 +111,41 @@ mod crate_name {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
+}
+
+impl CrateGraph {
+    /// Tries to find the requested crate in the current one's dependencies,
+    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
+    /// This is needed in case a library (lib1) re-export a structure defined in another library (lib2)
+    /// In that case, we will get [lib1,lib2] when looking for a struct defined in lib2,
+    /// re-exported by lib1 and used by the main crate.
+    /// Returns the path from crate_id to target_crate_id
+    pub(crate) fn find_dependencies(
+        &self,
+        crate_id: &CrateId,
+        target_crate_id: &CrateId,
+    ) -> Option<Vec<String>> {
+        self[crate_id]
+            .dependencies
+            .iter()
+            .find_map(|dep| {
+                if &dep.crate_id == target_crate_id {
+                    Some(vec![dep.name.to_string()])
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                self[crate_id].dependencies.iter().find_map(|dep| {
+                    if let Some(mut path) = self.find_dependencies(&dep.crate_id, target_crate_id) {
+                        path.insert(0, dep.name.to_string());
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+            })
+    }
 }
 
 /// List of characters that are not allowed in a crate name
@@ -178,7 +223,7 @@ impl CrateGraph {
             Some((CrateId::Root(_), _)) => {
                 panic!("ICE: Tried to re-add the root crate as a regular crate")
             }
-            Some((CrateId::Stdlib(_), _)) => {
+            Some((CrateId::Stdlib(_), _)) | Some((CrateId::RootAndStdlib(_), _)) => {
                 panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
             }
             Some((CrateId::Dummy, _)) => {
@@ -207,6 +252,28 @@ impl CrateGraph {
 
         let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
         let crate_id = CrateId::Stdlib(self.arena.len());
+        let prev = self.arena.insert(crate_id, data);
+        assert!(prev.is_none());
+        crate_id
+    }
+
+    pub fn add_crate_root_and_stdlib(&mut self, file_id: FileId) -> CrateId {
+        for (crate_id, crate_data) in self.arena.iter() {
+            if crate_id.is_root() {
+                panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
+            }
+
+            if crate_id.is_stdlib() {
+                panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
+            }
+
+            if crate_data.root_file_id == file_id {
+                panic!("ICE: This FileId was already added to the CrateGraph")
+            }
+        }
+
+        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+        let crate_id = CrateId::RootAndStdlib(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
         crate_id

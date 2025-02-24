@@ -1,20 +1,20 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use thiserror::Error;
+
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Recoverable, Statement, StatementKind,
-    UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, Visibility,
+    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
+    UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use crate::hir::def_collector::errors::DefCollectorErrorKind;
-use crate::macros_api::StructId;
-use crate::node_interner::ExprId;
-use crate::token::{Attributes, Token, Tokens};
+use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
-use super::UnaryRhsMemberAccess;
+use super::{AsTraitPath, TypePath};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -24,25 +24,37 @@ pub enum ExpressionKind {
     Index(Box<IndexExpression>),
     Call(Box<CallExpression>),
     MethodCall(Box<MethodCallExpression>),
+    Constrain(ConstrainExpression),
     Constructor(Box<ConstructorExpression>),
     MemberAccess(Box<MemberAccessExpression>),
     Cast(Box<CastExpression>),
     Infix(Box<InfixExpression>),
     If(Box<IfExpression>),
-    // The optional vec here is the optional list of generics
-    // provided by the turbofish operator, if used
-    Variable(Path, Option<Vec<UnresolvedType>>),
+    Match(Box<MatchExpression>),
+    Variable(Path),
     Tuple(Vec<Expression>),
     Lambda(Box<Lambda>),
     Parenthesized(Box<Expression>),
     Quote(Tokens),
     Unquote(Box<Expression>),
-    Comptime(BlockExpression, Span),
+    Comptime(BlockExpression, Location),
+    Unsafe(BlockExpression, Location),
+    AsTraitPath(AsTraitPath),
+    TypePath(TypePath),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
     // guaranteeing they have the same instantiated type and definition id without resolving again.
     Resolved(ExprId),
+
+    // This is an interned ExpressionKind during comptime code.
+    // The actual ExpressionKind can be retrieved with a NodeInterner.
+    Interned(InternedExpressionKind),
+
+    /// Interned statements are allowed to be parsed as expressions in case they resolve
+    /// to an StatementKind::Expression or StatementKind::Semi.
+    InternedStatement(InternedStatementKind),
+
     Error,
 }
 
@@ -53,25 +65,47 @@ pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedGeneric {
     Variable(Ident),
-    Numeric { ident: Ident, typ: UnresolvedType },
+    Numeric {
+        ident: Ident,
+        typ: UnresolvedType,
+    },
+
+    /// Already-resolved generics can be parsed as generics when a macro
+    /// splices existing types into a generic list. In this case we have
+    /// to validate the type refers to a named generic and treat that
+    /// as a ResolvedGeneric when this is resolved.
+    Resolved(QuotedTypeId, Location),
+}
+
+#[derive(Error, PartialEq, Eq, Debug, Clone)]
+#[error("The only supported types of numeric generics are integers, fields, and booleans")]
+pub struct UnsupportedNumericGenericType {
+    pub ident: Ident,
+    pub typ: UnresolvedTypeData,
 }
 
 impl UnresolvedGeneric {
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.0.span(),
-            UnresolvedGeneric::Numeric { ident, typ } => {
-                ident.0.span().merge(typ.span.unwrap_or_default())
-            }
+            UnresolvedGeneric::Variable(ident) => ident.0.location(),
+            UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
+            UnresolvedGeneric::Resolved(_, location) => *location,
         }
     }
 
-    pub fn kind(&self) -> Result<Kind, DefCollectorErrorKind> {
+    pub fn span(&self) -> Span {
+        self.location().span
+    }
+
+    pub fn kind(&self) -> Result<Kind, UnsupportedNumericGenericType> {
         match self {
             UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
-                Ok(Kind::Numeric(Box::new(typ)))
+                Ok(Kind::numeric(typ))
+            }
+            UnresolvedGeneric::Resolved(..) => {
+                panic!("Don't know the kind of a resolved generic here")
             }
         }
     }
@@ -79,14 +113,14 @@ impl UnresolvedGeneric {
     fn resolve_numeric_kind_type(
         &self,
         typ: &UnresolvedType,
-    ) -> Result<Type, DefCollectorErrorKind> {
+    ) -> Result<Type, UnsupportedNumericGenericType> {
         use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
 
         match typ.typ {
             FieldElement => Ok(Type::FieldElement),
             Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
             // Only fields and integers are supported for numeric kinds
-            _ => Err(DefCollectorErrorKind::UnsupportedNumericGenericType {
+            _ => Err(UnsupportedNumericGenericType {
                 ident: self.ident().clone(),
                 typ: typ.typ.clone(),
             }),
@@ -96,6 +130,7 @@ impl UnresolvedGeneric {
     pub(crate) fn ident(&self) -> &Ident {
         match self {
             UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+            UnresolvedGeneric::Resolved(..) => panic!("UnresolvedGeneric::Resolved no ident"),
         }
     }
 }
@@ -105,6 +140,7 @@ impl Display for UnresolvedGeneric {
         match self {
             UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
             UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
+            UnresolvedGeneric::Resolved(..) => write!(f, "(resolved)"),
         }
     }
 }
@@ -118,7 +154,7 @@ impl From<Ident> for UnresolvedGeneric {
 impl ExpressionKind {
     pub fn into_path(self) -> Option<Path> {
         match self {
-            ExpressionKind::Variable(path, _) => Some(path),
+            ExpressionKind::Variable(path) => Some(path),
             _ => None,
         }
     }
@@ -178,41 +214,21 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::RawStr(contents, hashes))
     }
 
-    pub fn format_string(contents: String) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::FmtStr(contents))
+    pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(fragments, length))
     }
 
-    pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            type_name,
-            fields,
-            struct_type: None,
-        }))
-    }
-}
-
-impl Recoverable for ExpressionKind {
-    fn error(_: Span) -> Self {
-        ExpressionKind::Error
-    }
-}
-
-impl Recoverable for Expression {
-    fn error(span: Span) -> Self {
-        Expression::new(ExpressionKind::Error, span)
-    }
-}
-
-impl Recoverable for Option<Expression> {
-    fn error(span: Span) -> Self {
-        Some(Expression::new(ExpressionKind::Error, span))
+    pub fn constructor(
+        (typ, fields): (UnresolvedType, Vec<(Ident, Expression)>),
+    ) -> ExpressionKind {
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 }
 
 #[derive(Debug, Eq, Clone)]
 pub struct Expression {
     pub kind: ExpressionKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 // This is important for tests. Two expressions are the same, if their Kind is the same
@@ -224,77 +240,54 @@ impl PartialEq<Expression> for Expression {
 }
 
 impl Expression {
-    pub fn new(kind: ExpressionKind, span: Span) -> Expression {
-        Expression { kind, span }
+    pub fn new(kind: ExpressionKind, location: Location) -> Expression {
+        Expression { kind, location }
     }
 
-    pub fn member_access_or_method_call(
-        lhs: Expression,
-        rhs: UnaryRhsMemberAccess,
-        span: Span,
-    ) -> Expression {
-        let kind = match rhs.method_call {
-            None => {
-                let rhs = rhs.method_or_field;
-                ExpressionKind::MemberAccess(Box::new(MemberAccessExpression { lhs, rhs }))
+    /// Returns the innermost location that gives this expression its type.
+    pub fn type_location(&self) -> Location {
+        match &self.kind {
+            ExpressionKind::Block(block_expression)
+            | ExpressionKind::Comptime(block_expression, _)
+            | ExpressionKind::Unsafe(block_expression, _) => {
+                if let Some(statement) = block_expression.statements.last() {
+                    statement.type_location()
+                } else {
+                    self.location
+                }
             }
-            Some(method_call) => ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: lhs,
-                method_name: rhs.method_or_field,
-                generics: method_call.turbofish,
-                arguments: method_call.args,
-                is_macro_call: method_call.macro_call,
-            })),
-        };
-        Expression::new(kind, span)
-    }
-
-    pub fn index(collection: Expression, index: Expression, span: Span) -> Expression {
-        let kind = ExpressionKind::Index(Box::new(IndexExpression { collection, index }));
-        Expression::new(kind, span)
-    }
-
-    pub fn cast(lhs: Expression, r#type: UnresolvedType, span: Span) -> Expression {
-        let kind = ExpressionKind::Cast(Box::new(CastExpression { lhs, r#type }));
-        Expression::new(kind, span)
-    }
-
-    pub fn call(
-        lhs: Expression,
-        is_macro_call: bool,
-        arguments: Vec<Expression>,
-        span: Span,
-    ) -> Expression {
-        // Need to check if lhs is an if expression since users can sequence if expressions
-        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
-        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
-        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
-            ExpressionKind::Block(BlockExpression {
-                statements: vec![
-                    Statement { kind: StatementKind::Expression(lhs), span },
-                    Statement {
-                        kind: StatementKind::Expression(Expression::new(
-                            ExpressionKind::Tuple(arguments),
-                            span,
-                        )),
-                        span,
-                    },
-                ],
-            })
-        } else {
-            ExpressionKind::Call(Box::new(CallExpression {
-                func: Box::new(lhs),
-                is_macro_call,
-                arguments,
-            }))
-        };
-        Expression::new(kind, span)
+            ExpressionKind::Parenthesized(expression) => expression.type_location(),
+            ExpressionKind::Literal(..)
+            | ExpressionKind::Prefix(..)
+            | ExpressionKind::Index(..)
+            | ExpressionKind::Call(..)
+            | ExpressionKind::MethodCall(..)
+            | ExpressionKind::Constrain(..)
+            | ExpressionKind::Constructor(..)
+            | ExpressionKind::MemberAccess(..)
+            | ExpressionKind::Cast(..)
+            | ExpressionKind::Infix(..)
+            | ExpressionKind::If(..)
+            | ExpressionKind::Match(..)
+            | ExpressionKind::Variable(..)
+            | ExpressionKind::Tuple(..)
+            | ExpressionKind::Lambda(..)
+            | ExpressionKind::Quote(..)
+            | ExpressionKind::Unquote(..)
+            | ExpressionKind::AsTraitPath(..)
+            | ExpressionKind::TypePath(..)
+            | ExpressionKind::Resolved(..)
+            | ExpressionKind::Interned(..)
+            | ExpressionKind::InternedStatement(..)
+            | ExpressionKind::Error => self.location,
+        }
     }
 }
 
-pub type BinaryOp = Spanned<BinaryOpKind>;
+pub type BinaryOp = Located<BinaryOpKind>;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -419,7 +412,7 @@ pub enum Literal {
     Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
     Str(String),
     RawStr(String, u8),
-    FmtStr(String),
+    FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Unit,
 }
 
@@ -451,6 +444,12 @@ pub struct IfExpression {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MatchExpression {
+    pub expression: Expression,
+    pub rules: Vec<(/*pattern*/ Expression, /*branch*/ Expression)>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Lambda {
     pub parameters: Vec<(Pattern, UnresolvedType)>,
     pub return_type: UnresolvedType,
@@ -477,10 +476,24 @@ pub struct FunctionDefinition {
     pub generics: UnresolvedGenerics,
     pub parameters: Vec<Param>,
     pub body: BlockExpression,
-    pub span: Span,
+    pub location: Location,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
+}
+
+impl FunctionDefinition {
+    pub fn is_private(&self) -> bool {
+        self.visibility == ItemVisibility::Private
+    }
+
+    pub fn is_test(&self) -> bool {
+        if let Some(attribute) = self.attributes.function() {
+            matches!(attribute, FunctionAttribute::Test(..))
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -488,13 +501,13 @@ pub struct Param {
     pub visibility: Visibility,
     pub pattern: Pattern,
     pub typ: UnresolvedType,
-    pub span: Span,
+    pub location: Location,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FunctionReturnType {
     /// Returns type is not specified.
-    Default(Span),
+    Default(Location),
     /// Everything else.
     Ty(UnresolvedType),
 }
@@ -524,13 +537,8 @@ pub struct MethodCallExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConstructorExpression {
-    pub type_name: Path,
+    pub typ: UnresolvedType,
     pub fields: Vec<(Ident, Expression)>,
-
-    /// This may be filled out during macro expansion
-    /// so that we can skip re-resolving the type name since it
-    /// would be lost at that point.
-    pub struct_type: Option<StructId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -564,6 +572,55 @@ impl BlockExpression {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ConstrainExpression {
+    pub kind: ConstrainKind,
+    pub arguments: Vec<Expression>,
+    pub location: Location,
+}
+
+impl Display for ConstrainExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind {
+            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
+                f,
+                "{}({})",
+                self.kind,
+                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
+            ),
+            ConstrainKind::Constrain => {
+                write!(f, "constrain {}", &self.arguments[0])
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ConstrainKind {
+    Assert,
+    AssertEq,
+    Constrain,
+}
+
+impl ConstrainKind {
+    pub fn required_arguments_count(&self) -> usize {
+        match self {
+            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
+            ConstrainKind::AssertEq => 2,
+        }
+    }
+}
+
+impl Display for ConstrainKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConstrainKind::Assert => write!(f, "assert"),
+            ConstrainKind::AssertEq => write!(f, "assert_eq"),
+            ConstrainKind::Constrain => write!(f, "constrain"),
+        }
+    }
+}
+
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.kind.fmt(f)
@@ -580,17 +637,12 @@ impl Display for ExpressionKind {
             Index(index) => index.fmt(f),
             Call(call) => call.fmt(f),
             MethodCall(call) => call.fmt(f),
+            Constrain(constrain) => constrain.fmt(f),
             Cast(cast) => cast.fmt(f),
             Infix(infix) => infix.fmt(f),
             If(if_expr) => if_expr.fmt(f),
-            Variable(path, generics) => {
-                if let Some(generics) = generics {
-                    let generics = vecmap(generics, ToString::to_string);
-                    write!(f, "{path}::<{}>", generics.join(", "))
-                } else {
-                    path.fmt(f)
-                }
-            }
+            Match(match_expr) => match_expr.fmt(f),
+            Variable(path) => path.fmt(f),
             Constructor(constructor) => constructor.fmt(f),
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
@@ -600,13 +652,18 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
+            Unsafe(block, _) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
+            Interned(_) => write!(f, "?Interned"),
             Unquote(expr) => write!(f, "$({expr})"),
             Quote(tokens) => {
                 let tokens = vecmap(&tokens.0, ToString::to_string);
                 write!(f, "quote {{ {} }}", tokens.join(" "))
             }
+            AsTraitPath(path) => write!(f, "{path}"),
+            TypePath(path) => write!(f, "{path}"),
+            InternedStatement(_) => write!(f, "?InternedStatement"),
         }
     }
 }
@@ -642,7 +699,13 @@ impl Display for Literal {
                     std::iter::once('#').cycle().take(*num_hashes as usize).collect();
                 write!(f, "r{hashes}\"{string}\"{hashes}")
             }
-            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
+            Literal::FmtStr(fragments, _length) => {
+                write!(f, "f\"")?;
+                for fragment in fragments {
+                    fragment.fmt(f)?;
+                }
+                write!(f, "\"")
+            }
             Literal::Unit => write!(f, "()"),
         }
     }
@@ -706,10 +769,9 @@ impl Display for CastExpression {
 
 impl Display for ConstructorExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let fields =
-            self.fields.iter().map(|(ident, expr)| format!("{ident}: {expr}")).collect::<Vec<_>>();
+        let fields = vecmap(&self.fields, |(ident, expr)| format!("{ident}: {expr}"));
 
-        write!(f, "({} {{ {} }})", self.type_name, fields.join(", "))
+        write!(f, "({} {{ {} }})", self.typ, fields.join(", "))
     }
 }
 
@@ -758,6 +820,16 @@ impl Display for IfExpression {
     }
 }
 
+impl Display for MatchExpression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "match {} {{", self.expression)?;
+        for (pattern, branch) in &self.rules {
+            writeln!(f, "    {pattern} -> {branch},")?;
+        }
+        write!(f, "}}")
+    }
+}
+
 impl Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let parameters = vecmap(&self.parameters, |(name, r#type)| format!("{name}: {type}"));
@@ -766,13 +838,30 @@ impl Display for Lambda {
     }
 }
 
+impl Display for AsTraitPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{} as {}>::{}", self.typ, self.trait_path, self.impl_item)
+    }
+}
+
+impl Display for TypePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}::{}", self.typ, self.item)?;
+        if let Some(turbofish) = &self.turbofish {
+            write!(f, "::{}", turbofish)?;
+        }
+        Ok(())
+    }
+}
+
 impl FunctionDefinition {
     pub fn normal(
         name: &Ident,
+        is_unconstrained: bool,
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
-        body: &BlockExpression,
-        where_clause: &[UnresolvedTraitConstraint],
+        body: BlockExpression,
+        where_clause: Vec<UnresolvedTraitConstraint>,
         return_type: &FunctionReturnType,
     ) -> FunctionDefinition {
         let p = parameters
@@ -781,38 +870,35 @@ impl FunctionDefinition {
                 visibility: Visibility::Private,
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
-                span: ident.span().merge(unresolved_type.span.unwrap()),
+                location: ident.location().merge(unresolved_type.location),
             })
             .collect();
 
         FunctionDefinition {
             name: name.clone(),
             attributes: Attributes::empty(),
-            is_unconstrained: false,
+            is_unconstrained,
             is_comptime: false,
             visibility: ItemVisibility::Private,
             generics: generics.clone(),
             parameters: p,
-            body: body.clone(),
-            span: name.span(),
-            where_clause: where_clause.to_vec(),
+            body,
+            location: name.location(),
+            where_clause,
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
         }
     }
-}
 
-impl Display for FunctionDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self.attributes)?;
-
-        let parameters = vecmap(&self.parameters, |Param { visibility, pattern, typ, span: _ }| {
-            if *visibility == Visibility::Public {
-                format!("{pattern}: {visibility} {typ}")
-            } else {
-                format!("{pattern}: {typ}")
-            }
-        });
+    pub fn signature(&self) -> String {
+        let parameters =
+            vecmap(&self.parameters, |Param { visibility, pattern, typ, location: _ }| {
+                if *visibility == Visibility::Public {
+                    format!("{pattern}: {visibility} {typ}")
+                } else {
+                    format!("{pattern}: {typ}")
+                }
+            });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {
@@ -827,23 +913,22 @@ impl Display for FunctionDefinition {
             format!(" -> {}", self.return_type)
         };
 
-        write!(
-            f,
-            "fn {}({}){}{} {}",
-            self.name,
-            parameters.join(", "),
-            return_type,
-            where_clause_str,
-            self.body
-        )
+        format!("fn {}({}){}{}", self.name, parameters.join(", "), return_type, where_clause_str)
+    }
+}
+
+impl Display for FunctionDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:?}", self.attributes)?;
+        write!(f, "{} {}", self.signature(), self.body)
     }
 }
 
 impl FunctionReturnType {
     pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
-            FunctionReturnType::Default(span) => {
-                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, span: Some(*span) })
+            FunctionReturnType::Default(location) => {
+                Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, location: *location })
             }
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }

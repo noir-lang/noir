@@ -25,10 +25,10 @@ It's not implemented yet, because nothing has been benched
 pub struct Scope<K, V>(pub HashMap<K, V>);
 
 impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
-    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    pub fn find<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq,
+        Q: ?Sized + std::hash::Hash + Eq,
     {
         self.0.get_mut(key)
     }
@@ -75,10 +75,10 @@ impl<K: std::hash::Hash + Eq + Clone, V> ScopeTree<K, V> {
 
     // Recursively search for a key in the scope tree.
     // Returns the value if found, along with the index it was found at.
-    pub fn find<Q: ?Sized>(&mut self, key: &Q) -> Option<(&mut V, usize)>
+    pub fn find<Q>(&mut self, key: &Q) -> Option<(&mut V, usize)>
     where
         K: std::borrow::Borrow<Q>,
-        Q: std::hash::Hash + Eq,
+        Q: ?Sized + std::hash::Hash + Eq,
     {
         for (i, scope) in self.0.iter_mut().enumerate().rev() {
             if let Some(value_found) = scope.find(key) {

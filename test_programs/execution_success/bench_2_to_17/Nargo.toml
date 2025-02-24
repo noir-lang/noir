@@ -1,0 +1,7 @@
+[package]
+name = "bench_2_to_17"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

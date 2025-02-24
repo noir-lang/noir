@@ -4,7 +4,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
@@ -21,7 +21,10 @@ use async_lsp::{
 use fm::{codespan_files as files, FileManager};
 use fxhash::FxHashSet;
 use lsp_types::{
-    request::{HoverRequest, PrepareRenameRequest, References, Rename},
+    request::{
+        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
+    },
     CodeLens,
 };
 use nargo::{
@@ -32,10 +35,14 @@ use nargo::{
 use nargo_toml::{find_file_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{file_manager_with_stdlib, prepare_crate, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::{
-    graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, FunctionNameMatch, ParsedFiles},
+    graph::{CrateGraph, CrateId, CrateName},
+    hir::{
+        def_map::{parse_file, CrateDefMap},
+        Context, FunctionNameMatch, ParsedFiles,
+    },
     node_interner::NodeInterner,
     parser::ParserError,
+    usage_tracker::UsageTracker,
     ParsedModule,
 };
 use rayon::prelude::*;
@@ -45,25 +52,36 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    on_code_lens_request, on_formatting, on_goto_declaration_request, on_goto_definition_request,
-    on_goto_type_definition_request, on_hover_request, on_initialize, on_prepare_rename_request,
-    on_profile_run_request, on_references_request, on_rename_request, on_shutdown,
-    on_test_run_request, on_tests_request,
+    on_code_action_request, on_code_lens_request, on_completion_request,
+    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
+    on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
+    on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
+    LspInitializationOptions,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod attribute_reference_finder;
+mod modules;
 mod notifications;
 mod requests;
 mod solver;
+mod tests;
+mod trait_impl_method_stub_generator;
 mod types;
+mod use_segment_positions;
+mod utils;
+mod visibility;
+mod with_file;
 
 #[cfg(test)]
 mod test_utils;
 
 use solver::WrapperSolver;
 use types::{notification, request, NargoTest, NargoTestId, Position, Range, Url};
+use with_file::parsed_module_with_file;
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -80,9 +98,25 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_definitions: HashMap<String, NodeInterner>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
-    parsing_cache_enabled: bool,
+    workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
+    package_cache: HashMap<PathBuf, PackageCacheData>,
+    options: LspInitializationOptions,
+
+    // Tracks files that currently have errors, by package root.
+    files_with_errors: HashMap<PathBuf, HashSet<Url>>,
+}
+
+struct WorkspaceCacheData {
+    file_manager: FileManager,
+}
+
+struct PackageCacheData {
+    crate_id: CrateId,
+    crate_graph: CrateGraph,
+    node_interner: NodeInterner,
+    def_maps: BTreeMap<CrateId, CrateDefMap>,
+    usage_tracker: UsageTracker,
 }
 
 impl LspState {
@@ -96,10 +130,12 @@ impl LspState {
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
             cached_lenses: HashMap::new(),
-            cached_definitions: HashMap::new(),
-            open_documents_count: 0,
             cached_parsed_files: HashMap::new(),
-            parsing_cache_enabled: true,
+            workspace_cache: HashMap::new(),
+            package_cache: HashMap::new(),
+            open_documents_count: 0,
+            options: Default::default(),
+            files_with_errors: HashMap::new(),
         }
     }
 }
@@ -122,14 +158,18 @@ impl NargoLspService {
             .request::<request::CodeLens, _>(on_code_lens_request)
             .request::<request::NargoTests, _>(on_tests_request)
             .request::<request::NargoTestRun, _>(on_test_run_request)
-            .request::<request::NargoProfileRun, _>(on_profile_run_request)
             .request::<request::GotoDefinition, _>(on_goto_definition_request)
             .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
             .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
+            .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
             .request::<References, _>(on_references_request)
             .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
             .request::<Rename, _>(on_rename_request)
             .request::<HoverRequest, _>(on_hover_request)
+            .request::<InlayHintRequest, _>(on_inlay_hint_request)
+            .request::<Completion, _>(on_completion_request)
+            .request::<SignatureHelpRequest, _>(on_signature_help_request)
+            .request::<CodeActionRequest, _>(on_code_action_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -177,7 +217,7 @@ fn get_package_tests_in_crate(
     let fm = &context.file_manager;
     let files = fm.as_file_map();
     let tests =
-        context.get_all_test_functions_in_crate_matching(crate_id, FunctionNameMatch::Anything);
+        context.get_all_test_functions_in_crate_matching(crate_id, &FunctionNameMatch::Anything);
 
     let package_tests: Vec<_> = tests
         .into_iter()
@@ -230,37 +270,17 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
-pub(crate) fn resolve_workspace_for_source_path(
-    file_path: &Path,
-    root_path: &Option<PathBuf>,
-) -> Result<Workspace, LspError> {
-    // If there's a LSP root path, starting from file_path go up the directory tree
-    // searching for Nargo.toml files. The last one we find is the one we'll use
-    // (we'll assume Noir workspaces aren't nested)
-    if let Some(root_path) = root_path {
-        let mut current_path = file_path;
-        let mut current_toml_path = None;
-        while current_path.starts_with(root_path) {
-            if let Some(toml_path) = find_file_manifest(current_path) {
-                current_toml_path = Some(toml_path);
-
-                if let Some(next_path) = current_path.parent() {
-                    current_path = next_path;
-                } else {
-                    break;
-                }
-            } else {
-                break;
+pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+    if let Some(toml_path) = find_file_manifest(file_path) {
+        match resolve_workspace_from_toml(
+            &toml_path,
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        ) {
+            Ok(workspace) => return Ok(workspace),
+            Err(error) => {
+                eprintln!("Error while processing {:?}: {}", toml_path, error);
             }
-        }
-
-        if let Some(toml_path) = current_toml_path {
-            return resolve_workspace_from_toml(
-                &toml_path,
-                PackageSelection::All,
-                Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
-            )
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()));
         }
     }
 
@@ -274,21 +294,31 @@ pub(crate) fn resolve_workspace_for_source_path(
             file_path
         )));
     };
+
+    let crate_name = match CrateName::from_str(parent_folder) {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("{}", error);
+            CrateName::from_str("root").unwrap()
+        }
+    };
+
     let assumed_package = Package {
         version: None,
         compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),
-        name: CrateName::from_str(parent_folder)
-            .map_err(|err| LspError::WorkspaceResolutionError(err.to_string()))?,
+        name: crate_name,
         dependencies: BTreeMap::new(),
+        expression_width: None,
     };
     let workspace = Workspace {
         root_dir: PathBuf::from(parent_folder),
         members: vec![assumed_package],
         selected_package_index: Some(0),
         is_assumed: true,
+        target_dir: None,
     };
     Ok(workspace)
 }
@@ -297,7 +327,11 @@ pub(crate) fn workspace_package_for_file<'a>(
     workspace: &'a Workspace,
     file_path: &Path,
 ) -> Option<&'a Package> {
-    workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    if workspace.is_assumed {
+        workspace.members.first()
+    } else {
+        workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+    }
 }
 
 pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
@@ -306,7 +340,7 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.track_references();
+    context.activate_lsp_mode();
     (context, crate_id)
 }
 
@@ -327,7 +361,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
     let parsed_files = parse_diff(&file_manager, state);
 
     let mut context = Context::new(file_manager, parsed_files);
-    context.track_references();
+    context.activate_lsp_mode();
 
     let root_crate_id = prepare_crate(&mut context, file_name);
 
@@ -335,7 +369,7 @@ fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'st
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
-    if state.parsing_cache_enabled {
+    if state.options.enable_parsing_cache {
         let noir_file_hashes: Vec<_> = file_manager
             .as_file_map()
             .all_file_ids()
@@ -356,18 +390,22 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             })
             .collect();
 
-        let cache_hits: Vec<_> = noir_file_hashes
+        let cache_hits = noir_file_hashes
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, cached_parsing)) = cached_version {
+                if let Some((hash, (parsed_module, errors))) = cached_version {
                     if hash == current_hash {
-                        return Some((*file_id, cached_parsing.clone()));
+                        // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
+                        // so we must replace all of those FileIDs with the one here.
+                        let parsed_module =
+                            parsed_module_with_file(parsed_module.clone(), *file_id);
+                        return Some((*file_id, (parsed_module, errors.clone())));
                     }
                 }
                 None
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         let cache_hits_ids: FxHashSet<_> = cache_hits.iter().map(|(file_id, _)| *file_id).collect();
 
@@ -391,6 +429,25 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
     }
 }
 
+pub fn insert_all_files_for_workspace_into_file_manager(
+    state: &LspState,
+    workspace: &Workspace,
+    file_manager: &mut FileManager,
+) {
+    // Source code for files we cached override those that are read from disk.
+    let mut overrides: HashMap<&Path, &str> = HashMap::new();
+    for (path, source) in &state.input_files {
+        let path = path.strip_prefix("file://").unwrap();
+        overrides.insert(Path::new(path), source);
+    }
+
+    nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
+        workspace,
+        file_manager,
+        &overrides,
+    );
+}
+
 #[test]
 fn prepare_package_from_source_string() {
     let source = r#"
@@ -402,11 +459,10 @@ fn prepare_package_from_source_string() {
     "#;
 
     let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver);
+    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver::default());
 
-    let (mut context, crate_id) = crate::prepare_source(source.to_string(), &mut state);
-    let _check_result =
-        noirc_driver::check_crate(&mut context, crate_id, false, false, false, None);
+    let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
+    let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
     let main_func_id = context.get_main_function(&crate_id);
     assert!(main_func_id.is_some());
 }

@@ -10,22 +10,22 @@ type K = Field;
 type V = Field;
 
 // It is more convenient and readable to use structs as input.
-struct Entry{
+struct Entry {
     key: Field,
-    value: Field
+    value: Field,
 }
 
-global HASHMAP_CAP = 8;
-global HASHMAP_LEN = 6;
+global HASHMAP_CAP: u32 = 8;
+global HASHMAP_LEN: u32 = 6;
 
-global FIELD_CMP = |a: Field, b: Field| a.lt(b);
+global FIELD_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| a.lt(b);
 
-global K_CMP = FIELD_CMP;
-global V_CMP = FIELD_CMP;
-global KV_CMP = |a: (K, V), b: (K, V)| a.0.lt(b.0);
+global K_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global V_CMP: fn(Field, Field) -> bool = FIELD_CMP;
+global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP = || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> 
-    HashMap::default();
+global ALLOCATE_HASHMAP: fn() -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> =
+    || -> HashMap<K, V, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> HashMap::default();
 
 fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
@@ -54,7 +54,10 @@ fn test_sequential(key: K, value: V) {
     assert(value == got, f"Inserted {value} but got {got} for the same key.");
 
     hashmap.remove(key);
-    assert(hashmap.is_empty(), "HashMap after one insert and corresponding removal should be empty.");
+    assert(
+        hashmap.is_empty(),
+        "HashMap after one insert and corresponding removal should be empty.",
+    );
     let got = hashmap.get(key);
     assert(got.is_none(), "Value has been removed, but is still available (not none).");
 }
@@ -101,10 +104,11 @@ fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
         hashmap.insert(entry.key, entry.value);
     }
 
-    assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input lenght.");
+    assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input length.");
 
     for entry in input {
-        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry.key}.");
+        let entry_key = entry.key;
+        assert(hashmap.contains_key(entry.key), f"Not found inserted key {entry_key}.");
     }
 
     hashmap.clear();
@@ -123,11 +127,14 @@ fn test_retain() {
     let (key, value) = (11, 5);
     hashmap.insert(key, value);
 
-    let predicate = |key: K, value: V| -> bool {key * value == 55};
+    let predicate = |key: K, value: V| -> bool { key * value == 55 };
     hashmap.retain(predicate);
 
     assert(hashmap.len() == 2, "HashMap should have retained 2 elements.");
-    assert(hashmap.get(2).is_none(), "Pair should have been removed, since it does not match predicate.");
+    assert(
+        hashmap.get(2).is_none(),
+        "Pair should have been removed, since it does not match predicate.",
+    );
 }
 
 // Equality trait check.
@@ -172,10 +179,10 @@ fn test_mut_iterators() {
     hashmap.insert(5, 7);
     hashmap.insert(11, 13);
 
-    let f = |k: K| -> K{ k * 3};
+    let f = |k: K| -> K { k * 3 };
     hashmap.iter_keys_mut(f);
 
-    let f = |v: V| -> V{ v * 5};
+    let f = |v: V| -> V { v * 5 };
     hashmap.iter_values_mut(f);
 
     let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
@@ -184,7 +191,7 @@ fn test_mut_iterators() {
     assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
     assert(values == [15, 35, 65], "Got incorrect iteration of values.");
 
-    let f = |k: K, v: V| -> (K, V){(k * 2, v * 2)};
+    let f = |k: K, v: V| -> (K, V) { (k * 2, v * 2) };
     hashmap.iter_mut(f);
 
     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
@@ -202,19 +209,17 @@ fn doc_tests() {
     let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     assert(hashmap.is_empty());
     // docs:end:default_example
-
     // docs:start:with_hasher_example
     let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
-    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = HashMap::with_hasher(my_hasher);
+    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::with_hasher(my_hasher);
     assert(hashmap.is_empty());
     // docs:end:with_hasher_example
-
     // docs:start:insert_example
     let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     map.insert(12, 42);
     assert(map.len() == 1);
     // docs:end:insert_example
-
     get_example(map);
 
     // docs:start:remove_example
@@ -225,7 +230,6 @@ fn doc_tests() {
     map.remove(12);
     assert(map.is_empty());
     // docs:end:remove_example
-
     // docs:start:is_empty_example
     assert(map.is_empty());
 
@@ -235,7 +239,6 @@ fn doc_tests() {
     map.remove(1);
     assert(map.is_empty());
     // docs:end:is_empty_example
-
     // docs:start:len_example
     // This is equivalent to checking map.is_empty()
     assert(map.len() == 0);
@@ -252,19 +255,17 @@ fn doc_tests() {
     map.remove(1);
     assert(map.len() == 2);
     // docs:end:len_example
-
     // docs:start:capacity_example
-    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::default();
     assert(empty_map.len() == 0);
     assert(empty_map.capacity() == 42);
     // docs:end:capacity_example
-
     // docs:start:clear_example
     assert(!map.is_empty());
     map.clear();
     assert(map.is_empty());
     // docs:end:clear_example
-
     // docs:start:contains_key_example
     if map.contains_key(7) {
         let value = map.get(7);
@@ -273,14 +274,12 @@ fn doc_tests() {
         println("No value for key 7!");
     }
     // docs:end:contains_key_example
-
     entries_examples(map);
     iter_examples(map);
 
     // docs:start:retain_example
     map.retain(|k, v| (k != 0) & (v != 0));
     // docs:end:retain_example
-
     // docs:start:eq_example
     let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
@@ -318,7 +317,6 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Ha
         }
     }
     // docs:end:entries_example
-
     // docs:start:keys_example
     let keys = map.keys();
 
@@ -330,7 +328,6 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Ha
         }
     }
     // docs:end:keys_example
-
     // docs:start:values_example
     let values = map.values();
 
@@ -348,12 +345,10 @@ fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2H
     // Add 1 to each key in the map, and double the value associated with that key.
     map.iter_mut(|k, v| (k + 1, v * 2));
     // docs:end:iter_mut_example
-
     // docs:start:iter_keys_mut_example
     // Double each key, leaving the value associated with that key untouched
     map.iter_keys_mut(|k| k * 2);
     // docs:end:iter_keys_mut_example
-
     // docs:start:iter_values_mut_example
     // Halve each value
     map.iter_values_mut(|v| v / 2);

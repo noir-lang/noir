@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use nargo::package::CrateName;
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
-use noirc_frontend::graph::CrateName;
 
 use crate::errors::FilesystemError;
 
@@ -31,12 +31,12 @@ fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
 ) -> PathBuf {
     create_named_dir(circuit_dir.as_ref(), "target");
     let circuit_path = circuit_dir.as_ref().join(artifact_name).with_extension("json");
-
     write_to_file(&serde_json::to_vec(build_artifact).unwrap(), &circuit_path);
 
     circuit_path
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 pub(crate) fn read_program_from_file<P: AsRef<Path>>(
     circuit_path: P,
 ) -> Result<ProgramArtifact, FilesystemError> {

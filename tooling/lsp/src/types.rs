@@ -1,14 +1,10 @@
-use fm::FileId;
 use lsp_types::{
-    DeclarationCapability, DefinitionOptions, HoverOptions, OneOf, ReferencesOptions,
-    RenameOptions, TypeDefinitionProviderCapability,
+    CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
+    DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
+    SignatureHelpOptions, TypeDefinitionProviderCapability,
 };
-use noirc_driver::DebugFile;
-use noirc_errors::{debug_info::OpCodesCount, Location};
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
-use std::collections::{BTreeMap, HashMap};
 
 // Re-providing lsp_types that we don't need to override
 pub(crate) use lsp_types::{
@@ -22,8 +18,8 @@ pub(crate) mod request {
     use lsp_types::{request::Request, InitializeParams};
 
     use super::{
-        InitializeResult, NargoProfileRunParams, NargoProfileRunResult, NargoTestRunParams,
-        NargoTestRunResult, NargoTestsParams, NargoTestsResult,
+        InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
+        NargoTestsResult,
     };
 
     // Re-providing lsp_types that we don't need to override
@@ -54,14 +50,6 @@ pub(crate) mod request {
         type Params = NargoTestsParams;
         type Result = NargoTestsResult;
         const METHOD: &'static str = "nargo/tests";
-    }
-
-    #[derive(Debug)]
-    pub(crate) struct NargoProfileRun;
-    impl Request for NargoProfileRun {
-        type Params = NargoProfileRunParams;
-        type Result = NargoProfileRunResult;
-        const METHOD: &'static str = "nargo/profile/run";
     }
 }
 
@@ -148,6 +136,26 @@ pub(crate) struct ServerCapabilities {
     /// The server provides hover support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) hover_provider: Option<OneOf<bool, HoverOptions>>,
+
+    /// The server provides inlay hints support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) inlay_hint_provider: Option<OneOf<bool, InlayHintOptions>>,
+
+    /// The server provides document symbol support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) document_symbol_provider: Option<OneOf<bool, DocumentSymbolOptions>>,
+
+    /// The server provides completion support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) completion_provider: Option<OneOf<bool, CompletionOptions>>,
+
+    /// The server provides signature help support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) signature_help_provider: Option<OneOf<bool, SignatureHelpOptions>>,
+
+    /// The server provides code action support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) code_action_provider: Option<OneOf<bool, CodeActionOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -231,17 +239,6 @@ pub(crate) struct NargoTestRunResult {
     pub(crate) id: NargoTestId,
     pub(crate) result: String,
     pub(crate) message: Option<String>,
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct NargoProfileRunParams {
-    pub(crate) package: CrateName,
-}
-#[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct NargoProfileRunResult {
-    pub(crate) file_map: BTreeMap<FileId, DebugFile>,
-    #[serde_as(as = "Vec<(_, _)>")]
-    pub(crate) opcodes_counts: HashMap<Location, OpCodesCount>,
 }
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;

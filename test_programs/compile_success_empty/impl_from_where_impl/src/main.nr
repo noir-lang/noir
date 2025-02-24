@@ -6,7 +6,10 @@ trait Bar {
     }
 }
 
-impl<T> Bar for (T, T) where T: Bar {
+impl<T> Bar for (T, T)
+where
+    T: Bar,
+{
     fn ok(self) -> Self {
         self
     }

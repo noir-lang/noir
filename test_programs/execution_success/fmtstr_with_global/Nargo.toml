@@ -1,0 +1,7 @@
+[package]
+name = "fmtstr_with_global"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.32.0"
+
+[dependencies]

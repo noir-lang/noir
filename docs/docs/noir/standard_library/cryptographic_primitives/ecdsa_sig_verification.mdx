@@ -5,7 +5,7 @@ keywords: [cryptographic primitives, Noir project, ecdsa, secp256k1, secp256r1, 
 sidebar_position: 3
 ---
 
-import BlackBoxInfo from '@site/src/components/Notes/_blackbox.mdx';
+import BlackBoxInfo from '@site/src/components/Notes/_blackbox';
 
 Noir supports ECDSA signatures verification over the secp256k1 and secp256r1 curves.
 
@@ -25,7 +25,7 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 }
 ```
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns" />
 
 ## ecdsa_secp256k1::verify_signature_slice
 
@@ -33,7 +33,7 @@ Verifier for ECDSA Secp256k1 signatures where the message is a slice.
 
 #include_code ecdsa_secp256k1_slice noir_stdlib/src/ecdsa_secp256k1.nr rust
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns"/>
 
 ## ecdsa_secp256r1::verify_signature
 
@@ -51,7 +51,7 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 }
 ```
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns"/>
 
 ## ecdsa_secp256r1::verify_signature
 
@@ -59,4 +59,4 @@ Verifier for ECDSA Secp256r1 signatures where the message is a slice.
 
 #include_code ecdsa_secp256r1_slice noir_stdlib/src/ecdsa_secp256r1.nr rust
 
-<BlackBoxInfo />
+<BlackBoxInfo to="../black_box_fns"/>

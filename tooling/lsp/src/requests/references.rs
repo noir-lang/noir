@@ -16,7 +16,7 @@ pub(crate) fn on_references_request(
         find_all_references_in_workspace(
             args.location,
             args.interner,
-            args.interners,
+            args.package_cache,
             args.files,
             include_declaration,
             true,
@@ -94,8 +94,12 @@ mod references_tests {
         check_references_succeeds("rename_function", "another_function", 0, false).await;
     }
 
+    // Ignored because making this work slows down everything, so for now things will not work
+    // as ideally, but they'll be fast.
+    // See https://github.com/noir-lang/noir/issues/5460
+    #[ignore]
     #[test]
-    async fn test_on_references_request_works_accross_workspace_packages() {
+    async fn test_on_references_request_works_across_workspace_packages() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace").await;
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir
@@ -108,7 +112,14 @@ mod references_tests {
         let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
 
         // We call this to open the document, so that the entire workspace is analyzed
-        notifications::process_workspace_for_noir_document(one_lib.clone(), &mut state).unwrap();
+        let output_diagnostics = true;
+
+        notifications::process_workspace_for_noir_document(
+            &mut state,
+            one_lib.clone(),
+            output_diagnostics,
+        )
+        .unwrap();
 
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {

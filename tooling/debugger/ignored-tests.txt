@@ -2,5 +2,8 @@ brillig_references
 debug_logs
 is_unconstrained
 macros
+reference_counts
 references
 regression_4709
+reference_only_used_as_alias
+brillig_rc_regression_6123

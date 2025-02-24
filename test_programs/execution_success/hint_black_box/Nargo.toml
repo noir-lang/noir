@@ -1,0 +1,6 @@
+[package]
+name = "hint_black_box"
+type = "bin"
+authors = [""]
+
+[dependencies]

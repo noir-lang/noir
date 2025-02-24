@@ -5,515 +5,6 @@
 
 namespace Program {
 
-    struct Witness {
-        uint32_t value;
-
-        friend bool operator==(const Witness&, const Witness&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Witness bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct ConstantOrWitnessEnum {
-
-        struct Constant {
-            std::string value;
-
-            friend bool operator==(const Constant&, const Constant&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Constant bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Witness {
-            Program::Witness value;
-
-            friend bool operator==(const Witness&, const Witness&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Witness bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Constant, Witness> value;
-
-        friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct FunctionInput {
-        Program::ConstantOrWitnessEnum input;
-        uint32_t num_bits;
-
-        friend bool operator==(const FunctionInput&, const FunctionInput&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BlackBoxFuncCall {
-
-        struct AES128Encrypt {
-            std::vector<Program::FunctionInput> inputs;
-            std::array<Program::FunctionInput, 16> iv;
-            std::array<Program::FunctionInput, 16> key;
-            std::vector<Program::Witness> outputs;
-
-            friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct AND {
-            Program::FunctionInput lhs;
-            Program::FunctionInput rhs;
-            Program::Witness output;
-
-            friend bool operator==(const AND&, const AND&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AND bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct XOR {
-            Program::FunctionInput lhs;
-            Program::FunctionInput rhs;
-            Program::Witness output;
-
-            friend bool operator==(const XOR&, const XOR&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static XOR bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct RANGE {
-            Program::FunctionInput input;
-
-            friend bool operator==(const RANGE&, const RANGE&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static RANGE bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct SHA256 {
-            std::vector<Program::FunctionInput> inputs;
-            std::array<Program::Witness, 32> outputs;
-
-            friend bool operator==(const SHA256&, const SHA256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static SHA256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Blake2s {
-            std::vector<Program::FunctionInput> inputs;
-            std::array<Program::Witness, 32> outputs;
-
-            friend bool operator==(const Blake2s&, const Blake2s&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Blake3 {
-            std::vector<Program::FunctionInput> inputs;
-            std::array<Program::Witness, 32> outputs;
-
-            friend bool operator==(const Blake3&, const Blake3&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct SchnorrVerify {
-            Program::FunctionInput public_key_x;
-            Program::FunctionInput public_key_y;
-            std::array<Program::FunctionInput, 64> signature;
-            std::vector<Program::FunctionInput> message;
-            Program::Witness output;
-
-            friend bool operator==(const SchnorrVerify&, const SchnorrVerify&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static SchnorrVerify bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenCommitment {
-            std::vector<Program::FunctionInput> inputs;
-            uint32_t domain_separator;
-            std::array<Program::Witness, 2> outputs;
-
-            friend bool operator==(const PedersenCommitment&, const PedersenCommitment&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenCommitment bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenHash {
-            std::vector<Program::FunctionInput> inputs;
-            uint32_t domain_separator;
-            Program::Witness output;
-
-            friend bool operator==(const PedersenHash&, const PedersenHash&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenHash bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EcdsaSecp256k1 {
-            std::array<Program::FunctionInput, 32> public_key_x;
-            std::array<Program::FunctionInput, 32> public_key_y;
-            std::array<Program::FunctionInput, 64> signature;
-            std::array<Program::FunctionInput, 32> hashed_message;
-            Program::Witness output;
-
-            friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EcdsaSecp256r1 {
-            std::array<Program::FunctionInput, 32> public_key_x;
-            std::array<Program::FunctionInput, 32> public_key_y;
-            std::array<Program::FunctionInput, 64> signature;
-            std::array<Program::FunctionInput, 32> hashed_message;
-            Program::Witness output;
-
-            friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct MultiScalarMul {
-            std::vector<Program::FunctionInput> points;
-            std::vector<Program::FunctionInput> scalars;
-            std::array<Program::Witness, 3> outputs;
-
-            friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct EmbeddedCurveAdd {
-            std::array<Program::FunctionInput, 3> input1;
-            std::array<Program::FunctionInput, 3> input2;
-            std::array<Program::Witness, 3> outputs;
-
-            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Keccak256 {
-            std::vector<Program::FunctionInput> inputs;
-            Program::FunctionInput var_message_size;
-            std::array<Program::Witness, 32> outputs;
-
-            friend bool operator==(const Keccak256&, const Keccak256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Keccakf1600 {
-            std::array<Program::FunctionInput, 25> inputs;
-            std::array<Program::Witness, 25> outputs;
-
-            friend bool operator==(const Keccakf1600&, const Keccakf1600&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct RecursiveAggregation {
-            std::vector<Program::FunctionInput> verification_key;
-            std::vector<Program::FunctionInput> proof;
-            std::vector<Program::FunctionInput> public_inputs;
-            Program::FunctionInput key_hash;
-
-            friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntAdd {
-            uint32_t lhs;
-            uint32_t rhs;
-            uint32_t output;
-
-            friend bool operator==(const BigIntAdd&, const BigIntAdd&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntSub {
-            uint32_t lhs;
-            uint32_t rhs;
-            uint32_t output;
-
-            friend bool operator==(const BigIntSub&, const BigIntSub&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntMul {
-            uint32_t lhs;
-            uint32_t rhs;
-            uint32_t output;
-
-            friend bool operator==(const BigIntMul&, const BigIntMul&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntDiv {
-            uint32_t lhs;
-            uint32_t rhs;
-            uint32_t output;
-
-            friend bool operator==(const BigIntDiv&, const BigIntDiv&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntFromLeBytes {
-            std::vector<Program::FunctionInput> inputs;
-            std::vector<uint8_t> modulus;
-            uint32_t output;
-
-            friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BigIntToLeBytes {
-            uint32_t input;
-            std::vector<Program::Witness> outputs;
-
-            friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Poseidon2Permutation {
-            std::vector<Program::FunctionInput> inputs;
-            std::vector<Program::Witness> outputs;
-            uint32_t len;
-
-            friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Sha256Compression {
-            std::array<Program::FunctionInput, 16> inputs;
-            std::array<Program::FunctionInput, 8> hash_values;
-            std::array<Program::Witness, 8> outputs;
-
-            friend bool operator==(const Sha256Compression&, const Sha256Compression&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<AES128Encrypt, AND, XOR, RANGE, SHA256, Blake2s, Blake3, SchnorrVerify, PedersenCommitment, PedersenHash, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccak256, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
-
-        friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BlockId {
-        uint32_t value;
-
-        friend bool operator==(const BlockId&, const BlockId&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlockId bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BlockType {
-
-        struct Memory {
-            friend bool operator==(const Memory&, const Memory&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Memory bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct CallData {
-            friend bool operator==(const CallData&, const CallData&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static CallData bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct ReturnData {
-            friend bool operator==(const ReturnData&, const ReturnData&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ReturnData bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Memory, CallData, ReturnData> value;
-
-        friend bool operator==(const BlockType&, const BlockType&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BlockType bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct Expression {
-        std::vector<std::tuple<std::string, Program::Witness, Program::Witness>> mul_terms;
-        std::vector<std::tuple<std::string, Program::Witness>> linear_combinations;
-        std::string q_c;
-
-        friend bool operator==(const Expression&, const Expression&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Expression bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BrilligInputs {
-
-        struct Single {
-            Program::Expression value;
-
-            friend bool operator==(const Single&, const Single&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Single bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Array {
-            std::vector<Program::Expression> value;
-
-            friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct MemoryArray {
-            Program::BlockId value;
-
-            friend bool operator==(const MemoryArray&, const MemoryArray&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Single, Array, MemoryArray> value;
-
-        friend bool operator==(const BrilligInputs&, const BrilligInputs&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct BrilligOutputs {
-
-        struct Simple {
-            Program::Witness value;
-
-            friend bool operator==(const Simple&, const Simple&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Simple bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Array {
-            std::vector<Program::Witness> value;
-
-            friend bool operator==(const Array&, const Array&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Array bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<Simple, Array> value;
-
-        friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct Directive {
-
-        struct ToLeRadix {
-            Program::Expression a;
-            std::vector<Program::Witness> b;
-            uint32_t radix;
-
-            friend bool operator==(const ToLeRadix&, const ToLeRadix&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static ToLeRadix bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<ToLeRadix> value;
-
-        friend bool operator==(const Directive&, const Directive&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Directive bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct MemOp {
-        Program::Expression operation;
-        Program::Expression index;
-        Program::Expression value;
-
-        friend bool operator==(const MemOp&, const MemOp&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static MemOp bincodeDeserialize(std::vector<uint8_t>);
-    };
-
-    struct Opcode {
-
-        struct AssertZero {
-            Program::Expression value;
-
-            friend bool operator==(const AssertZero&, const AssertZero&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static AssertZero bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BlackBoxFuncCall {
-            Program::BlackBoxFuncCall value;
-
-            friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Directive {
-            Program::Directive value;
-
-            friend bool operator==(const Directive&, const Directive&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Directive bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct MemoryOp {
-            Program::BlockId block_id;
-            Program::MemOp op;
-            std::optional<Program::Expression> predicate;
-
-            friend bool operator==(const MemoryOp&, const MemoryOp&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct MemoryInit {
-            Program::BlockId block_id;
-            std::vector<Program::Witness> init;
-            Program::BlockType block_type;
-
-            friend bool operator==(const MemoryInit&, const MemoryInit&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct BrilligCall {
-            uint32_t id;
-            std::vector<Program::BrilligInputs> inputs;
-            std::vector<Program::BrilligOutputs> outputs;
-            std::optional<Program::Expression> predicate;
-
-            friend bool operator==(const BrilligCall&, const BrilligCall&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static BrilligCall bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Call {
-            uint32_t id;
-            std::vector<Program::Witness> inputs;
-            std::vector<Program::Witness> outputs;
-            std::optional<Program::Expression> predicate;
-
-            friend bool operator==(const Call&, const Call&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Call bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<AssertZero, BlackBoxFuncCall, Directive, MemoryOp, MemoryInit, BrilligCall, Call> value;
-
-        friend bool operator==(const Opcode&, const Opcode&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static Opcode bincodeDeserialize(std::vector<uint8_t>);
-    };
-
     struct BinaryFieldOp {
 
         struct Add {
@@ -652,8 +143,93 @@ namespace Program {
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
     };
 
+    struct IntegerBitSize {
+
+        struct U1 {
+            friend bool operator==(const U1&, const U1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U8 {
+            friend bool operator==(const U8&, const U8&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U8 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U16 {
+            friend bool operator==(const U16&, const U16&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U16 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U32 {
+            friend bool operator==(const U32&, const U32&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U32 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U64 {
+            friend bool operator==(const U64&, const U64&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U64 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct U128 {
+            friend bool operator==(const U128&, const U128&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static U128 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<U1, U8, U16, U32, U64, U128> value;
+
+        friend bool operator==(const IntegerBitSize&, const IntegerBitSize&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BitSize {
+
+        struct Field {
+            friend bool operator==(const Field&, const Field&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Field bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Integer {
+            Program::IntegerBitSize value;
+
+            friend bool operator==(const Integer&, const Integer&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Integer bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Field, Integer> value;
+
+        friend bool operator==(const BitSize&, const BitSize&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BitSize bincodeDeserialize(std::vector<uint8_t>);
+    };
+
     struct MemoryAddress {
-        uint64_t value;
+
+        struct Direct {
+            uint64_t value;
+
+            friend bool operator==(const Direct&, const Direct&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Direct bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Relative {
+            uint64_t value;
+
+            friend bool operator==(const Relative&, const Relative&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Relative bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Direct, Relative> value;
 
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -691,15 +267,6 @@ namespace Program {
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct Sha256 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Sha256&, const Sha256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Sha256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
         struct Blake2s {
             Program::HeapVector message;
             Program::HeapArray output;
@@ -718,17 +285,8 @@ namespace Program {
             static Blake3 bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        struct Keccak256 {
-            Program::HeapVector message;
-            Program::HeapArray output;
-
-            friend bool operator==(const Keccak256&, const Keccak256&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Keccak256 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
         struct Keccakf1600 {
-            Program::HeapVector message;
+            Program::HeapArray input;
             Program::HeapArray output;
 
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
@@ -758,38 +316,6 @@ namespace Program {
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct SchnorrVerify {
-            Program::MemoryAddress public_key_x;
-            Program::MemoryAddress public_key_y;
-            Program::HeapVector message;
-            Program::HeapVector signature;
-            Program::MemoryAddress result;
-
-            friend bool operator==(const SchnorrVerify&, const SchnorrVerify&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static SchnorrVerify bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenCommitment {
-            Program::HeapVector inputs;
-            Program::MemoryAddress domain_separator;
-            Program::HeapArray output;
-
-            friend bool operator==(const PedersenCommitment&, const PedersenCommitment&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenCommitment bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct PedersenHash {
-            Program::HeapVector inputs;
-            Program::MemoryAddress domain_separator;
-            Program::MemoryAddress output;
-
-            friend bool operator==(const PedersenHash&, const PedersenHash&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static PedersenHash bincodeDeserialize(std::vector<uint8_t>);
         };
 
         struct MultiScalarMul {
@@ -886,8 +412,8 @@ namespace Program {
         };
 
         struct Sha256Compression {
-            Program::HeapVector input;
-            Program::HeapVector hash_values;
+            Program::HeapArray input;
+            Program::HeapArray hash_values;
             Program::HeapArray output;
 
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
@@ -897,15 +423,17 @@ namespace Program {
 
         struct ToRadix {
             Program::MemoryAddress input;
-            uint32_t radix;
-            Program::HeapArray output;
+            Program::MemoryAddress radix;
+            Program::MemoryAddress output_pointer;
+            Program::MemoryAddress num_limbs;
+            Program::MemoryAddress output_bits;
 
             friend bool operator==(const ToRadix&, const ToRadix&);
             std::vector<uint8_t> bincodeSerialize() const;
             static ToRadix bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<AES128Encrypt, Sha256, Blake2s, Blake3, Keccak256, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, SchnorrVerify, PedersenCommitment, PedersenHash, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
+        std::variant<AES128Encrypt, Blake2s, Blake3, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
 
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -917,7 +445,7 @@ namespace Program {
     struct HeapValueType {
 
         struct Simple {
-            uint32_t value;
+            Program::BitSize value;
 
             friend bool operator==(const Simple&, const Simple&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -997,7 +525,7 @@ namespace Program {
         struct BinaryIntOp {
             Program::MemoryAddress destination;
             Program::BinaryIntOp op;
-            uint32_t bit_size;
+            Program::IntegerBitSize bit_size;
             Program::MemoryAddress lhs;
             Program::MemoryAddress rhs;
 
@@ -1006,10 +534,20 @@ namespace Program {
             static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
         };
 
+        struct Not {
+            Program::MemoryAddress destination;
+            Program::MemoryAddress source;
+            Program::IntegerBitSize bit_size;
+
+            friend bool operator==(const Not&, const Not&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Not bincodeDeserialize(std::vector<uint8_t>);
+        };
+
         struct Cast {
             Program::MemoryAddress destination;
             Program::MemoryAddress source;
-            uint32_t bit_size;
+            Program::BitSize bit_size;
 
             friend bool operator==(const Cast&, const Cast&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -1044,8 +582,8 @@ namespace Program {
 
         struct CalldataCopy {
             Program::MemoryAddress destination_address;
-            uint64_t size;
-            uint64_t offset;
+            Program::MemoryAddress size_address;
+            Program::MemoryAddress offset_address;
 
             friend bool operator==(const CalldataCopy&, const CalldataCopy&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -1062,12 +600,22 @@ namespace Program {
 
         struct Const {
             Program::MemoryAddress destination;
-            uint32_t bit_size;
+            Program::BitSize bit_size;
             std::string value;
 
             friend bool operator==(const Const&, const Const&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Const bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct IndirectConst {
+            Program::MemoryAddress destination_pointer;
+            Program::BitSize bit_size;
+            std::string value;
+
+            friend bool operator==(const IndirectConst&, const IndirectConst&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static IndirectConst bincodeDeserialize(std::vector<uint8_t>);
         };
 
         struct Return {
@@ -1135,7 +683,7 @@ namespace Program {
         };
 
         struct Trap {
-            Program::HeapArray revert_data;
+            Program::HeapVector revert_data;
 
             friend bool operator==(const Trap&, const Trap&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -1143,19 +691,452 @@ namespace Program {
         };
 
         struct Stop {
-            uint64_t return_data_offset;
-            uint64_t return_data_size;
+            Program::HeapVector return_data;
 
             friend bool operator==(const Stop&, const Stop&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Stop bincodeDeserialize(std::vector<uint8_t>);
         };
 
-        std::variant<BinaryFieldOp, BinaryIntOp, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
+        std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
 
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct Witness {
+        uint32_t value;
+
+        friend bool operator==(const Witness&, const Witness&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Witness bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct ConstantOrWitnessEnum {
+
+        struct Constant {
+            std::string value;
+
+            friend bool operator==(const Constant&, const Constant&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Constant bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Witness {
+            Program::Witness value;
+
+            friend bool operator==(const Witness&, const Witness&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Witness bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Constant, Witness> value;
+
+        friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct FunctionInput {
+        Program::ConstantOrWitnessEnum input;
+        uint32_t num_bits;
+
+        friend bool operator==(const FunctionInput&, const FunctionInput&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BlackBoxFuncCall {
+
+        struct AES128Encrypt {
+            std::vector<Program::FunctionInput> inputs;
+            std::array<Program::FunctionInput, 16> iv;
+            std::array<Program::FunctionInput, 16> key;
+            std::vector<Program::Witness> outputs;
+
+            friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct AND {
+            Program::FunctionInput lhs;
+            Program::FunctionInput rhs;
+            Program::Witness output;
+
+            friend bool operator==(const AND&, const AND&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static AND bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct XOR {
+            Program::FunctionInput lhs;
+            Program::FunctionInput rhs;
+            Program::Witness output;
+
+            friend bool operator==(const XOR&, const XOR&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static XOR bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct RANGE {
+            Program::FunctionInput input;
+
+            friend bool operator==(const RANGE&, const RANGE&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static RANGE bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Blake2s {
+            std::vector<Program::FunctionInput> inputs;
+            std::array<Program::Witness, 32> outputs;
+
+            friend bool operator==(const Blake2s&, const Blake2s&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Blake2s bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Blake3 {
+            std::vector<Program::FunctionInput> inputs;
+            std::array<Program::Witness, 32> outputs;
+
+            friend bool operator==(const Blake3&, const Blake3&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Blake3 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EcdsaSecp256k1 {
+            std::array<Program::FunctionInput, 32> public_key_x;
+            std::array<Program::FunctionInput, 32> public_key_y;
+            std::array<Program::FunctionInput, 64> signature;
+            std::array<Program::FunctionInput, 32> hashed_message;
+            Program::Witness output;
+
+            friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EcdsaSecp256r1 {
+            std::array<Program::FunctionInput, 32> public_key_x;
+            std::array<Program::FunctionInput, 32> public_key_y;
+            std::array<Program::FunctionInput, 64> signature;
+            std::array<Program::FunctionInput, 32> hashed_message;
+            Program::Witness output;
+
+            friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct MultiScalarMul {
+            std::vector<Program::FunctionInput> points;
+            std::vector<Program::FunctionInput> scalars;
+            std::array<Program::Witness, 3> outputs;
+
+            friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct EmbeddedCurveAdd {
+            std::array<Program::FunctionInput, 3> input1;
+            std::array<Program::FunctionInput, 3> input2;
+            std::array<Program::Witness, 3> outputs;
+
+            friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Keccakf1600 {
+            std::array<Program::FunctionInput, 25> inputs;
+            std::array<Program::Witness, 25> outputs;
+
+            friend bool operator==(const Keccakf1600&, const Keccakf1600&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct RecursiveAggregation {
+            std::vector<Program::FunctionInput> verification_key;
+            std::vector<Program::FunctionInput> proof;
+            std::vector<Program::FunctionInput> public_inputs;
+            Program::FunctionInput key_hash;
+            uint32_t proof_type;
+
+            friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntAdd {
+            uint32_t lhs;
+            uint32_t rhs;
+            uint32_t output;
+
+            friend bool operator==(const BigIntAdd&, const BigIntAdd&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntSub {
+            uint32_t lhs;
+            uint32_t rhs;
+            uint32_t output;
+
+            friend bool operator==(const BigIntSub&, const BigIntSub&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntMul {
+            uint32_t lhs;
+            uint32_t rhs;
+            uint32_t output;
+
+            friend bool operator==(const BigIntMul&, const BigIntMul&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntDiv {
+            uint32_t lhs;
+            uint32_t rhs;
+            uint32_t output;
+
+            friend bool operator==(const BigIntDiv&, const BigIntDiv&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntFromLeBytes {
+            std::vector<Program::FunctionInput> inputs;
+            std::vector<uint8_t> modulus;
+            uint32_t output;
+
+            friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BigIntToLeBytes {
+            uint32_t input;
+            std::vector<Program::Witness> outputs;
+
+            friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Poseidon2Permutation {
+            std::vector<Program::FunctionInput> inputs;
+            std::vector<Program::Witness> outputs;
+            uint32_t len;
+
+            friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Sha256Compression {
+            std::array<Program::FunctionInput, 16> inputs;
+            std::array<Program::FunctionInput, 8> hash_values;
+            std::array<Program::Witness, 8> outputs;
+
+            friend bool operator==(const Sha256Compression&, const Sha256Compression&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<AES128Encrypt, AND, XOR, RANGE, Blake2s, Blake3, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
+
+        friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BlockId {
+        uint32_t value;
+
+        friend bool operator==(const BlockId&, const BlockId&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BlockId bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BlockType {
+
+        struct Memory {
+            friend bool operator==(const Memory&, const Memory&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Memory bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct CallData {
+            uint32_t value;
+
+            friend bool operator==(const CallData&, const CallData&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static CallData bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct ReturnData {
+            friend bool operator==(const ReturnData&, const ReturnData&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static ReturnData bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Memory, CallData, ReturnData> value;
+
+        friend bool operator==(const BlockType&, const BlockType&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BlockType bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct Expression {
+        std::vector<std::tuple<std::string, Program::Witness, Program::Witness>> mul_terms;
+        std::vector<std::tuple<std::string, Program::Witness>> linear_combinations;
+        std::string q_c;
+
+        friend bool operator==(const Expression&, const Expression&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Expression bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BrilligInputs {
+
+        struct Single {
+            Program::Expression value;
+
+            friend bool operator==(const Single&, const Single&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Single bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Array {
+            std::vector<Program::Expression> value;
+
+            friend bool operator==(const Array&, const Array&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Array bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct MemoryArray {
+            Program::BlockId value;
+
+            friend bool operator==(const MemoryArray&, const MemoryArray&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Single, Array, MemoryArray> value;
+
+        friend bool operator==(const BrilligInputs&, const BrilligInputs&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct BrilligOutputs {
+
+        struct Simple {
+            Program::Witness value;
+
+            friend bool operator==(const Simple&, const Simple&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Simple bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Array {
+            std::vector<Program::Witness> value;
+
+            friend bool operator==(const Array&, const Array&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Array bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<Simple, Array> value;
+
+        friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct MemOp {
+        Program::Expression operation;
+        Program::Expression index;
+        Program::Expression value;
+
+        friend bool operator==(const MemOp&, const MemOp&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static MemOp bincodeDeserialize(std::vector<uint8_t>);
+    };
+
+    struct Opcode {
+
+        struct AssertZero {
+            Program::Expression value;
+
+            friend bool operator==(const AssertZero&, const AssertZero&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static AssertZero bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BlackBoxFuncCall {
+            Program::BlackBoxFuncCall value;
+
+            friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct MemoryOp {
+            Program::BlockId block_id;
+            Program::MemOp op;
+            std::optional<Program::Expression> predicate;
+
+            friend bool operator==(const MemoryOp&, const MemoryOp&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct MemoryInit {
+            Program::BlockId block_id;
+            std::vector<Program::Witness> init;
+            Program::BlockType block_type;
+
+            friend bool operator==(const MemoryInit&, const MemoryInit&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct BrilligCall {
+            uint32_t id;
+            std::vector<Program::BrilligInputs> inputs;
+            std::vector<Program::BrilligOutputs> outputs;
+            std::optional<Program::Expression> predicate;
+
+            friend bool operator==(const BrilligCall&, const BrilligCall&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static BrilligCall bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        struct Call {
+            uint32_t id;
+            std::vector<Program::Witness> inputs;
+            std::vector<Program::Witness> outputs;
+            std::optional<Program::Expression> predicate;
+
+            friend bool operator==(const Call&, const Call&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Call bincodeDeserialize(std::vector<uint8_t>);
+        };
+
+        std::variant<AssertZero, BlackBoxFuncCall, MemoryOp, MemoryInit, BrilligCall, Call> value;
+
+        friend bool operator==(const Opcode&, const Opcode&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static Opcode bincodeDeserialize(std::vector<uint8_t>);
     };
 
     struct ExpressionOrMemory {
@@ -1184,24 +1165,8 @@ namespace Program {
     };
 
     struct AssertionPayload {
-
-        struct StaticString {
-            std::string value;
-
-            friend bool operator==(const StaticString&, const StaticString&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static StaticString bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        struct Dynamic {
-            std::tuple<uint64_t, std::vector<Program::ExpressionOrMemory>> value;
-
-            friend bool operator==(const Dynamic&, const Dynamic&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Dynamic bincodeDeserialize(std::vector<uint8_t>);
-        };
-
-        std::variant<StaticString, Dynamic> value;
+        uint64_t error_selector;
+        std::vector<Program::ExpressionOrMemory> payload;
 
         friend bool operator==(const AssertionPayload&, const AssertionPayload&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -1273,7 +1238,6 @@ namespace Program {
         Program::PublicInputs public_parameters;
         Program::PublicInputs return_values;
         std::vector<std::tuple<Program::OpcodeLocation, Program::AssertionPayload>> assert_messages;
-        bool recursive;
 
         friend bool operator==(const Circuit&, const Circuit&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -1303,7 +1267,8 @@ namespace Program {
 namespace Program {
 
     inline bool operator==(const AssertionPayload &lhs, const AssertionPayload &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
+        if (!(lhs.error_selector == rhs.error_selector)) { return false; }
+        if (!(lhs.payload == rhs.payload)) { return false; }
         return true;
     }
 
@@ -1328,7 +1293,8 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Program::AssertionPayload>::serialize(const Program::AssertionPayload &obj, Serializer &serializer) {
     serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serde::Serializable<decltype(obj.error_selector)>::serialize(obj.error_selector, serializer);
+    serde::Serializable<decltype(obj.payload)>::serialize(obj.payload, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -1337,84 +1303,9 @@ template <typename Deserializer>
 Program::AssertionPayload serde::Deserializable<Program::AssertionPayload>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Program::AssertionPayload obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    obj.error_selector = serde::Deserializable<decltype(obj.error_selector)>::deserialize(deserializer);
+    obj.payload = serde::Deserializable<decltype(obj.payload)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const AssertionPayload::StaticString &lhs, const AssertionPayload::StaticString &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> AssertionPayload::StaticString::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<AssertionPayload::StaticString>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline AssertionPayload::StaticString AssertionPayload::StaticString::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<AssertionPayload::StaticString>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::AssertionPayload::StaticString>::serialize(const Program::AssertionPayload::StaticString &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::AssertionPayload::StaticString serde::Deserializable<Program::AssertionPayload::StaticString>::deserialize(Deserializer &deserializer) {
-    Program::AssertionPayload::StaticString obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const AssertionPayload::Dynamic &lhs, const AssertionPayload::Dynamic &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> AssertionPayload::Dynamic::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<AssertionPayload::Dynamic>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline AssertionPayload::Dynamic AssertionPayload::Dynamic::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<AssertionPayload::Dynamic>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::AssertionPayload::Dynamic>::serialize(const Program::AssertionPayload::Dynamic &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::AssertionPayload::Dynamic serde::Deserializable<Program::AssertionPayload::Dynamic>::deserialize(Deserializer &deserializer) {
-    Program::AssertionPayload::Dynamic obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 
@@ -2204,6 +2095,121 @@ Program::BinaryIntOp::Shr serde::Deserializable<Program::BinaryIntOp::Shr>::dese
 
 namespace Program {
 
+    inline bool operator==(const BitSize &lhs, const BitSize &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize BitSize::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize>::serialize(const Program::BitSize &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize serde::Deserializable<Program::BitSize>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Program::BitSize obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BitSize::Field &lhs, const BitSize::Field &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::Field::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize::Field>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize::Field BitSize::Field::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize::Field>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize::Field>::serialize(const Program::BitSize::Field &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize::Field serde::Deserializable<Program::BitSize::Field>::deserialize(Deserializer &deserializer) {
+    Program::BitSize::Field obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BitSize::Integer &lhs, const BitSize::Integer &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BitSize::Integer::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BitSize::Integer>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BitSize::Integer BitSize::Integer::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BitSize::Integer>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BitSize::Integer>::serialize(const Program::BitSize::Integer &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BitSize::Integer serde::Deserializable<Program::BitSize::Integer>::deserialize(Deserializer &deserializer) {
+    Program::BitSize::Integer obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
     inline bool operator==(const BlackBoxFuncCall &lhs, const BlackBoxFuncCall &rhs) {
         if (!(lhs.value == rhs.value)) { return false; }
         return true;
@@ -2419,47 +2425,6 @@ Program::BlackBoxFuncCall::RANGE serde::Deserializable<Program::BlackBoxFuncCall
 
 namespace Program {
 
-    inline bool operator==(const BlackBoxFuncCall::SHA256 &lhs, const BlackBoxFuncCall::SHA256 &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.outputs == rhs.outputs)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::SHA256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::SHA256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::SHA256 BlackBoxFuncCall::SHA256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::SHA256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::SHA256>::serialize(const Program::BlackBoxFuncCall::SHA256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::SHA256 serde::Deserializable<Program::BlackBoxFuncCall::SHA256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::SHA256 obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
     inline bool operator==(const BlackBoxFuncCall::Blake2s &lhs, const BlackBoxFuncCall::Blake2s &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
@@ -2537,144 +2502,6 @@ Program::BlackBoxFuncCall::Blake3 serde::Deserializable<Program::BlackBoxFuncCal
     Program::BlackBoxFuncCall::Blake3 obj;
     obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxFuncCall::SchnorrVerify &lhs, const BlackBoxFuncCall::SchnorrVerify &rhs) {
-        if (!(lhs.public_key_x == rhs.public_key_x)) { return false; }
-        if (!(lhs.public_key_y == rhs.public_key_y)) { return false; }
-        if (!(lhs.signature == rhs.signature)) { return false; }
-        if (!(lhs.message == rhs.message)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::SchnorrVerify::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::SchnorrVerify>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::SchnorrVerify BlackBoxFuncCall::SchnorrVerify::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::SchnorrVerify>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::SchnorrVerify>::serialize(const Program::BlackBoxFuncCall::SchnorrVerify &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.public_key_x)>::serialize(obj.public_key_x, serializer);
-    serde::Serializable<decltype(obj.public_key_y)>::serialize(obj.public_key_y, serializer);
-    serde::Serializable<decltype(obj.signature)>::serialize(obj.signature, serializer);
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::SchnorrVerify serde::Deserializable<Program::BlackBoxFuncCall::SchnorrVerify>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::SchnorrVerify obj;
-    obj.public_key_x = serde::Deserializable<decltype(obj.public_key_x)>::deserialize(deserializer);
-    obj.public_key_y = serde::Deserializable<decltype(obj.public_key_y)>::deserialize(deserializer);
-    obj.signature = serde::Deserializable<decltype(obj.signature)>::deserialize(deserializer);
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxFuncCall::PedersenCommitment &lhs, const BlackBoxFuncCall::PedersenCommitment &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.domain_separator == rhs.domain_separator)) { return false; }
-        if (!(lhs.outputs == rhs.outputs)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::PedersenCommitment::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::PedersenCommitment>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::PedersenCommitment BlackBoxFuncCall::PedersenCommitment::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::PedersenCommitment>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::PedersenCommitment>::serialize(const Program::BlackBoxFuncCall::PedersenCommitment &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.domain_separator)>::serialize(obj.domain_separator, serializer);
-    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::PedersenCommitment serde::Deserializable<Program::BlackBoxFuncCall::PedersenCommitment>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::PedersenCommitment obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.domain_separator = serde::Deserializable<decltype(obj.domain_separator)>::deserialize(deserializer);
-    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxFuncCall::PedersenHash &lhs, const BlackBoxFuncCall::PedersenHash &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.domain_separator == rhs.domain_separator)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::PedersenHash::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::PedersenHash>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::PedersenHash BlackBoxFuncCall::PedersenHash::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::PedersenHash>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::PedersenHash>::serialize(const Program::BlackBoxFuncCall::PedersenHash &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.domain_separator)>::serialize(obj.domain_separator, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::PedersenHash serde::Deserializable<Program::BlackBoxFuncCall::PedersenHash>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::PedersenHash obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.domain_separator = serde::Deserializable<decltype(obj.domain_separator)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
 
@@ -2868,50 +2695,6 @@ Program::BlackBoxFuncCall::EmbeddedCurveAdd serde::Deserializable<Program::Black
 
 namespace Program {
 
-    inline bool operator==(const BlackBoxFuncCall::Keccak256 &lhs, const BlackBoxFuncCall::Keccak256 &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.var_message_size == rhs.var_message_size)) { return false; }
-        if (!(lhs.outputs == rhs.outputs)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxFuncCall::Keccak256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxFuncCall::Keccak256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxFuncCall::Keccak256 BlackBoxFuncCall::Keccak256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxFuncCall::Keccak256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxFuncCall::Keccak256>::serialize(const Program::BlackBoxFuncCall::Keccak256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.var_message_size)>::serialize(obj.var_message_size, serializer);
-    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxFuncCall::Keccak256 serde::Deserializable<Program::BlackBoxFuncCall::Keccak256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxFuncCall::Keccak256 obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.var_message_size = serde::Deserializable<decltype(obj.var_message_size)>::deserialize(deserializer);
-    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
     inline bool operator==(const BlackBoxFuncCall::Keccakf1600 &lhs, const BlackBoxFuncCall::Keccakf1600 &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
@@ -2958,6 +2741,7 @@ namespace Program {
         if (!(lhs.proof == rhs.proof)) { return false; }
         if (!(lhs.public_inputs == rhs.public_inputs)) { return false; }
         if (!(lhs.key_hash == rhs.key_hash)) { return false; }
+        if (!(lhs.proof_type == rhs.proof_type)) { return false; }
         return true;
     }
 
@@ -2985,6 +2769,7 @@ void serde::Serializable<Program::BlackBoxFuncCall::RecursiveAggregation>::seria
     serde::Serializable<decltype(obj.proof)>::serialize(obj.proof, serializer);
     serde::Serializable<decltype(obj.public_inputs)>::serialize(obj.public_inputs, serializer);
     serde::Serializable<decltype(obj.key_hash)>::serialize(obj.key_hash, serializer);
+    serde::Serializable<decltype(obj.proof_type)>::serialize(obj.proof_type, serializer);
 }
 
 template <>
@@ -2995,6 +2780,7 @@ Program::BlackBoxFuncCall::RecursiveAggregation serde::Deserializable<Program::B
     obj.proof = serde::Deserializable<decltype(obj.proof)>::deserialize(deserializer);
     obj.public_inputs = serde::Deserializable<decltype(obj.public_inputs)>::deserialize(deserializer);
     obj.key_hash = serde::Deserializable<decltype(obj.key_hash)>::deserialize(deserializer);
+    obj.proof_type = serde::Deserializable<decltype(obj.proof_type)>::deserialize(deserializer);
     return obj;
 }
 
@@ -3438,47 +3224,6 @@ Program::BlackBoxOp::AES128Encrypt serde::Deserializable<Program::BlackBoxOp::AE
 
 namespace Program {
 
-    inline bool operator==(const BlackBoxOp::Sha256 &lhs, const BlackBoxOp::Sha256 &rhs) {
-        if (!(lhs.message == rhs.message)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::Sha256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Sha256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Sha256 BlackBoxOp::Sha256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Sha256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::Sha256>::serialize(const Program::BlackBoxOp::Sha256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::Sha256 serde::Deserializable<Program::BlackBoxOp::Sha256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::Sha256 obj;
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
     inline bool operator==(const BlackBoxOp::Blake2s &lhs, const BlackBoxOp::Blake2s &rhs) {
         if (!(lhs.message == rhs.message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
@@ -3561,49 +3306,8 @@ Program::BlackBoxOp::Blake3 serde::Deserializable<Program::BlackBoxOp::Blake3>::
 
 namespace Program {
 
-    inline bool operator==(const BlackBoxOp::Keccak256 &lhs, const BlackBoxOp::Keccak256 &rhs) {
-        if (!(lhs.message == rhs.message)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::Keccak256::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::Keccak256>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::Keccak256 BlackBoxOp::Keccak256::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::Keccak256>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::Keccak256>::serialize(const Program::BlackBoxOp::Keccak256 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::Keccak256 serde::Deserializable<Program::BlackBoxOp::Keccak256>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::Keccak256 obj;
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
     inline bool operator==(const BlackBoxOp::Keccakf1600 &lhs, const BlackBoxOp::Keccakf1600 &rhs) {
-        if (!(lhs.message == rhs.message)) { return false; }
+        if (!(lhs.input == rhs.input)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
@@ -3628,7 +3332,7 @@ namespace Program {
 template <>
 template <typename Serializer>
 void serde::Serializable<Program::BlackBoxOp::Keccakf1600>::serialize(const Program::BlackBoxOp::Keccakf1600 &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
+    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
 }
 
@@ -3636,7 +3340,7 @@ template <>
 template <typename Deserializer>
 Program::BlackBoxOp::Keccakf1600 serde::Deserializable<Program::BlackBoxOp::Keccakf1600>::deserialize(Deserializer &deserializer) {
     Program::BlackBoxOp::Keccakf1600 obj;
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
+    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
@@ -3738,144 +3442,6 @@ Program::BlackBoxOp::EcdsaSecp256r1 serde::Deserializable<Program::BlackBoxOp::E
     obj.public_key_y = serde::Deserializable<decltype(obj.public_key_y)>::deserialize(deserializer);
     obj.signature = serde::Deserializable<decltype(obj.signature)>::deserialize(deserializer);
     obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxOp::SchnorrVerify &lhs, const BlackBoxOp::SchnorrVerify &rhs) {
-        if (!(lhs.public_key_x == rhs.public_key_x)) { return false; }
-        if (!(lhs.public_key_y == rhs.public_key_y)) { return false; }
-        if (!(lhs.message == rhs.message)) { return false; }
-        if (!(lhs.signature == rhs.signature)) { return false; }
-        if (!(lhs.result == rhs.result)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::SchnorrVerify::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::SchnorrVerify>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::SchnorrVerify BlackBoxOp::SchnorrVerify::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::SchnorrVerify>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::SchnorrVerify>::serialize(const Program::BlackBoxOp::SchnorrVerify &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.public_key_x)>::serialize(obj.public_key_x, serializer);
-    serde::Serializable<decltype(obj.public_key_y)>::serialize(obj.public_key_y, serializer);
-    serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
-    serde::Serializable<decltype(obj.signature)>::serialize(obj.signature, serializer);
-    serde::Serializable<decltype(obj.result)>::serialize(obj.result, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::SchnorrVerify serde::Deserializable<Program::BlackBoxOp::SchnorrVerify>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::SchnorrVerify obj;
-    obj.public_key_x = serde::Deserializable<decltype(obj.public_key_x)>::deserialize(deserializer);
-    obj.public_key_y = serde::Deserializable<decltype(obj.public_key_y)>::deserialize(deserializer);
-    obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
-    obj.signature = serde::Deserializable<decltype(obj.signature)>::deserialize(deserializer);
-    obj.result = serde::Deserializable<decltype(obj.result)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxOp::PedersenCommitment &lhs, const BlackBoxOp::PedersenCommitment &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.domain_separator == rhs.domain_separator)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::PedersenCommitment::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::PedersenCommitment>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::PedersenCommitment BlackBoxOp::PedersenCommitment::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::PedersenCommitment>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::PedersenCommitment>::serialize(const Program::BlackBoxOp::PedersenCommitment &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.domain_separator)>::serialize(obj.domain_separator, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::PedersenCommitment serde::Deserializable<Program::BlackBoxOp::PedersenCommitment>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::PedersenCommitment obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.domain_separator = serde::Deserializable<decltype(obj.domain_separator)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const BlackBoxOp::PedersenHash &lhs, const BlackBoxOp::PedersenHash &rhs) {
-        if (!(lhs.inputs == rhs.inputs)) { return false; }
-        if (!(lhs.domain_separator == rhs.domain_separator)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BlackBoxOp::PedersenHash::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BlackBoxOp::PedersenHash>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BlackBoxOp::PedersenHash BlackBoxOp::PedersenHash::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BlackBoxOp::PedersenHash>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::BlackBoxOp::PedersenHash>::serialize(const Program::BlackBoxOp::PedersenHash &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
-    serde::Serializable<decltype(obj.domain_separator)>::serialize(obj.domain_separator, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::BlackBoxOp::PedersenHash serde::Deserializable<Program::BlackBoxOp::PedersenHash>::deserialize(Deserializer &deserializer) {
-    Program::BlackBoxOp::PedersenHash obj;
-    obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
-    obj.domain_separator = serde::Deserializable<decltype(obj.domain_separator)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
 
@@ -4333,7 +3899,9 @@ namespace Program {
     inline bool operator==(const BlackBoxOp::ToRadix &lhs, const BlackBoxOp::ToRadix &rhs) {
         if (!(lhs.input == rhs.input)) { return false; }
         if (!(lhs.radix == rhs.radix)) { return false; }
-        if (!(lhs.output == rhs.output)) { return false; }
+        if (!(lhs.output_pointer == rhs.output_pointer)) { return false; }
+        if (!(lhs.num_limbs == rhs.num_limbs)) { return false; }
+        if (!(lhs.output_bits == rhs.output_bits)) { return false; }
         return true;
     }
 
@@ -4359,7 +3927,9 @@ template <typename Serializer>
 void serde::Serializable<Program::BlackBoxOp::ToRadix>::serialize(const Program::BlackBoxOp::ToRadix &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
     serde::Serializable<decltype(obj.radix)>::serialize(obj.radix, serializer);
-    serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+    serde::Serializable<decltype(obj.output_pointer)>::serialize(obj.output_pointer, serializer);
+    serde::Serializable<decltype(obj.num_limbs)>::serialize(obj.num_limbs, serializer);
+    serde::Serializable<decltype(obj.output_bits)>::serialize(obj.output_bits, serializer);
 }
 
 template <>
@@ -4368,7 +3938,9 @@ Program::BlackBoxOp::ToRadix serde::Deserializable<Program::BlackBoxOp::ToRadix>
     Program::BlackBoxOp::ToRadix obj;
     obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
     obj.radix = serde::Deserializable<decltype(obj.radix)>::deserialize(deserializer);
-    obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    obj.output_pointer = serde::Deserializable<decltype(obj.output_pointer)>::deserialize(deserializer);
+    obj.num_limbs = serde::Deserializable<decltype(obj.num_limbs)>::deserialize(deserializer);
+    obj.output_bits = serde::Deserializable<decltype(obj.output_bits)>::deserialize(deserializer);
     return obj;
 }
 
@@ -4494,6 +4066,7 @@ Program::BlockType::Memory serde::Deserializable<Program::BlockType::Memory>::de
 namespace Program {
 
     inline bool operator==(const BlockType::CallData &lhs, const BlockType::CallData &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
         return true;
     }
 
@@ -4517,12 +4090,14 @@ namespace Program {
 template <>
 template <typename Serializer>
 void serde::Serializable<Program::BlockType::CallData>::serialize(const Program::BlockType::CallData &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
 }
 
 template <>
 template <typename Deserializer>
 Program::BlockType::CallData serde::Deserializable<Program::BlockType::CallData>::deserialize(Deserializer &deserializer) {
     Program::BlockType::CallData obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 
@@ -4900,6 +4475,50 @@ Program::BrilligOpcode::BinaryIntOp serde::Deserializable<Program::BrilligOpcode
 
 namespace Program {
 
+    inline bool operator==(const BrilligOpcode::Not &lhs, const BrilligOpcode::Not &rhs) {
+        if (!(lhs.destination == rhs.destination)) { return false; }
+        if (!(lhs.source == rhs.source)) { return false; }
+        if (!(lhs.bit_size == rhs.bit_size)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BrilligOpcode::Not::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BrilligOpcode::Not>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BrilligOpcode::Not BrilligOpcode::Not::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BrilligOpcode::Not>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BrilligOpcode::Not>::serialize(const Program::BrilligOpcode::Not &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.destination)>::serialize(obj.destination, serializer);
+    serde::Serializable<decltype(obj.source)>::serialize(obj.source, serializer);
+    serde::Serializable<decltype(obj.bit_size)>::serialize(obj.bit_size, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BrilligOpcode::Not serde::Deserializable<Program::BrilligOpcode::Not>::deserialize(Deserializer &deserializer) {
+    Program::BrilligOpcode::Not obj;
+    obj.destination = serde::Deserializable<decltype(obj.destination)>::deserialize(deserializer);
+    obj.source = serde::Deserializable<decltype(obj.source)>::deserialize(deserializer);
+    obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
     inline bool operator==(const BrilligOpcode::Cast &lhs, const BrilligOpcode::Cast &rhs) {
         if (!(lhs.destination == rhs.destination)) { return false; }
         if (!(lhs.source == rhs.source)) { return false; }
@@ -5066,8 +4685,8 @@ namespace Program {
 
     inline bool operator==(const BrilligOpcode::CalldataCopy &lhs, const BrilligOpcode::CalldataCopy &rhs) {
         if (!(lhs.destination_address == rhs.destination_address)) { return false; }
-        if (!(lhs.size == rhs.size)) { return false; }
-        if (!(lhs.offset == rhs.offset)) { return false; }
+        if (!(lhs.size_address == rhs.size_address)) { return false; }
+        if (!(lhs.offset_address == rhs.offset_address)) { return false; }
         return true;
     }
 
@@ -5092,8 +4711,8 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Program::BrilligOpcode::CalldataCopy>::serialize(const Program::BrilligOpcode::CalldataCopy &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.destination_address)>::serialize(obj.destination_address, serializer);
-    serde::Serializable<decltype(obj.size)>::serialize(obj.size, serializer);
-    serde::Serializable<decltype(obj.offset)>::serialize(obj.offset, serializer);
+    serde::Serializable<decltype(obj.size_address)>::serialize(obj.size_address, serializer);
+    serde::Serializable<decltype(obj.offset_address)>::serialize(obj.offset_address, serializer);
 }
 
 template <>
@@ -5101,8 +4720,8 @@ template <typename Deserializer>
 Program::BrilligOpcode::CalldataCopy serde::Deserializable<Program::BrilligOpcode::CalldataCopy>::deserialize(Deserializer &deserializer) {
     Program::BrilligOpcode::CalldataCopy obj;
     obj.destination_address = serde::Deserializable<decltype(obj.destination_address)>::deserialize(deserializer);
-    obj.size = serde::Deserializable<decltype(obj.size)>::deserialize(deserializer);
-    obj.offset = serde::Deserializable<decltype(obj.offset)>::deserialize(deserializer);
+    obj.size_address = serde::Deserializable<decltype(obj.size_address)>::deserialize(deserializer);
+    obj.offset_address = serde::Deserializable<decltype(obj.offset_address)>::deserialize(deserializer);
     return obj;
 }
 
@@ -5183,6 +4802,50 @@ template <typename Deserializer>
 Program::BrilligOpcode::Const serde::Deserializable<Program::BrilligOpcode::Const>::deserialize(Deserializer &deserializer) {
     Program::BrilligOpcode::Const obj;
     obj.destination = serde::Deserializable<decltype(obj.destination)>::deserialize(deserializer);
+    obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const BrilligOpcode::IndirectConst &lhs, const BrilligOpcode::IndirectConst &rhs) {
+        if (!(lhs.destination_pointer == rhs.destination_pointer)) { return false; }
+        if (!(lhs.bit_size == rhs.bit_size)) { return false; }
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> BrilligOpcode::IndirectConst::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<BrilligOpcode::IndirectConst>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline BrilligOpcode::IndirectConst BrilligOpcode::IndirectConst::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<BrilligOpcode::IndirectConst>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::BrilligOpcode::IndirectConst>::serialize(const Program::BrilligOpcode::IndirectConst &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.destination_pointer)>::serialize(obj.destination_pointer, serializer);
+    serde::Serializable<decltype(obj.bit_size)>::serialize(obj.bit_size, serializer);
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::BrilligOpcode::IndirectConst serde::Deserializable<Program::BrilligOpcode::IndirectConst>::deserialize(Deserializer &deserializer) {
+    Program::BrilligOpcode::IndirectConst obj;
+    obj.destination_pointer = serde::Deserializable<decltype(obj.destination_pointer)>::deserialize(deserializer);
     obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
@@ -5522,8 +5185,7 @@ Program::BrilligOpcode::Trap serde::Deserializable<Program::BrilligOpcode::Trap>
 namespace Program {
 
     inline bool operator==(const BrilligOpcode::Stop &lhs, const BrilligOpcode::Stop &rhs) {
-        if (!(lhs.return_data_offset == rhs.return_data_offset)) { return false; }
-        if (!(lhs.return_data_size == rhs.return_data_size)) { return false; }
+        if (!(lhs.return_data == rhs.return_data)) { return false; }
         return true;
     }
 
@@ -5547,16 +5209,14 @@ namespace Program {
 template <>
 template <typename Serializer>
 void serde::Serializable<Program::BrilligOpcode::Stop>::serialize(const Program::BrilligOpcode::Stop &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.return_data_offset)>::serialize(obj.return_data_offset, serializer);
-    serde::Serializable<decltype(obj.return_data_size)>::serialize(obj.return_data_size, serializer);
+    serde::Serializable<decltype(obj.return_data)>::serialize(obj.return_data, serializer);
 }
 
 template <>
 template <typename Deserializer>
 Program::BrilligOpcode::Stop serde::Deserializable<Program::BrilligOpcode::Stop>::deserialize(Deserializer &deserializer) {
     Program::BrilligOpcode::Stop obj;
-    obj.return_data_offset = serde::Deserializable<decltype(obj.return_data_offset)>::deserialize(deserializer);
-    obj.return_data_size = serde::Deserializable<decltype(obj.return_data_size)>::deserialize(deserializer);
+    obj.return_data = serde::Deserializable<decltype(obj.return_data)>::deserialize(deserializer);
     return obj;
 }
 
@@ -5688,7 +5348,6 @@ namespace Program {
         if (!(lhs.public_parameters == rhs.public_parameters)) { return false; }
         if (!(lhs.return_values == rhs.return_values)) { return false; }
         if (!(lhs.assert_messages == rhs.assert_messages)) { return false; }
-        if (!(lhs.recursive == rhs.recursive)) { return false; }
         return true;
     }
 
@@ -5720,7 +5379,6 @@ void serde::Serializable<Program::Circuit>::serialize(const Program::Circuit &ob
     serde::Serializable<decltype(obj.public_parameters)>::serialize(obj.public_parameters, serializer);
     serde::Serializable<decltype(obj.return_values)>::serialize(obj.return_values, serializer);
     serde::Serializable<decltype(obj.assert_messages)>::serialize(obj.assert_messages, serializer);
-    serde::Serializable<decltype(obj.recursive)>::serialize(obj.recursive, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -5736,7 +5394,6 @@ Program::Circuit serde::Deserializable<Program::Circuit>::deserialize(Deserializ
     obj.public_parameters = serde::Deserializable<decltype(obj.public_parameters)>::deserialize(deserializer);
     obj.return_values = serde::Deserializable<decltype(obj.return_values)>::deserialize(deserializer);
     obj.assert_messages = serde::Deserializable<decltype(obj.assert_messages)>::deserialize(deserializer);
-    obj.recursive = serde::Deserializable<decltype(obj.recursive)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
 }
@@ -5856,92 +5513,6 @@ template <typename Deserializer>
 Program::ConstantOrWitnessEnum::Witness serde::Deserializable<Program::ConstantOrWitnessEnum::Witness>::deserialize(Deserializer &deserializer) {
     Program::ConstantOrWitnessEnum::Witness obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const Directive &lhs, const Directive &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> Directive::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Directive>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Directive Directive::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Directive>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::Directive>::serialize(const Program::Directive &obj, Serializer &serializer) {
-    serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-    serializer.decrease_container_depth();
-}
-
-template <>
-template <typename Deserializer>
-Program::Directive serde::Deserializable<Program::Directive>::deserialize(Deserializer &deserializer) {
-    deserializer.increase_container_depth();
-    Program::Directive obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const Directive::ToLeRadix &lhs, const Directive::ToLeRadix &rhs) {
-        if (!(lhs.a == rhs.a)) { return false; }
-        if (!(lhs.b == rhs.b)) { return false; }
-        if (!(lhs.radix == rhs.radix)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> Directive::ToLeRadix::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Directive::ToLeRadix>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Directive::ToLeRadix Directive::ToLeRadix::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Directive::ToLeRadix>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::Directive::ToLeRadix>::serialize(const Program::Directive::ToLeRadix &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.a)>::serialize(obj.a, serializer);
-    serde::Serializable<decltype(obj.b)>::serialize(obj.b, serializer);
-    serde::Serializable<decltype(obj.radix)>::serialize(obj.radix, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::Directive::ToLeRadix serde::Deserializable<Program::Directive::ToLeRadix>::deserialize(Deserializer &deserializer) {
-    Program::Directive::ToLeRadix obj;
-    obj.a = serde::Deserializable<decltype(obj.a)>::deserialize(deserializer);
-    obj.b = serde::Deserializable<decltype(obj.b)>::deserialize(deserializer);
-    obj.radix = serde::Deserializable<decltype(obj.radix)>::deserialize(deserializer);
     return obj;
 }
 
@@ -6522,6 +6093,258 @@ Program::HeapVector serde::Deserializable<Program::HeapVector>::deserialize(Dese
 
 namespace Program {
 
+    inline bool operator==(const IntegerBitSize &lhs, const IntegerBitSize &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize IntegerBitSize::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize>::serialize(const Program::IntegerBitSize &obj, Serializer &serializer) {
+    serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+    serializer.decrease_container_depth();
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize serde::Deserializable<Program::IntegerBitSize>::deserialize(Deserializer &deserializer) {
+    deserializer.increase_container_depth();
+    Program::IntegerBitSize obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U1 &lhs, const IntegerBitSize::U1 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U1::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U1>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U1 IntegerBitSize::U1::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U1>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U1>::serialize(const Program::IntegerBitSize::U1 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U1 serde::Deserializable<Program::IntegerBitSize::U1>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U1 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U8 &lhs, const IntegerBitSize::U8 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U8::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U8>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U8 IntegerBitSize::U8::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U8>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U8>::serialize(const Program::IntegerBitSize::U8 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U8 serde::Deserializable<Program::IntegerBitSize::U8>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U8 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U16 &lhs, const IntegerBitSize::U16 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U16::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U16>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U16 IntegerBitSize::U16::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U16>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U16>::serialize(const Program::IntegerBitSize::U16 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U16 serde::Deserializable<Program::IntegerBitSize::U16>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U16 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U32 &lhs, const IntegerBitSize::U32 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U32::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U32>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U32 IntegerBitSize::U32::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U32>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U32>::serialize(const Program::IntegerBitSize::U32 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U32 serde::Deserializable<Program::IntegerBitSize::U32>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U32 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U64 &lhs, const IntegerBitSize::U64 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U64::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U64>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U64 IntegerBitSize::U64::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U64>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U64>::serialize(const Program::IntegerBitSize::U64 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U64 serde::Deserializable<Program::IntegerBitSize::U64>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U64 obj;
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const IntegerBitSize::U128 &lhs, const IntegerBitSize::U128 &rhs) {
+        return true;
+    }
+
+    inline std::vector<uint8_t> IntegerBitSize::U128::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<IntegerBitSize::U128>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline IntegerBitSize::U128 IntegerBitSize::U128::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<IntegerBitSize::U128>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::IntegerBitSize::U128>::serialize(const Program::IntegerBitSize::U128 &obj, Serializer &serializer) {
+}
+
+template <>
+template <typename Deserializer>
+Program::IntegerBitSize::U128 serde::Deserializable<Program::IntegerBitSize::U128>::deserialize(Deserializer &deserializer) {
+    Program::IntegerBitSize::U128 obj;
+    return obj;
+}
+
+namespace Program {
+
     inline bool operator==(const MemOp &lhs, const MemOp &rhs) {
         if (!(lhs.operation == rhs.operation)) { return false; }
         if (!(lhs.index == rhs.index)) { return false; }
@@ -6607,6 +6430,82 @@ Program::MemoryAddress serde::Deserializable<Program::MemoryAddress>::deserializ
     Program::MemoryAddress obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const MemoryAddress::Direct &lhs, const MemoryAddress::Direct &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> MemoryAddress::Direct::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<MemoryAddress::Direct>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline MemoryAddress::Direct MemoryAddress::Direct::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<MemoryAddress::Direct>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::MemoryAddress::Direct>::serialize(const Program::MemoryAddress::Direct &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::MemoryAddress::Direct serde::Deserializable<Program::MemoryAddress::Direct>::deserialize(Deserializer &deserializer) {
+    Program::MemoryAddress::Direct obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Program {
+
+    inline bool operator==(const MemoryAddress::Relative &lhs, const MemoryAddress::Relative &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> MemoryAddress::Relative::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<MemoryAddress::Relative>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline MemoryAddress::Relative MemoryAddress::Relative::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<MemoryAddress::Relative>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw serde::deserialization_error("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Program
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Program::MemoryAddress::Relative>::serialize(const Program::MemoryAddress::Relative &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Program::MemoryAddress::Relative serde::Deserializable<Program::MemoryAddress::Relative>::deserialize(Deserializer &deserializer) {
+    Program::MemoryAddress::Relative obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 
@@ -6724,44 +6623,6 @@ template <>
 template <typename Deserializer>
 Program::Opcode::BlackBoxFuncCall serde::Deserializable<Program::Opcode::BlackBoxFuncCall>::deserialize(Deserializer &deserializer) {
     Program::Opcode::BlackBoxFuncCall obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Program {
-
-    inline bool operator==(const Opcode::Directive &lhs, const Opcode::Directive &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> Opcode::Directive::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<Opcode::Directive>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline Opcode::Directive Opcode::Directive::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<Opcode::Directive>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw serde::deserialization_error("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Program
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Program::Opcode::Directive>::serialize(const Program::Opcode::Directive &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Program::Opcode::Directive serde::Deserializable<Program::Opcode::Directive>::deserialize(Deserializer &deserializer) {
-    Program::Opcode::Directive obj;
     obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }

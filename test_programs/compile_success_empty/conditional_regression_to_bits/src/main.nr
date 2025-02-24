@@ -1,11 +1,11 @@
 fn main() {
-    //Regression for to_le_bits() constant evaluation 
+    //Regression for to_le_bits() constant evaluation
     // binary array representation of u8 1
     let arr: [u8; 2] = [1, 2];
     let as_bits_hardcode_1 = [1, 0];
     let mut c1 = 0;
     for i in 0..2 {
-        let mut as_bits = (arr[i] as Field).to_le_bits(2);
+        let mut as_bits: [u1; 2] = (arr[i] as Field).to_le_bits();
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {
@@ -23,4 +23,3 @@ fn main() {
     }
     assert(c1 == 1);
 }
-

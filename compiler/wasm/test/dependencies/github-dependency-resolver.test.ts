@@ -124,6 +124,8 @@ describe('GithubDependencyResolver', () => {
     { git: 'https://github.com/', tag: 'v1' },
     { git: 'https://github.com/foo', tag: 'v1' },
     { git: 'https://example.com', tag: 'v1' },
+    { git: 'https://github.com.otherdomain.com', tag: 'v1' },
+    { git: 'https://github.com.otherdomain.com/example/repo', tag: 'v1' },
   ]).it('throws if the Github URL is invalid %j', (dep) => {
     expect(() => resolveGithubCodeArchive(dep, 'zip')).to.throw();
   });

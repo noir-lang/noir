@@ -31,11 +31,26 @@ pub async fn execute_circuit(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessMap, Error> {
+    let pedantic_solving = false;
+    execute_circuit_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+}
+
+/// `execute_circuit` with pedantic ACVM solving
+async fn execute_circuit_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsWitnessMap, Error> {
     console_error_panic_hook::set_once();
 
-    let mut witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
-            .await?;
+    let mut witness_stack = execute_program_with_native_type_return(
+        program,
+        initial_witness,
+        &foreign_call_handler,
+        pedantic_solving,
+    )
+    .await?;
     let witness_map =
         witness_stack.pop().expect("Should have at least one witness on the stack").witness;
     Ok(witness_map.into())
@@ -54,15 +69,33 @@ pub async fn execute_circuit_with_return_witness(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsSolvedAndReturnWitness, Error> {
+    let pedantic_solving = false;
+    execute_circuit_with_return_witness_pedantic(
+        program,
+        initial_witness,
+        foreign_call_handler,
+        pedantic_solving,
+    )
+    .await
+}
+
+/// `executeCircuitWithReturnWitness` with pedantic ACVM execution
+async fn execute_circuit_with_return_witness_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsSolvedAndReturnWitness, Error> {
     console_error_panic_hook::set_once();
 
     let program: Program<FieldElement> = Program::deserialize_program(&program)
-    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None))?;
+    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None, None))?;
 
     let mut witness_stack = execute_program_with_native_program_and_return(
         &program,
         initial_witness,
         &foreign_call_handler,
+        pedantic_solving,
     )
     .await?;
     let solved_witness =
@@ -71,7 +104,7 @@ pub async fn execute_circuit_with_return_witness(
     let main_circuit = &program.functions[0];
     let return_witness =
         extract_indices(&solved_witness, main_circuit.return_values.0.iter().copied().collect())
-            .map_err(|err| JsExecutionError::new(err, None, None))?;
+            .map_err(|err| JsExecutionError::new(err, None, None, None))?;
 
     Ok((solved_witness, return_witness).into())
 }
@@ -88,11 +121,26 @@ pub async fn execute_program(
     initial_witness: JsWitnessMap,
     foreign_call_handler: ForeignCallHandler,
 ) -> Result<JsWitnessStack, Error> {
+    let pedantic_solving = false;
+    execute_program_pedantic(program, initial_witness, foreign_call_handler, pedantic_solving).await
+}
+
+/// `execute_program` with pedantic ACVM solving
+async fn execute_program_pedantic(
+    program: Vec<u8>,
+    initial_witness: JsWitnessMap,
+    foreign_call_handler: ForeignCallHandler,
+    pedantic_solving: bool,
+) -> Result<JsWitnessStack, Error> {
     console_error_panic_hook::set_once();
 
-    let witness_stack =
-        execute_program_with_native_type_return(program, initial_witness, &foreign_call_handler)
-            .await?;
+    let witness_stack = execute_program_with_native_type_return(
+        program,
+        initial_witness,
+        &foreign_call_handler,
+        pedantic_solving,
+    )
+    .await?;
 
     Ok(witness_stack.into())
 }
@@ -101,23 +149,31 @@ async fn execute_program_with_native_type_return(
     program: Vec<u8>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, Error> {
     let program: Program<FieldElement> = Program::deserialize_program(&program)
     .map_err(|_| JsExecutionError::new(
         "Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), 
         None,
-        None))?;
+        None,
+    None))?;
 
-    execute_program_with_native_program_and_return(&program, initial_witness, foreign_call_executor)
-        .await
+    execute_program_with_native_program_and_return(
+        &program,
+        initial_witness,
+        foreign_call_executor,
+        pedantic_solving,
+    )
+    .await
 }
 
 async fn execute_program_with_native_program_and_return(
     program: &Program<FieldElement>,
     initial_witness: JsWitnessMap,
     foreign_call_executor: &ForeignCallHandler,
+    pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, Error> {
-    let blackbox_solver = Bn254BlackBoxSolver;
+    let blackbox_solver = Bn254BlackBoxSolver(pedantic_solving);
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,
@@ -200,11 +256,23 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 opcode_location: ErrorLocation::Resolved(opcode_location),
                                 ..
                             } => Some(vec![*opcode_location]),
+                            OpcodeResolutionError::InvalidInputBitSize {
+                                opcode_location: ErrorLocation::Resolved(opcode_location),
+                                ..
+                            } => Some(vec![*opcode_location]),
                             OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } => {
                                 Some(call_stack.clone())
                             }
                             _ => None,
                         };
+
+                        let brillig_function_id = match &error {
+                            OpcodeResolutionError::BrilligFunctionFailed {
+                                function_id, ..
+                            } => Some(*function_id),
+                            _ => None,
+                        };
+
                         // If the failed opcode has an assertion message, integrate it into the error message for backwards compatibility.
                         // Otherwise, pass the raw assertion payload as is.
                         let (message, raw_assertion_payload) = match error {
@@ -230,6 +298,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                             message,
                             call_stack,
                             raw_assertion_payload,
+                            brillig_function_id,
                         )
                         .into());
                     }
@@ -240,7 +309,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                         acvm.resolve_pending_foreign_call(result);
                     }
                     ACVMStatus::RequiresAcirCall(call_info) => {
-                        let acir_to_call = &self.functions[call_info.id as usize];
+                        let acir_to_call = &self.functions[call_info.id.as_usize()];
                         let initial_witness = call_info.initial_witness;
                         let call_solved_witness = self
                             .execute_circuit(acir_to_call, initial_witness, witness_stack)
@@ -253,11 +322,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 call_resolved_outputs.push(*return_value);
                             } else {
                                 // TODO: look at changing this call stack from None
-                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None, None).into());
+                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None, None, None).into());
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);
-                        witness_stack.push(call_info.id, call_solved_witness.clone());
+                        witness_stack.push(call_info.id.0, call_solved_witness.clone());
                     }
                 }
             }

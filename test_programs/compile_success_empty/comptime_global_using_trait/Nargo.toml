@@ -1,0 +1,7 @@
+[package]
+name = "comptime_global_using_trait"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

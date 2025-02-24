@@ -1,5 +1,5 @@
 // Regression that a global of the same name does not trigger a duplicate definition error
-global N = 1000;
+global N: u32 = 1000;
 
 fn main() {
     let a = id([1, 2]);
@@ -28,7 +28,7 @@ fn main() {
 }
 
 // Used in the signature of a function
-fn id<let I: Field>(x: [Field; I]) -> [Field; I] {
+fn id<let I: u32>(x: [Field; I]) -> [Field; I] {
     x
 }
 
@@ -48,7 +48,7 @@ impl<let S: u32> MyStruct<S> {
     }
 }
 
-fn foo(mut s: MyStruct<2+1>) -> MyStruct<10/2-2> {
+fn foo(mut s: MyStruct<2 + 1>) -> MyStruct<10 / 2 - 2> {
     s.data[0] = s.data[0] + 1;
     s
 }
@@ -85,10 +85,13 @@ trait Deserialize<let N: u32> {
     fn deserialize(fields: [Field; N]) -> Self;
 }
 
-struct PublicStorage {}
+pub struct PublicStorage {}
 
 impl PublicStorage {
-    fn read<T, let N: u32>() -> T where T: Deserialize<N> {
+    fn read<T, let N: u32>() -> T
+    where
+        T: Deserialize<N>,
+    {
         // Used as a type within a function body
         let mut fields: [Field; N] = [0; N];
         // Used a loop bound
@@ -102,10 +105,10 @@ impl PublicStorage {
 // Check that we can thread numeric generics into nested structs
 // and also that we can handle nested structs with numeric generics
 // which are declared after the parent struct
-struct NestedNumeric<let N: u32> {
+pub struct NestedNumeric<let N: u32> {
     a: Field,
-    b: InnerNumeric<N>
+    b: InnerNumeric<N>,
 }
-struct InnerNumeric<let N: u32> {
+pub struct InnerNumeric<let N: u32> {
     inner: [u32; N],
 }

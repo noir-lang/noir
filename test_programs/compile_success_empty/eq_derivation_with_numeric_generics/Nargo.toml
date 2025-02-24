@@ -1,0 +1,6 @@
+[package]
+name = "eq_derivation_with_numeric_generics"
+type = "bin"
+authors = [""]
+
+[dependencies]

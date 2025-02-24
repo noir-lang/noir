@@ -4,7 +4,7 @@ use noirc_errors::Location;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::types::Type;
 
-use crate::node_interner::{DefinitionKind, Node, NodeInterner};
+use crate::node_interner::{DefinitionId, DefinitionKind, Node, NodeInterner};
 
 impl NodeInterner {
     /// Scans the interner for the item which is located at that [Location]
@@ -29,6 +29,12 @@ impl NodeInterner {
             }
         }
         location_candidate.map(|(index, _location)| *index)
+    }
+
+    /// Returns the Type of the expression that exists at the given location.
+    pub fn type_at_location(&self, location: Location) -> Option<Type> {
+        let index = self.find_location_index(location)?;
+        Some(self.id_type(index))
     }
 
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
@@ -87,7 +93,7 @@ impl NodeInterner {
 
     fn get_type_location_from_index(&self, index: impl Into<Index>) -> Option<Location> {
         match self.id_type(index.into()) {
-            Type::Struct(struct_type, _) => Some(struct_type.borrow().location),
+            Type::DataType(struct_type, _) => Some(struct_type.borrow().location),
             _ => None,
         }
     }
@@ -102,14 +108,18 @@ impl NodeInterner {
     ) -> Option<Location> {
         match expression {
             HirExpression::Ident(ident, _) => {
-                let definition_info = self.definition(ident.id);
-                match definition_info.kind {
-                    DefinitionKind::Function(func_id) => {
-                        Some(self.function_meta(&func_id).location)
+                if ident.id != DefinitionId::dummy_id() {
+                    let definition_info = self.definition(ident.id);
+                    match definition_info.kind {
+                        DefinitionKind::Function(func_id) => {
+                            Some(self.function_meta(&func_id).location)
+                        }
+                        DefinitionKind::Local(_local_id) => Some(definition_info.location),
+                        DefinitionKind::Global(_global_id) => Some(definition_info.location),
+                        _ => None,
                     }
-                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
-                    DefinitionKind::Global(_global_id) => Some(definition_info.location),
-                    _ => None,
+                } else {
+                    None
                 }
             }
             HirExpression::Constructor(expr) => {
@@ -140,12 +150,12 @@ impl NodeInterner {
         let expr_rhs = &expr_member_access.rhs;
 
         let lhs_self_struct = match self.id_type(expr_lhs) {
-            Type::Struct(struct_type, _) => struct_type,
+            Type::DataType(struct_type, _) => struct_type,
             _ => return None,
         };
 
         let struct_type = lhs_self_struct.borrow();
-        let field_names = struct_type.field_names();
+        let field_names = struct_type.field_names()?;
 
         field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
             Location::new(found_field_name.span(), struct_type.location.file)
@@ -207,7 +217,7 @@ impl NodeInterner {
             .iter()
             .find(|(_typ, type_ref_location)| type_ref_location.contains(&location))
             .and_then(|(typ, _)| match typ {
-                Type::Struct(struct_typ, _) => Some(struct_typ.borrow().location),
+                Type::DataType(struct_typ, _) => Some(struct_typ.borrow().location),
                 _ => None,
             })
     }

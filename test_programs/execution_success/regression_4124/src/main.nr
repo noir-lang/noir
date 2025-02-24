@@ -11,7 +11,7 @@ impl MyDeserialize<1> for Field {
 }
 
 pub fn storage_read<let N: u32>() -> [Field; N] {
-    std::unsafe::zeroed()
+    std::mem::zeroed()
 }
 
 struct PublicMutable<T> {
@@ -24,7 +24,10 @@ impl<T> PublicMutable<T> {
         PublicMutable { storage_slot }
     }
 
-    pub fn read<T_SERIALIZED_LEN>(_self: Self) -> T where T: MyDeserialize<T_SERIALIZED_LEN> {
+    pub fn read<let T_SERIALIZED_LEN: u32>(_self: Self) -> T
+    where
+        T: MyDeserialize<T_SERIALIZED_LEN>,
+    {
         // storage_read returns slice here
         let fields: [Field; T_SERIALIZED_LEN] = storage_read();
         T::deserialize(fields)

@@ -2,7 +2,7 @@ struct MyStruct {
     x: u32,
     y: u32,
     z: u32,
-    nested_struct: InnerStruct
+    nested_struct: InnerStruct,
 }
 
 struct InnerStruct {
@@ -69,4 +69,3 @@ fn map_fields(mut input: ParentStruct) -> ParentStruct {
 
     input
 }
-

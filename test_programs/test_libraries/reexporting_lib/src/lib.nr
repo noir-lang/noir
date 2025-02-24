@@ -1,3 +1,3 @@
-use exporting_lib::{MyStruct, FooStruct};
+pub use exporting_lib::{MyStruct, FooStruct};
 
-use exporting_lib as lib;
+pub use exporting_lib as lib;

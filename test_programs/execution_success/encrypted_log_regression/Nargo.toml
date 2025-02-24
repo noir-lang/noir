@@ -1,0 +1,7 @@
+[package]
+name = "encrypted_log_regression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]

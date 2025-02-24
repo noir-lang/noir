@@ -1,11 +1,14 @@
 // Tests a very simple program.
-// 
+//
 // The features being tested is brillig calls with conditionals
 fn main(x: [u32; 3]) {
-    assert(entry_point(x[0]) == 7);
-    assert(entry_point(x[1]) == 8);
-    assert(entry_point(x[2]) == 9);
-    assert(entry_point(42) == 0);
+    // Safety: testing context
+    unsafe {
+        assert(entry_point(x[0]) == 7);
+        assert(entry_point(x[1]) == 8);
+        assert(entry_point(x[2]) == 9);
+        assert(entry_point(42) == 0);
+    }
 }
 
 unconstrained fn inner_1() -> u32 {
@@ -33,4 +36,3 @@ unconstrained fn entry_point(x: u32) -> u32 {
 
     result
 }
-

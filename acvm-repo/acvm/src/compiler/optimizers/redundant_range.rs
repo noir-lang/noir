@@ -1,6 +1,6 @@
 use acir::{
     circuit::{
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
         Circuit, Opcode,
     },
     native_types::Witness,
@@ -73,10 +73,13 @@ impl<F: AcirField> RangeOptimizer<F> {
                     }
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input:
-                        FunctionInput { input: ConstantOrWitnessEnum::Witness(witness), num_bits },
-                }) => Some((*witness, *num_bits)),
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
+                        Some((witness, input.num_bits()))
+                    } else {
+                        None
+                    }
+                }
 
                 _ => None,
             }) else {
@@ -106,17 +109,28 @@ impl<F: AcirField> RangeOptimizer<F> {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = match opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input:
-                        FunctionInput { input: ConstantOrWitnessEnum::Witness(w), num_bits: bits },
-                }) => (w, bits),
-                _ => {
-                    // If its not the range opcode, add it to the opcode
-                    // list and continue;
+            let (witness, num_bits) = {
+                // If its not the range opcode, add it to the opcode
+                // list and continue;
+                let mut push_non_range_opcode = || {
                     optimized_opcodes.push(opcode.clone());
                     new_order_list.push(order_list[idx]);
-                    continue;
+                };
+
+                match opcode {
+                    Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                        match input.input() {
+                            ConstantOrWitnessEnum::Witness(witness) => (witness, input.num_bits()),
+                            _ => {
+                                push_non_range_opcode();
+                                continue;
+                            }
+                        }
+                    }
+                    _ => {
+                        push_non_range_opcode();
+                        continue;
+                    }
                 }
             };
             // If we've already applied the range constraint for this witness then skip this opcode.
@@ -177,7 +191,6 @@ mod tests {
             public_parameters: PublicInputs::default(),
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
-            recursive: false,
         }
     }
 

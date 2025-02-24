@@ -7,23 +7,7 @@ use crate::BlackBoxResolutionError;
 ///
 /// Returns an [`BlackBoxResolutionError`] if the backend does not support the given [`acir::BlackBoxFunc`].
 pub trait BlackBoxFunctionSolver<F> {
-    fn schnorr_verify(
-        &self,
-        public_key_x: &F,
-        public_key_y: &F,
-        signature: &[u8; 64],
-        message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError>;
-    fn pedersen_commitment(
-        &self,
-        inputs: &[F],
-        domain_separator: u32,
-    ) -> Result<(F, F), BlackBoxResolutionError>;
-    fn pedersen_hash(
-        &self,
-        inputs: &[F],
-        domain_separator: u32,
-    ) -> Result<F, BlackBoxResolutionError>;
+    fn pedantic_solving(&self) -> bool;
     fn multi_scalar_mul(
         &self,
         points: &[F],
@@ -46,7 +30,16 @@ pub trait BlackBoxFunctionSolver<F> {
     ) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 
-pub struct StubbedBlackBoxSolver;
+// pedantic_solving: bool
+pub struct StubbedBlackBoxSolver(pub bool);
+
+// pedantic_solving enabled by default
+impl Default for StubbedBlackBoxSolver {
+    fn default() -> StubbedBlackBoxSolver {
+        let pedantic_solving = true;
+        StubbedBlackBoxSolver(pedantic_solving)
+    }
+}
 
 impl StubbedBlackBoxSolver {
     fn fail(black_box_function: BlackBoxFunc) -> BlackBoxResolutionError {
@@ -58,30 +51,9 @@ impl StubbedBlackBoxSolver {
 }
 
 impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
-    fn schnorr_verify(
-        &self,
-        _public_key_x: &F,
-        _public_key_y: &F,
-        _signature: &[u8; 64],
-        _message: &[u8],
-    ) -> Result<bool, BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::SchnorrVerify))
+    fn pedantic_solving(&self) -> bool {
+        self.0
     }
-    fn pedersen_commitment(
-        &self,
-        _inputs: &[F],
-        _domain_separator: u32,
-    ) -> Result<(F, F), BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::PedersenCommitment))
-    }
-    fn pedersen_hash(
-        &self,
-        _inputs: &[F],
-        _domain_separator: u32,
-    ) -> Result<F, BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::PedersenHash))
-    }
-
     fn multi_scalar_mul(
         &self,
         _points: &[F],

@@ -1,8 +1,11 @@
 use acvm::{acir::brillig::MemoryAddress, AcirField};
 
-use super::{debug_show::DebugToString, instructions::BrilligBinaryOp, BrilligContext};
+use super::{
+    debug_show::DebugToString, instructions::BrilligBinaryOp, registers::RegisterAllocator,
+    BrilligContext, ReservedRegisters,
+};
 
-impl<F: AcirField + DebugToString> BrilligContext<F> {
+impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Utility method to perform a binary instruction with a constant value in place
     pub(crate) fn codegen_usize_op_in_place(
         &mut self,
@@ -21,9 +24,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F> {
         op: BrilligBinaryOp,
         constant: usize,
     ) {
-        let const_register = self.make_usize_constant_instruction(F::from(constant));
-        self.memory_op_instruction(operand, const_register.address, destination, op);
-        // Mark as no longer used for this purpose, frees for reuse
-        self.deallocate_single_addr(const_register);
+        if constant == 1 {
+            self.memory_op_instruction(operand, ReservedRegisters::usize_one(), destination, op);
+        } else {
+            let const_register = self.make_usize_constant_instruction(F::from(constant));
+            self.memory_op_instruction(operand, const_register.address, destination, op);
+            // Mark as no longer used for this purpose, frees for reuse
+            self.deallocate_single_addr(const_register);
+        }
     }
 }

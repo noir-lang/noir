@@ -1,47 +1,120 @@
 #![cfg(test)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 
+use fm::{FileId, FileManager};
+use noirc_arena::Index;
 use noirc_errors::Location;
 
 use super::errors::InterpreterError;
-use super::interpreter::Interpreter;
 use super::value::Value;
-use crate::graph::CrateId;
-use crate::hir::type_check::test::type_check_src_code;
+use super::Interpreter;
+use crate::elaborator::{Elaborator, ElaboratorOptions};
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
+use crate::hir::def_collector::dc_mod::collect_defs;
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
+use crate::hir::{Context, ParsedFiles};
+use crate::node_interner::FuncId;
+use crate::parse_program;
 
-fn interpret_helper(src: &str, func_namespace: Vec<String>) -> Result<Value, InterpreterError> {
-    let (mut interner, main_id) = type_check_src_code(src, func_namespace);
-    let mut scopes = vec![HashMap::default()];
-    let no_debug_evaluate_comptime = None;
-    let mut interpreter_errors = vec![];
-    let mut interpreter = Interpreter::new(
-        &mut interner,
-        &mut scopes,
-        CrateId::Root(0),
-        no_debug_evaluate_comptime,
-        &mut interpreter_errors,
+/// Create an interpreter for a code snippet and pass it to a test function.
+///
+/// The stdlib is not made available as a dependency.
+pub(crate) fn with_interpreter<T>(
+    src: &str,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+) -> T {
+    let file = FileId::default();
+
+    // Can't use Index::test_new here for some reason, even with #[cfg(test)].
+    let module_id = LocalModuleId(Index::unsafe_zeroed());
+    let mut modules = noirc_arena::Arena::default();
+    let location = Location::new(Default::default(), file);
+    let root = LocalModuleId(modules.insert(ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // is contract
+        false, // is struct
+    )));
+    assert_eq!(root, module_id);
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    let (module, errors) = parse_program(src, file);
+    assert_eq!(errors.len(), 0);
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap { root: module_id, modules, krate, extern_prelude: BTreeMap::new() };
+    let mut collector = DefCollector::new(def_map);
+
+    collect_defs(&mut collector, ast, FileId::dummy(), module_id, krate, &mut context);
+    context.def_maps.insert(krate, collector.def_map);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    let mut elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
     );
 
-    let no_location = Location::dummy();
-    interpreter.call_function(main_id, Vec::new(), HashMap::new(), no_location)
+    let errors = elaborator.errors.clone();
+
+    let mut interpreter = elaborator.setup_interpreter();
+
+    f(&mut interpreter, main, &errors)
 }
 
-fn interpret(src: &str, func_namespace: Vec<String>) -> Value {
-    interpret_helper(src, func_namespace).unwrap_or_else(|error| {
+/// Evaluate a code snippet by calling the `main` function.
+fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
+    with_interpreter(src, |interpreter, main, errors| {
+        assert_eq!(errors.len(), 0);
+        let no_location = Location::dummy();
+        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+    })
+}
+
+fn interpret(src: &str) -> Value {
+    interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str, func_namespace: Vec<String>) -> InterpreterError {
-    interpret_helper(src, func_namespace).expect_err("Expected interpreter to error")
+fn interpret_expect_error(src: &str) -> InterpreterError {
+    interpret_helper(src).expect_err("Expected interpreter to error")
 }
 
 #[test]
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::Field(3u128.into()));
+}
+
+#[test]
+fn interpreter_type_checking_works() {
+    let program = "comptime fn main() -> pub u8 { 3 }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(3u8));
+}
+
+#[test]
+fn let_statement_works() {
+    let program = "comptime fn main() -> pub i8 {
+        let x = 4;
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::I8(4));
 }
 
 #[test]
@@ -51,7 +124,7 @@ fn mutation_works() {
         x = 4;
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I8(4));
 }
 
@@ -62,7 +135,7 @@ fn mutating_references() {
         *x = 4;
         *x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I32(4));
 }
 
@@ -73,8 +146,20 @@ fn mutating_mutable_references() {
         *x = 4;
         *x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::I64(4));
+}
+
+#[test]
+fn mutation_leaks() {
+    let program = "comptime fn main() -> pub i8 {
+        let mut x = 3;
+        let y = &mut x;
+        *y = 5;
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::I8(5));
 }
 
 #[test]
@@ -84,7 +169,7 @@ fn mutating_arrays() {
         a1[1] = 22;
         a1[1]
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(22));
 }
 
@@ -98,7 +183,7 @@ fn mutate_in_new_scope() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(2));
 }
 
@@ -111,8 +196,21 @@ fn for_loop() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U8(15));
+}
+
+#[test]
+fn for_loop_inclusive() {
+    let program = "comptime fn main() -> pub u8 {
+        let mut x = 0;
+        for i in 0 ..= 6 {
+            x += i;
+        }
+        x
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(21));
 }
 
 #[test]
@@ -124,7 +222,7 @@ fn for_loop_u16() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U16(15));
 }
 
@@ -140,7 +238,7 @@ fn for_loop_with_break() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U32(6));
 }
 
@@ -156,7 +254,7 @@ fn for_loop_with_continue() {
         }
         x
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U64(11));
 }
 
@@ -165,7 +263,7 @@ fn assert() {
     let program = "comptime fn main() {
         assert(1 == 1);
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::Unit);
 }
 
@@ -174,7 +272,7 @@ fn assert_fail() {
     let program = "comptime fn main() {
         assert(1 == 2);
     }";
-    let result = interpret_expect_error(program, vec!["main".into()]);
+    let result = interpret_expect_error(program);
     assert!(matches!(result, InterpreterError::FailingConstraint { .. }));
 }
 
@@ -184,7 +282,7 @@ fn lambda() {
         let f = |x: u8| x + 1;
         f(1)
     }";
-    let result = interpret(program, vec!["main".into()]);
+    let result = interpret(program);
     assert!(matches!(result, Value::U8(2)));
 }
 
@@ -202,21 +300,21 @@ fn non_deterministic_recursion() {
             fib(x - 1) + fib(x - 2)
         }
     }";
-    let result = interpret(program, vec!["main".into(), "fib".into()]);
+    let result = interpret(program);
     assert_eq!(result, Value::U64(55));
 }
 
 #[test]
 fn generic_functions() {
     let program = "
-    fn main() -> pub u8 {
+    comptime fn main() -> pub u8 {
         apply(1, |x| x + 1)
     }
 
-    fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
+    comptime fn apply<T, Env, U>(x: T, f: fn[Env](T) -> U) -> U {
         f(x)
     }
     ";
-    let result = interpret(program, vec!["main".into(), "apply".into()]);
-    assert!(matches!(result, Value::U8(2)));
+    let result = interpret(program);
+    assert_eq!(result, Value::U8(2));
 }

@@ -5,19 +5,20 @@
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
+use acvm::compiler::MIN_EXPRESSION_WIDTH;
 use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
-use noirc_errors::{CustomDiagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, FileDiagnostic};
+use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::SsaProgramArtifact;
+use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
-use noirc_frontend::graph::{CrateId, CrateName};
+use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
-use noirc_frontend::macros_api::MacroProcessor;
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -36,6 +37,7 @@ use debug::filter_relevant_files;
 
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
+pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
 
 const STD_CRATE_NAME: &str = "std";
@@ -52,17 +54,38 @@ pub const NOIR_ARTIFACT_VERSION_STRING: &str =
 
 #[derive(Args, Clone, Debug, Default)]
 pub struct CompileOptions {
-    /// Override the expression width requested by the backend.
-    #[arg(long, value_parser = parse_expression_width, default_value = "4")]
-    pub expression_width: ExpressionWidth,
+    /// Specify the backend expression width that should be targeted
+    #[arg(long, value_parser = parse_expression_width)]
+    pub expression_width: Option<ExpressionWidth>,
+
+    /// Generate ACIR with the target backend expression width.
+    /// The default is to generate ACIR without a bound and split expressions after code generation.
+    /// Activating this flag can sometimes provide optimizations for certain programs.
+    #[arg(long, default_value = "false")]
+    pub bounded_codegen: bool,
 
     /// Force a full recompilation.
     #[arg(long = "force")]
     pub force_compile: bool,
 
-    /// Emit debug information for the intermediate SSA IR
+    /// Emit debug information for the intermediate SSA IR to stdout
     #[arg(long, hide = true)]
     pub show_ssa: bool,
+
+    /// Only show SSA passes whose name contains the provided string.
+    /// This setting takes precedence over `show_ssa` if it's not empty.
+    #[arg(long, hide = true)]
+    pub show_ssa_pass: Option<String>,
+
+    /// Only show the SSA and ACIR for the contract function with a given name.
+    #[arg(long, hide = true)]
+    pub show_contract_fn: Option<String>,
+
+    /// Emit the unoptimized SSA IR to file.
+    /// The IR will be dumped into the workspace target directory,
+    /// under `[compiled-package].ssa.json`.
+    #[arg(long, hide = true)]
+    pub emit_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -83,10 +106,6 @@ pub struct CompileOptions {
     #[arg(long, conflicts_with = "deny_warnings")]
     pub silence_warnings: bool,
 
-    /// Disables the builtin Aztec macros being used in the compiler
-    #[arg(long, hide = true)]
-    pub disable_macros: bool,
-
     /// Outputs the monomorphized IR to stdout for debugging
     #[arg(long, hide = true)]
     pub show_monomorphized: bool,
@@ -99,10 +118,6 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub force_brillig: bool,
 
-    /// Use the deprecated name resolution & type checking passes instead of the elaborator
-    #[arg(long, hide = true)]
-    pub use_legacy: bool,
-
     /// Enable printing results of comptime evaluation: provide a path suffix
     /// for the module to debug, e.g. "package_name/src/main.nr"
     #[arg(long)]
@@ -111,9 +126,64 @@ pub struct CompileOptions {
     /// Outputs the paths to any modified artifacts
     #[arg(long, hide = true)]
     pub show_artifact_paths: bool,
+
+    /// Flag to turn off the compiler check for under constrained values.
+    /// Warning: This can improve compilation speed but can also lead to correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub skip_underconstrained_check: bool,
+
+    /// Flag to turn on the compiler check for missing Brillig call constraints.
+    /// Warning: This can degrade compilation speed but will also find some correctness errors.
+    /// This check should always be run on production code.
+    #[arg(long)]
+    pub enable_brillig_constraints_check: bool,
+
+    /// Flag to turn on extra Brillig bytecode to be generated to guard against invalid states in testing.
+    #[arg(long, hide = true)]
+    pub enable_brillig_debug_assertions: bool,
+
+    /// Hidden Brillig call check flag to maintain CI compatibility (currently ignored)
+    #[arg(long, hide = true)]
+    pub skip_brillig_constraints_check: bool,
+
+    /// Flag to turn on the lookback feature of the Brillig call constraints
+    /// check, allowing tracking argument values before the call happens preventing
+    /// certain rare false positives (leads to a slowdown on large rollout functions)
+    #[arg(long)]
+    pub enable_brillig_constraints_check_lookback: bool,
+
+    /// Setting to decide on an inlining strategy for Brillig functions.
+    /// A more aggressive inliner should generate larger programs but more optimized
+    /// A less aggressive inliner should generate smaller programs
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
+    pub inliner_aggressiveness: i64,
+
+    /// Setting the maximum acceptable increase in Brillig bytecode size due to
+    /// unrolling small loops. When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions.
+    /// A higher value results in fewer jumps but a larger program.
+    /// A lower value keeps the original program if it was smaller, even if it has more jumps.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Use pedantic ACVM solving, i.e. double-check some black-box function
+    /// assumptions when solving.
+    /// This is disabled by default.
+    #[arg(long, default_value = "false")]
+    pub pedantic_solving: bool,
+
+    /// Used internally to test for non-determinism in the compiler.
+    #[clap(long, hide = true)]
+    pub check_non_determinism: bool,
+
+    /// Unstable features to enable for this current build
+    #[arg(value_parser = clap::value_parser!(UnstableFeature))]
+    #[clap(long, short = 'Z', value_delimiter = ',')]
+    pub unstable_features: Vec<UnstableFeature>,
 }
 
-fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
+pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input
         .parse::<usize>()
@@ -121,7 +191,21 @@ fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error
 
     match width {
         0 => Ok(ExpressionWidth::Unbounded),
-        _ => Ok(ExpressionWidth::Bounded { width }),
+        w if w >= MIN_EXPRESSION_WIDTH => Ok(ExpressionWidth::Bounded { width }),
+        _ => Err(Error::new(
+            ErrorKind::InvalidInput,
+            format!("has to be 0 or at least {MIN_EXPRESSION_WIDTH}"),
+        )),
+    }
+}
+
+impl CompileOptions {
+    pub fn frontend_options(&self) -> FrontendOptions {
+        FrontendOptions {
+            debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
+            pedantic_solving: self.pedantic_solving,
+            enabled_unstable_features: &self.unstable_features,
+        }
     }
 }
 
@@ -198,23 +282,25 @@ fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
 ///
-/// Note: This methods adds the stdlib as a dependency to the crate.
-/// This assumes that the stdlib has already been added to the file manager.
+/// Note: If the stdlib dependency has not been added yet, it's added. Otherwise
+/// this method assumes the root crate is the stdlib (useful for running tests
+/// in the stdlib, getting LSP stuff for the stdlib, etc.).
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context
-        .file_manager
-        .name_to_id(path_to_std_lib_file)
-        .expect("stdlib file id is expected to be present");
-    let std_crate_id = context.crate_graph.add_stdlib(std_file_id);
+    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
+    let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
     let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
-    let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
+    if let Some(std_crate_id) = std_crate_id {
+        let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
-    add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
+        add_dep(context, root_crate_id, std_crate_id, STD_CRATE_NAME.parse().unwrap());
 
-    root_crate_id
+        root_crate_id
+    } else {
+        context.crate_graph.add_crate_root_and_stdlib(root_file_id)
+    }
 }
 
 pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
@@ -256,30 +342,38 @@ pub fn add_dep(
 ///
 /// This returns a (possibly empty) vector of any warnings found on success.
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-#[tracing::instrument(level = "trace", skip(context))]
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
-    deny_warnings: bool,
-    disable_macros: bool,
-    use_legacy: bool,
-    debug_comptime_in_file: Option<&str>,
+    options: &CompileOptions,
 ) -> CompilationResult<()> {
-    let macros: &[&dyn MacroProcessor] =
-        if disable_macros { &[] } else { &[&aztec_macros::AztecMacro as &dyn MacroProcessor] };
+    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
+    let crate_files = context.crate_files(&crate_id);
+    let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
+        .into_iter()
+        .map(|(error, file_id)| {
+            let diagnostic = CustomDiagnostic::from(&error);
+            diagnostic.in_file(file_id)
+        })
+        .filter(|diagnostic| {
+            // We filter out any warnings if they're going to be ignored later on to free up memory.
+            !options.silence_warnings || diagnostic.diagnostic.kind != DiagnosticKind::Warning
+        })
+        .filter(|error| {
+            // Only keep warnings from the crate we are checking
+            if error.diagnostic.is_warning() {
+                crate_files.contains(&error.file_id)
+            } else {
+                true
+            }
+        })
+        .collect();
 
-    let mut errors = vec![];
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, use_legacy, debug_comptime_in_file, macros);
-    errors.extend(diagnostics.into_iter().map(|(error, file_id)| {
-        let diagnostic = CustomDiagnostic::from(&error);
-        diagnostic.in_file(file_id)
-    }));
-
-    if has_errors(&errors, deny_warnings) {
-        Err(errors)
+    if has_errors(&warnings_and_errors, options.deny_warnings) {
+        Err(warnings_and_errors)
     } else {
-        Ok(((), errors))
+        Ok(((), warnings_and_errors))
     }
 }
 
@@ -296,20 +390,15 @@ pub fn compute_function_abi(
 ///
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
+///
+/// See [compile_no_check] for further information about the use of `cached_program`.
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(
-        context,
-        crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.use_legacy,
-        options.debug_comptime_in_file.as_deref(),
-    )?;
+    let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -344,14 +433,7 @@ pub fn compile_contract(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (_, warnings) = check_crate(
-        context,
-        crate_id,
-        options.deny_warnings,
-        options.disable_macros,
-        options.use_legacy,
-        options.debug_comptime_in_file.as_deref(),
-    )?;
+    let (_, warnings) = check_crate(context, crate_id, options)?;
 
     // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
@@ -386,6 +468,11 @@ pub fn compile_contract(
 
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
+                if let Some(ref name) = options.show_contract_fn {
+                    if name != &contract_function.name {
+                        continue;
+                    }
+                }
                 println!(
                     "Compiled ACIR for {}::{} (unoptimized):",
                     compiled_contract.name, contract_function.name
@@ -430,7 +517,15 @@ fn compile_contract_inner(
             continue;
         }
 
-        let function = match compile_no_check(context, options, function_id, None, true) {
+        let mut options = options.clone();
+
+        if let Some(ref name_filter) = options.show_contract_fn {
+            let show = name == *name_filter;
+            options.show_ssa &= show;
+            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
+        };
+
+        let function = match compile_no_check(context, &options, function_id, None, true) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(FileDiagnostic::from(new_error));
@@ -444,10 +539,11 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(
-                |attr| if let SecondaryAttribute::Custom(tag) = attr { Some(tag) } else { None },
-            )
-            .cloned()
+            .filter_map(|attr| match attr {
+                SecondaryAttribute::Tag(attribute) => Some(attribute.contents.clone()),
+                SecondaryAttribute::Meta(attribute) => Some(attribute.to_string()),
+                _ => None,
+            })
             .collect();
 
         functions.push(ContractFunction {
@@ -458,6 +554,7 @@ fn compile_contract_inner(
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
             names: function.names,
+            brillig_names: function.brillig_names,
         });
     }
 
@@ -474,11 +571,12 @@ fn compile_contract_inner(
                 let structs = structs
                     .into_iter()
                     .map(|struct_id| {
-                        let typ = context.def_interner.get_struct(struct_id);
+                        let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
-                        let fields = vecmap(typ.get_fields(&[]), |(name, typ)| {
-                            (name, abi_type_from_hir_type(context, &typ))
-                        });
+                        let fields =
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                                (name, abi_type_from_hir_type(context, &typ))
+                            });
                         let path =
                             context.fully_qualified_struct_path(context.root_crate_id(), typ.id);
                         AbiType::Struct { path, fields }
@@ -520,9 +618,24 @@ fn compile_contract_inner(
     }
 }
 
+/// Default expression width used for Noir compilation.
+/// The ACVM native type `ExpressionWidth` has its own default which should always be unbounded,
+/// while we can sometimes expect the compilation target width to change.
+/// Thus, we set it separately here rather than trying to alter the default derivation of the type.
+pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded { width: 4 };
+
 /// Compile the current crate using `main_function` as the entrypoint.
 ///
 /// This function assumes [`check_crate`] is called beforehand.
+///
+/// If the program is not returned from cache, it is backend-agnostic and must go through a transformation
+/// pass before usage in proof generation; if it's returned from cache these transformations might have
+/// already been applied.
+///
+/// The transformations are _not_ covered by the check that decides whether we can use the cached artifact.
+/// That comparison is based on on [CompiledProgram::hash] which is a persisted version of the hash of the input
+/// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acir::circuit::Program]
+/// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 pub fn compile_no_check(
     context: &mut Context,
@@ -531,36 +644,74 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let force_unconstrained = options.force_brillig;
+
     let program = if options.instrument_debug {
-        monomorphize_debug(main_function, &mut context.def_interner, &context.debug_instrumenter)?
+        monomorphize_debug(
+            main_function,
+            &mut context.def_interner,
+            &context.debug_instrumenter,
+            force_unconstrained,
+        )?
     } else {
-        monomorphize(main_function, &mut context.def_interner)?
+        monomorphize(main_function, &mut context.def_interner, force_unconstrained)?
     };
 
-    let hash = fxhash::hash64(&program);
-    let hashes_match = cached_program.as_ref().map_or(false, |program| program.hash == hash);
     if options.show_monomorphized {
         println!("{program}");
     }
 
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
-    let force_compile =
-        force_compile || options.print_acir || options.show_brillig || options.show_ssa;
+    let force_compile = force_compile
+        || options.print_acir
+        || options.show_brillig
+        || options.force_brillig
+        || options.show_ssa
+        || options.emit_ssa;
 
-    if !force_compile && hashes_match {
-        info!("Program matches existing artifact, returning early");
-        return Ok(cached_program.expect("cache must exist for hashes to match"));
+    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
+    let hash = fxhash::hash64(&program);
+
+    if let Some(cached_program) = cached_program {
+        if !force_compile && cached_program.hash == hash {
+            info!("Program matches existing artifact, returning early");
+            return Ok(cached_program);
+        }
     }
+
     let return_visibility = program.return_visibility;
     let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        enable_ssa_logging: options.show_ssa,
-        enable_brillig_logging: options.show_brillig,
-        force_brillig_output: options.force_brillig,
+        ssa_logging: match &options.show_ssa_pass {
+            Some(string) => SsaLogging::Contains(string.clone()),
+            None => {
+                if options.show_ssa {
+                    SsaLogging::All
+                } else {
+                    SsaLogging::None
+                }
+            }
+        },
+        brillig_options: BrilligOptions {
+            enable_debug_trace: options.show_brillig,
+            enable_debug_assertions: options.enable_brillig_debug_assertions,
+        },
         print_codegen_timings: options.benchmark_codegen,
+        expression_width: if options.bounded_codegen {
+            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+        } else {
+            ExpressionWidth::default()
+        },
+        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
+        skip_underconstrained_check: options.skip_underconstrained_check,
+        enable_brillig_constraints_check_lookback: options
+            .enable_brillig_constraints_check_lookback,
+        enable_brillig_constraints_check: options.enable_brillig_constraints_check,
+        inliner_aggressiveness: options.inliner_aggressiveness,
+        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
     };
 
-    let SsaProgramArtifact { program, debug, warnings, names, error_types, .. } =
+    let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         create_program(program, &ssa_evaluator_options)?;
 
     let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
@@ -575,5 +726,6 @@ pub fn compile_no_check(
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
         names,
+        brillig_names,
     })
 }

@@ -1,8 +1,11 @@
 use std::future::{self, Future};
 
+use crate::attribute_reference_finder::AttributeReferenceFinder;
+use crate::utils;
 use crate::{types::GotoDefinitionResult, LspState};
 use async_lsp::ResponseError;
 
+use fm::PathString;
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
 
@@ -29,16 +32,42 @@ fn on_goto_definition_inner(
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
+    let uri = params.text_document_position_params.text_document.uri.clone();
+    let position = params.text_document_position_params.position;
     process_request(state, params.text_document_position_params, |args| {
-        args.interner
-            .get_definition_location_from(args.location, return_type_location_instead)
-            .and_then(|found_location| {
-                let file_id = found_location.file;
-                let definition_position =
-                    to_lsp_location(args.files, file_id, found_location.span)?;
-                let response = GotoDefinitionResponse::from(definition_position).to_owned();
-                Some(response)
+        let path = PathString::from_path(uri.to_file_path().unwrap());
+        let reference_id = args.files.get_file_id(&path).and_then(|file_id| {
+            utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
+                let file = args.files.get_file(file_id).unwrap();
+                let source = file.source();
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+
+                let mut finder = AttributeReferenceFinder::new(
+                    file_id,
+                    byte_index,
+                    args.crate_id,
+                    args.def_maps,
+                );
+                finder.find(&parsed_module)
             })
+        });
+        let location = if let Some(reference_id) = reference_id {
+            Some(args.interner.reference_location(reference_id))
+        } else {
+            args.interner
+                .get_definition_location_from(args.location, return_type_location_instead)
+                .or_else(|| {
+                    args.interner
+                        .reference_at_location(args.location)
+                        .map(|reference| args.interner.reference_location(reference))
+                })
+        };
+        location.and_then(|found_location| {
+            let file_id = found_location.file;
+            let definition_position = to_lsp_location(args.files, file_id, found_location.span)?;
+            let response = GotoDefinitionResponse::from(definition_position).to_owned();
+            Some(response)
+        })
     })
 }
 
@@ -201,5 +230,61 @@ mod goto_definition_tests {
     #[test]
     async fn goto_for_local_variable() {
         expect_goto_for_all_references("local_variable", "some_var", 0).await;
+    }
+
+    #[test]
+    async fn goto_at_struct_definition_finds_same_struct() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 21, character: 7 }, // "Foo" in "struct Foo"
+            "src/main.nr",
+            Range {
+                start: Position { line: 21, character: 7 },
+                end: Position { line: 21, character: 10 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_at_trait_definition_finds_same_trait() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 25, character: 6 }, // "Trait" in "trait Trait"
+            "src/main.nr",
+            Range {
+                start: Position { line: 25, character: 6 },
+                end: Position { line: 25, character: 11 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_crate() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 29, character: 6 }, // "dependency" in "use dependency::something"
+            "dependency/src/lib.nr",
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+        )
+        .await;
+    }
+
+    #[test]
+    async fn goto_attribute_function() {
+        expect_goto(
+            "go_to_definition",
+            Position { line: 31, character: 3 }, // "attr"
+            "src/main.nr",
+            Range {
+                start: Position { line: 34, character: 12 },
+                end: Position { line: 34, character: 16 },
+            },
+        )
+        .await;
     }
 }

@@ -1,12 +1,15 @@
 // Tests a very simple Brillig function.
-// 
+//
 // The features being tested are cast operations on brillig
 fn main() {
-    bool_casts();
-    field_casts();
-    uint_casts();
-    int_casts();
-    mixed_casts();
+    // Safety: testing context
+    unsafe {
+        bool_casts();
+        field_casts();
+        uint_casts();
+        int_casts();
+        mixed_casts();
+    }
 }
 
 unconstrained fn bool_casts() {

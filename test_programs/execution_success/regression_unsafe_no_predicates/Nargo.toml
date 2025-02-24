@@ -1,0 +1,5 @@
+[package]
+name = "regression_unsafe_no_predicates"
+type = "bin"
+authors = [""]
+[dependencies]

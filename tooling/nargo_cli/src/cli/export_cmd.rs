@@ -10,13 +10,8 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{
-    compile_no_check, file_manager_with_stdlib, CompileOptions, CompiledProgram,
-    NOIR_ARTIFACT_VERSION_STRING,
-};
-
-use noirc_frontend::graph::CrateName;
+use nargo_toml::PackageSelection;
+use noirc_driver::{compile_no_check, CompileOptions, CompiledProgram};
 
 use clap::Args;
 
@@ -25,36 +20,31 @@ use crate::errors::CliError;
 use super::check_cmd::check_crate_and_report_errors;
 
 use super::fs::program::save_program_to_file;
-use super::NargoConfig;
+use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExportCommand {
-    /// The name of the package to compile
-    #[clap(long, conflicts_with = "workspace")]
-    package: Option<CrateName>,
-
-    /// Compile all packages in the workspace
-    #[clap(long, conflicts_with = "package")]
-    workspace: bool,
+    #[clap(flatten)]
+    pub(super) package_options: PackageOptions,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let default_selection =
-        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
-    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+impl WorkspaceCommand for ExportCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
 
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
+    fn lock_type(&self) -> LockType {
+        // Writes the exported functions.
+        LockType::Exclusive
+    }
+}
 
-    let mut workspace_file_manager = file_manager_with_stdlib(&workspace.root_dir);
+pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliError> {
+    let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
 
@@ -83,15 +73,7 @@ fn compile_exported_functions(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options.deny_warnings,
-        compile_options.disable_macros,
-        compile_options.silence_warnings,
-        compile_options.use_legacy,
-        compile_options.debug_comptime_in_file.as_deref(),
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 

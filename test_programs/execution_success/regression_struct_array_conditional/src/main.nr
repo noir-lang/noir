@@ -1,15 +1,15 @@
-struct foo { 
+struct foo {
     value: Field,
     counter: u8,
     dummy: u8,
 }
 struct bar {
-    dummy: [u8;3],
+    dummy: [u8; 3],
     value: Field,
     counter: u8,
 }
 struct bar_field {
-    dummy: [Field;3],
+    dummy: [Field; 3],
     value: Field,
     counter: u8,
 }

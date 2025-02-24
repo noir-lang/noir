@@ -17,8 +17,8 @@ KEYS=$(mktemp -d)
 # Codegen verifier contract for 1_mul
 mul_dir=$repo_root/test_programs/execution_success/1_mul
 nargo --program-dir $mul_dir compile
-$NARGO_BACKEND_PATH write_vk -b $mul_dir/target/1_mul.json -o $KEYS/1_mul 
-$NARGO_BACKEND_PATH contract -k $KEYS/1_mul -o $contracts_dir/1_mul.sol 
+$NARGO_BACKEND_PATH write_vk -b $mul_dir/target/1_mul.json -o $KEYS/1_mul
+$NARGO_BACKEND_PATH contract -k $KEYS/1_mul -o $contracts_dir/1_mul.sol
 
 # Codegen verifier contract for assert_statement
 assert_statement_dir=$repo_root/test_programs/execution_success/assert_statement

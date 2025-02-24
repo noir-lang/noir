@@ -7,7 +7,6 @@ use clap::Args;
 use noir_lsp::NargoLspService;
 use tower::ServiceBuilder;
 
-use super::NargoConfig;
 use crate::errors::CliError;
 
 /// Starts the Noir LSP server
@@ -18,14 +17,15 @@ use crate::errors::CliError;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LspCommand;
 
-pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliError> {
+pub(crate) fn run() -> Result<(), CliError> {
     use tokio::runtime::Builder;
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
 
     runtime.block_on(async {
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
-            let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
+            let pedantic_solving = true;
+            let router = NargoLspService::new(&client, Bn254BlackBoxSolver(pedantic_solving));
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
@@ -34,8 +34,6 @@ pub(crate) fn run(_args: LspCommand, _config: NargoConfig) -> Result<(), CliErro
                 .layer(ConcurrencyLayer::default())
                 .service(router)
         });
-
-        eprintln!("LSP starting...");
 
         // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
         #[cfg(unix)]

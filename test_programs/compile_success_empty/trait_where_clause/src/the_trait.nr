@@ -1,9 +1,10 @@
-trait Asd {
+pub trait Asd {
     fn asd(self) -> Field;
 }
 
-trait StaticTrait {
+pub trait StaticTrait {
     fn static_function(slf: Self) -> Field {
+        let _ = slf;
         100
     }
 }

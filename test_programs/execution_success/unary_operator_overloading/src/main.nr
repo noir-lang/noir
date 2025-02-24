@@ -14,7 +14,7 @@ fn main(x: u32) {
 }
 
 struct Wrapper {
-    inner: i32
+    inner: i32,
 }
 
 impl Wrapper {

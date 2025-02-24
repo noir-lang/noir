@@ -100,7 +100,10 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
+        let compile_options = CompileOptions {
+            expression_width: Some(expression_width),
+            ..CompileOptions::default()
+        };
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_program =
@@ -114,8 +117,14 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program =
-            nargo::ops::transform_program(compiled_program, compile_options.expression_width);
+        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+        nargo::ops::check_program(&optimized_program).map_err(|errs| {
+            CompileError::with_file_diagnostics(
+                "Compiled program is not solvable",
+                errs,
+                &self.context.file_manager,
+            )
+        })?;
         let warnings = optimized_program.warnings.clone();
 
         Ok(JsCompileProgramResult::new(optimized_program.into(), warnings))
@@ -130,7 +139,10 @@ impl CompilerContext {
         } else {
             ExpressionWidth::Bounded { width: 4 }
         };
-        let compile_options = CompileOptions { expression_width, ..CompileOptions::default() };
+        let compile_options = CompileOptions {
+            expression_width: Some(expression_width),
+            ..CompileOptions::default()
+        };
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
@@ -145,7 +157,7 @@ impl CompilerContext {
                 .0;
 
         let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, compile_options.expression_width);
+            nargo::ops::transform_contract(compiled_contract, expression_width);
         let warnings = optimized_contract.warnings.clone();
 
         Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))

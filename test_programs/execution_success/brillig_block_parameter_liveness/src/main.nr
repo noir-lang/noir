@@ -1,5 +1,4 @@
 // Tests that we run liveness in block parameters by trying to create too many block parameters to fit in the stack
-
 // Uses up 10 stack items
 struct Inner {
     a: u64,
@@ -38,11 +37,11 @@ struct Outer {
 // If we don't take into account block parameter liveness, this function will need 5*500=2500 stack items
 unconstrained fn main(conditions: [bool; 5]) -> pub Outer {
     let out0 = if conditions[0] {
-        let mut outer: Outer = std::unsafe::zeroed();
+        let mut outer: Outer = std::mem::zeroed();
         outer.middle_a.inner_a.a = 1;
         outer
     } else {
-        let mut outer: Outer= std::unsafe::zeroed();
+        let mut outer: Outer = std::mem::zeroed();
         outer.middle_f.inner_c.d = 2;
         outer
     };

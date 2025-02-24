@@ -1,6 +1,5 @@
 pub mod black_box_functions;
 pub mod brillig;
-pub mod directives;
 pub mod opcodes;
 
 use crate::native_types::{Expression, Witness};
@@ -26,7 +25,7 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 /// Bounded Expressions are useful if you are eventually going to pass the ACIR
 /// into a proving system which supports PLONK, where arithmetic expressions have a
 /// finite fan-in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub enum ExpressionWidth {
     #[default]
     Unbounded,
@@ -37,13 +36,13 @@ pub enum ExpressionWidth {
 
 /// A program represented by multiple ACIR circuits. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct Program<F> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct Circuit<F> {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     // will take on this value. (The value is cached here as an optimization.)
@@ -68,23 +67,18 @@ pub struct Circuit<F> {
     // c++ code at the moment when it is, due to OpcodeLocation needing a comparison
     // implementation which is never generated.
     pub assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
-
-    /// States whether the backend should use a SNARK recursion friendly prover.
-    /// If implemented by a backend, this means that proofs generated with this circuit
-    /// will be friendly for recursively verifying inside of another SNARK.
-    pub recursive: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum ExpressionOrMemory<F> {
     Expression(Expression<F>),
     Memory(BlockId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AssertionPayload<F> {
-    StaticString(String),
-    Dynamic(/* error_selector */ u64, Vec<ExpressionOrMemory<F>>),
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+pub struct AssertionPayload<F> {
+    pub error_selector: u64,
+    pub payload: Vec<ExpressionOrMemory<F>>,
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -103,7 +97,7 @@ impl ErrorSelector {
 impl Serialize for ErrorSelector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         self.0.to_string().serialize(serializer)
     }
@@ -112,19 +106,13 @@ impl Serialize for ErrorSelector {
 impl<'de> Deserialize<'de> for ErrorSelector {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let s: String = Deserialize::deserialize(deserializer)?;
         let as_u64 = s.parse().map_err(serde::de::Error::custom)?;
         Ok(ErrorSelector(as_u64))
     }
 }
-
-/// This selector indicates that the payload is a string.
-/// This is used to parse any error with a string payload directly,
-/// to avoid users having to parse the error externally to the ACVM.
-/// Only non-string errors need to be parsed externally to the ACVM using the circuit ABI.
-pub const STRING_ERROR_SELECTOR: ErrorSelector = ErrorSelector(0);
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct RawAssertionPayload<F> {
@@ -153,7 +141,26 @@ pub struct ResolvedOpcodeLocation {
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
     Acir(usize),
+    // TODO(https://github.com/noir-lang/noir/issues/5792): We can not get rid of this enum field entirely just yet as this format is still
+    // used for resolving assert messages which is a breaking serialization change.
     Brillig { acir_index: usize, brillig_index: usize },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BrilligOpcodeLocation(pub usize);
+
+impl OpcodeLocation {
+    // Utility method to allow easily comparing a resolved Brillig location and a debug Brillig location.
+    // This method is useful when fetching Brillig debug locations as this does not need an ACIR index,
+    // and just need the Brillig index.
+    pub fn to_brillig_location(self) -> Option<BrilligOpcodeLocation> {
+        match self {
+            OpcodeLocation::Brillig { brillig_index, .. } => {
+                Some(BrilligOpcodeLocation(brillig_index))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for OpcodeLocation {
@@ -204,6 +211,13 @@ impl FromStr for OpcodeLocation {
     }
 }
 
+impl std::fmt::Display for BrilligOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let index = self.0;
+        write!(f, "{index}")
+    }
+}
+
 impl<F> Circuit<F> {
     pub fn num_vars(&self) -> u32 {
         self.current_witness_index + 1
@@ -224,7 +238,7 @@ impl<F> Circuit<F> {
 }
 
 impl<F: Serialize> Program<F> {
-    fn write<W: std::io::Write>(&self, writer: W) -> std::io::Result<()> {
+    fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = bincode::serialize(self).unwrap();
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
@@ -250,7 +264,7 @@ impl<F: Serialize> Program<F> {
 }
 
 impl<F: for<'a> Deserialize<'a>> Program<F> {
-    fn read<R: std::io::Read>(reader: R) -> std::io::Result<Self> {
+    fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d)?;
@@ -258,6 +272,7 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
+    /// Deserialize bytecode.
     pub fn deserialize_program(serialized_circuit: &[u8]) -> std::io::Result<Self> {
         Program::read(serialized_circuit)
     }
@@ -267,7 +282,7 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
     where
         D: Deserializer<'de>,
     {
-        let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
+        let bytecode_b64: String = Deserialize::deserialize(deserializer)?;
         let program_bytes = base64::engine::general_purpose::STANDARD
             .decode(bytecode_b64)
             .map_err(D::Error::custom)?;
@@ -341,7 +356,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
 impl PublicInputs {
@@ -377,11 +392,13 @@ mod tests {
             output: Witness(3),
         })
     }
+
     fn range_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
             input: FunctionInput::witness(Witness(1), 8),
         })
     }
+
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
             Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
@@ -389,34 +406,17 @@ mod tests {
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
     }
-    fn schnorr_verify_opcode<F: AcirField>() -> Opcode<F> {
-        let public_key_x = FunctionInput::witness(Witness(1), FieldElement::max_num_bits());
-        let public_key_y = FunctionInput::witness(Witness(2), FieldElement::max_num_bits());
-        let signature: Box<[FunctionInput<F>; 64]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 3), 8)));
-        let message: Vec<FunctionInput<F>> = vec![FunctionInput::witness(Witness(67), 8)];
-        let output = Witness(68);
-
-        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::SchnorrVerify {
-            public_key_x,
-            public_key_y,
-            signature,
-            message,
-            output,
-        })
-    }
 
     #[test]
     fn serialization_roundtrip() {
         let circuit = Circuit {
             current_witness_index: 5,
             expression_width: ExpressionWidth::Unbounded,
-            opcodes: vec![and_opcode::<FieldElement>(), range_opcode(), schnorr_verify_opcode()],
+            opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(4), Witness(12)])),
             assert_messages: Default::default(),
-            recursive: false,
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 
@@ -446,13 +446,11 @@ mod tests {
                 range_opcode(),
                 and_opcode(),
                 keccakf1600_opcode(),
-                schnorr_verify_opcode(),
             ],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
             assert_messages: Default::default(),
-            recursive: false,
         };
         let program = Program { functions: vec![circuit], unconstrained_functions: Vec::new() };
 

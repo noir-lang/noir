@@ -16,7 +16,10 @@ fn check<let N: u32>(serialized_note: [Field; N]) {
     assert(serialized_note[0] == 0);
 }
 
-fn oopsie<Note, N>(note: Note) where Note: Serialize<N> {
+fn oopsie<Note, let N: u32>(note: Note)
+where
+    Note: Serialize<N>,
+{
     let serialized_note = Note::serialize(note);
 
     check(serialized_note)
