@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
                 return typ;
             }
 
-            if self.at_eof() || stop_tokens.iter().any(|token| token == &self.token) {
+            if self.at_eof() || stop_tokens.contains(self.token.token()) {
                 return typ;
             }
 
