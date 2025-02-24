@@ -2395,40 +2395,29 @@ impl Methods {
     ) -> bool {
         match interner.function_meta(&method).typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
-                if check_self_param {
-                    if let Some(object) = args.first() {
-                        if object.unify(typ).is_ok() {
-                            return true;
-                        }
-
-                        // Handle auto-dereferencing `&mut T` into `T`
-                        if let Type::MutableReference(object) = object {
-                            if object.unify(typ).is_ok() {
-                                return true;
-                            }
-                        }
-                    }
+                let target_type = if check_self_param {
+                    let Some(object) = args.first() else {
+                        return false;
+                    };
+                    object
                 } else {
-                    // We still need to make sure the method is for the given type
-                    // (this might be false if for example a method for `Struct<i32>` was added but
-                    // now we are looking for a method in `Struct<i64>`)
-                    if method_type.unify(typ).is_ok() {
-                        return true;
-                    }
+                    method_type
+                };
 
-                    // Handle auto-dereferencing `&mut T` into `T`
-                    if let Type::MutableReference(method_type) = method_type {
-                        if method_type.unify(typ).is_ok() {
-                            return true;
-                        }
-                    }
+                if target_type.unify(typ).is_ok() {
+                    return true;
                 }
+
+                // Handle auto-dereferencing `&mut T` into `T`
+                let Type::MutableReference(target_type) = target_type else {
+                    return false;
+                };
+
+                target_type.unify(typ).is_ok()
             }
-            Type::Error => (),
+            Type::Error => false,
             other => unreachable!("Expected function type, found {other}"),
         }
-
-        false
     }
 }
 
