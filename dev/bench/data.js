@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740414162323,
+  "lastUpdate": 1740414163628,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11602,70 +11602,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1dc6a8b04ae1da1b438e06a27ddb988e9a166ec5",
-          "message": "chore: redo typo PR by maximevtush (#7425)",
-          "timestamp": "2025-02-18T18:11:56Z",
-          "tree_id": "9f018264d0ff88f02bc77aad82534b8d93cc3812",
-          "url": "https://github.com/noir-lang/noir/commit/1dc6a8b04ae1da1b438e06a27ddb988e9a166ec5"
-        },
-        "date": 1739903808206,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.45,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14755,6 +14691,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e26e993d09beafec1dff81014f4b350cf4289656"
         },
         "date": 1740410378518,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 441.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.77,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6f79fd1c8617fc01e9138168c888018fe4492752",
+          "message": "feat(experimental): Support struct constructors in match patterns (#7489)",
+          "timestamp": "2025-02-24T15:58:15Z",
+          "tree_id": "951eebb4c1187b32a9a7b9dea80c567f92e6247c",
+          "url": "https://github.com/noir-lang/noir/commit/6f79fd1c8617fc01e9138168c888018fe4492752"
+        },
+        "date": 1740414160879,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
