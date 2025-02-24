@@ -358,11 +358,14 @@ impl Elaborator<'_> {
                         if let Some(existing) =
                             variables_defined.iter().find(|elem| *elem == &last_ident)
                         {
-                            let error = ResolverError::VariableAlreadyDefinedInPattern {
-                                existing: existing.clone(),
-                                new_span: last_ident.span(),
-                            };
-                            self.push_err(error, self.file);
+                            // Allow redefinition of `_` only, to ignore variables
+                            if last_ident.0.contents != "_" {
+                                let error = ResolverError::VariableAlreadyDefinedInPattern {
+                                    existing: existing.clone(),
+                                    new_span: last_ident.span(),
+                                };
+                                self.push_err(error, self.file);
+                            }
                         } else {
                             variables_defined.push(last_ident.clone());
                         }
@@ -444,14 +447,7 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = match constructor.struct_type {
-            Some(id) => {
-                let typ = self.interner.get_type(id);
-                let generics = typ.borrow().instantiate(self.interner);
-                Type::DataType(typ, generics)
-            }
-            None => self.resolve_type(constructor.typ),
-        };
+        let typ = self.resolve_type(constructor.typ);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
