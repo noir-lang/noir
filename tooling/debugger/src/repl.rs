@@ -243,6 +243,24 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         }
     }
 
+    fn add_breakpoint_at_line(&mut self, line_number: i64) {
+        let Some(current_file) = self.context.get_current_file() else {
+            println!("No current file.");
+            return;
+        };
+
+        let best_location =
+            self.context.find_opcode_for_source_location(&current_file, line_number);
+
+        match best_location {
+            Some(location) => {
+                println!("Added breakpoint at line {}", line_number);
+                self.add_breakpoint_at(location)
+            }
+            None => println!("No opcode at line {}", line_number),
+        }
+    }
+
     fn delete_breakpoint_at(&mut self, location: DebugLocation) {
         if self.context.delete_breakpoint(&location) {
             println!("Breakpoint at {location} deleted");
@@ -532,6 +550,16 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
                 "display ACIR opcodes",
                 () => || {
                     ref_context.borrow().display_opcodes();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "break",
+            command! {
+                "add a breakpoint at a line of the current file",
+                (line_number: i64) => |line_number| {
+                    ref_context.borrow_mut().add_breakpoint_at_line(line_number);
                     Ok(CommandStatus::Done)
                 }
             },
