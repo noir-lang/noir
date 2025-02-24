@@ -532,13 +532,9 @@ impl<'context> Elaborator<'context> {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
-                                self.push_err(ResolverError::BinaryOpError {
-                                    lhs,
-                                    op,
-                                    rhs,
-                                    err,
-                                    location,
-                                });
+                                let error =
+                                    ResolverError::BinaryOpError { lhs, op, rhs, err, location };
+                                self.push_err(error);
                                 Type::Error
                             }
                         }
