@@ -40,14 +40,14 @@ pub(crate) fn on_inlay_hint_request(
         args.files.get_file_id(&path).map(|file_id| {
             let file = args.files.get_file(file_id).unwrap();
             let source = file.source();
-            let (parsed_moduled, _errors) = noirc_frontend::parse_program(source);
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
             let span = utils::range_to_byte_span(args.files, file_id, &params.range)
                 .map(|range| Span::from(range.start as u32..range.end as u32));
 
             let mut collector =
                 InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            parsed_moduled.accept(&mut collector);
+            parsed_module.accept(&mut collector);
             collector.inlay_hints
         })
     });
@@ -191,7 +191,7 @@ impl<'a> InlayHintCollector<'a> {
 
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
-                    to_lsp_location(self.files, self.file_id, call_argument.span)
+                    to_lsp_location(self.files, self.file_id, call_argument.location.span)
                 else {
                     continue;
                 };
@@ -234,7 +234,7 @@ impl<'a> InlayHintCollector<'a> {
 
     fn collect_method_call_chain_hints(&mut self, method: &MethodCallExpression) {
         let Some(object_lsp_location) =
-            to_lsp_location(self.files, self.file_id, method.object.span)
+            to_lsp_location(self.files, self.file_id, method.object.location.span)
         else {
             return;
         };
@@ -249,7 +249,7 @@ impl<'a> InlayHintCollector<'a> {
             return;
         }
 
-        let object_location = Location::new(method.object.span, self.file_id);
+        let object_location = method.object.location;
         let Some(typ) = self.interner.type_at_location(object_location) else {
             return;
         };
@@ -322,12 +322,12 @@ impl<'a> InlayHintCollector<'a> {
 
 impl<'a> Visitor for InlayHintCollector<'a> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.intersects_span(item.span)
+        self.intersects_span(item.location.span)
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
         self.show_closing_brace_hint(span, || {
-            format!(" impl {} for {}", noir_trait_impl.trait_name, noir_trait_impl.object_type)
+            format!(" impl {} for {}", noir_trait_impl.r#trait, noir_trait_impl.object_type)
         });
 
         true
@@ -358,7 +358,7 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {
-        self.intersects_span(statement.span)
+        self.intersects_span(statement.location.span)
     }
 
     fn visit_let_statement(&mut self, let_statement: &LetStatement) -> bool {
@@ -378,13 +378,13 @@ impl<'a> Visitor for InlayHintCollector<'a> {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.intersects_span(expression.span)
+        self.intersects_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, _: Span) -> bool {
         self.collect_call_parameter_names(
             get_expression_name(&call_expression.func),
-            call_expression.func.span,
+            call_expression.func.location.span,
             &call_expression.arguments,
         );
 

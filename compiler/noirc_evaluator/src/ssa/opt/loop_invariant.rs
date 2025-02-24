@@ -228,7 +228,6 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
-            || matches!(instruction, Instruction::Binary(_))
             || self.can_be_deduplicated_from_loop_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
@@ -313,13 +312,6 @@ impl<'f> LoopInvariantContext<'f> {
         binary: &Binary,
         induction_vars: &HashMap<ValueId, (FieldElement, FieldElement)>,
     ) -> bool {
-        if !matches!(
-            binary.operator,
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } | BinaryOp::Sub { .. }
-        ) {
-            return false;
-        }
-
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
         let lhs_const = self.inserter.function.dfg.get_numeric_constant_with_type(binary.lhs);
@@ -330,7 +322,15 @@ impl<'f> LoopInvariantContext<'f> {
             induction_vars.get(&binary.lhs),
             induction_vars.get(&binary.rhs),
         ) {
-            (Some((lhs, _)), None, None, Some((_, upper_bound))) => (lhs, *upper_bound),
+            (Some((lhs, _)), None, None, Some((lower_bound, upper_bound))) => {
+                if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+                    // If we have a Div/Mod operation we want to make sure that the
+                    // lower bound is not zero.
+                    (lhs, *lower_bound)
+                } else {
+                    (lhs, *upper_bound)
+                }
+            }
             (None, Some((rhs, _)), Some((lower_bound, upper_bound)), None) => {
                 if matches!(binary.operator, BinaryOp::Sub { .. }) {
                     // If we are subtracting and the induction variable is on the lhs,
@@ -343,7 +343,8 @@ impl<'f> LoopInvariantContext<'f> {
             _ => return false,
         };
 
-        // We evaluate this expression using the upper bounds of its inputs to check whether it will ever overflow.
+        // We evaluate this expression using the upper bounds (or lower in the case of div/mod)
+        // of its inputs to check whether it will ever overflow.
         // If so, this will cause `eval_constant_binary_op` to return `None`.
         // Therefore a `Some` value shows that this operation is safe.
         eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some()
@@ -870,8 +871,6 @@ mod test {
           b2():
               return
           b3():
-              v6 = mul v0, v1
-              constrain v6 == u32 6
               v8 = sub v2, u32 1
               jmp b1(v8)
         }
@@ -883,21 +882,116 @@ mod test {
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-            v3 = mul v0, v1
             jmp b1(u32 1)
           b1(v2: u32):
-            v6 = lt v2, u32 4
-            jmpif v6 then: b3, else: b2
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == u32 6
-            v8 = unchecked_sub v2, u32 1
-            jmp b1(v8)
+            v6 = unchecked_sub v2, u32 1
+            jmp b1(v6)
         }
         ";
 
         let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn do_not_hoist_unsafe_div() {
+        // This test is similar to `nested_loop_invariant_code_motion`, the operation
+        // in question we are trying to hoist is `v9 = div i32 10, v0`.
+        // Check that the lower bound of the outer loop it checked and that we not
+        // hoist an operation that can potentially error with a division by zero.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 0)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_safe_div() {
+        // This test is identical to `do_not_hoist_unsafe_div`, except the loop
+        // in this test starts with a lower bound of `1`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v5 = lt v1, i32 4
+            jmpif v5 then: b6, else: b5
+          b5():
+            v7 = unchecked_add v0, i32 1
+            jmp b1(v7)
+          b6():
+            v9 = div i32 10, v0
+            constrain v9 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(i32 1)
+          b1(v0: i32):
+            v4 = lt v0, i32 4
+            jmpif v4 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v6 = div i32 10, v0
+            jmp b4(i32 0)
+          b4(v1: i32):
+            v8 = lt v1, i32 4
+            jmpif v8 then: b6, else: b5
+          b5():
+            v9 = unchecked_add v0, i32 1
+            jmp b1(v9)
+          b6():
+            constrain v6 == i32 6
+            v11 = unchecked_add v1, i32 1
+            jmp b4(v11)
+        }
+        ";
+
         assert_normalized_ssa_equals(ssa, expected);
     }
 }

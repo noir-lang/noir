@@ -395,7 +395,7 @@ pub type Generics = Vec<ResolvedGeneric>;
 pub struct ResolvedGeneric {
     pub name: Rc<String>,
     pub type_var: TypeVariable,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl ResolvedGeneric {
@@ -471,6 +471,10 @@ impl DataType {
 
     pub fn is_struct(&self) -> bool {
         matches!(&self.body, TypeBody::Struct(_))
+    }
+
+    pub fn is_enum(&self) -> bool {
+        matches!(&self.body, TypeBody::Enum(_))
     }
 
     /// Retrieve the fields of this type with no modifications.
@@ -555,6 +559,21 @@ impl DataType {
         }))
     }
 
+    /// Retrieve the given variant at the given variant index of this type.
+    /// Returns None if this is not an enum type or `variant_index` is out of bounds.
+    pub fn get_variant(
+        &self,
+        variant_index: usize,
+        generic_args: &[Type],
+    ) -> Option<(String, Vec<Type>)> {
+        let substitutions = self.get_fields_substitutions(generic_args);
+        let variant = self.variants_raw()?.get(variant_index)?;
+
+        let name = variant.name.to_string();
+        let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
+        Some((name, args))
+    }
+
     fn get_fields_substitutions(
         &self,
         generic_args: &[Type],
@@ -589,6 +608,15 @@ impl DataType {
     /// Returns None if this is not an enum type.
     pub fn get_variants_as_written(&self) -> Option<Vec<EnumVariant>> {
         Some(self.variants_raw()?.to_vec())
+    }
+
+    /// Returns the name and raw parameters of the variant at the given variant index.
+    /// This will not substitute any generic arguments so a generic variant like `X`
+    /// in `enum Foo<T> { X(T) }` will return a `("X", Vec<T>)` pair.
+    ///
+    /// Returns None if this is not an enum type or the given variant index is out of bounds.
+    pub fn get_variant_as_written(&self, variant_index: usize) -> Option<&EnumVariant> {
+        self.variants_raw()?.get(variant_index)
     }
 
     /// Returns the field at the given index. Panics if no field exists at the given index or this
@@ -2582,6 +2610,10 @@ impl Type {
                 }
                 Cow::Borrowed(self)
             }
+            Type::Alias(alias_def, generics) => {
+                let typ = alias_def.borrow().get_type(generics);
+                Cow::Owned(typ.follow_bindings_shallow().into_owned())
+            }
             other => Cow::Borrowed(other),
         }
     }
@@ -2692,7 +2724,8 @@ impl Type {
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
-                Some(((1u128 << max_bit_size) - 1).into())
+                let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
+                Some(max.into())
             }
             Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
@@ -2749,14 +2782,14 @@ fn convert_array_expression_to_slice(
     let argument = interner.expression(&expression);
     let argument = interner.push_expr(argument);
     interner.push_expr_type(argument, array_type.clone());
-    interner.push_expr_location(argument, location.span, location.file);
+    interner.push_expr_location(argument, location);
 
     let arguments = vec![argument];
     let is_macro_call = false;
     let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
     interner.replace_expr(&expression, call);
 
-    interner.push_expr_location(func, location.span, location.file);
+    interner.push_expr_location(func, location);
     interner.push_expr_type(expression, target_type.clone());
 
     let func_type =

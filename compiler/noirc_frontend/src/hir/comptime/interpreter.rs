@@ -42,7 +42,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{unwrap_rc, Value};
+use super::value::{unwrap_rc, Closure, Value};
 
 mod builtin;
 mod foreign;
@@ -67,9 +67,6 @@ pub struct Interpreter<'local, 'interner> {
 
     /// Stateful bigint calculator.
     bigint_solver: BigIntSolverWithId,
-
-    /// Use pedantic ACVM solving
-    pedantic_solving: bool,
 }
 
 #[allow(unused)]
@@ -78,8 +75,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         elaborator: &'local mut Elaborator<'interner>,
         crate_id: CrateId,
         current_function: Option<FuncId>,
-        pedantic_solving: bool,
     ) -> Self {
+        let pedantic_solving = elaborator.pedantic_solving();
         let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
@@ -88,7 +85,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             bound_generics: Vec::new(),
             in_loop: false,
             bigint_solver,
-            pedantic_solving,
         }
     }
 
@@ -264,7 +260,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn call_closure(
         &mut self,
-        closure: HirLambda,
+        lambda: HirLambda,
         environment: Vec<Value>,
         arguments: Vec<(Value, Location)>,
         function_scope: Option<FuncId>,
@@ -275,7 +271,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(module_scope);
         let old_function = std::mem::replace(&mut self.current_function, function_scope);
 
-        let result = self.call_closure_inner(closure, environment, arguments, call_location);
+        let result = self.call_closure_inner(lambda, environment, arguments, call_location);
 
         self.current_function = old_function;
         self.elaborator.replace_module(old_module);
@@ -535,6 +531,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
+            HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
@@ -673,7 +670,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 FmtStrFragment::String(string) => {
                     result.push_str(&string);
                 }
-                FmtStrFragment::Interpolation(_, span) => {
+                FmtStrFragment::Interpolation(..) => {
                     if let Some(value) = values.pop_front() {
                         // When interpolating a quoted value inside a format string, we don't include the
                         // surrounding `quote {` ... `}` as if we are unquoting the quoted value inside the string.
@@ -682,8 +679,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 if index > 0 {
                                     result.push(' ');
                                 }
-                                result
-                                    .push_str(&token.display(self.elaborator.interner).to_string());
+                                result.push_str(
+                                    &token.token().display(self.elaborator.interner).to_string(),
+                                );
                             }
                         } else {
                             result.push_str(&value.display(self.elaborator.interner).to_string());
@@ -714,6 +712,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
+            let value = if is_negative { -value } else { value };
             Ok(Value::Field(value))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
@@ -756,6 +755,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                     Ok(Value::U64(value))
                 }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    let value: u128 = value.try_into_u128().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
+                    let value = if is_negative { 0u128.wrapping_sub(value) } else { value };
+                    Ok(Value::U128(value))
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
@@ -790,6 +796,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         )?;
                     let value = if is_negative { -value } else { value };
                     Ok(Value::I64(value))
+                }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    todo!()
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
@@ -1359,9 +1368,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
                 Ok(result)
             }
-            Value::Closure(closure, env, _, function_scope, module_scope) => {
-                self.call_closure(closure, env, arguments, function_scope, module_scope, location)
-            }
+            Value::Closure(closure) => self.call_closure(
+                closure.lambda,
+                closure.env,
+                arguments,
+                closure.function_scope,
+                closure.module_scope,
+                location,
+            ),
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1395,7 +1409,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let method = self
             .elaborator
-            .lookup_method(&typ, method_name, location.span, true)
+            .lookup_method(&typ, method_name, location, true)
             .and_then(|method| method.func_id(self.elaborator.interner));
 
         if let Some(method) = method {
@@ -1488,6 +1502,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_u128, u64, U64)
                 }
+                (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                    cast_to_int!(lhs, to_u128, u128, U128)
+                }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     Err(InterpreterError::TypeUnsupported { typ: typ.clone(), location })
                 }
@@ -1501,6 +1518,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                     cast_to_int!(lhs, to_i128, i64, I64)
                 }
+                (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
+                    todo!()
+                }
             },
             Type::Bool => Ok(Value::Bool(!lhs.is_zero() || lhs_is_negative)),
             typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
@@ -1511,7 +1531,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let condition = match self.evaluate(if_.condition)? {
             Value::Bool(value) => value,
             value => {
-                let location = self.elaborator.interner.expr_location(&id);
+                let location = self.elaborator.interner.expr_location(&if_.condition);
                 let typ = value.get_type().into_owned();
                 return Err(InterpreterError::NonBoolUsedInIf { typ, location });
             }
@@ -1544,12 +1564,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
-        let environment =
+        let env =
             try_vecmap(&lambda.captures, |capture| self.lookup_id(capture.ident.id, location))?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
-        let module = self.elaborator.module_id();
-        Ok(Value::Closure(lambda, environment, typ, self.current_function, module))
+        let module_scope = self.elaborator.module_id();
+        let closure =
+            Closure { lambda, env, typ, function_scope: self.current_function, module_scope };
+        Ok(Value::Closure(Box::new(closure)))
     }
 
     fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
@@ -1564,6 +1586,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
             HirStatement::For(for_) => self.evaluate_for(for_),
             HirStatement::Loop(expression) => self.evaluate_loop(expression),
+            HirStatement::While(condition, block) => self.evaluate_while(condition, block),
             HirStatement::Break => self.evaluate_break(statement),
             HirStatement::Continue => self.evaluate_continue(statement),
             HirStatement::Expression(expression) => self.evaluate(expression),
@@ -1792,6 +1815,55 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             counter += 1;
             if in_lsp && counter == 10_000 {
                 let location = self.elaborator.interner.expr_location(&expr);
+                result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
+                break;
+            }
+        }
+
+        self.in_loop = was_in_loop;
+        result
+    }
+
+    fn evaluate_while(&mut self, condition: ExprId, block: ExprId) -> IResult<Value> {
+        let was_in_loop = std::mem::replace(&mut self.in_loop, true);
+        let in_lsp = self.elaborator.interner.is_in_lsp_mode();
+        let mut counter = 0;
+        let mut result = Ok(Value::Unit);
+
+        loop {
+            let condition = match self.evaluate(condition)? {
+                Value::Bool(value) => value,
+                value => {
+                    let location = self.elaborator.interner.expr_location(&condition);
+                    let typ = value.get_type().into_owned();
+                    return Err(InterpreterError::NonBoolUsedInWhile { typ, location });
+                }
+            };
+            if !condition {
+                break;
+            }
+
+            self.push_scope();
+
+            let must_break = match self.evaluate(block) {
+                Ok(_) => false,
+                Err(InterpreterError::Break) => true,
+                Err(InterpreterError::Continue) => false,
+                Err(error) => {
+                    result = Err(error);
+                    true
+                }
+            };
+
+            self.pop_scope();
+
+            if must_break {
+                break;
+            }
+
+            counter += 1;
+            if in_lsp && counter == 10_000 {
+                let location = self.elaborator.interner.expr_location(&block);
                 result = Err(InterpreterError::LoopHaltedForUiResponsiveness { location });
                 break;
             }

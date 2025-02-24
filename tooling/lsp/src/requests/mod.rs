@@ -308,7 +308,7 @@ fn on_formatting_inner(
     let path = params.text_document.uri.to_string();
 
     if let Some(source) = state.input_files.get(&path) {
-        let (module, errors) = noirc_frontend::parse_program(source);
+        let (module, errors) = noirc_frontend::parse_program_with_dummy_file(source);
         let is_all_warnings = errors.iter().all(ParserError::is_warning);
         if !is_all_warnings {
             return Ok(None);
@@ -657,9 +657,9 @@ pub(crate) fn find_all_references(
 }
 
 /// Represents a trait reexported from a given module with a name.
-pub(crate) struct TraitReexport<'a> {
-    pub(super) module_id: &'a ModuleId,
-    pub(super) name: &'a Ident,
+pub(crate) struct TraitReexport {
+    pub(super) module_id: ModuleId,
+    pub(super) name: Ident,
 }
 
 #[cfg(test)]

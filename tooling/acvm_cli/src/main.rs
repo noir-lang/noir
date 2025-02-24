@@ -4,12 +4,13 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 mod cli;
-mod errors;
 
 use std::env;
 
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+
+mod fs;
 
 fn main() {
     // Setup tracing

@@ -6,7 +6,8 @@ use std::marker::Copy;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::Located;
+use noirc_errors::{Location, Span};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -24,6 +25,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
+use crate::locations::AutoImportEntry;
 use crate::QuotedType;
 
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
@@ -254,8 +256,7 @@ pub struct NodeInterner {
     // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
     // impl and trait-impl methods.
-    pub(crate) auto_import_names:
-        HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>>,
+    pub(crate) auto_import_names: HashMap<String, Vec<AutoImportEntry>>,
 
     /// Each value currently in scope in the comptime interpreter.
     /// Each element of the Vec represents a scope with every scope together making
@@ -268,10 +269,10 @@ pub struct NodeInterner {
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 
-    /// Only for LSP: a map of trait ID to each module that pub or pub(crate) exports it.
-    /// In LSP this is used to offer importing the trait via one of these exports if
-    /// the trait is not visible where it's defined.
-    trait_reexports: HashMap<TraitId, Vec<(ModuleId, Ident, ItemVisibility)>>,
+    /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// In LSP this is used to offer importing the item via one of these exports if
+    /// the item is not visible where it's defined.
+    reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
 /// A dependency in the dependency graph may be a type or a definition.
@@ -637,6 +638,24 @@ pub struct InternedUnresolvedTypeData(noirc_arena::Index);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternedPattern(noirc_arena::Index);
 
+/// Captures a reexport that happens inside a module. For example:
+///
+/// ```noir
+/// mod moo {
+/// //  ^^^ module_id
+///
+///   pub use foo::bar as baz;
+/// //^^^ visibility      ^^^ name
+/// }
+/// ```
+///
+#[derive(Debug, Clone)]
+pub struct Reexport {
+    pub module_id: ModuleId,
+    pub name: Ident,
+    pub visibility: ItemVisibility,
+}
+
 impl Default for NodeInterner {
     fn default() -> Self {
         NodeInterner {
@@ -686,7 +705,7 @@ impl Default for NodeInterner {
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
             doc_comments: HashMap::default(),
-            trait_reexports: HashMap::default(),
+            reexports: HashMap::default(),
         }
     }
 }
@@ -704,8 +723,8 @@ impl NodeInterner {
     }
 
     /// Stores the span for an interned expression.
-    pub fn push_expr_location(&mut self, expr_id: ExprId, span: Span, file: FileId) {
-        self.id_to_location.insert(expr_id.into(), Location::new(span, file));
+    pub fn push_expr_location(&mut self, expr_id: ExprId, location: Location) {
+        self.id_to_location.insert(expr_id.into(), location);
     }
 
     /// Interns a HIR Function.
@@ -734,7 +753,7 @@ impl NodeInterner {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
             crate_id: unresolved_trait.crate_id,
-            location: Location::new(unresolved_trait.trait_def.span, unresolved_trait.file_id),
+            location: unresolved_trait.trait_def.location,
             generics,
             visibility: ItemVisibility::Private,
             self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
@@ -779,7 +798,7 @@ impl NodeInterner {
         self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
             typ.type_alias_def.name.clone(),
-            Location::new(typ.type_alias_def.span, typ.file_id),
+            typ.type_alias_def.location,
             Type::Error,
             generics,
         )));
@@ -1071,8 +1090,8 @@ impl NodeInterner {
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
-        let span = self.function_meta(func_id).name.location.span;
-        crate::ast::Ident(Spanned::from(span, name))
+        let location = self.function_meta(func_id).name.location;
+        crate::ast::Ident(Located::from(location, name))
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -1689,7 +1708,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), (Span, FileId)> {
+    ) -> Result<(), (Location, FileId)> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
@@ -1741,7 +1760,7 @@ impl NodeInterner {
         ) {
             let existing_impl = self.get_trait_implementation(existing);
             let existing_impl = existing_impl.borrow();
-            return Err((existing_impl.ident.span(), existing_impl.file));
+            return Err((existing_impl.ident.location(), existing_impl.file));
         }
 
         for method in &trait_impl.borrow().methods {
@@ -2128,8 +2147,8 @@ impl NodeInterner {
         self.push_expression_kind(lvalue.as_expression().kind)
     }
 
-    pub fn get_lvalue(&self, id: InternedExpressionKind, span: Span) -> LValue {
-        LValue::from_expression_kind(self.get_expression_kind(id).clone(), span)
+    pub fn get_lvalue(&self, id: InternedExpressionKind, location: Location) -> LValue {
+        LValue::from_expression_kind(self.get_expression_kind(id).clone(), location)
             .expect("Called LValue::from_expression with an invalid expression")
     }
 
@@ -2268,18 +2287,26 @@ impl NodeInterner {
         }
     }
 
-    pub fn add_trait_reexport(
+    pub fn add_reexport(
         &mut self,
-        trait_id: TraitId,
+        module_def_id: ModuleDefId,
         module_id: ModuleId,
         name: Ident,
         visibility: ItemVisibility,
     ) {
-        self.trait_reexports.entry(trait_id).or_default().push((module_id, name, visibility));
+        self.reexports.entry(module_def_id).or_default().push(Reexport {
+            module_id,
+            name,
+            visibility,
+        });
     }
 
-    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[(ModuleId, Ident, ItemVisibility)] {
-        self.trait_reexports.get(&trait_id).map_or(&[], |exports| exports)
+    pub fn get_reexports(&self, module_def_id: ModuleDefId) -> &[Reexport] {
+        self.reexports.get(&module_def_id).map_or(&[], |reexport| reexport)
+    }
+
+    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[Reexport] {
+        self.get_reexports(ModuleDefId::TraitId(trait_id))
     }
 }
 
