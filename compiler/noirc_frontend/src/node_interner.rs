@@ -359,16 +359,19 @@ pub enum ImplSearchErrorKind {
 /// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
 #[derive(Default, Debug, Clone)]
 pub struct Methods {
-    pub direct: Vec<FuncId>,
+    pub direct: Vec<ImplMethod>,
     pub trait_impl_methods: Vec<TraitImplMethod>,
 }
 
 #[derive(Debug, Clone)]
+pub struct ImplMethod {
+    pub typ: Type,
+    pub method: FuncId,
+}
+
+#[derive(Debug, Clone)]
 pub struct TraitImplMethod {
-    // This type is only stored for primitive types to be able to
-    // select the correct static methods between multiple options keyed
-    // under TypeMethodKey::FieldOrInt
-    pub typ: Option<Type>,
+    pub typ: Type,
     pub method: FuncId,
     pub trait_id: TraitId,
 }
@@ -1402,7 +1405,9 @@ impl NodeInterner {
                 });
 
                 if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    if let Some(existing) = self.lookup_direct_method(self_type, &method_name, true)
+                    let check_self_param = false;
+                    if let Some(existing) =
+                        self.lookup_direct_method(self_type, &method_name, check_self_param)
                     {
                         return Some(existing);
                     }
@@ -1410,8 +1415,7 @@ impl NodeInterner {
 
                 // Only remember the actual type if it's FieldOrInt,
                 // so later we can disambiguate on calls like `u32::call`.
-                let typ =
-                    if key == TypeMethodKey::FieldOrInt { Some(self_type.clone()) } else { None };
+                let typ = self_type.clone();
                 self.methods
                     .entry(key)
                     .or_default()
@@ -1778,18 +1782,20 @@ impl NodeInterner {
     }
 
     /// Looks up a method that's directly defined in the given type.
+    /// If `check_self_param` is `true`, only a method that has a `self` parameter with a type
+    /// that unifies with `typ` will be returned.
     pub fn lookup_direct_method(
         &self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
+        check_self_param: bool,
     ) -> Option<FuncId> {
         let key = get_type_method_key(typ)?;
 
         self.methods
             .get(&key)
             .and_then(|h| h.get(method_name))
-            .and_then(|methods| methods.find_direct_method(typ, has_self_arg, self))
+            .and_then(|methods| methods.find_direct_method(typ, check_self_param, self))
     }
 
     /// Looks up a methods that apply to the given type but are defined in traits.
@@ -2311,20 +2317,21 @@ impl NodeInterner {
 }
 
 impl Methods {
-    fn add_method(&mut self, method: FuncId, typ: Option<Type>, trait_id: Option<TraitId>) {
+    fn add_method(&mut self, method: FuncId, typ: Type, trait_id: Option<TraitId>) {
         if let Some(trait_id) = trait_id {
             let trait_impl_method = TraitImplMethod { typ, method, trait_id };
             self.trait_impl_methods.push(trait_impl_method);
         } else {
-            self.direct.push(method);
+            let impl_method = ImplMethod { typ, method };
+            self.direct.push(impl_method);
         }
     }
 
     /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = (FuncId, Option<&Type>, Option<TraitId>)> {
+    pub fn iter(&self) -> impl Iterator<Item = (FuncId, &Type, Option<TraitId>)> {
         let trait_impl_methods =
-            self.trait_impl_methods.iter().map(|m| (m.method, m.typ.as_ref(), Some(m.trait_id)));
-        let direct = self.direct.iter().copied().map(|func_id| (func_id, None, None));
+            self.trait_impl_methods.iter().map(|m| (m.method, &m.typ, Some(m.trait_id)));
+        let direct = self.direct.iter().map(|method| (method.method, &method.typ, None));
         direct.chain(trait_impl_methods)
     }
 
@@ -2346,12 +2353,12 @@ impl Methods {
     pub fn find_direct_method(
         &self,
         typ: &Type,
-        has_self_param: bool,
+        check_self_param: bool,
         interner: &NodeInterner,
     ) -> Option<FuncId> {
         for method in &self.direct {
-            if Self::method_matches(typ, has_self_param, *method, None, interner) {
-                return Some(*method);
+            if Self::method_matches(typ, check_self_param, method.method, &method.typ, interner) {
+                return Some(method.method);
             }
         }
 
@@ -2368,7 +2375,7 @@ impl Methods {
 
         for trait_impl_method in &self.trait_impl_methods {
             let method = trait_impl_method.method;
-            let method_type = trait_impl_method.typ.as_ref();
+            let method_type = &trait_impl_method.typ;
             let trait_id = trait_impl_method.trait_id;
 
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
@@ -2381,14 +2388,14 @@ impl Methods {
 
     fn method_matches(
         typ: &Type,
-        has_self_param: bool,
+        check_self_param: bool,
         method: FuncId,
-        method_type: Option<&Type>,
+        method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
         match interner.function_meta(&method).typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
-                if has_self_param {
+                if check_self_param {
                     if let Some(object) = args.first() {
                         if object.unify(typ).is_ok() {
                             return true;
@@ -2402,21 +2409,18 @@ impl Methods {
                         }
                     }
                 } else {
-                    // If we recorded the concrete type this trait impl method belongs to,
-                    // and it matches typ, it's an exact match and we return that.
-                    if let Some(method_type) = method_type {
+                    // We still need to make sure the method is for the given type
+                    // (this might be false if for example a method for `Struct<i32>` was added but
+                    // now we are looking for a method in `Struct<i64>`)
+                    if method_type.unify(typ).is_ok() {
+                        return true;
+                    }
+
+                    // Handle auto-dereferencing `&mut T` into `T`
+                    if let Type::MutableReference(method_type) = method_type {
                         if method_type.unify(typ).is_ok() {
                             return true;
                         }
-
-                        // Handle auto-dereferencing `&mut T` into `T`
-                        if let Type::MutableReference(method_type) = method_type {
-                            if method_type.unify(typ).is_ok() {
-                                return true;
-                            }
-                        }
-                    } else {
-                        return true;
                     }
                 }
             }
