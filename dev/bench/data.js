@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740423640968,
+  "lastUpdate": 1740423651349,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "119bf620005b52362e3aca9321b69e96e8a42fc0",
-          "message": "fix(brillig): Brillig entry point analysis and function specialization through duplication (#7277)\n\nCo-authored-by: Tom French <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-18T18:22:52Z",
-          "tree_id": "1512312e78357e87d054c7db154fc727e78ae45d",
-          "url": "https://github.com/noir-lang/noir/commit/119bf620005b52362e3aca9321b69e96e8a42fc0"
-        },
-        "date": 1739904077169,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.752,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.506,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.2,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.828,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.986,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.788,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.932,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 93.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.973,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.44,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8396,6 +8302,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.504,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "69e901f8f4e8c88c9964d832f331f881b70d2d35",
+          "message": "fix: issue duplicate error on impl function without self (#7490)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-02-24T18:39:18Z",
+          "tree_id": "e946752afbb1b241b8c8638be6d05dc6be96db16",
+          "url": "https://github.com/noir-lang/noir/commit/69e901f8f4e8c88c9964d832f331f881b70d2d35"
+        },
+        "date": 1740423649406,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.978,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.66,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.491,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.242,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.32,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.978,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.354,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4.99,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.949,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 99.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 92.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.939,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.564,
             "unit": "s"
           }
         ]
