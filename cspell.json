@@ -261,7 +261,10 @@
         "whitespaces",
         "YOLO",
         "zkhash",
-        "zshell"
+        "zshell",
+        "flamegraph",
+        "flamegraphs",
+        "lookback"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

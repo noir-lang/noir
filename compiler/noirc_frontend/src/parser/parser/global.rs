@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
     /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         comptime: bool,
         mutable: bool,
     ) -> LetStatement {
@@ -31,9 +31,9 @@ impl<'a> Parser<'a> {
                 pattern: ident_to_pattern(Ident::default(), mutable),
                 r#type: UnresolvedType {
                     typ: UnresolvedTypeData::Unspecified,
-                    span: Span::default(),
+                    location: Location::dummy(),
                 },
-                expression: Expression { kind: ExpressionKind::Error, span: Span::default() },
+                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
                 attributes,
                 comptime,
                 is_global_let,
@@ -47,8 +47,8 @@ impl<'a> Parser<'a> {
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
-            self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.span());
-            Expression { kind: ExpressionKind::Error, span: Span::default() }
+            self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
+            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
         };
 
         if !self.eat_semicolons() {
@@ -61,8 +61,8 @@ impl<'a> Parser<'a> {
 
 fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
     if mutable {
-        let span = ident.span();
-        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), span, false)
+        let location = ident.location();
+        Pattern::Mutable(Box::new(Pattern::Identifier(ident)), location, false)
     } else {
         Pattern::Identifier(ident)
     }
@@ -77,20 +77,18 @@ mod tests {
             ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
             Signedness, UnresolvedTypeData,
         },
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
             },
             ItemKind, ParserErrorReason,
         },
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -158,7 +156,7 @@ mod tests {
                ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::GlobalWithoutValue));
     }
@@ -170,7 +168,7 @@ mod tests {
                       ^ 
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a ';' but found end of input");
     }
