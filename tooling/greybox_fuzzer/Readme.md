@@ -109,10 +109,8 @@ Now, when we run the fuzzer, we'll see the following output:
 It quickly finds a failing test case, and prints the inputs that lead to the failure in the json format. It also shows the path of the file where it saves a failing toml file, which will have the name "Prover-failling-\<package-name\>-\<fuzzing-harness-name\>.toml".
 
 
-## Potential improvements (in order of most to least impact)
+## Potential improvements
 
-- Implement partial witness generation for ACIR (https://github.com/noir-lang/noir/issues/7502)
-- Implement a full oracle for fuzzing (allowing to execute brillig and get the boolean result and then determine failure based on that) (https://github.com/noir-lang/noir/issues/7447)
-- Implement initial witness level splicing (https://github.com/noir-lang/noir/issues/7503)
 - Implement Mutation Optimizations (automatically detect efficient mutations) (https://github.com/noir-lang/noir/issues/7446)
+- Implement a full oracle for fuzzing (allowing to execute brillig and get the boolean result and then determine failure based on that) (https://github.com/noir-lang/noir/issues/7447)
 - Implement proper minimization of the corpus (where we first detect inputs with unique features and then join them with a minimal set of other inputs to have full coverage) (https://github.com/noir-lang/noir/issues/7448)
