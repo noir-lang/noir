@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement};
 use fm::FileId;
 use noirc_errors::Location;
 
@@ -115,7 +115,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -398,6 +398,72 @@ impl SignedField {
     pub fn new(field: FieldElement, is_negative: bool) -> Self {
         Self { field, is_negative }
     }
+
+    pub fn positive(field: impl Into<FieldElement>) -> Self {
+        Self { field: field.into(), is_negative: false }
+    }
+
+    /// Convert a SignedField into an unsigned integer type (up to u128),
+    /// returning None if the value does not fit (e.g. if it is negative).
+    pub fn try_to_unsigned<T: TryFrom<u128>>(self) -> Option<T> {
+        if self.is_negative {
+            return None;
+        }
+
+        assert!(std::mem::size_of::<T>() <= std::mem::size_of::<u128>());
+        let u128_value = self.field.try_into_u128()?;
+        u128_value.try_into().ok()
+    }
+
+    /// Convert a SignedField into a signed integer type (up to i128),
+    /// returning None if the value does not fit. This function is more complex
+    /// for handling negative values, specifically INT_MIN which we can't cast from
+    /// a u128 to i128 without wrapping it.
+    pub fn try_to_signed<T>(self) -> Option<T>
+    where
+        T: TryFrom<u128> + TryFrom<i128> + num_traits::Signed + num_traits::Bounded,
+        u128: TryFrom<T>,
+    {
+        let u128_value = self.field.try_into_u128()?;
+
+        if self.is_negative {
+            // The positive version of the minimum value of this type.
+            // E.g. 128 for i8.
+            let positive_min = u128::try_from(-T::min_value());
+
+            // If it is the min value, we can't negate it without overflowing
+            // so test for it and return it directly
+            if positive_min.map_or(false, |min| u128_value == min) {
+                Some(T::min_value())
+            } else {
+                let i128_value = -(u128_value as i128);
+                T::try_from(i128_value).ok()
+            }
+        } else {
+            T::try_from(u128_value).ok()
+        }
+    }
+
+    /// Convert a signed integer to a SignedField, carefully handling
+    /// INT_MIN in the process. Note that to convert an unsigned integer
+    /// you can call `SignedField::positive`.
+    pub fn from_signed<T>(value: T) -> Self
+    where
+        T: num_traits::Signed + num_traits::Bounded,
+        u128: TryFrom<T>,
+        <u128 as TryFrom<T>>::Error: std::fmt::Debug,
+    {
+        let negative = value.is_negative();
+        let value = if value == T::min_value() {
+            // -iN::MIN = iN::MAX + 1, but only the later can be cast to u128 before overflowing
+            u128::try_from(T::max_value()).map(|x| x + 1)
+        } else {
+            u128::try_from(value.abs())
+        };
+        let value =
+            value.expect("value is positive and u128 should fit all positive primitive values");
+        SignedField::new(value.into(), negative)
+    }
 }
 
 impl std::ops::Neg for SignedField {
@@ -406,6 +472,22 @@ impl std::ops::Neg for SignedField {
     fn neg(mut self) -> Self::Output {
         self.is_negative = !self.is_negative;
         self
+    }
+}
+
+impl From<FieldElement> for SignedField {
+    fn from(value: FieldElement) -> Self {
+        Self::new(value, false)
+    }
+}
+
+impl From<SignedField> for FieldElement {
+    fn from(value: SignedField) -> Self {
+        if value.is_negative {
+            -value.field
+        } else {
+            value.field
+        }
     }
 }
 

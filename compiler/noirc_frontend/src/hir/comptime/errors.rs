@@ -7,10 +7,11 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
+    hir_def::expr::SignedField,
     parser::ParserError,
     Type,
 };
-use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use fm::FileId;
 use noirc_errors::{CustomDiagnostic, Location};
 
@@ -35,7 +36,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: SignedField,
         typ: Type,
         location: Location,
     },
@@ -394,11 +395,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
-                let int = match value.try_into_u128() {
-                    Some(int) => int.to_string(),
-                    None => value.to_string(),
-                };
-                let msg = format!("{int} is outside the range of the {typ} type");
+                let msg = format!("{value} is outside the range of the {typ} type");
                 CustomDiagnostic::simple_error(msg, String::new(), location.span)
             }
             InterpreterError::ErrorNodeEncountered { location } => {
