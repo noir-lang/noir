@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740410376720,
+  "lastUpdate": 1740410381060,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11602,70 +11602,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "64890c0d7420adb32d3867e51dd194e48b87bb32",
-          "message": "fix(ssa): Accurately mark binary ops for hoisting and check Div/Mod against induction variable lower bound (#7396)",
-          "timestamp": "2025-02-18T15:25:07Z",
-          "tree_id": "4051ba62d2feefb2ee415328d71ee01696034f3b",
-          "url": "https://github.com/noir-lang/noir/commit/64890c0d7420adb32d3867e51dd194e48b87bb32"
-        },
-        "date": 1739893785276,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.45,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14795,6 +14731,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 328.9,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e26e993d09beafec1dff81014f4b350cf4289656",
+          "message": "feat: use resolved type instead of needing Constructor.struct_type (#7500)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-02-24T14:55:25Z",
+          "tree_id": "abd525ad904d332070fc4d27f9ce3b49b36673a7",
+          "url": "https://github.com/noir-lang/noir/commit/e26e993d09beafec1dff81014f4b350cf4289656"
+        },
+        "date": 1740410378518,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 224.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 441.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.39,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.77,
             "unit": "MB"
           }
         ]
