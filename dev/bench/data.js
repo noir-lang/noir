@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740406583925,
+  "lastUpdate": 1740406586380,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,95 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "31cc6a1cf9ea0a02931ef60c71d4d41524f8b84c",
-          "message": "feat!: remove bigint from stdlib (#7411)",
-          "timestamp": "2025-02-18T14:23:54Z",
-          "tree_id": "57c7fe44d118c2d7b401b396cb74a7ca7c8107cb",
-          "url": "https://github.com/noir-lang/noir/commit/31cc6a1cf9ea0a02931ef60c71d4d41524f8b84c"
-        },
-        "date": 1739889775339,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.01,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.766,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21.2,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.618,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.066,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.542,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.942,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.172,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.93,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 92.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.914,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.524,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8386,6 +8297,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.48,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "43ca11ab0f33eabfd590a0fad10c908a421f0792",
+          "message": "feat: better error message when keyword is found instead of type in p… (#7501)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-02-24T13:57:29Z",
+          "tree_id": "cf8269b7cb8aefea0d348ec4907744887bd5f506",
+          "url": "https://github.com/noir-lang/noir/commit/43ca11ab0f33eabfd590a0fad10c908a421f0792"
+        },
+        "date": 1740406584595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.957,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.712,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.506,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.22,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.346,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.975,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 9.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.046,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.946,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 91.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 100,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.964,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.456,
             "unit": "s"
           }
         ]
