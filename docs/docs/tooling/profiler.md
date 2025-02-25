@@ -5,11 +5,11 @@ keywords: [profiling, profiler, flamegraph]
 sidebar_position: 3
 ---
 
-`noir-profiler` is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
+The profiler is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
 
 ## Installation
 
-`noir-profiler` is automatically installed with Nargo starting noirup v0.1.4.
+The profiler is automatically installed with Nargo starting noirup v0.1.4.
 
 Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started/quick_start.md#noir).
 
@@ -43,13 +43,16 @@ Compile the program using `nargo compile`, then we are ready to try the profiler
 
 ### Flamegraphing ACIR opcodes
 
-The program on its own is quite high-level. Let's get a more granular look at what is happening by using `noir-profiler`.
+The program on its own is quite high-level. Let's get a more granular look at what is happening by using the profiler.
 
 After compiling the program, run the following:
+
 ```sh
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
 ```
-Below you can see an example flamegraph with a total 387 opcodes (using `nargo` version 1.0.0-beta.2):
+
+Below you can see an example flamegraph with a total 387 opcodes (using Nargo v1.0.0-beta.2):
+
 ![ACIR Flamegraph Unoptimized](@site/static/img/tooling/profiler/acir-flamegraph-unoptimized.png)
 
 You should now have a flamegraph that maps ACIR opcodes to their corresponding locations in the source code. We strongly recommend generating these graphs yourself as you follow this guide. Opening the flamegraph in a browser provides a more interactive experience, allowing you to click into and examine different regions of the graph. Simply viewing the image file won't offer the same level of insight.
@@ -99,7 +102,7 @@ Let's take our initial program and simply add an `unconstrained` modifier before
 ```sh
 noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_toml_path Prover.toml --output ./target
 ```
-This matches the `opcodes` command, except that now we need to accept a `Prover.toml` file to profile execution with a specific set of inputs.
+This matches the `opcodes` command, except that now we need to accept a _Prover.toml_ file to profile execution with a specific set of inputs.
 
 We will get the following flamegraph with 1,582 opcodes executed:
 ![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
@@ -124,7 +127,7 @@ noir-profiler gates --artifact-path ./target/program.json --backend-path bb --ou
 ```
 `--backend-path` accepts a path to the backend binary. In the above command we assume that you have the backend binary path saved in your PATH. If you do not, you will have to pass the binary's absolute path.
 
-This produces the following flamegraph with 3,737 total backend gates (using `bb` version 0.76.4):
+This produces the following flamegraph with 3,737 total backend gates (using bb v0.76.4):
 ![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
 
 Searching for ACIR `memory::op` opcodes, they look to cause about 18.2% of the backend gates.
