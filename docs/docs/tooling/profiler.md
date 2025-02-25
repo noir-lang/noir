@@ -117,9 +117,9 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 ### Profiling execution traces (unconstrained)
 
-The profiler also provides the ability to flamegraph a Noir program's execution trace. This is particularly useful for searching and optimizing bottlenecks in execution Noir programs.
+The profiler also provides the ability to flamegraph a Noir program's execution trace. This is useful for identifying and optimizing execution bottlenecks of Noir programs.
 
-The profiler currently supports profiling fully unconstrained Noir programs at this moment.
+The profiler supports profiling fully unconstrained Noir programs at this moment.
 
 #### Updating the demonstrative project
 
