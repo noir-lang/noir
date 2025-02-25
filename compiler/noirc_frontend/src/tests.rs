@@ -15,13 +15,13 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
 use fm::FileId;
 
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use crate::ast::IntegerBitSize;
 use crate::hir::comptime::InterpreterError;
@@ -150,6 +150,78 @@ fn assert_no_errors(src: &str) {
     }
 }
 
+/// Given a source file with annotated errors, like this:
+///
+/// ```
+/// "
+/// fn main(_: some_type) {}
+///            ^^^^^^^^^ Could not resolve 'some_type' in path
+/// "
+/// ```
+///
+/// compiles the program without lines that have the "^^^" annotations,
+/// gathers the errors and expects the errors to land on the given
+/// annotations and their messages to match.
+fn check_errors(src: &str) {
+    let lines = src.lines().collect::<Vec<_>>();
+
+    // Here we'll hold just the lines that are code
+    let mut code_lines = Vec::new();
+    // Here we'll capture lines that are error spans, like:
+    //
+    //   ^^^ error message
+    let mut spans_with_errors: Vec<(Span, String)> = Vec::new();
+    // The byte at the start of this line
+    let mut byte = 0;
+    // The length of the last line
+    let mut last_line_length = 0;
+    for line in lines {
+        if line.trim().starts_with('^') {
+            let chars = line.chars().collect::<Vec<_>>();
+            let first_caret = chars.iter().position(|char| *char == '^').unwrap();
+            let last_caret = chars.iter().rposition(|char| *char == '^').unwrap();
+            let start = byte - last_line_length;
+            let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
+            let error = line.trim().trim_start_matches('^').trim().to_string();
+            spans_with_errors.push((span, error));
+            continue;
+        }
+
+        code_lines.push(line);
+
+        byte += line.len() + 1; // For '\n'
+        last_line_length = line.len();
+    }
+
+    let mut spans_with_errors: HashMap<Span, String> = spans_with_errors.into_iter().collect();
+
+    let src = code_lines.join("\n");
+    let errors = get_program_errors(&src);
+    if errors.is_empty() {
+        panic!("Expected some errors but got none");
+    }
+
+    let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+    for error in &errors {
+        let secondary = error
+            .secondaries
+            .first()
+            .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
+        let span = secondary.location.span;
+        let message = &error.message;
+
+        let Some(expected_message) = spans_with_errors.remove(&span) else {
+            panic!("Couldn't find error at {span:?}.\nAll errors: {errors:?}");
+        };
+
+        assert_eq!(message, &expected_message, "Error at {span:?} has unexpected message");
+    }
+
+    if !spans_with_errors.is_empty() {
+        panic!("These errors didn't happen: {spans_with_errors:?}");
+    }
+}
+
 #[test]
 fn check_trait_implemented_for_all_t() {
     let src = "
@@ -212,6 +284,7 @@ fn check_trait_implementation_duplicate_method() {
     impl Default for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
+           ^^^^^^^ Duplicate definitions of trait associated function with name default found
             y + 2 * x
         }
         // Duplicate trait methods should not compile
@@ -223,31 +296,12 @@ fn check_trait_implementation_duplicate_method() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-
-    let errors = get_program_errors(src);
-    assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-
-    for err in errors {
-        match &err {
-            CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
-                typ,
-                first_def,
-                second_def,
-            }) => {
-                assert_eq!(typ, &DuplicateType::TraitAssociatedFunction);
-                assert_eq!(first_def, "default");
-                assert_eq!(second_def, "default");
-            }
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    check_errors(src);
 }
 
 #[test]
 fn check_trait_wrong_method_return_type() {
+    // TODO: fix the error location
     let src = "
     trait Default {
         fn default() -> Self;
@@ -258,6 +312,7 @@ fn check_trait_wrong_method_return_type() {
 
     impl Default for Foo {
         fn default() -> Field {
+           ^^^^^^^ Expected type Foo, found type Field
             0
         }
     }
@@ -266,29 +321,12 @@ fn check_trait_wrong_method_return_type() {
         let _ = Foo {}; // silence Foo never constructed warning
     }
     ";
-    let errors = get_program_errors(src);
-    assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-
-    for err in errors {
-        match &err {
-            CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                expected_typ,
-                expr_typ,
-                expr_location: _,
-            }) => {
-                assert_eq!(expected_typ, "Foo");
-                assert_eq!(expr_typ, "Field");
-            }
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    check_errors(src);
 }
 
 #[test]
 fn check_trait_wrong_method_return_type2() {
+    // TODO: fix the error location
     let src = "
     trait Default {
         fn default(x: Field, y: Field) -> Self;
@@ -301,6 +339,7 @@ fn check_trait_wrong_method_return_type2() {
 
     impl Default for Foo {
         fn default(x: Field, _y: Field) -> Field {
+           ^^^^^^^ Expected type Foo, found type Field
             x
         }
     }
@@ -308,25 +347,7 @@ fn check_trait_wrong_method_return_type2() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
-    let errors = get_program_errors(src);
-    assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-
-    for err in errors {
-        match &err {
-            CompilationError::TypeError(TypeCheckError::TypeMismatch {
-                expected_typ,
-                expr_typ,
-                expr_location: _,
-            }) => {
-                assert_eq!(expected_typ, "Foo");
-                assert_eq!(expr_typ, "Field");
-            }
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    check_errors(src);
 }
 
 #[test]
@@ -345,6 +366,7 @@ fn check_trait_missing_implementation() {
     }
 
     impl Default for Foo {
+                     ^^^ Method `method2` from trait `Default` is not implemented
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
@@ -353,25 +375,7 @@ fn check_trait_missing_implementation() {
     fn main() {
     }
     ";
-    let errors = get_program_errors(src);
-    assert!(!has_parser_error(&errors));
-    assert!(errors.len() == 1, "Expected 1 error, got: {:?}", errors);
-
-    for err in errors {
-        match &err {
-            CompilationError::DefinitionError(DefCollectorErrorKind::TraitMissingMethod {
-                trait_name,
-                method_name,
-                trait_impl_location: _,
-            }) => {
-                assert_eq!(trait_name, "Default");
-                assert_eq!(method_name, "method2");
-            }
-            _ => {
-                panic!("No other errors are expected! Found = {:?}", err);
-            }
-        };
-    }
+    check_errors(src);
 }
 
 #[test]
