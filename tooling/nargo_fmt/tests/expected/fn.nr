@@ -95,4 +95,3 @@ fn four() {}
 
 #[test(should_fail_with = "oops")]
 fn five() {}
-

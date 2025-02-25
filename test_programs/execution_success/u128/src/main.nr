@@ -39,4 +39,3 @@ fn main(mut x: u32, y: u32, z: u32, big_int: U128, hexa: str<7>) {
     assert(shift << 127 == U128::from_integer(0));
     assert(U128::from_integer(3).to_integer() == 3);
 }
-

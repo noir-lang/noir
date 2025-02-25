@@ -33,7 +33,6 @@ strum.workspace = true
 strum_macros.workspace = true
 fxhash.workspace = true
 
-
 [dev-dependencies]
 base64.workspace = true
 proptest.workspace = true

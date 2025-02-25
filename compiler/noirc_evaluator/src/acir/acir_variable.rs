@@ -777,7 +777,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     pub(crate) fn not_var(&mut self, x: AcirVar, typ: AcirType) -> Result<AcirVar, RuntimeError> {
         let bit_size = typ.bit_size::<F>();
         // Subtracting from max flips the bits
-        let max = self.add_constant((1_u128 << bit_size) - 1);
+        let max = power_of_two::<F>(bit_size) - F::one();
+        let max = self.add_constant(max);
         self.sub_var(max, x)
     }
 
@@ -841,18 +842,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
 
         // maximum bit size for q and for [r and rhs]
-        let mut max_q_bits = bit_size;
-        let mut max_rhs_bits = bit_size;
-        // when rhs is constant, we can better estimate the maximum bit sizes
-        if let Some(rhs_const) = rhs_expr.to_const() {
-            max_rhs_bits = rhs_const.num_bits();
-            if max_rhs_bits != 0 {
-                if max_rhs_bits > bit_size {
-                    return Ok((zero, zero));
-                }
-                max_q_bits = bit_size - max_rhs_bits + 1;
-            }
-        }
+        let (max_q_bits, max_rhs_bits) = if let Some(rhs_const) = rhs_expr.to_const() {
+            // when rhs is constant, we can better estimate the maximum bit sizes
+            let max_rhs_bits = rhs_const.num_bits();
+            assert!(
+                max_rhs_bits <= bit_size,
+                "attempted to divide by constant larger than operand type"
+            );
+
+            let max_q_bits = bit_size - max_rhs_bits + 1;
+            (max_q_bits, max_rhs_bits)
+        } else {
+            (bit_size, bit_size)
+        };
 
         let [q_value, r_value]: [AcirValue; 2] = self
             .brillig_call(
@@ -908,19 +910,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.assert_eq_var(lhs_constraint, rhs_constraint, None)?;
 
         // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
-        let mut avoid_overflow = false;
         if max_q_bits + max_rhs_bits >= F::max_num_bits() - 1 {
             // q*b+r can overflow; we avoid this when b is constant
-            if rhs_expr.is_const() {
-                avoid_overflow = true;
-            } else {
-                // we do not support unbounded division
-                unreachable!("overflow in unbounded division");
-            }
-        }
-
-        if let Some(rhs_const) = rhs_expr.to_const() {
-            if avoid_overflow {
+            if let Some(rhs_const) = rhs_expr.to_const() {
                 // we compute q0 = p/rhs
                 let rhs_big = BigUint::from_bytes_be(&rhs_const.to_be_bytes());
                 let q0_big = F::modulus() / &rhs_big;
@@ -944,6 +936,20 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     predicate,
                     rhs_const.num_bits(),
                 )?;
+            } else if bit_size == 128 {
+                // q and b are u128 and q*b could overflow so we check that either q or b are less than 2^64
+                let two_pow_64: F = power_of_two(64);
+                let two_pow_64 = self.add_constant(two_pow_64);
+
+                let (q_upper, _) =
+                    self.euclidean_division_var(quotient_var, two_pow_64, bit_size, predicate)?;
+                let (rhs_upper, _) =
+                    self.euclidean_division_var(rhs, two_pow_64, bit_size, predicate)?;
+                let mul_uppers = self.mul_var(q_upper, rhs_upper)?;
+                self.assert_eq_var(mul_uppers, zero, None)?;
+            } else {
+                // we do not support unbounded division
+                unreachable!("overflow in unbounded division");
             }
         }
 
@@ -1026,8 +1032,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         leading: AcirVar,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let max_power_of_two =
-            self.add_constant(F::from(2_u128).pow(&F::from(max_bit_size as u128 - 1)));
+        let max_power_of_two = self.add_constant(power_of_two::<F>(max_bit_size - 1));
 
         let intermediate = self.sub_var(max_power_of_two, lhs)?;
         let intermediate = self.mul_var(intermediate, leading)?;
@@ -1057,8 +1062,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         assert_ne!(bit_size, 0, "signed integer should have at least one bit");
 
         // 2^{max_bit size-1}
-        let max_power_of_two =
-            self.add_constant(F::from(2_u128).pow(&F::from(bit_size as u128 - 1)));
+        let max_power_of_two = self.add_constant(power_of_two::<F>(bit_size - 1));
         let zero = self.add_constant(F::zero());
         let one = self.add_constant(F::one());
 
@@ -1164,7 +1168,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
         // 2^{rhs}
-        let divisor = self.add_constant(F::from(2_u128).pow(&F::from(rhs as u128)));
+        let divisor = self.add_constant(power_of_two::<F>(rhs));
         let one = self.add_constant(F::one());
 
         //  Computes lhs = 2^{rhs} * q + r
@@ -1257,7 +1261,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < F::max_num_bits());
 
-        let two_max_bits = self.add_constant(F::from(2_u128).pow(&F::from(max_bits as u128)));
+        let two_max_bits = self.add_constant(power_of_two::<F>(max_bits));
         let diff = self.sub_var(lhs, rhs)?;
         let comparison_evaluation = self.add_var(diff, two_max_bits)?;
 
@@ -1568,6 +1572,36 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     }
 }
 
+/// Returns an `F` representing the value `2**power`
+///
+/// # Panics
+///
+/// Panics if `2**power` exceeds `F::modulus()`.
+pub(super) fn power_of_two<F: AcirField>(power: u32) -> F {
+    if power >= F::max_num_bits() {
+        panic!("Field cannot represent this power of two");
+    }
+    let full_bytes = power / 8;
+    let extra_bits = power % 8;
+    let most_significant_byte: u8 = match extra_bits % 8 {
+        0 => 0x01,
+        1 => 0x02,
+        2 => 0x04,
+        3 => 0x08,
+        4 => 0x10,
+        5 => 0x20,
+        6 => 0x40,
+        7 => 0x80,
+        _ => unreachable!("We cover the full range of x % 8"),
+    };
+
+    let bytes_be: Vec<u8> = std::iter::once(most_significant_byte)
+        .chain(std::iter::repeat(0).take(full_bytes as usize))
+        .collect();
+
+    F::from_be_bytes_reduce(&bytes_be)
+}
+
 /// Enum representing the possible values that a
 /// Variable can be given.
 #[derive(Debug, Eq, Clone)]
@@ -1656,3 +1690,29 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: ExpressionWid
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+#[cfg(test)]
+mod test {
+    use acvm::{AcirField, FieldElement};
+    use proptest::prelude::*;
+
+    use super::power_of_two;
+
+    #[test]
+    #[should_panic = "Field cannot represent this power of two"]
+    fn power_of_two_panics_on_overflow() {
+        power_of_two::<FieldElement>(FieldElement::max_num_bits());
+    }
+
+    proptest! {
+        #[test]
+        fn power_of_two_agrees_with_generic_impl(bit_size in (0..=128u32)) {
+            let power_of_two_general =
+                FieldElement::from(2_u128).pow(&FieldElement::from(bit_size));
+            let power_of_two_opt: FieldElement = power_of_two(bit_size);
+
+            prop_assert_eq!(power_of_two_opt, power_of_two_general);
+        }
+
+    }
+}

@@ -1785,4 +1785,55 @@ mod test {
         let ssa = ssa.fold_constants();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn does_not_deduplicate_unsigned_division_by_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 0
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, u32 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_duplicate_unsigned_division_by_non_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 2
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, u32 2
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 2
+            v5 = not v2
+            enable_side_effects v5
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }

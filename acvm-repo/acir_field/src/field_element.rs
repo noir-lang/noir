@@ -1,5 +1,6 @@
 use ark_ff::PrimeField;
 use ark_ff::Zero;
+use ark_std::io::Write;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -195,26 +196,9 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32 {
-        let bytes = self.to_be_bytes();
-
-        // Iterate through the byte decomposition and pop off all leading zeroes
-        let mut iter = bytes.iter().skip_while(|x| (**x) == 0);
-
-        // The first non-zero byte in the decomposition may have some leading zero-bits.
-        let Some(head_byte) = iter.next() else {
-            // If we don't have a non-zero byte then the field element is zero,
-            // which we consider to require a single bit to represent.
-            return 1;
-        };
-        let num_bits_for_head_byte = head_byte.ilog2();
-
-        // Each remaining byte in the byte decomposition requires 8 bits.
-        //
-        // Note: count will panic if it goes over usize::MAX.
-        // This may not be suitable for devices whose usize < u16
-        let tail_length = iter.count() as u32;
-
-        8 * tail_length + num_bits_for_head_byte + 1
+        let mut bit_counter = BitCounter::default();
+        self.0.serialize_uncompressed(&mut bit_counter).unwrap();
+        bit_counter.bits()
     }
 
     fn to_u128(self) -> u128 {
@@ -274,12 +258,15 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     }
 
     fn to_be_bytes(self) -> Vec<u8> {
-        // to_be_bytes! uses little endian which is why we reverse the output
-        // TODO: Add a little endian equivalent, so the caller can use whichever one
-        // TODO they desire
+        let mut bytes = self.to_le_bytes();
+        bytes.reverse();
+        bytes
+    }
+
+    /// Converts the field element to a vector of bytes in little-endian order
+    fn to_le_bytes(self) -> Vec<u8> {
         let mut bytes = Vec::new();
         self.0.serialize_uncompressed(&mut bytes).unwrap();
-        bytes.reverse();
         bytes
     }
 
@@ -287,6 +274,12 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// reduction if needed.
     fn from_be_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
         FieldElement(F::from_be_bytes_mod_order(bytes))
+    }
+
+    /// Converts bytes in little-endian order into a FieldElement and applies a
+    /// reduction if needed.
+    fn from_le_bytes_reduce(bytes: &[u8]) -> FieldElement<F> {
+        FieldElement(F::from_le_bytes_mod_order(bytes))
     }
 
     /// Returns the closest number of bytes to the bits specified
@@ -354,6 +347,52 @@ impl<F: PrimeField> SubAssign for FieldElement<F> {
     }
 }
 
+#[derive(Default, Debug)]
+struct BitCounter {
+    /// Total number of non-zero bytes we found.
+    count: usize,
+    /// Total bytes we found.
+    total: usize,
+    /// The last non-zero byte we found.
+    head_byte: u8,
+}
+
+impl BitCounter {
+    fn bits(&self) -> u32 {
+        // If we don't have a non-zero byte then the field element is zero,
+        // which we consider to require a single bit to represent.
+        if self.count == 0 {
+            return 1;
+        }
+
+        let num_bits_for_head_byte = self.head_byte.ilog2();
+
+        // Each remaining byte in the byte decomposition requires 8 bits.
+        //
+        // Note: count will panic if it goes over usize::MAX.
+        // This may not be suitable for devices whose usize < u16
+        let tail_length = (self.count - 1) as u32;
+        8 * tail_length + num_bits_for_head_byte + 1
+    }
+}
+
+impl Write for BitCounter {
+    fn write(&mut self, buf: &[u8]) -> ark_std::io::Result<usize> {
+        for byte in buf {
+            self.total += 1;
+            if *byte != 0 {
+                self.count = self.total;
+                self.head_byte = *byte;
+            }
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> ark_std::io::Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{AcirField, FieldElement};
@@ -403,6 +442,50 @@ mod tests {
     fn max_num_bits_smoke() {
         let max_num_bits_bn254 = FieldElement::<ark_bn254::Fr>::max_num_bits();
         assert_eq!(max_num_bits_bn254, 254);
+    }
+
+    proptest! {
+        #[test]
+        fn test_endianness_prop(value in any::<u64>()) {
+            let field = FieldElement::<ark_bn254::Fr>::from(value);
+            // Test serialization consistency
+            let le_bytes = field.to_le_bytes();
+            let be_bytes = field.to_be_bytes();
+
+            let mut reversed_le = le_bytes.clone();
+            reversed_le.reverse();
+            prop_assert_eq!(&be_bytes, &reversed_le, "BE bytes should be reverse of LE bytes");
+
+            // Test deserialization consistency
+            let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
+            let from_be = FieldElement::from_be_bytes_reduce(&be_bytes);
+            prop_assert_eq!(from_le, from_be, "Deserialization should be consistent between LE and BE");
+            prop_assert_eq!(from_le, field, "Deserialized value should match original");
+        }
+    }
+
+    #[test]
+    fn test_endianness() {
+        let field = FieldElement::<ark_bn254::Fr>::from(0x1234_5678_u32);
+        let le_bytes = field.to_le_bytes();
+        let be_bytes = field.to_be_bytes();
+
+        // Check that the bytes are reversed between BE and LE
+        let mut reversed_le = le_bytes.clone();
+        reversed_le.reverse();
+        assert_eq!(&be_bytes, &reversed_le);
+
+        // Verify we can reconstruct the same field element from either byte order
+        let from_le = FieldElement::from_le_bytes_reduce(&le_bytes);
+        let from_be = FieldElement::from_be_bytes_reduce(&be_bytes);
+        assert_eq!(from_le, from_be);
+        assert_eq!(from_le, field);
+
+        // Additional test with a larger number to ensure proper byte handling
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_le = large_field.to_le_bytes();
+        let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
+        assert_eq!(reconstructed, large_field);
     }
 
     proptest! {

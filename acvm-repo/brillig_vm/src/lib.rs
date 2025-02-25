@@ -265,14 +265,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Check if condition is true
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     return self.set_program_counter(*destination);
                 }
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     return self.increment_program_counter();
                 }
                 self.set_program_counter(*destination)
@@ -340,7 +340,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.try_into().expect("condition value is not a boolean") {
+                if condition_value.expect_u1().expect("condition value is not a boolean") {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));
@@ -2405,5 +2405,46 @@ mod tests {
         let output_value = memory.read(MemoryAddress::direct(1));
 
         assert_eq!(output_value.to_field(), FieldElement::from(1u128));
+    }
+
+    #[test]
+    fn field_zero_division_regression() {
+        let calldata: Vec<FieldElement> = vec![];
+
+        let opcodes = &[
+            Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(1u64),
+            },
+            Opcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Field,
+                value: FieldElement::from(0u64),
+            },
+            Opcode::BinaryFieldOp {
+                destination: MemoryAddress::direct(2),
+                op: BinaryFieldOp::Div,
+                lhs: MemoryAddress::direct(0),
+                rhs: MemoryAddress::direct(1),
+            },
+        ];
+        let solver = StubbedBlackBoxSolver::default();
+        let mut vm = VM::new(calldata, opcodes, &solver, false);
+
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(status, VMStatus::InProgress);
+        let status = vm.process_opcode();
+        assert_eq!(
+            status,
+            VMStatus::Failure {
+                reason: FailureReason::RuntimeError {
+                    message: "Attempted to divide by zero".into()
+                },
+                call_stack: vec![2]
+            }
+        );
     }
 }

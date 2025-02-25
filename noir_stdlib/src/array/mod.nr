@@ -183,17 +183,17 @@ where
     ///     assert(sorted_descending == [32, 42]); // does not verify
     /// }
     /// ```
-    pub fn sort_via(self, sortfn: fn(T, T) -> bool) -> Self
-    {
+
+    pub fn sort_via(self, ordering: fn(T, T) -> bool) -> Self {
         // Safety: `sorted` array is checked to be:
         // a. a permutation of `input`'s elements
         // b. satisfying the predicate `ordering`
-        let sorted = unsafe { quicksort::quicksort(self, sortfn) };
+        let sorted = unsafe { quicksort::quicksort(self, ordering) };
 
         if !is_unconstrained() {
             for i in 0..N - 1 {
                 assert(
-                    sortfn(sorted[i], sorted[i + 1]),
+                    ordering(sorted[i], sorted[i + 1]),
                     "Array has not been sorted correctly according to `ordering`.",
                 );
             }
@@ -201,7 +201,6 @@ where
         }
         sorted
     }
-
 }
 
 impl<let N: u32> [u8; N] {

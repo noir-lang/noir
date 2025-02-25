@@ -23,4 +23,3 @@ fn main() {
     }
     assert(c1 == 1);
 }
-

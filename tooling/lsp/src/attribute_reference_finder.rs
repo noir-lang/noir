@@ -90,7 +90,7 @@ impl<'a> Visitor for AttributeReferenceFinder<'a> {
         attribute: &MetaAttribute,
         _target: AttributeTarget,
     ) -> bool {
-        if !self.includes_span(attribute.span) {
+        if !self.includes_span(attribute.location.span) {
             return false;
         }
 

@@ -61,7 +61,7 @@ where
     Event: EventInterface,
 {
     |e: Event| {
-        /// Safety: testing context
+        // Safety: testing context
         unsafe {
             func(context.a);
         }
@@ -90,4 +90,3 @@ fn main(input: [Field; 4], randomness: Field, context_input: u32) {
     let event0 = ExampleEvent0 { value0: input[0], value1: input[1] };
     event0.emit(encode_event_with_randomness(&mut context, randomness));
 }
-

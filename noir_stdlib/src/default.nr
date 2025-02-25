@@ -47,6 +47,12 @@ impl Default for u64 {
     }
 }
 
+impl Default for u128 {
+    fn default() -> u128 {
+        0
+    }
+}
+
 impl Default for i8 {
     fn default() -> i8 {
         0

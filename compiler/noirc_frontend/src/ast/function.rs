@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{FunctionReturnType, Ident, Param, Visibility},
@@ -65,7 +65,9 @@ impl NoirFunction {
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
-            FunctionReturnType::Default(span) => UnresolvedTypeData::Unit.with_span(*span),
+            FunctionReturnType::Default(location) => {
+                UnresolvedTypeData::Unit.with_location(*location)
+            }
             FunctionReturnType::Ty(ty) => ty.clone(),
         }
     }
@@ -96,8 +98,11 @@ impl NoirFunction {
     pub fn number_of_statements(&self) -> usize {
         self.def.body.statements.len()
     }
+    pub fn location(&self) -> Location {
+        self.def.location
+    }
     pub fn span(&self) -> Span {
-        self.def.span
+        self.location().span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {
