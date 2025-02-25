@@ -7,7 +7,7 @@
 //! For array operations with constant indices adding an instruction to offset the pointer
 //! is unnecessary as we already know the index. This pass looks for such array operations
 //! with constant indices and replaces their index with the appropriate offset.
-//!
+
 use fxhash::FxHashMap as HashMap;
 
 use crate::{
@@ -113,7 +113,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u32):
-            v2 = array_get v0, v1 -> Field
+            v2 = array_get v0, index v1 -> Field
             return v2
         }
         ";
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn do_not_offset_array_get_in_acir() {
-        let src = "
+        let src = " 
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 0 -> Field
