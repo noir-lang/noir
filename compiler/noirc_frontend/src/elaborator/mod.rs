@@ -5,9 +5,8 @@ use std::{
 
 use crate::{
     ast::{
-        BlockExpression, CallExpression, Expression, ExpressionKind, FunctionKind, GenericTypeArgs,
-        Ident, IfExpression, NoirFunction, NoirStruct, Param, Path, PathKind, PathSegment, Pattern,
-        Statement, StatementKind, TraitBound, UnaryOp, UnresolvedGeneric, UnresolvedGenerics,
+        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
+        Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
     graph::CrateId,
@@ -53,6 +52,7 @@ use crate::{
 mod comptime;
 mod enums;
 mod expressions;
+mod input_validations;
 mod lints;
 mod options;
 mod path_resolution;
@@ -1066,113 +1066,6 @@ impl<'context> Elaborator<'context> {
         self.scopes.end_function();
         self.current_item = None;
     }
-
-    /// Adds statements to `statements` to validate the given parameters.
-    ///
-    /// For example, this function:
-    ///
-    /// fn main(x: u8, y: u8) {
-    ///     assert_eq(x, y);
-    /// }
-    ///
-    /// is transformed into this one:
-    ///
-    /// fn main(x: u8, y: u8) {
-    ///     if !std::runtime::is_unconstrained() {
-    ///         std::validation::AssertsIsValidInput::assert_is_valid_input(x);
-    ///         std::validation::AssertsIsValidInput::assert_is_valid_input(y);
-    ///     }
-    ///     assert_eq(x, y);
-    /// }
-    fn add_entry_point_parameters_validation(
-        &self,
-        params: &[Param],
-        statements: &mut Vec<Statement>,
-    ) {
-        if params.is_empty() {
-            return;
-        }
-
-        let location = params[0].location;
-
-        let mut consequence_statements = Vec::with_capacity(params.len());
-        for param in params {
-            self.add_entry_point_pattern_validation(&param.pattern, &mut consequence_statements);
-        }
-
-        let consequence = BlockExpression { statements: consequence_statements };
-        let consequence = ExpressionKind::Block(consequence);
-        let consequence = Expression::new(consequence, location);
-
-        let segments = ["std", "runtime", "is_unconstrained"].into_iter();
-        let segments = segments.map(|segment| PathSegment {
-            ident: Ident::new(segment.into(), location),
-            generics: None,
-            location,
-        });
-        let func = Path { segments: segments.collect(), kind: PathKind::Plain, location };
-        let func = ExpressionKind::Variable(func);
-        let func = Box::new(Expression::new(func, location));
-        let call = CallExpression { func, arguments: Vec::new(), is_macro_call: false };
-        let call = Expression::new(ExpressionKind::Call(Box::new(call)), location);
-        let not = ExpressionKind::prefix(UnaryOp::Not, call);
-        let not = Expression::new(not, location);
-        let if_ = ExpressionKind::If(Box::new(IfExpression {
-            condition: not,
-            consequence: consequence,
-            alternative: None,
-        }));
-        let if_ = Expression::new(if_, location);
-        let statement = Statement { kind: StatementKind::Expression(if_), location };
-        statements.insert(0, statement);
-    }
-
-    fn add_entry_point_pattern_validation(
-        &self,
-        pattern: &Pattern,
-        statements: &mut Vec<Statement>,
-    ) {
-        match pattern {
-            Pattern::Identifier(ident) => {
-                if ident.0.contents == "_" {
-                    return;
-                }
-
-                let location = ident.location();
-                let segments =
-                    ["std", "validation", "AssertsIsValidInput", "assert_is_valid_input"]
-                        .into_iter();
-                let segments = segments.map(|segment| PathSegment {
-                    ident: Ident::new(segment.into(), location),
-                    generics: None,
-                    location,
-                });
-                let func = Path { segments: segments.collect(), kind: PathKind::Plain, location };
-                let func = ExpressionKind::Variable(func);
-                let func = Box::new(Expression::new(func, location));
-                let argument = ExpressionKind::Variable(Path::from_ident(ident.clone()));
-                let argument = Expression::new(argument, location);
-                let call = CallExpression { func, arguments: vec![argument], is_macro_call: false };
-                let call = Expression::new(ExpressionKind::Call(Box::new(call)), location);
-                let call = Statement { kind: StatementKind::Semi(call), location };
-                statements.push(call);
-            }
-            Pattern::Mutable(pattern, ..) => {
-                self.add_entry_point_pattern_validation(pattern, statements);
-            }
-            Pattern::Tuple(patterns, ..) => {
-                for pattern in patterns {
-                    self.add_entry_point_pattern_validation(pattern, statements);
-                }
-            }
-            Pattern::Struct(..) => todo!("add_entry_point_pattern_validation for Struct pattern"),
-            Pattern::Interned(interned_pattern, ..) => {
-                let pattern = self.interner.get_pattern(*interned_pattern);
-                self.add_entry_point_pattern_validation(pattern, statements);
-            }
-        }
-    }
-
     fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
             Type::Array(_n, typ) => self.mark_type_as_used(typ),
