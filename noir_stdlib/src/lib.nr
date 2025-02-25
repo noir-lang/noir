@@ -26,6 +26,7 @@ pub mod append;
 pub mod mem;
 pub mod panic;
 pub mod hint;
+pub mod validation;
 
 use convert::AsPrimitive;
 

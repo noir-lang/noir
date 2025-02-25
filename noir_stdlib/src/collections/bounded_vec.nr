@@ -1,4 +1,7 @@
-use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
+use crate::{
+    cmp::Eq, convert::From, runtime::is_unconstrained, static_assert,
+    validation::AssertsIsValidInput,
+};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
@@ -523,6 +526,16 @@ where
 impl<T, let MaxLen: u32, let Len: u32> From<[T; Len]> for BoundedVec<T, MaxLen> {
     fn from(array: [T; Len]) -> BoundedVec<T, MaxLen> {
         BoundedVec::from_array(array)
+    }
+}
+
+impl<T, let MaxLen: u32> AssertsIsValidInput for BoundedVec<T, MaxLen>
+where
+    T: AssertsIsValidInput,
+{
+    fn assert_is_valid_input(self) {
+        assert(self.len <= MaxLen);
+        self.storage.assert_is_valid_input();
     }
 }
 

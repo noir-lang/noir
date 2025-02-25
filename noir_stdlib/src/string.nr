@@ -1,5 +1,6 @@
 use crate::collections::vec::Vec;
 use crate::convert::From;
+use crate::validation::AssertsIsValidInput;
 
 impl<let N: u32> str<N> {
     /// Converts the given string into a byte array
