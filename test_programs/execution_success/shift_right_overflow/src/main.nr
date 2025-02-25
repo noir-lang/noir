@@ -1,4 +1,5 @@
-fn main(x: u8) -> pub u8 {
+fn main(x: u8) {
     // This would previously overflow in ACIR. Now it returns zero.
-    1 >> x
+    let value = 1 >> x;
+    assert_eq(value, 0);
 }
