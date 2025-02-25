@@ -705,8 +705,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
-        dbg!(("evaluate_integer", value));
-
         if let Type::FieldElement = &typ {
             Ok(Value::Field(value.into()))
         } else if let Type::Integer(sign, bit_size) = &typ {
@@ -715,35 +713,30 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                    dbg!("u8");
                     let value = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::U8(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    dbg!("u16");
                     let value = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::U16(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                    dbg!("u32");
                     let value = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::U32(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                    dbg!("u64");
                     let value = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::U64(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                    dbg!("u128");
                     let value: u128 = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
@@ -753,28 +746,24 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
-                    dbg!("i8");
                     let value = value.try_to_signed().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::I8(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    dbg!("i16");
                     let value = value.try_to_signed().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::I16(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    dbg!("i32");
                     let value = value.try_to_signed().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
                     Ok(Value::I32(value))
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    dbg!("i64");
                     let value = value.try_to_signed().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
