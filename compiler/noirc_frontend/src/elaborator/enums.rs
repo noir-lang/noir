@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use fm::FileId;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -281,12 +280,10 @@ impl Elaborator<'_> {
             let body_location = branch.type_location();
             let (body, body_type) = self.elaborate_expression(branch);
 
-            self.unify(&body_type, &result_type, body_location.file, || {
-                TypeCheckError::TypeMismatch {
-                    expected_typ: result_type.to_string(),
-                    expr_typ: body_type.to_string(),
-                    expr_span: body_location.span,
-                }
+            self.unify(&body_type, &result_type, || TypeCheckError::TypeMismatch {
+                expected_typ: result_type.to_string(),
+                expr_typ: body_type.to_string(),
+                expr_location: body_location,
             });
 
             self.pop_scope();
@@ -304,20 +301,17 @@ impl Elaborator<'_> {
     ) -> Pattern {
         let expr_location = expression.type_location();
         let unify_with_expected_type = |this: &mut Self, actual| {
-            this.unify(actual, expected_type, expr_location.file, || {
-                TypeCheckError::TypeMismatch {
-                    expected_typ: expected_type.to_string(),
-                    expr_typ: actual.to_string(),
-                    expr_span: expr_location.span,
-                }
+            this.unify(actual, expected_type, || TypeCheckError::TypeMismatch {
+                expected_typ: expected_type.to_string(),
+                expr_typ: actual.to_string(),
+                expr_location,
             });
         };
 
-        // We want the actual expression's span here, not the innermost one from `type_location()`
-        let span = expression.location.span;
+        // We want the actual expression's location here, not the innermost one from `type_location()`
         let syntax_error = |this: &mut Self| {
-            let errors = ResolverError::InvalidSyntaxInPattern { span };
-            this.push_err(errors, this.file);
+            let errors = ResolverError::InvalidSyntaxInPattern { location: expression.location };
+            this.push_err(errors);
             Pattern::Error
         };
 
@@ -362,9 +356,9 @@ impl Elaborator<'_> {
                             if last_ident.0.contents != "_" {
                                 let error = ResolverError::VariableAlreadyDefinedInPattern {
                                     existing: existing.clone(),
-                                    new_span: last_ident.span(),
+                                    new_location: last_ident.location(),
                                 };
-                                self.push_err(error, self.file);
+                                self.push_err(error);
                             }
                         } else {
                             variables_defined.push(last_ident.clone());
@@ -375,7 +369,7 @@ impl Elaborator<'_> {
                         Pattern::Binding(id)
                     }
                     Err(error) => {
-                        self.push_err(error, location.file);
+                        self.push_err(error);
                         Pattern::Error
                     }
                 }
@@ -433,7 +427,7 @@ impl Elaborator<'_> {
             | ExpressionKind::Quote(_)
             | ExpressionKind::Unquote(_)
             | ExpressionKind::Comptime(_, _)
-            | ExpressionKind::Unsafe(_, _)
+            | ExpressionKind::Unsafe(_)
             | ExpressionKind::AsTraitPath(_)
             | ExpressionKind::TypePath(_)
             | ExpressionKind::Resolved(_)
@@ -466,7 +460,7 @@ impl Elaborator<'_> {
                     let struct_definition = struct_name.clone();
                     ResolverError::NoSuchField { field: field_name, struct_definition }
                 };
-                self.push_err(error, self.file);
+                self.push_err(error);
                 continue;
             };
 
@@ -478,10 +472,10 @@ impl Elaborator<'_> {
 
         if !expected_field_types.is_empty() {
             let struct_definition = struct_name;
-            let span = location.span;
             let missing_fields = vecmap(expected_field_types, |(name, _)| name);
-            let error = ResolverError::MissingFields { span, missing_fields, struct_definition };
-            self.push_err(error, self.file);
+            let error =
+                ResolverError::MissingFields { location, missing_fields, struct_definition };
+            self.push_err(error);
         }
 
         let args = vecmap(fields, |(_name, field)| field);
@@ -508,7 +502,7 @@ impl Elaborator<'_> {
                         variables_defined,
                     ),
                     Err(error) => {
-                        self.push_err(error, location.file);
+                        self.push_err(error);
                         let id = self.fresh_match_variable(expected_type.clone(), location);
                         Pattern::Binding(id)
                     }
@@ -546,8 +540,6 @@ impl Elaborator<'_> {
         location: Location,
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
-        let span = location.span;
-
         let (actual_type, expected_arg_types, variant_index) = match name {
             PathResolutionItem::Global(id) => {
                 // variant constant
@@ -591,10 +583,10 @@ impl Elaborator<'_> {
 
         // We must unify the actual type before `expected_arg_types` are used since those
         // are instantiated and rely on this already being unified.
-        self.unify(&actual_type, expected_type, location.file, || TypeCheckError::TypeMismatch {
+        self.unify(&actual_type, expected_type, || TypeCheckError::TypeMismatch {
             expected_typ: expected_type.to_string(),
             expr_typ: actual_type.to_string(),
-            expr_span: span,
+            expr_location: location,
         });
 
         if args.len() != expected_arg_types.len() {
@@ -620,9 +612,8 @@ impl Elaborator<'_> {
             }
         }
 
-        let error =
-            ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span: location.span };
-        self.push_err(error, location.file);
+        let error = ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), location };
+        self.push_err(error);
         None
     }
 
@@ -631,13 +622,13 @@ impl Elaborator<'_> {
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
     pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>) -> HirMatch {
-        self.compile_rows(rows).unwrap_or_else(|(error, file)| {
-            self.push_err(error, file);
+        self.compile_rows(rows).unwrap_or_else(|error| {
+            self.push_err(error);
             HirMatch::Failure
         })
     }
 
-    fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, (ResolverError, FileId)> {
+    fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
             eprintln!("Warning: missing case");
             return Ok(HirMatch::Failure);
@@ -767,7 +758,7 @@ impl Elaborator<'_> {
         &mut self,
         rows: Vec<Row>,
         branch_var: DefinitionId,
-    ) -> Result<(Vec<Case>, Box<HirMatch>), (ResolverError, FileId)> {
+    ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows = Vec::new();
         let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
@@ -806,7 +797,7 @@ impl Elaborator<'_> {
 
         let cases = try_vecmap(raw_cases, |(cons, vars, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok::<_, (ResolverError, FileId)>(Case::new(cons, vars, rows))
+            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
         })?;
 
         Ok((cases, Box::new(self.compile_rows(fallback_rows)?)))
@@ -842,7 +833,7 @@ impl Elaborator<'_> {
         rows: Vec<Row>,
         branch_var: DefinitionId,
         mut cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)>,
-    ) -> Result<(Vec<Case>, Option<Box<HirMatch>>), (ResolverError, FileId)> {
+    ) -> Result<(Vec<Case>, Option<Box<HirMatch>>), ResolverError> {
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 if let Pattern::Constructor(cons, args) = col.pattern {
@@ -864,7 +855,7 @@ impl Elaborator<'_> {
 
         let cases = try_vecmap(cases, |(cons, vars, rows)| {
             let rows = self.compile_rows(rows)?;
-            Ok::<_, (ResolverError, FileId)>(Case::new(cons, vars, rows))
+            Ok::<_, ResolverError>(Case::new(cons, vars, rows))
         })?;
 
         Ok(Self::deduplicate_cases(cases))
@@ -976,8 +967,8 @@ impl Elaborator<'_> {
         let let_ = self.interner.push_stmt(let_);
         let body = self.interner.push_stmt(HirStatement::Expression(body));
 
-        self.interner.push_stmt_location(let_, location.span, location.file);
-        self.interner.push_stmt_location(body, location.span, location.file);
+        self.interner.push_stmt_location(let_, location);
+        self.interner.push_stmt_location(body, location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
         let block = self.interner.push_expr(block);

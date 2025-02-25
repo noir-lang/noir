@@ -23,7 +23,7 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
             PathResolutionError::Private { .. }
         ))
@@ -34,7 +34,7 @@ fn assert_type_is_more_private_than_item_error(src: &str, private_typ: &str, pub
     let errors = get_program_errors(src);
 
     assert!(!errors.is_empty(), "expected visibility error, got nothing");
-    for (error, _) in &errors {
+    for error in &errors {
         let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
             typ,
             item,
@@ -271,7 +271,7 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -304,7 +304,7 @@ fn warns_if_calling_private_struct_method() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -396,7 +396,7 @@ fn error_when_accessing_private_struct_field() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -463,7 +463,7 @@ fn error_when_using_private_struct_field_in_constructor() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -494,7 +494,7 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -573,7 +573,7 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::Private(ident),
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a private error");
     };
@@ -614,9 +614,9 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
-        errors.remove(0).0
+        errors.remove(0)
     else {
-        panic!("Expected a ComptimeError, got {:?}", errors[0].0);
+        panic!("Expected a ComptimeError, got {:?}", errors[0]);
     };
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(

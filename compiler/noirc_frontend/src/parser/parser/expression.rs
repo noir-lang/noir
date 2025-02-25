@@ -6,7 +6,7 @@ use crate::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType,
+        Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
     },
     parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
     token::{Keyword, Token, TokenKind},
@@ -406,7 +406,10 @@ impl<'a> Parser<'a> {
         }
 
         if let Some(block) = self.parse_block() {
-            Some(ExpressionKind::Unsafe(block, self.location_since(start_location)))
+            Some(ExpressionKind::Unsafe(UnsafeExpression {
+                block,
+                unsafe_keyword_location: start_location,
+            }))
         } else {
             Some(ExpressionKind::Error)
         }
@@ -1082,10 +1085,10 @@ mod tests {
         // Safety: test
         unsafe { 1 }";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+        let ExpressionKind::Unsafe(unsafe_expression) = expr.kind else {
             panic!("Expected unsafe expression");
         };
-        assert_eq!(block.statements.len(), 1);
+        assert_eq!(unsafe_expression.block.statements.len(), 1);
     }
 
     #[test]
@@ -1096,10 +1099,10 @@ mod tests {
 
         let mut parser = Parser::for_str_with_dummy_file(src);
         let expr = parser.parse_expression().unwrap();
-        let ExpressionKind::Unsafe(block, _) = expr.kind else {
+        let ExpressionKind::Unsafe(unsafe_expression) = expr.kind else {
             panic!("Expected unsafe expression");
         };
-        assert_eq!(block.statements.len(), 1);
+        assert_eq!(unsafe_expression.block.statements.len(), 1);
     }
 
     #[test]
