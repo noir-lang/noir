@@ -2134,7 +2134,7 @@ impl<'context> Elaborator<'context> {
                     let span = location.span;
                     let found = trait_impl.r#trait.typ.to_string();
                     self.push_err(ResolverError::ExpectedTrait { span, found }, location.file);
-                    continue;
+                    (None, GenericTypeArgs::default(), location)
                 }
             };
 
