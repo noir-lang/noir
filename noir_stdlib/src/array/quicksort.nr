@@ -54,7 +54,7 @@ pub unconstrained fn quicksort<T, let N: u32>(
     sortfn: unconstrained fn(T, T) -> bool,
 ) -> [T; N] {
     let mut arr: [T; N] = arr;
-    if arr.len() <= 1 {} else {
+    if arr.len() > 1 {
         quicksort_loop(&mut arr, 0, arr.len() - 1, sortfn);
     }
     arr
