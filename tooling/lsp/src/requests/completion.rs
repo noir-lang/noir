@@ -405,23 +405,31 @@ impl<'a> NodeFinder<'a> {
 
     fn local_variables_completion(&mut self, prefix: &str) {
         for (name, span) in &self.local_variables {
-            if name_matches(name, prefix) {
-                let location = Location::new(*span, self.file);
-                let description = if let Some(ReferenceId::Local(definition_id)) =
-                    self.interner.reference_at_location(location)
-                {
-                    let typ = self.interner.definition_type(definition_id);
-                    Some(typ.to_string())
-                } else {
-                    None
-                };
-
-                self.completion_items.push(simple_completion_item(
-                    name,
-                    CompletionItemKind::VARIABLE,
-                    description,
-                ));
+            if !name_matches(name, prefix) {
+                continue;
             }
+
+            let location = Location::new(*span, self.file);
+            let description = match self.interner.reference_at_location(location) {
+                Some(ReferenceId::Local(definition_id)) => {
+                    Some(self.interner.definition_type(definition_id).to_string())
+                }
+                Some(ReferenceId::Reference(location, _)) => {
+                    match self.interner.find_referenced(location) {
+                        Some(ReferenceId::Local(definition_id)) => {
+                            Some(self.interner.definition_type(definition_id).to_string())
+                        }
+                        _ => None,
+                    }
+                }
+                _ => None,
+            };
+
+            self.completion_items.push(simple_completion_item(
+                name,
+                CompletionItemKind::VARIABLE,
+                description,
+            ));
         }
     }
 
