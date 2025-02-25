@@ -130,8 +130,7 @@ pub(crate) struct DependencyGraph {
     pub(crate) root_dependencies: Vec<CrateName>,
     pub(crate) library_dependencies: BTreeMap<CrateName, Vec<CrateName>>,
 }
-#[wasm_bindgen]
-/// This is a map contains the paths of all of the files in the entry-point crate and
+/// This is map contains the paths of all of the files in the entry-point crate and
 /// the transitive dependencies of the entry-point crate.
 ///
 /// This is for all intents and purposes the file system that the compiler will use to resolve/compile
@@ -141,6 +140,7 @@ pub(crate) struct DependencyGraph {
 /// which affects the `FileId` in the `Location`s in the AST on which the `hash` is based.
 /// Note that we cannot expect to match the IDs assigned by the `FileManager` used by `nargo`,
 /// because there the order is determined by the dependency graph as well as the file name.
+#[wasm_bindgen]
 #[derive(Deserialize, Default)]
 pub struct PathToFileSourceMap(pub(crate) BTreeMap<std::path::PathBuf, String>);
 
