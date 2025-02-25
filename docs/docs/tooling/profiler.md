@@ -41,7 +41,7 @@ array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 
 Compile the program using `nargo compile`, then we are ready to try the profiler out.
 
-### Generating an ACIR opcode flamegraph
+### Flamegraphing ACIR opcodes
 
 The program on its own is quite high-level. Let's get a more granular look at what is happening by using `noir-profiler`.
 
@@ -56,7 +56,7 @@ You should now have a flamegraph that maps ACIR opcodes to their corresponding l
 
 We can see that the majority of opcodes come from the write to `array[i]`. Now that we have some more information about our program's bottlenecks, let's optimize it.
 
-#### Optimizing the program: transform conditional writes into reads
+#### Optimizing array writes with reads
 
 We can improve our circuit's efficiency using [unconstrained functions](../noir/concepts/unconstrained.md).
 
@@ -91,9 +91,9 @@ This new program produces the following ACIR opcodes flamegraph with a total of 
 
 In the above image we searched for the ACIR opcodes due to `i > ptr` in the source code. Trigger a search by clicking on "Search" in the top right corner of the flamegraph. In the bottom right corner of the image above, you will note that the flamegraph displays the percentage of all opcodes associated with that search.  Searching for `memory::op` in the optimized flamegraph will result in no matches. This is due to no longer using a dynamic array in our circuit. By dynamic array, we are referring to using a dynamic index (values reliant upon witness inputs) when working with arrays. Most of the memory operations, have now been replaced with arithmetic operations as we are reading two arrays from known constant indices.
 
-### Generate a proving backend gates flamegraph
+### Flamegraphing proving backend gates
 
-Unfortunately, ACIR opcodes do not give us a full picture of where the cost of this program lies.
+ACIR opcodes do not give us a full picture of where the cost of this program lies.
 The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
 
 Run the following command:
@@ -120,7 +120,7 @@ In the optimized flamegraph, we searched for the backend gates due to `i > ptr` 
 For posterity, here is the flamegraph for the same program with a size 2048 array:
 ![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
 
-### Generate an unconstrained execution trace flamegraph
+### Flamegraphing unconstrained opcodes
 
 The profiler also enables developers to generate a flamegraph of the unconstrained execution trace. For unconstrained functions Noir compiles down to Brillig bytecode, thus we will be seeing a flamegraph of Brillig opcodes, rather than ACIR opcodes.
 
