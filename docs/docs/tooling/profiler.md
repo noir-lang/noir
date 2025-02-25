@@ -36,7 +36,7 @@ Change directory into the project and compile the program using `nargo compile`.
 
 ### Flamegraphing ACIR opcodes
 
-Let's get a more granular look at our program using the profiler, running:
+Let's get a more granular look at our program's ACIR opcode footprint using the profiler, running:
 
 ```sh
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
