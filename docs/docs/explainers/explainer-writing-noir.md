@@ -70,7 +70,7 @@ A few things to do when converting Rust code to Noir:
 - No early `return` in function. Use constrain via assertion instead
 - No passing by reference. Remove `&` operator to pass by value (copy)
 - No boolean operators (`&&`, `||`). Use bitwise operators (`&`, `|`) with boolean values
-- No type `usize`. Use types `u8`, `u32`, `u64`, ... 
+- No type `usize`. Use types `u8`, `u32`, `u64`, ...
 - `main` return must be public, `pub`
 - No `const`, use `global`
 - Noir's LSP is your friend, so error message should be informative enough to resolve syntax issues.
