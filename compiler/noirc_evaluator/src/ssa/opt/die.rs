@@ -1117,4 +1117,38 @@ mod test {
         ";
         assert_normalized_ssa_equals(ssa, expected);
     }
+
+    #[test]
+    fn do_not_remove_inc_rc_if_mutated_in_other_block() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut [Field; 3]):
+            v1 = load v0 -> [Field; 3]
+            inc_rc v1
+            jmp b1()
+          b1():
+            v2 = load v0 -> [Field; 3]
+            v3 = array_set v2, index u32 0, value u32 0
+            store v3 at v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut [Field; 3]):
+            v1 = load v0 -> [Field; 3]
+            inc_rc v1
+            jmp b1()
+          b1():
+            v2 = load v0 -> [Field; 3]
+            v4 = array_set v2, index u32 0, value u32 0
+            store v4 at v0
+            return
+        }
+        ";
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
 }
