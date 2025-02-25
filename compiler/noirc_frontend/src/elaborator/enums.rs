@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use fm::FileId;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
@@ -5,8 +7,8 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        EnumVariant, Expression, ExpressionKind, FunctionKind, Ident, Literal, NoirEnumeration,
-        StatementKind, UnresolvedType, Visibility,
+        ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
+        Literal, NoirEnumeration, StatementKind, UnresolvedType, Visibility,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
@@ -356,11 +358,14 @@ impl Elaborator<'_> {
                         if let Some(existing) =
                             variables_defined.iter().find(|elem| *elem == &last_ident)
                         {
-                            let error = ResolverError::VariableAlreadyDefinedInPattern {
-                                existing: existing.clone(),
-                                new_span: last_ident.span(),
-                            };
-                            self.push_err(error, self.file);
+                            // Allow redefinition of `_` only, to ignore variables
+                            if last_ident.0.contents != "_" {
+                                let error = ResolverError::VariableAlreadyDefinedInPattern {
+                                    existing: existing.clone(),
+                                    new_span: last_ident.span(),
+                                };
+                                self.push_err(error, self.file);
+                            }
                         } else {
                             variables_defined.push(last_ident.clone());
                         }
@@ -381,7 +386,9 @@ impl Elaborator<'_> {
                 expected_type,
                 variables_defined,
             ),
-            ExpressionKind::Constructor(_) => todo!("handle constructors"),
+            ExpressionKind::Constructor(constructor) => {
+                self.constructor_to_pattern(*constructor, variables_defined)
+            }
             ExpressionKind::Tuple(fields) => {
                 let field_types = vecmap(0..fields.len(), |_| self.interner.next_type_variable());
                 let actual = Type::Tuple(field_types.clone());
@@ -432,6 +439,53 @@ impl Elaborator<'_> {
             | ExpressionKind::Resolved(_)
             | ExpressionKind::Error => syntax_error(self),
         }
+    }
+
+    fn constructor_to_pattern(
+        &mut self,
+        constructor: ConstructorExpression,
+        variables_defined: &mut Vec<Ident>,
+    ) -> Pattern {
+        let location = constructor.typ.location;
+        let typ = self.resolve_type(constructor.typ);
+
+        let Some((struct_name, mut expected_field_types)) =
+            self.struct_name_and_field_types(&typ, location)
+        else {
+            return Pattern::Error;
+        };
+
+        let mut fields = BTreeMap::default();
+        for (field_name, field) in constructor.fields {
+            let Some(field_index) =
+                expected_field_types.iter().position(|(name, _)| *name == field_name.0.contents)
+            else {
+                let error = if fields.contains_key(&field_name.0.contents) {
+                    ResolverError::DuplicateField { field: field_name }
+                } else {
+                    let struct_definition = struct_name.clone();
+                    ResolverError::NoSuchField { field: field_name, struct_definition }
+                };
+                self.push_err(error, self.file);
+                continue;
+            };
+
+            let (field_name, expected_field_type) = expected_field_types.swap_remove(field_index);
+            let pattern =
+                self.expression_to_pattern(field, &expected_field_type, variables_defined);
+            fields.insert(field_name, pattern);
+        }
+
+        if !expected_field_types.is_empty() {
+            let struct_definition = struct_name;
+            let span = location.span;
+            let missing_fields = vecmap(expected_field_types, |(name, _)| name);
+            let error = ResolverError::MissingFields { span, missing_fields, struct_definition };
+            self.push_err(error, self.file);
+        }
+
+        let args = vecmap(fields, |(_name, field)| field);
+        Pattern::Constructor(Constructor::Variant(typ, 0), args)
     }
 
     fn expression_to_constructor(
@@ -553,6 +607,23 @@ impl Elaborator<'_> {
         });
         let constructor = Constructor::Variant(actual_type, variant_index);
         Pattern::Constructor(constructor, args)
+    }
+
+    fn struct_name_and_field_types(
+        &mut self,
+        typ: &Type,
+        location: Location,
+    ) -> Option<(Ident, Vec<(String, Type)>)> {
+        if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref() {
+            if let Some(fields) = typ.borrow().get_fields(generics) {
+                return Some((typ.borrow().name.clone(), fields));
+            }
+        }
+
+        let error =
+            ResolverError::NonStructUsedInConstructor { typ: typ.to_string(), span: location.span };
+        self.push_err(error, location.file);
+        None
     }
 
     /// Compiles the rows of a match expression, outputting a decision tree for the match.

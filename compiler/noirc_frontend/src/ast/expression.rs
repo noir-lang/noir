@@ -7,9 +7,7 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use crate::node_interner::{
-    ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId, TypeId,
-};
+use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::{acir::AcirField, FieldElement};
@@ -223,11 +221,7 @@ impl ExpressionKind {
     pub fn constructor(
         (typ, fields): (UnresolvedType, Vec<(Ident, Expression)>),
     ) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression {
-            typ,
-            fields,
-            struct_type: None,
-        }))
+        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 }
 
@@ -545,11 +539,6 @@ pub struct MethodCallExpression {
 pub struct ConstructorExpression {
     pub typ: UnresolvedType,
     pub fields: Vec<(Ident, Expression)>,
-
-    /// This may be filled out during macro expansion
-    /// so that we can skip re-resolving the type name since it
-    /// would be lost at that point.
-    pub struct_type: Option<TypeId>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -129,12 +129,10 @@ impl HirExpression {
                 let fields = vecmap(constructor.fields.clone(), |(name, expr): (Ident, ExprId)| {
                     (name, expr.to_display_ast(interner))
                 });
-                let struct_type = None;
 
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
                     typ: UnresolvedType::from_path(type_name),
                     fields,
-                    struct_type,
                 }))
             }
             HirExpression::MemberAccess(access) => {
