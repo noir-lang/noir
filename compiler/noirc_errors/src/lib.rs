@@ -7,7 +7,7 @@ pub mod call_stack;
 pub mod debug_info;
 mod position;
 pub mod reporter;
-pub use position::{Location, Position, Span, Spanned};
+pub use position::{Located, Location, Position, Span, Spanned};
 pub use reporter::{CustomDiagnostic, DiagnosticKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

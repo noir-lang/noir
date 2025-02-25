@@ -7,6 +7,8 @@
 mod array_set;
 mod as_slice_length;
 mod assert_constant;
+pub(crate) mod brillig_entry_points;
+mod check_u128_mul_overflow;
 mod constant_folding;
 mod defunctionalize;
 mod die;

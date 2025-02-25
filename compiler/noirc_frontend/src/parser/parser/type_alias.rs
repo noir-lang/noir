@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_type_alias(
         &mut self,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
@@ -20,8 +20,8 @@ impl<'a> Parser<'a> {
                 visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
-                span: start_span,
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                location: start_location,
             };
         };
 
@@ -30,25 +30,25 @@ impl<'a> Parser<'a> {
         if !self.eat_assign() {
             self.expected_token(Token::Assign);
 
-            let span = self.span_since(start_span);
+            let location = self.location_since(start_location);
             self.eat_semicolons();
 
             return NoirTypeAlias {
                 visibility,
                 name,
                 generics,
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, span: Span::default() },
-                span,
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                location,
             };
         }
 
         let typ = self.parse_type_or_error();
-        let span = self.span_since(start_span);
+        let location = self.location_since(start_location);
         if !self.eat_semicolons() {
             self.expected_token(Token::Semicolon);
         }
 
-        NoirTypeAlias { visibility, name, generics, typ, span }
+        NoirTypeAlias { visibility, name, generics, typ, location }
     }
 }
 
@@ -56,14 +56,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         ast::{NoirTypeAlias, UnresolvedTypeData},
-        parser::{
-            parser::{parse_program, tests::expect_no_errors},
-            ItemKind,
-        },
+        parse_program_with_dummy_file,
+        parser::{parser::tests::expect_no_errors, ItemKind},
     };
 
     fn parse_type_alias_no_errors(src: &str) -> NoirTypeAlias {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);

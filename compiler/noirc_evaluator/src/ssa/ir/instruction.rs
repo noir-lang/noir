@@ -1,3 +1,4 @@
+use binary::{truncate, truncate_field};
 use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -324,7 +325,9 @@ pub(crate) enum Instruction {
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    DecrementRc { value: ValueId },
+    ///
+    /// The `original` contains the value of the array which was incremented by the pair of this decrement.
+    DecrementRc { value: ValueId, original: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -603,7 +606,7 @@ impl Instruction {
                     BinaryOp::Div | BinaryOp::Mod => {
                         // Div and Mod require a predicate if the RHS may be zero.
                         dfg.get_numeric_constant(binary.rhs)
-                            .map(|rhs| !rhs.is_zero())
+                            .map(|rhs| rhs.is_zero())
                             .unwrap_or(true)
                     }
                     BinaryOp::Add { unchecked: true }
@@ -721,7 +724,9 @@ impl Instruction {
                 mutable: *mutable,
             },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
-            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
+            Instruction::DecrementRc { value, original } => {
+                Instruction::DecrementRc { value: f(*value), original: f(*original) }
+            }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -792,7 +797,10 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => *value = f(*value),
+            Instruction::DecrementRc { value, original } => {
+                *value = f(*value);
+                *original = f(*original);
+            }
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -858,10 +866,12 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value }
-            | Instruction::DecrementRc { value }
-            | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
                 f(*value);
+            }
+            Instruction::DecrementRc { value, original } => {
+                f(*value);
+                f(*original);
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);
@@ -901,8 +911,10 @@ impl Instruction {
                     // would be incorrect however since the extra bits on the field would not be flipped.
                     Value::NumericConstant { constant, typ } if typ.is_unsigned() => {
                         // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
-                        let value = !constant.to_u128() % (1 << typ.bit_size());
-                        SimplifiedTo(dfg.make_constant(value.into(), *typ))
+                        let bit_size = typ.bit_size();
+                        assert!(bit_size <= 128);
+                        let not_value: u128 = truncate(!constant.to_u128(), bit_size);
+                        SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
                     }
                     Value::Instruction { instruction, .. } => {
                         // !!v => v
@@ -959,9 +971,8 @@ impl Instruction {
                     return SimplifiedTo(*value);
                 }
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                    let integer_modulus = 2_u128.pow(*bit_size);
-                    let truncated = numeric_constant.to_u128() % integer_modulus;
-                    SimplifiedTo(dfg.make_constant(truncated.into(), typ))
+                    let truncated_field = truncate_field(numeric_constant, *bit_size);
+                    SimplifiedTo(dfg.make_constant(truncated_field, typ))
                 } else if let Value::Instruction { instruction, .. } = &dfg[dfg.resolve(*value)] {
                     match &dfg[*instruction] {
                         Instruction::Truncate { bit_size: src_bit_size, .. } => {
@@ -1025,7 +1036,7 @@ impl Instruction {
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 let max_potential_bits = dfg.get_value_max_num_bits(*value);
-                if max_potential_bits < *max_bit_size {
+                if max_potential_bits <= *max_bit_size {
                     Remove
                 } else {
                     None
@@ -1459,5 +1470,34 @@ impl SimplifyResult {
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn removes_range_constraints_on_constants() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 0 to 1 bits
+            range_check Field 1 to 1 bits
+            range_check Field 255 to 8 bits
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

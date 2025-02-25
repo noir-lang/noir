@@ -50,6 +50,10 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    NonBoolUsedInWhile {
+        typ: Type,
+        location: Location,
+    },
     NonBoolUsedInConstrain {
         typ: Type,
         location: Location,
@@ -150,10 +154,10 @@ pub enum InterpreterError {
         location: Location,
     },
     FailedToParseMacro {
-        error: ParserError,
+        error: Box<ParserError>,
         tokens: String,
         rule: &'static str,
-        file: FileId,
+        location: Location,
     },
     UnsupportedTopLevelItemUnquote {
         item: String,
@@ -285,6 +289,7 @@ impl InterpreterError {
             | InterpreterError::ErrorNodeEncountered { location, .. }
             | InterpreterError::NonFunctionCalled { location, .. }
             | InterpreterError::NonBoolUsedInIf { location, .. }
+            | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
             | InterpreterError::NoMethodFound { location, .. }
@@ -334,9 +339,7 @@ impl InterpreterError {
             | InterpreterError::GlobalsDependencyCycle { location }
             | InterpreterError::LoopHaltedForUiResponsiveness { location } => *location,
 
-            InterpreterError::FailedToParseMacro { error, file, .. } => {
-                Location::new(error.span(), *file)
-            }
+            InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error, file } => {
                 Location::new(error.span, *file)
             }
@@ -411,6 +414,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonBoolUsedInIf { typ, location } => {
                 let msg = format!("Expected a `bool` but found `{typ}`");
                 let secondary = "If conditions must be a boolean value".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, location.span)
+            }
+            InterpreterError::NonBoolUsedInWhile { typ, location } => {
+                let msg = format!("Expected a `bool` but found `{typ}`");
+                let secondary = "While conditions must be a boolean value".to_string();
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::NonBoolUsedInConstrain { typ, location } => {
@@ -525,9 +533,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
             }
             InterpreterError::DebugEvaluateComptime { diagnostic, .. } => diagnostic.clone(),
-            InterpreterError::FailedToParseMacro { error, tokens, rule, file: _ } => {
-                let message = format!("Failed to parse macro's token stream into {rule}");
-
+            InterpreterError::FailedToParseMacro { error, tokens, rule, location } => {
                 // If it's less than 48 chars, the error message fits in a single line (less than 80 chars total)
                 let token_stream = if tokens.len() <= 48 && !tokens.contains('\n') {
                     format!("The resulting token stream was: {tokens}")
@@ -539,12 +545,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 let push_the_problem_on_the_library_author = "To avoid this error in the future, try adding input validation to your macro. Erroring out early with an `assert` can be a good way to provide a user-friendly error message".into();
 
-                let mut diagnostic = CustomDiagnostic::from(error);
-                // Swap the parser's primary note to become the secondary note so that it is
-                // more clear this error originates from failing to parse a macro.
-                let secondary = std::mem::take(&mut diagnostic.message);
-                diagnostic.add_secondary(secondary, error.span());
-                diagnostic.message = message;
+                let mut diagnostic = CustomDiagnostic::from(&**error);
+
+                // Given more prominence to where the parser error happened, but still show that it's
+                // because of a failure to parse a macro's token stream, and where that happens.
+                let message = format!("Failed to parse macro's token stream into {rule}");
+                diagnostic.add_secondary_with_file(message, location.span, location.file);
+
                 diagnostic.add_note(token_stream);
                 diagnostic.add_note(push_the_problem_on_the_library_author);
                 diagnostic
@@ -648,7 +655,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
                 let msg =
-                    "Generic name needs to be a valid identifer (one word beginning with a letter)"
+                    "Generic name needs to be a valid identifier (one word beginning with a letter)"
                         .to_string();
                 let secondary = format!("`{name}` is not a valid identifier");
                 CustomDiagnostic::simple_error(msg, secondary, location.span)
@@ -702,6 +709,39 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary =
                     "This error doesn't happen in normal executions of `nargo`".to_string();
                 CustomDiagnostic::simple_warning(msg, secondary, location.span)
+            }
+        }
+    }
+}
+
+/// Comptime errors always wrap another error to show it together with a
+/// comptime call or macro "something" that eventually led to that error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ComptimeError {
+    ErrorRunningAttribute { error: Box<CompilationError>, location: Location },
+    ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
+}
+
+impl<'a> From<&'a ComptimeError> for CustomDiagnostic {
+    fn from(error: &'a ComptimeError) -> Self {
+        match error {
+            ComptimeError::ErrorRunningAttribute { error, location } => {
+                let mut diagnostic = CustomDiagnostic::from(&**error);
+                diagnostic.add_secondary_with_file(
+                    "While running this function attribute".into(),
+                    location.span,
+                    location.file,
+                );
+                diagnostic
+            }
+            ComptimeError::ErrorAddingItemToModule { error, location } => {
+                let mut diagnostic = CustomDiagnostic::from(&**error);
+                diagnostic.add_secondary_with_file(
+                    "While interpreting `Module::add_item`".into(),
+                    location.span,
+                    location.file,
+                );
+                diagnostic
             }
         }
     }

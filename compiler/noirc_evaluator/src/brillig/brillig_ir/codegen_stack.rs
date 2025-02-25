@@ -132,7 +132,10 @@ mod tests {
     use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
-        brillig::brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
+        brillig::{
+            brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
+            BrilligOptions,
+        },
         ssa::ir::function::FunctionId,
     };
 
@@ -203,8 +206,9 @@ mod tests {
         (sources, destinations)
     }
 
-    pub(crate) fn create_test_context() -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true);
+    pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
+        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }
@@ -214,7 +218,7 @@ mod tests {
     fn test_mov_registers_to_registers_overwrite() {
         let movements = vec![(10, 11), (12, 11), (10, 13)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_test_context();
+        let mut context = create_context();
 
         context.codegen_mov_registers_to_registers(sources, destinations);
     }
@@ -223,7 +227,7 @@ mod tests {
     fn test_mov_registers_to_registers_no_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 14)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_test_context();
+        let mut context = create_context();
 
         context.codegen_mov_registers_to_registers(sources, destinations);
         let opcodes = context.artifact().byte_code;
@@ -253,7 +257,7 @@ mod tests {
     fn test_mov_registers_to_registers_no_op_filter() {
         let movements = vec![(10, 11), (11, 11), (11, 12)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_test_context();
+        let mut context = create_context();
 
         context.codegen_mov_registers_to_registers(sources, destinations);
         let opcodes = context.artifact().byte_code;
@@ -276,7 +280,7 @@ mod tests {
     fn test_mov_registers_to_registers_loop() {
         let movements = vec![(10, 11), (11, 12), (12, 13), (13, 10)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_test_context();
+        let mut context = create_context();
 
         context.codegen_mov_registers_to_registers(sources, destinations);
         let opcodes = context.artifact().byte_code;
@@ -311,7 +315,7 @@ mod tests {
     fn test_mov_registers_to_registers_loop_and_branch() {
         let movements = vec![(10, 11), (11, 12), (12, 10), (10, 13), (13, 14)];
         let (sources, destinations) = movements_to_source_and_destinations(movements);
-        let mut context = create_test_context();
+        let mut context = create_context();
 
         context.codegen_mov_registers_to_registers(sources, destinations);
         let opcodes = context.artifact().byte_code;

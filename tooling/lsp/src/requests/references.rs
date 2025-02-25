@@ -99,7 +99,7 @@ mod references_tests {
     // See https://github.com/noir-lang/noir/issues/5460
     #[ignore]
     #[test]
-    async fn test_on_references_request_works_accross_workspace_packages() {
+    async fn test_on_references_request_works_across_workspace_packages() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace").await;
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir

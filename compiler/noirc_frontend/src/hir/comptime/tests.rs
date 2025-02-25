@@ -10,7 +10,7 @@ use noirc_errors::Location;
 use super::errors::InterpreterError;
 use super::value::Value;
 use super::Interpreter;
-use crate::elaborator::Elaborator;
+use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData};
@@ -48,7 +48,7 @@ pub(crate) fn with_interpreter<T>(
 
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    let (module, errors) = parse_program(src);
+    let (module, errors) = parse_program(src, file);
     assert_eq!(errors.len(), 0);
     let ast = module.into_sorted();
 
@@ -60,13 +60,11 @@ pub(crate) fn with_interpreter<T>(
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
-    let pedantic_solving = true;
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
-        None,
-        pedantic_solving,
+        ElaboratorOptions::test_default(),
     );
 
     let errors = elaborator.errors.clone();
