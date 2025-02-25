@@ -14,7 +14,7 @@ use acvm::{acir::AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
-use super::{AsTraitPath, TypePath};
+use super::{AsTraitPath, TypePath, UnsafeExpression};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -38,7 +38,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
-    Unsafe(BlockExpression, Location),
+    Unsafe(UnsafeExpression),
     AsTraitPath(AsTraitPath),
     TypePath(TypePath),
 
@@ -249,7 +249,7 @@ impl Expression {
         match &self.kind {
             ExpressionKind::Block(block_expression)
             | ExpressionKind::Comptime(block_expression, _)
-            | ExpressionKind::Unsafe(block_expression, _) => {
+            | ExpressionKind::Unsafe(UnsafeExpression { block: block_expression, .. }) => {
                 if let Some(statement) = block_expression.statements.last() {
                     statement.type_location()
                 } else {
@@ -652,7 +652,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
-            Unsafe(block, _) => write!(f, "unsafe {block}"),
+            Unsafe(UnsafeExpression { block, .. }) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Interned(_) => write!(f, "?Interned"),
