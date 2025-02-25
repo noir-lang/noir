@@ -1,3 +1,6 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct Foo {
     x: u32,
     y: [u32; 10],

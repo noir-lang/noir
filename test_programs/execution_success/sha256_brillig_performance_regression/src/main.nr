@@ -1,3 +1,5 @@
+use std::validation::AssertsIsValidInput;
+
 // Performance regression extracted from an aztec protocol contract.
 
 unconstrained fn main(
@@ -83,6 +85,7 @@ pub trait ToField {
     fn to_field(self) -> Field;
 }
 
+#[derive(AssertsIsValidInput)]
 pub struct EthAddress {
     inner: Field,
 }
@@ -93,6 +96,7 @@ impl ToField for EthAddress {
     }
 }
 
+#[derive(AssertsIsValidInput)]
 pub struct AztecAddress {
     pub inner: Field,
 }

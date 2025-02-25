@@ -1,3 +1,5 @@
+use std::validation::AssertsIsValidInput;
+
 // Capture the "attempt to subtract with overflow" from https://github.com/AztecProtocol/aztec-packages/pull/11294
 
 pub global MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX: u32 = 8;
@@ -9,8 +11,13 @@ unconstrained fn main(
     private_inputs.execute()
 }
 
+// TODO: using derive here doesn't work for some reason
 pub struct PrivateKernelCircuitPublicInputs {
     pub end: PrivateAccumulatedData,
+}
+
+impl AssertsIsValidInput for PrivateKernelCircuitPublicInputs {
+    fn assert_is_valid_input(self) {}
 }
 
 pub struct PrivateKernelData {
@@ -20,12 +27,16 @@ pub struct PrivateKernelData {
 pub struct PrivateAccumulatedData {
     pub private_call_stack: [PrivateCallRequest; MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX],
 }
-
 pub struct PrivateCallRequest {
     pub args_hash: Field,
     pub returns_hash: Field,
     pub start_side_effect_counter: u32,
     pub end_side_effect_counter: u32,
+}
+
+impl AssertsIsValidInput for PrivateCallRequest {
+
+    fn assert_is_valid_input(self) {}
 }
 
 pub struct PrivateKernelCircuitPublicInputsComposer {

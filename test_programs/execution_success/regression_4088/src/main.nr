@@ -1,7 +1,10 @@
+use std::validation::AssertsIsValidInput;
+
 trait Serialize<let N: u32> {
     fn serialize(self) -> [Field; N];
 }
 
+#[derive(AssertsIsValidInput)]
 struct ValueNote {
     value: Field,
 }

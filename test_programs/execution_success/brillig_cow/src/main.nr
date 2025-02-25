@@ -1,6 +1,9 @@
+use std::validation::AssertsIsValidInput;
+
 // Tests the copy on write optimization for arrays. We look for cases where we are modifying an array in place when we shouldn't.
 global ARRAY_SIZE: u32 = 5;
 
+#[derive(AssertsIsValidInput)]
 struct ExecutionResult {
     original: [Field; ARRAY_SIZE],
     modified_once: [Field; ARRAY_SIZE],

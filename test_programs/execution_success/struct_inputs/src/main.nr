@@ -1,5 +1,8 @@
+use std::validation::AssertsIsValidInput;
+
 mod foo;
 
+#[derive(AssertsIsValidInput)]
 struct myStruct {
     foo: u32,
     bar: Field,

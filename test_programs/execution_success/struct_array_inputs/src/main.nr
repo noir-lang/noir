@@ -1,3 +1,6 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct Foo {
     bar: Field,
     baz: Field,

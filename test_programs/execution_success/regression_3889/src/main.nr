@@ -1,4 +1,7 @@
 mod Foo {
+    use std::validation::AssertsIsValidInput;
+
+    #[derive(AssertsIsValidInput)]
     struct NewType {
         a: Field,
     }
@@ -10,6 +13,9 @@ mod Bar {
 }
 
 mod Baz {
+    use std::validation::AssertsIsValidInput;
+
+    #[derive(AssertsIsValidInput)]
     struct Works {
         a: Field,
     }

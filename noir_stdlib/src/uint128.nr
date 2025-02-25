@@ -1,7 +1,7 @@
 use crate::cmp::{Eq, Ord, Ordering};
 use crate::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Not, Rem, Shl, Shr, Sub};
 use crate::static_assert;
-use super::{convert::AsPrimitive, default::Default};
+use super::{convert::AsPrimitive, default::Default, validation::AssertsIsValidInput};
 
 global pow64: Field = 18446744073709551616; //2^64;
 global pow63: Field = 9223372036854775808; // 2^63;
@@ -326,6 +326,13 @@ impl Shr for U128 {
 impl Default for U128 {
     fn default() -> Self {
         U128::zero()
+    }
+}
+
+impl AssertsIsValidInput for U128 {
+    fn assert_is_valid_input(self) {
+        self.hi.assert_is_valid_input();
+        self.lo.assert_is_valid_input();
     }
 }
 
