@@ -32,14 +32,7 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
 }
 ```
 
-You can use these values for the _Prover.toml_:
-
-```toml
-ptr = 1
-array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-```
-
-Compile the program using `nargo compile`, then we are ready to try the profiler out.
+Compile the program using `nargo compile`, and we are ready to try the profiler out.
 
 ### Flamegraphing ACIR opcodes
 
@@ -103,6 +96,13 @@ Let's take our initial program and simply add an `unconstrained` modifier before
 noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_toml_path Prover.toml --output ./target
 ```
 This matches the `opcodes` command, except that now we need to accept a _Prover.toml_ file to profile execution with a specific set of inputs.
+
+You can use these values for the _Prover.toml_:
+
+```toml
+ptr = 1
+array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+```
 
 We will get the following flamegraph with 1,582 opcodes executed:
 ![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
