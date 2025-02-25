@@ -17,6 +17,14 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ### Profiling ACIR opcodes
 
+The profiler provides the ability to flamegraph a Noir program's ACIR opcodes footprint. This is useful for _approximately_ identifying and optimizing proving bottlenecks of Noir programs.
+
+:::note
+
+"_Approximately_" as actual proving speeds depend on the proving backend of choice, and how it interprets the ACIR opcodes.
+
+:::
+
 #### Create a demonstrative project
 
 Let's start by creating a simple Noir program that aims to zero out an array past some dynamic index.
@@ -38,7 +46,7 @@ Change directory into the project and compile the program using `nargo compile`.
 
 #### Flamegraphing
 
-Let's get a more granular look at our program's ACIR opcode footprint using the profiler, running:
+Let's take a granular look at our program's ACIR opcode footprint using the profiler, running:
 
 ```sh
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
