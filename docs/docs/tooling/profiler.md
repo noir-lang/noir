@@ -1,5 +1,5 @@
 ---
-title: Noir Profiler
+title: Profiler
 description: Learn about the Noir Profiler, how to generate execution flamegraphs, identify bottlenecks, and visualize optimizations.
 keywords: [profiling, profiler, flamegraph]
 sidebar_position: 0
