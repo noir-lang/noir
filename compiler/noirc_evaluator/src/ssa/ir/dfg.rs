@@ -667,6 +667,9 @@ impl DataFlowGraph {
         }
     }
 
+    /// Arrays are represented as `[RC, ...items]` where RC stands for reference count.
+    /// By the time of Brillig generation we expect all constant indices 
+    /// to already account for the extra offset from the RC. 
     pub(crate) fn is_safe_brillig_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {

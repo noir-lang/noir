@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn do_not_offset_array_get_in_acir() {
-        let src = " 
+        let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v2 = array_get v0, index u32 0 -> Field
