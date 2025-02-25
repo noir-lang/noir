@@ -183,7 +183,6 @@ where
     ///     assert(sorted_descending == [32, 42]); // does not verify
     /// }
     /// ```
-
     pub fn sort_via(self, ordering: fn(T, T) -> bool) -> Self {
         // Safety: `sorted` array is checked to be:
         // a. a permutation of `input`'s elements
