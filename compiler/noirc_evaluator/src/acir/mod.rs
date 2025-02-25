@@ -399,7 +399,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         function: &Function,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
-        self.acir_context.set_call_stack_helper(brillig.call_stacks.to_owned());
+        self.acir_context.set_call_stack_helper(self.brillig.call_stacks.to_owned());
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
                 match inline_type {

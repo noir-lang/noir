@@ -62,7 +62,6 @@ pub(crate) struct GeneratedAcir<F: AcirField> {
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
     pub(crate) call_stack_id: CallStackId,
-    pub(crate) call_stack: CallStack,
 
     /// Correspondence between an opcode index and the error message associated with it.
     pub(crate) assertion_payloads: BTreeMap<OpcodeLocation, AssertionPayload<F>>,
@@ -126,7 +125,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
-        self.call_stack.to_owned()
+        self.call_stacks.get_call_stack(self.call_stack_id)
     }
 
     pub(crate) fn opcodes(&self) -> &[AcirOpcode<F>] {

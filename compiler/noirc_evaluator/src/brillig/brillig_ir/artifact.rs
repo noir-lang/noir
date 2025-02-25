@@ -1,6 +1,6 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::circuit::ErrorSelector;
-use noirc_errors::call_stack::{CallStackId, LocationTree};
+use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
@@ -51,7 +51,6 @@ pub(crate) struct BrilligArtifact<F> {
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
     locations: BTreeMap<OpcodeLocation, CallStackId>,
-    pub(crate) location_tree: LocationTree,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
     call_stack_id: CallStackId,
     /// Name of the function, only used for debugging purposes.
