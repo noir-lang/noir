@@ -102,6 +102,8 @@ pub enum ResolverError {
     LoopInConstrainedFn { span: Span },
     #[error("`loop` must have at least one `break` in it")]
     LoopWithoutBreak { span: Span },
+    #[error("`while` is only allowed in unconstrained functions")]
+    WhileInConstrainedFn { span: Span },
     #[error("break/continue are only allowed within loops")]
     JumpOutsideLoop { is_break: bool, span: Span },
     #[error("Only `comptime` globals can be mutable")]
@@ -128,6 +130,8 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { span: Span },
+    #[error("\"as trait path\" not yet implemented")]
+    AsTraitPathNotYetImplemented { span: Span },
     #[error("Invalid syntax in macro call")]
     InvalidSyntaxInMacroCall { span: Span },
     #[error("Macros must be comptime functions")]
@@ -176,6 +180,12 @@ pub enum ResolverError {
     },
     #[error("`loop` statements are not yet implemented")]
     LoopNotYetSupported { span: Span },
+    #[error("Expected a trait but found {found}")]
+    ExpectedTrait { found: String, span: Span },
+    #[error("Invalid syntax in match pattern")]
+    InvalidSyntaxInPattern { span: Span },
+    #[error("Variable '{existing}' was already defined in the same match pattern")]
+    VariableAlreadyDefinedInPattern { existing: Ident, new_span: Span },
 }
 
 impl ResolverError {
@@ -413,7 +423,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 ident.span(),
             ),
-            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_warning(
+            ResolverError::OracleMarkedAsConstrained { ident } => Diagnostic::simple_error(
                 error.to_string(),
                 "Oracle functions must have the `unconstrained` keyword applied".into(),
                 ident.span(),
@@ -440,7 +450,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             },
             ResolverError::LoopInConstrainedFn { span } => {
                 Diagnostic::simple_error(
-                    "loop is only allowed in unconstrained functions".into(),
+                    "`loop` is only allowed in unconstrained functions".into(),
                     "Constrained code must always have a known number of loop iterations".into(),
                     *span,
                 )
@@ -449,6 +459,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "`loop` must have at least one `break` in it".into(),
                     "Infinite loops are disallowed".into(),
+                    *span,
+                )
+            },
+            ResolverError::WhileInConstrainedFn { span } => {
+                Diagnostic::simple_error(
+                    "`while` is only allowed in unconstrained functions".into(),
+                    "Constrained code must always have a known number of loop iterations".into(),
                     *span,
                 )
             },
@@ -544,6 +561,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnquoteUsedOutsideQuote { span } => {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
+                    "".into(),
+                    *span,
+                )
+            },
+            ResolverError::AsTraitPathNotYetImplemented { span } => {
+                Diagnostic::simple_error(
+                    "\"as trait path\" not yet implemented".into(),
                     "".into(),
                     *span,
                 )
@@ -663,12 +687,28 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { span  } => {
+                let msg = "`loop` statements are not yet implemented".to_string();
+                Diagnostic::simple_error(msg, String::new(), *span)
+            }
+            ResolverError::ExpectedTrait { found, span  } => {
                 Diagnostic::simple_error(
-                    "`loop` statements are not yet implemented".to_string(), 
+                    format!("Expected a trait, found {found}"), 
                     String::new(),
                     *span)
-
             }
+            ResolverError::InvalidSyntaxInPattern { span } => {
+                Diagnostic::simple_error(
+                    "Invalid syntax in match pattern".into(), 
+                    "Only literal, constructor, and variable patterns are allowed".into(),
+                    *span)
+            },
+            ResolverError::VariableAlreadyDefinedInPattern { existing, new_span } => {
+                let message = format!("Variable `{existing}` was already defined in the same match pattern");
+                let secondary = format!("`{existing}` redefined here");
+                let mut error = Diagnostic::simple_error(message, secondary, *new_span);
+                error.add_secondary(format!("`{existing}` was previously defined here"), existing.span());
+                error
+            },
         }
     }
 }

@@ -11,6 +11,7 @@ use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegrap
 use crate::fs::read_program_from_file;
 use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
+/// Generates a flamegraph mapping ACIR opcodes to their associated locations in the source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct OpcodesFlamegraphCommand {
     /// The path to the artifact JSON file
@@ -44,18 +45,25 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     let mut program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
-    let function_names = program.names.clone();
+    let acir_names = std::mem::take(&mut program.names);
+    let brillig_names = std::mem::take(&mut program.brillig_names);
 
     let bytecode = std::mem::take(&mut program.bytecode);
 
     let debug_artifact: DebugArtifact = program.into();
 
-    for (func_idx, (func_name, bytecode)) in
-        function_names.into_iter().zip(bytecode.functions.iter()).enumerate()
-    {
-        println!("Opcode count for {}: {}", func_name, bytecode.opcodes.len());
+    for (func_idx, circuit) in bytecode.functions.iter().enumerate() {
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name = if bytecode.functions.len() > 1 {
+            format!("{}_{}", acir_names[func_idx].as_str(), func_idx)
+        } else {
+            acir_names[func_idx].to_owned()
+        };
 
-        let samples = bytecode
+        println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
+
+        let samples = circuit
             .opcodes
             .iter()
             .enumerate()
@@ -72,51 +80,55 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             &debug_artifact.debug_symbols[func_idx],
             &debug_artifact,
             artifact_path.to_str().unwrap(),
-            &func_name,
-            &Path::new(&output_path).join(Path::new(&format!("{}_acir_opcodes.svg", &func_name))),
+            &function_name,
+            &Path::new(&output_path)
+                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
         )?;
     }
 
-    if !skip_brillig {
-        for (brillig_fn_index, brillig_bytecode) in
-            bytecode.unconstrained_functions.into_iter().enumerate()
-        {
-            let acir_location = locate_brillig_call(brillig_fn_index, &bytecode.functions);
-            let Some((acir_fn_index, acir_opcode_index)) = acir_location else {
-                continue;
-            };
+    if skip_brillig {
+        return Ok(());
+    }
 
-            println!(
-                "Opcode count for brillig_{}: {}",
-                brillig_fn_index,
-                brillig_bytecode.bytecode.len()
-            );
+    for (brillig_fn_index, brillig_bytecode) in
+        bytecode.unconstrained_functions.into_iter().enumerate()
+    {
+        let acir_location = locate_brillig_call(brillig_fn_index, &bytecode.functions);
+        let Some((acir_fn_index, acir_opcode_index)) = acir_location else {
+            continue;
+        };
 
-            let samples = brillig_bytecode
-                .bytecode
-                .into_iter()
-                .enumerate()
-                .map(|(brillig_index, opcode)| CompilationSample {
-                    opcode: Some(format_brillig_opcode(&opcode)),
-                    call_stack: vec![OpcodeLocation::Brillig {
-                        acir_index: acir_opcode_index,
-                        brillig_index,
-                    }],
-                    count: 1,
-                    brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
-                })
-                .collect();
+        // We can have repeated names if there are functions with the same name in different
+        // modules or functions that use generics. Thus, add the unique function index as a suffix.
+        let function_name =
+            format!("{}_{}", brillig_names[brillig_fn_index].as_str(), brillig_fn_index);
 
-            flamegraph_generator.generate_flamegraph(
-                samples,
-                &debug_artifact.debug_symbols[acir_fn_index],
-                &debug_artifact,
-                artifact_path.to_str().unwrap(),
-                &format!("brillig_{}", brillig_fn_index),
-                &Path::new(&output_path)
-                    .join(Path::new(&format!("{}_brillig_opcodes.svg", &brillig_fn_index))),
-            )?;
-        }
+        println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
+
+        let samples = brillig_bytecode
+            .bytecode
+            .into_iter()
+            .enumerate()
+            .map(|(brillig_index, opcode)| CompilationSample {
+                opcode: Some(format_brillig_opcode(&opcode)),
+                call_stack: vec![OpcodeLocation::Brillig {
+                    acir_index: acir_opcode_index,
+                    brillig_index,
+                }],
+                count: 1,
+                brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
+            })
+            .collect();
+
+        flamegraph_generator.generate_flamegraph(
+            samples,
+            &debug_artifact.debug_symbols[acir_fn_index],
+            &debug_artifact,
+            artifact_path.to_str().unwrap(),
+            &function_name,
+            &Path::new(&output_path)
+                .join(Path::new(&format!("{}_brillig_opcodes.svg", function_name))),
+        )?;
     }
 
     Ok(())
@@ -214,12 +226,26 @@ mod tests {
 
         let artifact_path = temp_dir.path().join("test.json");
 
-        let acir: Vec<Opcode<FieldElement>> = vec![Opcode::BrilligCall {
-            id: BrilligFunctionId(0),
-            inputs: vec![],
-            outputs: vec![],
-            predicate: None,
-        }];
+        let acir: Vec<Opcode<FieldElement>> = vec![
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(0),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(1),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
+            Opcode::BrilligCall {
+                id: BrilligFunctionId(2),
+                inputs: vec![],
+                outputs: vec![],
+                predicate: None,
+            },
+        ];
 
         let artifact = ProgramArtifact {
             noir_version: "0.0.0".to_string(),
@@ -227,12 +253,16 @@ mod tests {
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
                 functions: vec![Circuit { opcodes: acir, ..Circuit::default() }],
-                unconstrained_functions: vec![BrilligBytecode::default()],
+                unconstrained_functions: vec![
+                    BrilligBytecode::default(),
+                    BrilligBytecode::default(),
+                    BrilligBytecode::default(),
+                ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
-            brillig_names: vec!["main".to_string()],
+            brillig_names: vec!["main".to_string(), "main".to_string(), "main_1".to_string()],
         };
 
         // Write the artifact to a file
@@ -244,11 +274,17 @@ mod tests {
         super::run_with_generator(&artifact_path, &flamegraph_generator, temp_dir.path(), false)
             .expect("should run without errors");
 
-        // Check that the output files ware written to
+        // Check that the output files were written
         let output_file = temp_dir.path().join("main_acir_opcodes.svg");
         assert!(output_file.exists());
 
-        let output_file = temp_dir.path().join("0_brillig_opcodes.svg");
+        let output_file = temp_dir.path().join("main_0_brillig_opcodes.svg");
+        assert!(output_file.exists());
+
+        let output_file = temp_dir.path().join("main_1_brillig_opcodes.svg");
+        assert!(output_file.exists());
+
+        let output_file = temp_dir.path().join("main_1_2_brillig_opcodes.svg");
         assert!(output_file.exists());
     }
 }

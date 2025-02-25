@@ -132,7 +132,10 @@ mod tests {
     use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
-        brillig::brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
+        brillig::{
+            brillig_ir::{artifact::Label, registers::Stack, BrilligContext},
+            BrilligOptions,
+        },
         ssa::ir::function::FunctionId,
     };
 
@@ -204,7 +207,8 @@ mod tests {
     }
 
     pub(crate) fn create_context() -> BrilligContext<FieldElement, Stack> {
-        let mut context = BrilligContext::new(true);
+        let options = BrilligOptions { enable_debug_trace: true, enable_debug_assertions: true };
+        let mut context = BrilligContext::new(&options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }

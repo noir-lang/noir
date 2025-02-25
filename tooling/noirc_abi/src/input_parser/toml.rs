@@ -1,4 +1,7 @@
-use super::{field_to_signed_hex, parse_str_to_field, parse_str_to_signed, InputValue};
+use super::{
+    field_to_signed_hex, parse_integer_to_signed, parse_str_to_field, parse_str_to_signed,
+    InputValue,
+};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_btree_map, try_vecmap};
@@ -68,7 +71,7 @@ enum TomlTypes {
     String(String),
     // Just a regular integer, that can fit in 64 bits
     // Note that the toml spec specifies that all numbers are represented as `i64`s.
-    Integer(u64),
+    Integer(i64),
     // Simple boolean flag
     Bool(bool),
     // Array of TomlTypes
@@ -135,15 +138,23 @@ impl InputValue {
                 AbiType::Field
                 | AbiType::Integer { sign: crate::Sign::Unsigned, .. }
                 | AbiType::Boolean,
-            ) => InputValue::Field(parse_str_to_field(&string)?),
+            ) => InputValue::Field(parse_str_to_field(&string, arg_name)?),
             (TomlTypes::String(string), AbiType::Integer { sign: crate::Sign::Signed, width }) => {
-                InputValue::Field(parse_str_to_signed(&string, *width)?)
+                InputValue::Field(parse_str_to_signed(&string, *width, arg_name)?)
             }
+            (
+                TomlTypes::Integer(integer),
+                AbiType::Integer { sign: crate::Sign::Signed, width },
+            ) => {
+                let new_value = parse_integer_to_signed(integer as i128, *width, arg_name)?;
+                InputValue::Field(new_value)
+            }
+
             (
                 TomlTypes::Integer(integer),
                 AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
             ) => {
-                let new_value = FieldElement::from(u128::from(integer));
+                let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
             }
@@ -151,8 +162,13 @@ impl InputValue {
             (TomlTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
             (TomlTypes::Array(array), AbiType::Array { typ, .. }) => {
-                let array_elements =
-                    try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
+                let mut index = 0;
+                let array_elements = try_vecmap(array, |value| {
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_toml(value, typ, &sub_name);
+                    index += 1;
+                    value
+                })?;
                 InputValue::Vec(array_elements)
             }
 
@@ -171,8 +187,12 @@ impl InputValue {
             }
 
             (TomlTypes::Array(array), AbiType::Tuple { fields }) => {
+                let mut index = 0;
                 let tuple_fields = try_vecmap(array.into_iter().zip(fields), |(value, typ)| {
-                    InputValue::try_from_toml(value, typ, arg_name)
+                    let sub_name = format!("{arg_name}[{index}]");
+                    let value = InputValue::try_from_toml(value, typ, &sub_name);
+                    index += 1;
+                    value
                 })?;
                 InputValue::Vec(tuple_fields)
             }
@@ -186,11 +206,13 @@ impl InputValue {
 
 #[cfg(test)]
 mod test {
+    use acvm::FieldElement;
     use proptest::prelude::*;
 
     use crate::{
         arbitrary::arb_abi_and_input_map,
         input_parser::{arbitrary::arb_signed_integer_type_and_value, toml::TomlTypes, InputValue},
+        AbiType,
     };
 
     use super::{parse_toml, serialize_to_toml};
@@ -218,5 +240,27 @@ mod test {
             };
             prop_assert_eq!(output_number, value);
         }
+    }
+
+    #[test]
+    fn errors_on_integer_to_signed_integer_overflow() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = TomlTypes::Integer(128);
+        assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
+
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 16 };
+        let input = TomlTypes::Integer(32768);
+        assert!(InputValue::try_from_toml(input, &typ, "foo").is_err());
+    }
+
+    #[test]
+    fn try_from_toml_negative_integer() {
+        let typ = AbiType::Integer { sign: crate::Sign::Signed, width: 8 };
+        let input = TomlTypes::Integer(-1);
+        let InputValue::Field(field) = InputValue::try_from_toml(input, &typ, "foo").unwrap()
+        else {
+            panic!("Expected field");
+        };
+        assert_eq!(field, FieldElement::from(255_u128));
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@noir-lang/acvm_js",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.3",
   "publishConfig": {
     "access": "public"
   },

@@ -198,8 +198,6 @@ impl<'a> ModCollector<'a> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
-            let trait_name = trait_impl.trait_name.clone();
-
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
                     &mut context.def_interner,
@@ -226,19 +224,18 @@ impl<'a> ModCollector<'a> {
                     errors.push((error.into(), self.file_id));
                 }
 
-                let location = Location::new(noir_function.def.span, self.file_id);
+                let location = noir_function.def.location;
                 context.def_interner.push_function(*func_id, &noir_function.def, module, location);
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
                 file_id: self.file_id,
                 module_id: self.module_id,
-                trait_path: trait_name,
+                r#trait: trait_impl.r#trait,
                 methods: unresolved_functions,
                 object_type: trait_impl.object_type,
                 generics: trait_impl.impl_generics,
                 where_clause: trait_impl.where_clause,
-                trait_generics: trait_impl.trait_generics,
                 associated_constants,
                 associated_types,
 
@@ -279,7 +276,6 @@ impl<'a> ModCollector<'a> {
                 &mut context.usage_tracker,
                 &function.item,
                 module,
-                self.file_id,
                 function.doc_comments,
                 &mut errors,
             ) else {
@@ -315,7 +311,6 @@ impl<'a> ModCollector<'a> {
                 &mut self.def_collector.def_map,
                 &mut context.usage_tracker,
                 struct_definition,
-                self.file_id,
                 self.module_id,
                 krate,
                 &mut definition_errors,
@@ -611,7 +606,7 @@ impl<'a> ModCollector<'a> {
                                     type_variable_id,
                                     Kind::numeric(typ),
                                 ),
-                                span: name.span(),
+                                location: name.location(),
                             });
                         }
                     }
@@ -635,7 +630,7 @@ impl<'a> ModCollector<'a> {
                             associated_types.push(ResolvedGeneric {
                                 name: Rc::new(name.to_string()),
                                 type_var: TypeVariable::unbound(type_variable_id, Kind::Normal),
-                                span: name.span(),
+                                location: name.location(),
                             });
                         }
                     }
@@ -881,7 +876,7 @@ impl<'a> ModCollector<'a> {
             UnresolvedTypeData::FieldElement => Type::FieldElement,
             UnresolvedTypeData::Integer(sign, bits) => Type::Integer(*sign, *bits),
             _ => {
-                let span = typ.span;
+                let span = typ.location.span;
                 let error = ResolverError::AssociatedConstantsMustBeNumeric { span };
                 errors.push((error.into(), self.file_id));
                 Type::Error
@@ -961,7 +956,14 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            interner.register_module(mod_id, visibility, mod_name.0.contents.clone());
+            let parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            interner.register_module(
+                mod_id,
+                location,
+                visibility,
+                mod_name.0.contents.clone(),
+                parent_module_id,
+            );
         }
     }
 
@@ -975,7 +977,6 @@ pub fn collect_function(
     usage_tracker: &mut UsageTracker,
     function: &NoirFunction,
     module: ModuleId,
-    file: FileId,
     doc_comments: Vec<String>,
     errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<crate::node_interner::FuncId> {
@@ -998,7 +999,7 @@ pub fn collect_function(
     let name = function.name_ident().clone();
     let func_id = interner.push_empty_fn();
     let visibility = function.def.visibility;
-    let location = Location::new(function.span(), file);
+    let location = function.location();
     interner.push_function(func_id, &function.def, module, location);
     if interner.is_in_lsp_mode() && !function.def.is_test() {
         interner.register_function(func_id, &function.def);
@@ -1014,6 +1015,7 @@ pub fn collect_function(
     // Add function to scope/ns of the module
     let result = def_map.modules[module.local_id.0].declare_function(name, visibility, func_id);
     if let Err((first_def, second_def)) = result {
+        let file = second_def.location().file;
         let error = DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::Function,
             first_def,
@@ -1030,15 +1032,15 @@ pub fn collect_struct(
     def_map: &mut CrateDefMap,
     usage_tracker: &mut UsageTracker,
     struct_definition: Documented<NoirStruct>,
-    file_id: FileId,
     module_id: LocalModuleId,
     krate: CrateId,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) -> Option<(TypeId, UnresolvedStruct)> {
     let doc_comments = struct_definition.doc_comments;
     let struct_definition = struct_definition.item;
+    let file_id = struct_definition.location.file;
 
-    check_duplicate_field_names(&struct_definition, file_id, definition_errors);
+    check_duplicate_field_names(&struct_definition, definition_errors);
 
     let name = struct_definition.name.clone();
 
@@ -1068,7 +1070,7 @@ pub fn collect_struct(
     ) {
         Ok(module_id) => {
             let name = unresolved.struct_def.name.clone();
-            let span = unresolved.struct_def.span;
+            let span = unresolved.struct_def.location.span;
             let attributes = unresolved.struct_def.attributes.clone();
             let local_id = module_id.local_id;
             interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
@@ -1163,7 +1165,7 @@ pub fn collect_enum(
     ) {
         Ok(module_id) => {
             let name = unresolved.enum_def.name.clone();
-            let span = unresolved.enum_def.span;
+            let span = unresolved.enum_def.location.span;
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
             interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
@@ -1253,7 +1255,7 @@ pub fn collect_impl(
 
     let key = (r#impl.object_type, module_id.local_id);
     let methods = items.impls.entry(key).or_default();
-    methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
+    methods.push((r#impl.generics, r#impl.type_location, unresolved_functions));
 }
 
 fn find_module(
@@ -1442,7 +1444,6 @@ pub(crate) fn collect_global(
 
 fn check_duplicate_field_names(
     struct_definition: &NoirStruct,
-    file: FileId,
     definition_errors: &mut Vec<(CompilationError, FileId)>,
 ) {
     let mut seen_field_names = std::collections::HashSet::new();
@@ -1459,7 +1460,7 @@ fn check_duplicate_field_names(
             first_def: previous_field_name.clone(),
             second_def: field_name.clone(),
         };
-        definition_errors.push((error.into(), file));
+        definition_errors.push((error.into(), field_name.location().file));
     }
 }
 
@@ -1490,7 +1491,6 @@ fn check_duplicate_variant_names(
 mod find_module_tests {
     use super::*;
 
-    use noirc_errors::Spanned;
     use std::path::{Path, PathBuf};
 
     fn add_file(file_manager: &mut FileManager, dir: &Path, file_name: &str) -> FileId {
@@ -1509,7 +1509,9 @@ mod find_module_tests {
         anchor: FileId,
         mod_name: &str,
     ) -> Result<FileId, DefCollectorErrorKind> {
-        let mod_name = Ident(Spanned::from_position(0, 1, mod_name.to_string()));
+        let span = Span::from(0..1);
+        let location = Location::new(span, FileId::dummy());
+        let mod_name = Ident::new(mod_name.to_string(), location);
         super::find_module(file_manager, anchor, &mod_name)
     }
 
