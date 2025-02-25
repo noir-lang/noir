@@ -239,9 +239,20 @@ impl<F> Circuit<F> {
 
 impl<F: Serialize> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        // let buf = bincode::serialize(self).unwrap();
-        let mut buf = Vec::new();
-        ciborium::into_writer(self, &mut buf).map_err(std::io::Error::other)?;
+        let buf = {
+            // # Bincode
+            // bincode::serialize(self).unwrap()
+
+            // # CBOR
+            // let mut buf = Vec::new();
+            // ciborium::into_writer(self, &mut buf).map_err(std::io::Error::other)?;
+            // buf
+
+            // # FlexBuffers
+            let mut s = flexbuffers::FlexbufferSerializer::new();
+            self.serialize(&mut s).map_err(std::io::Error::other)?;
+            s.take_buffer()
+        };
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -268,11 +279,20 @@ impl<F: Serialize> Program<F> {
 impl<F: for<'a> Deserialize<'a>> Program<F> {
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
-        let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d)?;
-        //bincode::deserialize(&buf_d)
-        ciborium::from_reader(buf_d.as_slice())
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+        let mut buf = Vec::new();
+        gz_decoder.read_to_end(&mut buf)?;
+        let result = {
+            // # Bincode
+            //bincode::deserialize(&buf)
+
+            // # CBOR
+            // ciborium::from_reader(buf.as_slice())
+
+            // # FlexBuffers
+            let r = flexbuffers::Reader::get_root(buf.as_slice()).map_err(std::io::Error::other)?;
+            Self::deserialize(r)
+        };
+        result.map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
     /// Deserialize bytecode.
