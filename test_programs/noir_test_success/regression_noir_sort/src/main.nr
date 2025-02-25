@@ -1,11 +1,13 @@
 mod quicksort;
 
-pub fn sort<T, let N: u32>(input: [T; N]) -> [T; N] where T: Ord {
+pub fn sort<T, let N: u32>(input: [T; N]) -> [T; N]
+where
+    T: Ord,
+{
     sort_via(input, |a, b| a <= b)
 }
 
-pub fn sort_via<T, let N: u32>(input: [T; N], sortfn: fn(T, T) -> bool) -> [T; N]
-{
+pub fn sort_via<T, let N: u32>(input: [T; N], sortfn: fn(T, T) -> bool) -> [T; N] {
     // Safety: test
     let sorted = unsafe { quicksort::quicksort(input, sortfn) };
 
@@ -37,7 +39,6 @@ mod test {
 
     #[test]
     fn test_sort_comptime() {
-
         let sorted = sort(arr_comptime);
 
         assert(sorted == expected_comptime);
