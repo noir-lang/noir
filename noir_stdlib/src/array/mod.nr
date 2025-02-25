@@ -1,7 +1,6 @@
 use crate::cmp::{Eq, Ord};
 use crate::convert::From;
 use crate::runtime::is_unconstrained;
-use super::validation::AssertsIsValidInput;
 
 mod check_shuffle;
 mod quicksort;
