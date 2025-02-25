@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740501938923,
+  "lastUpdate": 1740513737421,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8410,70 +8410,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "967ab5f6e23b7e9f4503fe01d05b8a7a94ca70f6",
-          "message": "feat: LSP hover for integer literals (#7368)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-18T21:21:56Z",
-          "tree_id": "428610d9df58f58577f041be6af2620fa53212d8",
-          "url": "https://github.com/noir-lang/noir/commit/967ab5f6e23b7e9f4503fe01d05b8a7a94ca70f6"
-        },
-        "date": 1739914903357,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.469,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.184,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.039,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jose@aztecprotocol.com",
             "name": "José Pedro Sousa",
             "username": "signorecello"
@@ -11603,6 +11539,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.039,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0",
+          "message": "chore: Increaes base64's allotted time (#7521)",
+          "timestamp": "2025-02-25T19:43:21Z",
+          "tree_id": "4948cc7e0a0820fc1d21ba7c33073d5b011dffdc",
+          "url": "https://github.com/noir-lang/noir/commit/f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0"
+        },
+        "date": 1740513735204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.073,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.296,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.017,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.433,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.179,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 34.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.04,
             "unit": "s"
           }
         ]
