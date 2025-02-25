@@ -327,7 +327,7 @@ impl DependencyContext {
         function.dfg[block].instructions().iter().for_each(|instruction| {
             if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
                 if let Value::Function(callee) = &function.dfg[*func] {
-                    if all_functions[&callee].runtime().is_brillig() {
+                    if all_functions[callee].runtime().is_brillig() {
                         // Skip already visited locations (happens often in unrolled functions)
                         let call_stack = function.dfg.get_instruction_call_stack(*instruction);
                         let location = call_stack.last();
