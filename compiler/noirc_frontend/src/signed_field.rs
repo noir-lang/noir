@@ -18,6 +18,7 @@ impl SignedField {
     /// Convert a signed integer to a SignedField, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
     /// you can call `SignedField::positive`.
+    #[inline]
     pub fn from_signed<T>(value: T) -> Self
     where
         T: num_traits::Signed + AbsU128,
@@ -29,6 +30,7 @@ impl SignedField {
 
     /// Convert a SignedField into an unsigned integer type (up to u128),
     /// returning None if the value does not fit (e.g. if it is negative).
+    #[inline]
     pub fn try_to_unsigned<T: TryFrom<u128>>(self) -> Option<T> {
         if self.is_negative {
             return None;
@@ -43,6 +45,7 @@ impl SignedField {
     /// returning None if the value does not fit. This function is more complex
     /// for handling negative values, specifically INT_MIN which we can't cast from
     /// a u128 to i128 without wrapping it.
+    #[inline]
     pub fn try_to_signed<T>(self) -> Option<T>
     where
         T: TryFrom<u128> + TryFrom<i128> + num_traits::Signed + num_traits::Bounded + AbsU128,
