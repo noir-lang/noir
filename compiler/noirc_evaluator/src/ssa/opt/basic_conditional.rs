@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 use acvm::AcirField;
 use fxhash::FxHashMap as HashMap;
@@ -299,12 +299,7 @@ impl<'f> Context<'f> {
         if next == conditional.block_else {
             let next = next.unwrap();
             self.inline_block(next, no_predicates);
-            let to_process = self.handle_terminator(next, &queue);
-            for incoming_block in to_process {
-                if !queue.contains(&incoming_block) {
-                    queue.push(incoming_block);
-                }
-            }
+            let _ = self.handle_terminator(next, &queue);
         } else {
             assert_eq!(next, Some(conditional.block_exit));
         }
@@ -314,7 +309,6 @@ impl<'f> Context<'f> {
         // Manually set the terminator of the entry block to the one of the exit block
         let terminator =
             self.inserter.function.dfg[conditional.block_exit].terminator().unwrap().clone();
-        let mut next_blocks = VecDeque::new();
         let new_terminator = match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
@@ -323,7 +317,6 @@ impl<'f> Context<'f> {
                 call_stack,
             } => {
                 let condition = self.inserter.resolve(condition);
-                next_blocks.extend([then_destination, else_destination]);
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
@@ -333,7 +326,6 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let arguments = vecmap(arguments, |value| self.inserter.resolve(value));
-                next_blocks.push_back(destination);
                 TerminatorInstruction::Jmp { destination, arguments, call_stack }
             }
             TerminatorInstruction::Return { return_values, call_stack } => {
