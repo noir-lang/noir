@@ -105,34 +105,68 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 :::
 
-### Flamegraphing unconstrained opcodes
+### Flamegraphing unconstrained execution traces
 
-The profiler also enables developers to generate a flamegraph of the unconstrained execution trace. For unconstrained functions Noir compiles down to Brillig bytecode, thus we will be seeing a flamegraph of Brillig opcodes, rather than ACIR opcodes.
+The profiler also provides the ability to flamegraph a Noir program's unconstrained execution trace. This is particularly useful for searching bottlenecks in unconstrained programs and optimizing execution speeds.
 
-Let's take our initial program and simply add an `unconstrained` modifier before main (e.g. `unconstrained fn main`). Then run the following command:
-```sh
-noir-profiler execution-opcodes --artifact-name ./target/program.json --prover_toml_path Prover.toml --output ./target
+#### Preparing the demonstrative project
+
+Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
+
+```rust
+unconstrained fn main(...){...}
 ```
-This matches the `opcodes` command, except that now we need to accept a _Prover.toml_ file to profile execution with a specific set of inputs.
 
-You can use these values for the _Prover.toml_:
+Since we are profiling the execution trace, we will also need to provide a set of inputs to execute the program with.
+
+Run `nargo check` to generate a _Prover.toml_ file, which you can fill it in with:
 
 ```toml
 ptr = 1
 array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ```
 
-We will get the following flamegraph with 1,582 opcodes executed:
-![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
+#### Flamegraphing
 
-Circuit programming (ACIR) is an entirely different execution paradigm compared to regular programming. To demonstrate this point further, let's generate an execution trace for our optimized ACIR program once we have modified `main` to be `unconstrained`.
+Let's take a granular look at our program's unconstrained execution trace footprint using the profiler, running:
 
-We then get the following flamegraph with 2,125 opcodes executed:
+```sh
+noir-profiler execution-opcodes --artifact-path ./target/program.json --prover-toml-path Prover.toml --output ./target
+```
+
+This is similar to the `opcodes` command, except it additionally takes in the _Prover.toml_ file to profile execution with a specific set of inputs.
+
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
 ![Brillig Trace "Optimized"](@site/static/img/tooling/profiler/brillig-trace-opt-32.png)
 
-In the above graph we are searching for `new_array`, which shows up zero matches in the initial program. In the unconstrained environment, the updated program essentially just adds extra unnecessary checks. Thus, we see a longer execution trace.
+Note that unconstrained Noir functions compile down to Brillig opcodes, which is what the counts in this flamegraph stand for, rather than constrained ACIR opcodes like in the previous section.
 
-`execution-opcodes` is useful for when you are searching for bottlenecks in unconstrained code. This can be especially meaningful for optimizing witness generation. Even though unconstrained execution helps us skip proving steps, we still need to compute the relevant inputs/outputs outside of the circuit before proving.
+:::tip
+
+Optimizing constrained operations through unconstrained rewrites like what we did in [the previous section](#optimizing-array-writes-with-reads) helps remove ACIR opcodes (hence shorter proving times), but would introduce more Brillig opcodes (hence longer execution times).
+
+For example, we can find a 13.9% match `new_array` in the flamegraph above.
+
+In contrast, if we profile the pre-optimization demonstrative project:
+![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
+
+You will notice that it does not consist any `new_array`, and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
+
+As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
+
+This is however good to keep in mind in case you start noticing execution speeds being the bottleneck of your program, or if you are simply looking to optimize your program's execution speeds.
+
+:::
+
+
+
+
+
+
+
+
+
+
 
 ### Flamegraphing proving backend gates
 
