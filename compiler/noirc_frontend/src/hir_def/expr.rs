@@ -249,11 +249,10 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
-                let span = location.span;
                 let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, span },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
