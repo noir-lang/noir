@@ -15,7 +15,11 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ### Usage
 
-Let's start by creating a simple Noir program. All this program aims to do is zero out an array past some dynamic index.
+### Create a demonstrative project
+
+Let's start by creating a simple Noir program that aims to zero out an array past some dynamic index.
+
+Run `nargo new program` to create a new project named _program_, then copy in the following as source code:
 
 ```rust
 fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
@@ -27,13 +31,15 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
     array
 }
 ```
-You can use these values for the `Prover.toml`:
+
+You can use these values for the _Prover.toml_:
+
 ```toml
 ptr = 1
 array = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ```
 
-Running `nargo info` we can get some information about the opcodes produced by this program, but it doesn't give us a lot of info on its own. Compile and execute this program normally using `nargo compile` and `nargo execute`.
+Compile the program using `nargo compile`, then we are ready to try the profiler out.
 
 ### Generating an ACIR opcode flamegraph
 
