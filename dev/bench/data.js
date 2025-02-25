@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740514037644,
+  "lastUpdate": 1740514038891,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "967ab5f6e23b7e9f4503fe01d05b8a7a94ca70f6",
-          "message": "feat: LSP hover for integer literals (#7368)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-18T21:21:56Z",
-          "tree_id": "428610d9df58f58577f041be6af2620fa53212d8",
-          "url": "https://github.com/noir-lang/noir/commit/967ab5f6e23b7e9f4503fe01d05b8a7a94ca70f6"
-        },
-        "date": 1739915211142,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.44,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jose@aztecprotocol.com",
             "name": "José Pedro Sousa",
             "username": "signorecello"
@@ -14765,6 +14701,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/677c10c50e6944e9e11d5579048f77cab59cf91a"
         },
         "date": 1740501920740,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 225.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 259.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 441.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 382.78,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 321.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 329.09,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0",
+          "message": "chore: Increaes base64's allotted time (#7521)",
+          "timestamp": "2025-02-25T19:43:21Z",
+          "tree_id": "4948cc7e0a0820fc1d21ba7c33073d5b011dffdc",
+          "url": "https://github.com/noir-lang/noir/commit/f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0"
+        },
+        "date": 1740514036040,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
