@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740436241753,
+  "lastUpdate": 1740487222954,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "aqdrgg19@gmail.com",
-            "name": "VolodymyrBg",
-            "username": "VolodymyrBg"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f37eedca7f286187c71587797e08da189c4eee70",
-          "message": "feat(acir_field): Add little-endian byte serialization for FieldElement (#7258)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-02-18T19:53:43Z",
-          "tree_id": "12c26ead54deb16c8a84bbabe733be12ac3809be",
-          "url": "https://github.com/noir-lang/noir/commit/f37eedca7f286187c71587797e08da189c4eee70"
-        },
-        "date": 1739910051632,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.935,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.735,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.092,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.43,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.154,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.082,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.942,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 91.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 92.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.957,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.526,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8396,6 +8302,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.526,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6f7884838fc0fdab2a1864f0d701bccf79d3e359",
+          "message": "feat: optimize out range checks on limiting cases (#7510)",
+          "timestamp": "2025-02-25T12:20:40Z",
+          "tree_id": "819db7b017ea76b944f2bc134a0932870baa6f18",
+          "url": "https://github.com/noir-lang/noir/commit/6f7884838fc0fdab2a1864f0d701bccf79d3e359"
+        },
+        "date": 1740487221143,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.937,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.682,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.541,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.196,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.254,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.472,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.118,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 92.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 90.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.981,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.5,
             "unit": "s"
           }
         ]
