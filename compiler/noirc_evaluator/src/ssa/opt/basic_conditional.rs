@@ -29,6 +29,13 @@ struct BasicConditional {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
+    /// This pass flatten simple IF-THEN-ELSE statements
+    /// This optimization pass identifies simple conditional control flow patterns in unconstrained code
+    /// and flattens them to reduce the number of basic blocks and improve performance.
+    ///
+    /// e.g: if c {a} else {b} would be flattened to c*(a-b)+b
+    /// A simple conditional pattern is defined as an IF-THEN (with optional ELSE) statement, with no nested conditional nor loop statements
+    /// Performance improvement is based on a simple execution cost metric
     pub(crate) fn flatten_basic_conditionals(mut self) -> Ssa {
         // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
         let mut no_predicates = HashMap::default();
@@ -42,8 +49,8 @@ impl Ssa {
     }
 }
 
-// Returns the blocks of the simple conditional sub-graph whose input block is the entry.
-// Returns None if the input block is not the entry block of a simple conditional.
+/// Returns the blocks of the simple conditional sub-graph whose input block is the entry.
+/// Returns None if the input block is not the entry block of a simple conditional.
 fn is_conditional(
     block: BasicBlockId,
     cfg: &ControlFlowGraph,
@@ -122,7 +129,7 @@ fn is_conditional(
             }
         }
     } else if right_successors_len == 1 && next_right == Some(left) {
-        // Right branch joins the right branch, it is a if/else statement with no then
+        // Right branch joins the left branch, it is a if/else statement with no then
         // I am not sure whether this case can happen, but it is not difficult to handle it
         let cost = block_cost(right, &function.dfg);
         if cost < cost / 2 + jump_overhead {

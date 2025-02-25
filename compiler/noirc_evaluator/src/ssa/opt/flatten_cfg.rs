@@ -218,7 +218,7 @@ pub(crate) struct Context<'f> {
     not_instructions: HashMap<ValueId, ValueId>,
 
     /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
-    /// This should set to true only by flatten_single(), when none instruction is known to fail.
+    /// This should be set to true only by flatten_single(), when none instruction is known to fail.
     pub(crate) no_predicate: bool,
 }
 

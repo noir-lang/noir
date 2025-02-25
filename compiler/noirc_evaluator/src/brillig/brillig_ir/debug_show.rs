@@ -130,17 +130,17 @@ impl DebugShow {
     pub(crate) fn conditional_mov_instruction(
         &self,
         destination: MemoryAddress,
-        source_a: MemoryAddress,
-        source_b: MemoryAddress,
+        source_then: MemoryAddress,
+        source_else: MemoryAddress,
         condition: MemoryAddress,
     ) {
         debug_println!(
             self.enable_debug_trace,
-            "  {} = CONDITIONAL MOV {} then {}, else {}",
+            "  {} = MOV if {} then {}, else {}",
             destination,
             condition,
-            source_a,
-            source_b
+            source_then,
+            source_else
         );
     }
 
