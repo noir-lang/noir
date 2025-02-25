@@ -15,7 +15,9 @@ Check if the profiler is already installed by running `noir-profiler --version`.
 
 ## Usage
 
-### Create a demonstrative project
+### Profiling ACIR opcodes
+
+#### Create a demonstrative project
 
 Let's start by creating a simple Noir program that aims to zero out an array past some dynamic index.
 
@@ -34,7 +36,7 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
 
 Change directory into the project and compile the program using `nargo compile`. We are ready then to try the profiler out.
 
-### Flamegraphing ACIR opcodes
+#### Flamegraphing
 
 Let's get a more granular look at our program's ACIR opcode footprint using the profiler, running:
 
@@ -105,11 +107,11 @@ This comes from the optimization removing the use of a dynamic array (i.e. an ar
 
 :::
 
-### Flamegraphing unconstrained execution traces
+### Profiling execution traces (unconstrained)
 
 The profiler also provides the ability to flamegraph a Noir program's unconstrained execution trace. This is particularly useful for searching bottlenecks in unconstrained programs and optimizing execution speeds.
 
-#### Preparing the demonstrative project
+#### Updating the demonstrative project
 
 Let's turn our demonstrative program into an unconstrained program by adding an `unconstrained` modifier to the main function:
 
@@ -158,17 +160,7 @@ This is however good to keep in mind in case you start noticing execution speeds
 
 :::
 
-
-
-
-
-
-
-
-
-
-
-### Flamegraphing proving backend gates
+### Profiling proving backend gates
 
 ACIR opcodes do not give us a full picture of where the cost of this program lies.
 The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
