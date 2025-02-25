@@ -9,7 +9,9 @@ sidebar_position: 3
 
 ### Installation
 
-`noir-profiler` comes out of the box with [noirup](../getting_started/noir_installation.md). Test that you have the profiler installed by running `noir-profiler --version`.
+`noir-profiler` is automatically installed with Nargo starting noirup v0.1.4.
+
+Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started/quick_start.md#noir).
 
 ### Usage
 
