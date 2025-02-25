@@ -1036,7 +1036,7 @@ impl Instruction {
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 let max_potential_bits = dfg.get_value_max_num_bits(*value);
-                if max_potential_bits < *max_bit_size {
+                if max_potential_bits <= *max_bit_size {
                     Remove
                 } else {
                     None
@@ -1470,5 +1470,34 @@ impl SimplifyResult {
             SimplifyResult::SimplifiedToInstructionMultiple(instructions) => Some(instructions),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn removes_range_constraints_on_constants() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 0 to 1 bits
+            range_check Field 1 to 1 bits
+            range_check Field 255 to 8 bits
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check Field 256 to 8 bits
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

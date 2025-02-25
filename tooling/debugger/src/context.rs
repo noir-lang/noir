@@ -429,6 +429,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             .filter(|v: &Vec<Location>| !v.is_empty())
     }
 
+    /// Returns the `FileId` of the file associated with the innermost function on the call stack.
+    pub(super) fn get_current_file(&mut self) -> Option<FileId> {
+        self.get_current_source_location()
+            .and_then(|locations| locations.last().map(|location| location.file))
+    }
+
     /// Returns the (possible) stack of source locations corresponding to the
     /// given opcode location. Due to compiler inlining it's possible for this
     /// function to return multiple source locations. An empty vector means that

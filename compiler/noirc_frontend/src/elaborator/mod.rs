@@ -2070,7 +2070,7 @@ impl<'context> Elaborator<'context> {
                     let location = trait_impl.r#trait.location;
                     let found = trait_impl.r#trait.typ.to_string();
                     self.push_err(ResolverError::ExpectedTrait { location, found });
-                    continue;
+                    (None, GenericTypeArgs::default(), location)
                 }
             };
 
