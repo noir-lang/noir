@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 acir_field.workspace = true
+ciborium.workspace = true
 brillig.workspace = true
 serde.workspace = true
 thiserror.workspace = true

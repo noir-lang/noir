@@ -239,7 +239,9 @@ impl<F> Circuit<F> {
 
 impl<F: Serialize> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode::serialize(self).unwrap();
+        // let buf = bincode::serialize(self).unwrap();
+        let mut buf = Vec::new();
+        ciborium::into_writer(self, &mut buf).map_err(std::io::Error::other)?;
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -268,7 +270,8 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf_d = Vec::new();
         gz_decoder.read_to_end(&mut buf_d)?;
-        bincode::deserialize(&buf_d)
+        //bincode::deserialize(&buf_d)
+        ciborium::from_reader(buf_d.as_slice())
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
