@@ -171,7 +171,6 @@ fn extract_locations_from_error<F: AcirField>(
                         .acir_locations
                         .get(&AcirOpcodeLocation::new(idx))
                         .unwrap_or(&CallStackId::root()),
-                    // TODO: should we use acir_index here and merge the 2 call stacks?
                     OpcodeLocation::Brillig { brillig_index, .. } => *debug
                         [resolved_location.acir_function_index]
                         .brillig_locations[&brillig_function_id.unwrap()]
