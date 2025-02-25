@@ -7,13 +7,13 @@ sidebar_position: 3
 
 `noir-profiler` is a sampling profiler designed to analyze and visualize Noir programs. It assists developers to identify bottlenecks by mapping execution data back to the original source code.
 
-### Installation
+## Installation
 
 `noir-profiler` is automatically installed with Nargo starting noirup v0.1.4.
 
 Check if the profiler is already installed by running `noir-profiler --version`. If the profiler is not found, update noirup and install the profiler by [reinstalling both noirup and Nargo](../getting_started/quick_start.md#noir).
 
-### Usage
+## Usage
 
 ### Create a demonstrative project
 
@@ -56,7 +56,7 @@ You should now have a flamegraph that maps ACIR opcodes to their corresponding l
 
 We can see that the majority of opcodes come from the write to `array[i]`. Now that we have some more information about our program's bottlenecks, let's optimize it.
 
-#### Transform conditional writes into reads
+#### Optimizing the program: transform conditional writes into reads
 
 We can improve our circuit's efficiency using [unconstrained functions](../noir/concepts/unconstrained.md).
 
@@ -91,7 +91,7 @@ This new program produces the following ACIR opcodes flamegraph with a total of 
 
 In the above image we searched for the ACIR opcodes due to `i > ptr` in the source code. Trigger a search by clicking on "Search" in the top right corner of the flamegraph. In the bottom right corner of the image above, you will note that the flamegraph displays the percentage of all opcodes associated with that search.  Searching for `memory::op` in the optimized flamegraph will result in no matches. This is due to no longer using a dynamic array in our circuit. By dynamic array, we are referring to using a dynamic index (values reliant upon witness inputs) when working with arrays. Most of the memory operations, have now been replaced with arithmetic operations as we are reading two arrays from known constant indices.
 
-### Generate a backend gates flamegraph
+### Generate a proving backend gates flamegraph
 
 Unfortunately, ACIR opcodes do not give us a full picture of where the cost of this program lies.
 The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
