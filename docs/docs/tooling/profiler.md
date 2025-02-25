@@ -32,29 +32,31 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
 }
 ```
 
-Compile the program using `nargo compile`, and we are ready to try the profiler out.
+Change directory into the project and compile the program using `nargo compile`. We are ready then to try the profiler out.
 
 ### Flamegraphing ACIR opcodes
 
-The program on its own is quite high-level. Let's get a more granular look at what is happening by using the profiler.
-
-After compiling the program, run the following:
+Let's get a more granular look at our program using the profiler, running:
 
 ```sh
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
 ```
 
-Below you can see an example flamegraph with a total 387 opcodes (using Nargo v1.0.0-beta.2):
+The command will generate a flamegraph in your _target_ folder that maps the number of ACIR opcodes and their corresponding locations in your program source code.
+
+Opening the flamegraph in a web browser will provide a more interactive experience, allowing you to click into different regions of the graph and examine them.
+
+Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
 
 ![ACIR Flamegraph Unoptimized](@site/static/img/tooling/profiler/acir-flamegraph-unoptimized.png)
 
-You should now have a flamegraph that maps ACIR opcodes to their corresponding locations in the source code. We strongly recommend generating these graphs yourself as you follow this guide. Opening the flamegraph in a browser provides a more interactive experience, allowing you to click into and examine different regions of the graph. Simply viewing the image file won't offer the same level of insight.
+The demonstrative project consists of 387 ACIR opcodes in total, which from the flamegraph we can see that the majority of them comes from the write to `array[i]`.
 
-We can see that the majority of opcodes come from the write to `array[i]`. Now that we have some more information about our program's bottlenecks, let's optimize it.
+Knowing the insight on our program's bottleneck, let's optimize it.
 
 #### Optimizing array writes with reads
 
-We can improve our circuit's efficiency using [unconstrained functions](../noir/concepts/unconstrained.md).
+We can improve our program's performance using [unconstrained functions](../noir/concepts/unconstrained.md).
 
 Let's replace expensive array writes with array gets with the new code below:
 ```rust
@@ -80,12 +82,28 @@ unconstrained fn zero_out_array(ptr: u32, mut array: [u32; 32]) -> [u32; 32] {
     array
 }
 ```
-We chose to instead write our array inside of the unconstrained function. Then inside of our circuit we assert on every value in the array returned from the unconstrained function.
 
-This new program produces the following ACIR opcodes flamegraph with a total of 284 opcodes:
+Instead of writing our array in a fully constrained manner, we first write our array inside an unconstrained function and then assert every value in the array returned from the unconstrained function in a constrained manner.
+
+This brings the ACIR opcodes count of our program down to a total of 284 opcodes:
+
 ![ACIR Flamegraph Optimized](@site/static/img/tooling/profiler/acir-flamegraph-optimized.png)
 
-In the above image we searched for the ACIR opcodes due to `i > ptr` in the source code. Trigger a search by clicking on "Search" in the top right corner of the flamegraph. In the bottom right corner of the image above, you will note that the flamegraph displays the percentage of all opcodes associated with that search.  Searching for `memory::op` in the optimized flamegraph will result in no matches. This is due to no longer using a dynamic array in our circuit. By dynamic array, we are referring to using a dynamic index (values reliant upon witness inputs) when working with arrays. Most of the memory operations, have now been replaced with arithmetic operations as we are reading two arrays from known constant indices.
+#### Searching in flamegraphs
+
+The `i > ptr` region in the above image is highlighted purple as we were searching for it.
+
+Click "Search" in the top right corner of the flamegraph to start a search (e.g. i > ptr).
+
+Check "Matched" in the bottom right corner to learn the percentage out of total opcodes associated with the search (e.g. 43.3%).
+
+:::tip
+
+If you try searching for `memory::op` before and after the optimization, you will find that the search will no longer have matches after the optimization.
+
+This comes from the optimization removing the use of a dynamic array (i.e. an array with a dynamic index, that is its values rely on witness inputs). After the optimized rewrite into reading two arrays from known constant indices, simple arithmetic operations replaces the original memory operations.
+
+:::
 
 ### Flamegraphing unconstrained opcodes
 
