@@ -4,7 +4,7 @@ use crate::ast::{Ident, UnresolvedGenerics, UnresolvedType};
 use crate::token::SecondaryAttribute;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use super::{Documented, ItemVisibility};
 
@@ -16,7 +16,7 @@ pub struct NoirStruct {
     pub visibility: ItemVisibility,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<Documented<StructField>>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl NoirStruct {

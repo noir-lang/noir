@@ -2,7 +2,7 @@ mod consts;
 use consts::EXPONENTIATE;
 
 fn main(x: Field, y: pub Field) {
-    /// Safety: testing context
+    // Safety: testing context
     unsafe {
         assert(entry_point_only_const_global(x) == 2);
         check_acc_entry_point(x, y);

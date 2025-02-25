@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Debug, Formatter},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -31,10 +32,18 @@ mod lexer;
 mod tests;
 mod token;
 
+impl FromStr for Ssa {
+    type Err = SsaErrorWithSource;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_str_impl(s, false)
+    }
+}
+
 impl Ssa {
     /// Creates an Ssa object from the given string.
     pub(crate) fn from_str(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, false)
+        FromStr::from_str(src)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
@@ -387,7 +396,8 @@ impl<'a> Parser<'a> {
         }
 
         let value = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::DecrementRc { value }))
+        let original = self.parse_value_or_error()?;
+        Ok(Some(ParsedInstruction::DecrementRc { value, original }))
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -808,7 +818,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_identifier(&mut self) -> ParseResult<Option<Identifier>> {
-        let span = self.token.to_span();
+        let span = self.token.span();
         if let Some(name) = self.eat_ident()? {
             Ok(Some(Identifier::new(name, span)))
         } else {
@@ -950,56 +960,53 @@ impl<'a> Parser<'a> {
     fn expected_instruction_or_terminator<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedInstructionOrTerminator {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_string_or_data<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedStringOrData {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_byte_string<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedByteString {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_identifier<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_int<T>(&mut self) -> ParseResult<T> {
-        Err(ParserError::ExpectedInt {
-            found: self.token.token().clone(),
-            span: self.token.to_span(),
-        })
+        Err(ParserError::ExpectedInt { found: self.token.token().clone(), span: self.token.span() })
     }
 
     fn expected_type<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedType {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_value<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedValue {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
     fn expected_global_value<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedGlobalValue {
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
@@ -1007,7 +1014,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedToken {
             token,
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 
@@ -1015,7 +1022,7 @@ impl<'a> Parser<'a> {
         Err(ParserError::ExpectedOneOfTokens {
             tokens: tokens.to_vec(),
             found: self.token.token().clone(),
-            span: self.token.to_span(),
+            span: self.token.span(),
         })
     }
 }

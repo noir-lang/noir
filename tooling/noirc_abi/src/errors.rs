@@ -2,17 +2,26 @@ use crate::{
     input_parser::{InputTypecheckingError, InputValue},
     AbiType,
 };
-use acvm::acir::native_types::Witness;
+use acvm::{acir::native_types::Witness, AcirField, FieldElement};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum InputParserError {
     #[error("input file is badly formed, could not parse, {0}")]
     ParseInputMap(String),
-    #[error("Expected witness values to be integers, provided value causes `{0}` error")]
-    ParseStr(String),
-    #[error("Could not parse hex value {0}")]
-    ParseHexStr(String),
+    #[error(
+        "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, but `{value}` failed with `{error}`"
+    )]
+    ParseStr { arg_name: String, value: String, error: String },
+    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}")]
+    InputUnderflowsMinimum { arg_name: String, value: String, min: String },
+    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}")]
+    InputOverflowsMaximum { arg_name: String, value: String, max: String },
+    #[error(
+        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
+        FieldElement::modulus()
+    )]
+    InputExceedsFieldModulus { arg_name: String, value: String },
     #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]

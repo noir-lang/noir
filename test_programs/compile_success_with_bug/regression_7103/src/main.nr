@@ -1,8 +1,7 @@
 fn main() {
-    /// Safety: n/a
+    // Safety: n/a
     unsafe { loophole() };
 }
-
 
 unconstrained fn loophole() {
     let mut i = 0;

@@ -12,7 +12,7 @@ impl SpannedToken {
         SpannedToken(Spanned::from(span, token))
     }
 
-    pub(crate) fn to_span(&self) -> Span {
+    pub(crate) fn span(&self) -> Span {
         self.0.span()
     }
 

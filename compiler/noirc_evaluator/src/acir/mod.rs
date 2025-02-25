@@ -20,10 +20,13 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_variable;
 mod big_int;
+mod black_box;
+mod brillig_call;
 mod brillig_directive;
 mod generated_acir;
 
 use crate::brillig::brillig_gen::gen_brillig_for;
+use crate::brillig::BrilligOptions;
 use crate::brillig::{
     brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
     brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
@@ -48,7 +51,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{AcirContext, AcirType, AcirVar};
+use acir_variable::{power_of_two, AcirContext, AcirType, AcirVar};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -207,6 +210,11 @@ struct Context<'a> {
 
     /// Contains state that is generated and also used across ACIR functions
     shared_context: &'a mut SharedContext<FieldElement>,
+
+    brillig: &'a Brillig,
+
+    /// Options affecting Brillig code generation.
+    brillig_options: &'a BrilligOptions,
 }
 
 #[derive(Clone)]
@@ -303,6 +311,7 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         brillig: &Brillig,
+        brillig_options: &BrilligOptions,
         expression_width: ExpressionWidth,
     ) -> Result<Artifacts, RuntimeError> {
         let mut acirs = Vec::new();
@@ -310,10 +319,10 @@ impl Ssa {
         let mut shared_context = SharedContext::default();
 
         for function in self.functions.values() {
-            let context = Context::new(&mut shared_context, expression_width);
-            if let Some(mut generated_acir) =
-                context.convert_ssa_function(&self, function, brillig)?
-            {
+            let context =
+                Context::new(&mut shared_context, expression_width, brillig, brillig_options);
+
+            if let Some(mut generated_acir) = context.convert_ssa_function(&self, function)? {
                 // We want to be able to insert Brillig stdlib functions anywhere during the ACIR generation process (e.g. such as on the `GeneratedAcir`).
                 // As we don't want a reference to the `SharedContext` on the generated ACIR itself,
                 // we instead store the opcode location at which a Brillig call to a std lib function occurred.
@@ -362,6 +371,8 @@ impl<'a> Context<'a> {
     fn new(
         shared_context: &'a mut SharedContext<FieldElement>,
         expression_width: ExpressionWidth,
+        brillig: &'a Brillig,
+        brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
         let mut acir_context = AcirContext::default();
         acir_context.set_expression_width(expression_width);
@@ -378,6 +389,8 @@ impl<'a> Context<'a> {
             max_block_id: 0,
             data_bus: DataBus::default(),
             shared_context,
+            brillig,
+            brillig_options,
         }
     }
 
@@ -385,7 +398,6 @@ impl<'a> Context<'a> {
         self,
         ssa: &Ssa,
         function: &Function,
-        brillig: &Brillig,
     ) -> Result<Option<GeneratedAcir<FieldElement>>, RuntimeError> {
         match function.runtime() {
             RuntimeType::Acir(inline_type) => {
@@ -401,11 +413,11 @@ impl<'a> Context<'a> {
                     InlineType::Fold => {}
                 }
                 // We only want to convert entry point functions. This being `main` and those marked with `InlineType::Fold`
-                Ok(Some(self.convert_acir_main(function, ssa, brillig)?))
+                Ok(Some(self.convert_acir_main(function, ssa)?))
             }
             RuntimeType::Brillig(_) => {
                 if function.id() == ssa.main_id {
-                    Ok(Some(self.convert_brillig_main(function, brillig)?))
+                    Ok(Some(self.convert_brillig_main(function)?))
                 } else {
                     Ok(None)
                 }
@@ -417,7 +429,6 @@ impl<'a> Context<'a> {
         mut self,
         main_func: &Function,
         ssa: &Ssa,
-        brillig: &Brillig,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
@@ -445,7 +456,7 @@ impl<'a> Context<'a> {
         self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
         for instruction_id in entry_block.instructions() {
-            warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa, brillig)?);
+            warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
@@ -502,7 +513,6 @@ impl<'a> Context<'a> {
     fn convert_brillig_main(
         mut self,
         main_func: &Function,
-        brillig: &Brillig,
     ) -> Result<GeneratedAcir<FieldElement>, RuntimeError> {
         let dfg = &main_func.dfg;
 
@@ -517,7 +527,8 @@ impl<'a> Context<'a> {
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
-        let code = gen_brillig_for(main_func, arguments.clone(), brillig)?;
+        let code =
+            gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
 
         // We specifically do not attempt execution of the brillig code being generated as this can result in it being
         // replaced with constraints on witnesses to the program outputs.
@@ -672,7 +683,6 @@ impl<'a> Context<'a> {
         instruction_id: InstructionId,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
-        brillig: &Brillig,
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_instruction_call_stack(instruction_id));
@@ -775,13 +785,7 @@ impl<'a> Context<'a> {
             }
             Instruction::Call { .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                warnings.extend(self.convert_ssa_call(
-                    instruction,
-                    dfg,
-                    ssa,
-                    brillig,
-                    result_ids,
-                )?);
+                warnings.extend(self.convert_ssa_call(instruction, dfg, ssa, result_ids)?);
             }
             Instruction::Not(value_id) => {
                 let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
@@ -847,7 +851,6 @@ impl<'a> Context<'a> {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
         ssa: &Ssa,
-        brillig: &Brillig,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
         let mut warnings = Vec::new();
@@ -925,7 +928,12 @@ impl<'a> Context<'a> {
                                         None,
                                     )?
                                 } else {
-                                    let code = gen_brillig_for(func, arguments.clone(), brillig)?;
+                                    let code = gen_brillig_for(
+                                        func,
+                                        arguments.clone(),
+                                        self.brillig,
+                                        self.brillig_options,
+                                    )?;
                                     let generated_pointer =
                                         self.shared_context.new_generated_pointer();
                                     let output_values = self.acir_context.brillig_call(
@@ -1965,26 +1973,7 @@ impl<'a> Context<'a> {
     ) -> Result<AcirVar, RuntimeError> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
-
         let binary_type = self.type_of_binary_operation(binary, dfg);
-        match &binary_type {
-            Type::Numeric(NumericType::Unsigned { bit_size })
-            | Type::Numeric(NumericType::Signed { bit_size }) => {
-                // Conservative max bit size that is small enough such that two operands can be
-                // multiplied and still fit within the field modulus. This is necessary for the
-                // truncation technique: result % 2^bit_size to be valid.
-                let max_integer_bit_size = FieldElement::max_num_bits() / 2;
-                if *bit_size > max_integer_bit_size {
-                    return Err(RuntimeError::UnsupportedIntegerSize {
-                        num_bits: *bit_size,
-                        max_num_bits: max_integer_bit_size,
-                        call_stack: self.acir_context.get_call_stack(),
-                    });
-                }
-            }
-            _ => {}
-        }
-
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
@@ -2105,6 +2094,12 @@ impl<'a> Context<'a> {
         max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
+        assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
+        assert!(
+            bit_size < max_bit_size,
+            "Attempted to generate a truncation into size larger than max input"
+        );
+
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
@@ -2114,7 +2109,8 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = self.acir_context.add_constant(2_u128.pow(bit_size));
+                    let integer_modulus = power_of_two::<FieldElement>(bit_size);
+                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
                     var = self.acir_context.add_var(var, integer_modulus)?;
                 }
             }
@@ -2902,7 +2898,7 @@ mod test {
 
     use crate::{
         acir::BrilligStdlibFunc,
-        brillig::Brillig,
+        brillig::{Brillig, BrilligOptions},
         ssa::{
             function_builder::FunctionBuilder,
             ir::{
@@ -3003,7 +2999,7 @@ mod test {
         let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // Expected result:
         // main f0
@@ -3109,7 +3105,7 @@ mod test {
 
         let (acir_functions, _, _, _) = ssa
             .generate_entry_point_index()
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
         // The expected result should look very similar to the above test expect that the input witnesses of the `Call`
         // opcodes will be different. The changes can discerned from the checks below.
@@ -3213,7 +3209,7 @@ mod test {
         let ssa = builder.finish().generate_entry_point_index();
 
         let (acir_functions, _, _, _) = ssa
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 3, "Should have three ACIR functions");
@@ -3334,11 +3330,11 @@ mod test {
         build_basic_foo_with_return(&mut builder, bar_id, true, InlineType::default());
 
         let ssa = builder.finish();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let (acir_functions, brillig_functions, _, _) = ssa
             .generate_entry_point_index()
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3403,7 +3399,7 @@ mod test {
         // Brillig artifacts to the ACIR gen pass.
         let (acir_functions, brillig_functions, _, _) = ssa
             .generate_entry_point_index()
-            .into_acir(&Brillig::default(), ExpressionWidth::default())
+            .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3473,12 +3469,12 @@ mod test {
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
             .generate_entry_point_index()
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1, "Should only have a `main` ACIR function");
@@ -3562,12 +3558,12 @@ mod test {
 
         let ssa = builder.finish();
         // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
         println!("{}", ssa);
 
         let (acir_functions, brillig_functions, _, _) = ssa
             .generate_entry_point_index()
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
@@ -3679,10 +3675,10 @@ mod test {
             }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let (mut acir_functions, _brillig_functions, _, _) = ssa
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1);
@@ -3710,17 +3706,17 @@ mod test {
             constrain v7 == Field 0
             return
         }
-        
+
         brillig(inline) fn foo f1 {
           b0(v0: u32, v1: [Field]):
               return
           }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(false);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let (acir_functions, _brillig_functions, _, _) = ssa
-            .into_acir(&brillig, ExpressionWidth::default())
+            .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
             .expect("Should compile manually written SSA into ACIR");
 
         assert_eq!(acir_functions.len(), 1);

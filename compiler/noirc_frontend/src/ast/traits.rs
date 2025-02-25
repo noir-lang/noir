@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::ast::{
     BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
@@ -20,7 +20,7 @@ pub struct NoirTrait {
     pub generics: UnresolvedGenerics,
     pub bounds: Vec<TraitBound>,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub span: Span,
+    pub location: Location,
     pub items: Vec<Documented<TraitItem>>,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
@@ -57,10 +57,10 @@ pub enum TraitItem {
 #[derive(Clone, Debug)]
 pub struct TypeImpl {
     pub object_type: UnresolvedType,
-    pub type_span: Span,
+    pub type_location: Location,
     pub generics: UnresolvedGenerics,
     pub where_clause: Vec<UnresolvedTraitConstraint>,
-    pub methods: Vec<(Documented<NoirFunction>, Span)>,
+    pub methods: Vec<(Documented<NoirFunction>, Location)>,
 }
 
 /// Ast node for an implementation of a trait for a particular type
@@ -69,9 +69,7 @@ pub struct TypeImpl {
 pub struct NoirTraitImpl {
     pub impl_generics: UnresolvedGenerics,
 
-    pub trait_name: Path,
-
-    pub trait_generics: GenericTypeArgs,
+    pub r#trait: UnresolvedType,
 
     pub object_type: UnresolvedType,
 
@@ -106,7 +104,7 @@ pub struct TraitBound {
 #[derive(Clone, Debug)]
 pub struct TraitImplItem {
     pub kind: TraitImplItemKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug)]
@@ -247,7 +245,7 @@ impl Display for NoirTraitImpl {
             )?;
         }
 
-        write!(f, " {}{} for {}", self.trait_name, self.trait_generics, self.object_type)?;
+        write!(f, " {} for {}", self.r#trait, self.object_type)?;
         if !self.where_clause.is_empty() {
             write!(
                 f,

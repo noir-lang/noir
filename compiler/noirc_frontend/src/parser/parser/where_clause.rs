@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             trait_path: Path {
                 kind: PathKind::Plain,
                 segments: Vec::new(),
-                span: self.span_at_previous_token_end(),
+                location: self.location_at_previous_token_end(),
             },
             trait_id: None,
             trait_generics: GenericTypeArgs::default(),
@@ -102,7 +102,7 @@ mod tests {
     };
 
     fn parse_where_clause_no_errors(src: &str) -> Vec<UnresolvedTraitConstraint> {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let constraints = parser.parse_where_clause();
         expect_no_errors(&parser.errors);
         constraints
@@ -154,7 +154,7 @@ mod tests {
                           ^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let mut constraints = parser.parse_where_clause();
 
         let reason = get_single_error_reason(&parser.errors, span);
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn parses_where_clause_missing_trait_bound() {
         let src = "where Foo: ";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         parser.parse_where_clause();
         assert!(!parser.errors.is_empty());
     }
