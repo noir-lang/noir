@@ -783,7 +783,6 @@ fn constructor_expression_with_file(
         fields: vecmap(expr.fields, |(ident, expression)| {
             (ident_with_file(ident, file), expression_with_file(expression, file))
         }),
-        struct_type: expr.struct_type,
     }
 }
 
