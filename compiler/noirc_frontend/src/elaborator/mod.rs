@@ -5,8 +5,9 @@ use std::{
 
 use crate::{
     ast::{
-        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
-        Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
+        BlockExpression, CallExpression, Expression, ExpressionKind, FunctionKind, GenericTypeArgs,
+        Ident, NoirFunction, NoirStruct, Param, Path, PathKind, PathSegment, Pattern, Statement,
+        StatementKind, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
     graph::CrateId,
@@ -1018,7 +1019,12 @@ impl<'context> Elaborator<'context> {
             .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
             .collect();
 
-        let statements = std::mem::take(&mut func.def.body.statements);
+        let mut statements = std::mem::take(&mut func.def.body.statements);
+
+        if is_entry_point && self.crate_graph.try_stdlib_crate_id().is_some() {
+            self.add_entry_point_parameters_validation(func.parameters(), &mut statements);
+        }
+
         let body = BlockExpression { statements };
 
         let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.self_type {
@@ -1059,6 +1065,77 @@ impl<'context> Elaborator<'context> {
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
         self.current_item = None;
+    }
+
+    /// Adds statements to `statements` to validate the given parameters.
+    ///
+    /// For example, this function:
+    ///
+    /// fn main(x: u8, y: u8) {
+    ///     assert_eq(x, y);
+    /// }
+    ///
+    /// is transformed into this one:
+    ///
+    /// fn main(x: u8, y: u8) {
+    ///     std::validation::AssertsIsValidInput::assert_is_valid_input(x);
+    ///     std::validation::AssertsIsValidInput::assert_is_valid_input(y);
+    ///     assert_eq(x, y);
+    /// }
+    fn add_entry_point_parameters_validation(
+        &self,
+        params: &[Param],
+        statements: &mut Vec<Statement>,
+    ) {
+        for param in params {
+            self.add_entry_point_pattern_validation(&param.pattern, statements);
+        }
+    }
+
+    fn add_entry_point_pattern_validation(
+        &self,
+        pattern: &Pattern,
+        statements: &mut Vec<Statement>,
+    ) {
+        match pattern {
+            Pattern::Identifier(ident) => {
+                if ident.0.contents == "_" {
+                    return;
+                }
+
+                let location = ident.location();
+                let segments =
+                    ["std", "validation", "AssertsIsValidInput", "assert_is_valid_input"]
+                        .into_iter();
+                let segments = segments.map(|segment| PathSegment {
+                    ident: Ident::new(segment.into(), location),
+                    generics: None,
+                    location,
+                });
+                let func = Path { segments: segments.collect(), kind: PathKind::Plain, location };
+                let func = ExpressionKind::Variable(func);
+                let func = Box::new(Expression::new(func, location));
+                let argument = ExpressionKind::Variable(Path::from_ident(ident.clone()));
+                let argument = Expression::new(argument, location);
+                let call = CallExpression { func, arguments: vec![argument], is_macro_call: false };
+                let call = Expression::new(ExpressionKind::Call(Box::new(call)), location);
+                let call = Statement { kind: StatementKind::Semi(call), location };
+                statements.insert(0, call);
+            }
+            Pattern::Mutable(pattern, ..) => {
+                self.add_entry_point_pattern_validation(pattern, statements);
+            }
+            Pattern::Tuple(patterns, ..) => {
+                for pattern in patterns {
+                    self.add_entry_point_pattern_validation(pattern, statements);
+                }
+            }
+            Pattern::Struct(..) => todo!("add_entry_point_pattern_validation for Struct pattern"),
+            Pattern::Interned(interned_pattern, ..) => {
+                let pattern = self.interner.get_pattern(*interned_pattern);
+                self.add_entry_point_pattern_validation(pattern, statements);
+            }
+        }
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {
