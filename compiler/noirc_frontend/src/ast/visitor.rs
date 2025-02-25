@@ -24,7 +24,7 @@ use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
     MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression,
+    UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -242,7 +242,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_unsafe(&mut self, _: &BlockExpression, _: Span) -> bool {
+    fn visit_unsafe_expression(&mut self, _: &UnsafeExpression, _: Span) -> bool {
         true
     }
 
@@ -905,10 +905,8 @@ impl Expression {
                     block_expression.accept(None, visitor);
                 }
             }
-            ExpressionKind::Unsafe(block_expression, _) => {
-                if visitor.visit_unsafe(block_expression, span) {
-                    block_expression.accept(None, visitor);
-                }
+            ExpressionKind::Unsafe(unsafe_expression) => {
+                unsafe_expression.accept(span, visitor);
             }
             ExpressionKind::Variable(path) => {
                 if visitor.visit_variable(path, span) {
@@ -1301,6 +1299,18 @@ impl ForRange {
             }
             ForRange::Array(expression) => expression.accept(visitor),
         }
+    }
+}
+
+impl UnsafeExpression {
+    pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
+        if visitor.visit_unsafe_expression(self, span) {
+            self.accept_children(span, visitor);
+        }
+    }
+
+    pub fn accept_children(&self, span: Span, visitor: &mut impl Visitor) {
+        self.block.accept(Some(span), visitor);
     }
 }
 

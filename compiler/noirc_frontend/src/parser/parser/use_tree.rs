@@ -76,11 +76,7 @@ impl<'a> Parser<'a> {
         // Special case: "self" cannot be followed by anything else
         if self.eat_self() {
             return Some(UseTree {
-                prefix: Path {
-                    segments: Vec::new(),
-                    kind: PathKind::Plain,
-                    location: start_location,
-                },
+                prefix: Path::plain(Vec::new(), start_location),
                 kind: UseTreeKind::Path(Ident::new("self".to_string(), start_location), None),
                 location: start_location,
             });

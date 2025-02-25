@@ -8,7 +8,7 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
@@ -85,8 +85,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    Diagnostic::simple_warning(message, secondary_message, location.span);
+                let diagnostic = Diagnostic::simple_warning(message, secondary_message, *location);
                 diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
             SsaReport::Bug(bug) => {
@@ -103,7 +102,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic = Diagnostic::simple_bug(message, secondary_message, location.span);
+                let diagnostic = Diagnostic::simple_bug(message, secondary_message, *location);
                 diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
         }
@@ -195,7 +194,7 @@ impl RuntimeError {
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
-                    noirc_errors::Span::inclusive(0, 0)
+                    Location::dummy(),
                 )
             }
             RuntimeError::UnknownLoopBound { .. } => {
@@ -206,7 +205,7 @@ impl RuntimeError {
                 Diagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    location.span,
+                    *location,
                 )
             }
             _ => {
@@ -214,7 +213,7 @@ impl RuntimeError {
                 let location =
                     self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
-                Diagnostic::simple_error(message, String::new(), location.span)
+                Diagnostic::simple_error(message, String::new(), *location)
             }
         }
     }
