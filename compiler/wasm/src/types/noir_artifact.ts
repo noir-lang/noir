@@ -59,7 +59,7 @@ export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
   /** The hash of the circuit. */
-  hash?: number | string;
+  hash?: string;
   /** Whether the function is unconstrained. */
   is_unconstrained: boolean;
   /** The custom attributes applied to the function. */
@@ -98,7 +98,7 @@ export interface ProgramArtifact {
   /** Version of noir used for the build. */
   noir_version: string;
   /** The hash of the circuit. */
-  hash?: number | string;
+  hash?: string;
   /** * The ABI of the function. */
   abi: Abi;
   /** The bytecode of the circuit in base64. */
