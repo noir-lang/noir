@@ -1983,8 +1983,6 @@ impl<'context> Elaborator<'context> {
         let old_file = std::mem::replace(&mut self.file, global.file_id);
         let old_item = self.current_item.take();
 
-        eprintln!("Elaborating {global:?}");
-
         let global_id = global.global_id;
         self.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
@@ -2008,18 +2006,13 @@ impl<'context> Elaborator<'context> {
             self.push_err(ResolverError::MutableGlobal { span }, location.file);
         }
 
-        dbg!();
-
         let (let_statement, _typ) = self
             .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
-        dbg!();
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        dbg!();
         self.elaborate_comptime_global(global_id);
-        dbg!();
 
         if let Some(name) = name {
             self.interner.register_global(
@@ -2041,27 +2034,22 @@ impl<'context> Elaborator<'context> {
             .interner
             .get_global_let_statement(global_id)
             .expect("Let statement of global should be set by elaborate_global_let");
-        dbg!();
 
         let global = self.interner.get_global(global_id);
         let definition_id = global.definition_id;
         let location = global.location;
         let mut interpreter = self.setup_interpreter();
-        dbg!();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
-            dbg!(&error);
             let (error, file) = error.into_compilation_error_pair();
             self.push_err(error, file);
         } else {
-            dbg!();
             let value = interpreter
                 .lookup_id(definition_id, location)
                 .expect("The global should be defined since evaluate_let did not error");
 
             self.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            eprintln!("  set {global_id:?}.value = Resolved({value:?})");
             self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
         }
     }
@@ -2069,11 +2057,9 @@ impl<'context> Elaborator<'context> {
     /// If the given global is unresolved, elaborate it and return true
     fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
         if let Some(global) = self.unresolved_globals.remove(global_id) {
-            eprintln!("Elaborating {global_id:?}: {global:?}");
             self.elaborate_global(global);
             true
         } else {
-            eprintln!("Not elaborating {global_id:?}");
             false
         }
     }

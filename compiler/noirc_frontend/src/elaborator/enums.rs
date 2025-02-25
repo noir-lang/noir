@@ -571,7 +571,9 @@ impl Elaborator<'_> {
                             location,
                         );
                     }
-                    other => todo!("Value `{other:?}` is not an enum constant"),
+                    // We tried to resolve this value above so there must have been an error
+                    // in doing so. Avoid reporting an additional error.
+                    _ => return Pattern::Error,
                 };
 
                 let global_type = self.interner.definition_type(global.definition_id);
