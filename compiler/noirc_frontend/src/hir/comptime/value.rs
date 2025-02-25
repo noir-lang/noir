@@ -19,10 +19,11 @@ use crate::{
     },
     hir_def::expr::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
-        HirIdent, HirLambda, HirLiteral, ImplKind, SignedField,
+        HirIdent, HirLambda, HirLiteral, ImplKind,
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
     Kind, QuotedType, Shared, Type, TypeBindings,
 };

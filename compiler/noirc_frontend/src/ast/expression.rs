@@ -7,8 +7,8 @@ use crate::ast::{
     Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
-use crate::hir_def::expr::SignedField;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;

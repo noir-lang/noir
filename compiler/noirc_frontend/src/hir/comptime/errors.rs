@@ -7,8 +7,8 @@ use crate::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
-    hir_def::expr::SignedField,
     parser::ParserError,
+    signed_field::SignedField,
     Type,
 };
 use acvm::BlackBoxResolutionError;

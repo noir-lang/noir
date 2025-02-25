@@ -13,6 +13,7 @@ use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
+use crate::signed_field::SignedField;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -42,8 +43,8 @@ pub enum TypeCheckError {
     DivisionByZero { lhs: FieldElement, rhs: FieldElement, span: Span },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, span: Span },
-    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
+    #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: SignedField, ty: Type, range: String, span: Span },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]

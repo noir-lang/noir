@@ -1,6 +1,7 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::ParsedModule;
+use crate::signed_field::SignedField;
 use crate::{
     ast,
     ast::{Path, PathKind},
@@ -777,11 +778,13 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), false));
+    let value = SignedField::positive(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0));
+    let value = SignedField::from_signed(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }
