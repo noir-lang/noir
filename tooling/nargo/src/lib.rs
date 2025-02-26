@@ -22,11 +22,11 @@ use std::{
     path::PathBuf,
 };
 
-use fm::{FileManager, FILE_EXTENSION};
+use fm::{FILE_EXTENSION, FileManager};
 use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::{def_map::parse_file, Context, ParsedFiles},
+    hir::{Context, ParsedFiles, def_map::parse_file},
 };
 use package::{Dependency, Package};
 use rayon::prelude::*;

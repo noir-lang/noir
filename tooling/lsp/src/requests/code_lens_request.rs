@@ -7,9 +7,8 @@ use noirc_driver::check_crate;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
-    LspState,
 };
 
 const ARROW: &str = "▶\u{fe0e}";

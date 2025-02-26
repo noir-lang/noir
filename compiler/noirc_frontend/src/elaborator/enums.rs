@@ -5,6 +5,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
+    DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
         Literal, NoirEnumeration, StatementKind, UnresolvedType, Visibility,
@@ -22,7 +23,6 @@ use crate::{
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     signed_field::SignedField,
     token::Attributes,
-    DataType, Kind, Shared, Type,
 };
 
 use super::Elaborator;

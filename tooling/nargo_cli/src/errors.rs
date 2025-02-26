@@ -1,11 +1,11 @@
-use acvm::{acir::native_types::WitnessStackError, FieldElement};
-use nargo::{errors::CompileError, NargoError};
+use acvm::{FieldElement, acir::native_types::WitnessStackError};
+use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
 use noirc_abi::{
+    AbiReturnType,
     errors::{AbiError, InputParserError},
     input_parser::InputValue,
-    AbiReturnType,
 };
 use std::path::PathBuf;
 use thiserror::Error;

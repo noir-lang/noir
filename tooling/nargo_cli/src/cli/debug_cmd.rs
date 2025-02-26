@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessStack;
 use acvm::FieldElement;
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -13,9 +13,9 @@ use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::InputMap;
-use noirc_driver::{file_manager_with_stdlib, CompileOptions, CompiledProgram};
+use noirc_abi::input_parser::{Format, InputValue};
+use noirc_driver::{CompileOptions, CompiledProgram, file_manager_with_stdlib};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 

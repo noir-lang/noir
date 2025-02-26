@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acvm::{acir::native_types::WitnessStack, FieldElement};
+use acvm::{FieldElement, acir::native_types::WitnessStack};
 use nargo::constants::WITNESS_EXT;
 
 use super::{create_named_dir, write_to_file};

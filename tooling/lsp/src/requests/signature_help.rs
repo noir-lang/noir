@@ -7,6 +7,7 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule, Type,
     ast::{
         CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
@@ -14,10 +15,9 @@ use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{NodeInterner, ReferenceId},
     parser::Item,
-    ParsedModule, Type,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
 use super::process_request;
 

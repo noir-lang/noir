@@ -9,14 +9,14 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{check_crate, compute_function_abi, CompileOptions, CrateId};
+use noirc_driver::{CompileOptions, CrateId, check_crate, compute_function_abi};
 use noirc_frontend::{
     hir::{Context, ParsedFiles},
     monomorphization::monomorphize,
 };
 
-use super::{fs::write_to_file, PackageOptions};
 use super::{LockType, WorkspaceCommand};
+use super::{PackageOptions, fs::write_to_file};
 
 /// Check a local package and all of its dependencies for errors
 #[derive(Debug, Clone, Args)]

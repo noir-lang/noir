@@ -24,6 +24,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::IntegerBitSize;
+use crate::hir::Context;
 use crate::hir::comptime::InterpreterError;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::errors::{DefCollectorErrorKind, DuplicateType};
@@ -31,7 +32,6 @@ use crate::hir::def_map::ModuleData;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::TypeCheckError;
-use crate::hir::Context;
 use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::hir::def_collector::dc_crate::DefCollector;
@@ -43,7 +43,7 @@ use crate::monomorphization::errors::MonomorphizationError;
 use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
-use crate::{parse_program, ParsedModule};
+use crate::{ParsedModule, parse_program};
 use fm::FileManager;
 use noirc_arena::Arena;
 

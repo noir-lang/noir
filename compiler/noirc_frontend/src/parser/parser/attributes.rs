@@ -2,13 +2,13 @@ use noirc_errors::Location;
 
 use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
-use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::ParserErrorReason;
+use crate::parser::labels::ParsingRuleLabel;
 use crate::token::{Attribute, FunctionAttribute, MetaAttribute, TestScope, Token};
 use crate::token::{CustomAttribute, SecondaryAttribute};
 
-use super::parse_many::without_separator;
 use super::Parser;
+use super::parse_many::without_separator;
 
 impl Parser<'_> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
@@ -400,7 +400,7 @@ mod tests {
     use noirc_errors::Span;
 
     use crate::{
-        parser::{parser::tests::expect_no_errors, Parser},
+        parser::{Parser, parser::tests::expect_no_errors},
         token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 

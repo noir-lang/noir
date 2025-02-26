@@ -15,6 +15,7 @@ use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    DataType, Kind, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
         Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
@@ -35,17 +36,16 @@ use noirc_frontend::{
     node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
     parser::{Item, ItemKind, ParsedSubModule},
     token::{MetaAttribute, Token, Tokens},
-    DataType, Kind, ParsedModule, Type, TypeBinding,
 };
 use sort_text::underscore_sort_text;
 
 use crate::{
-    requests::to_lsp_location, trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
+    LspState, requests::to_lsp_location,
+    trait_impl_method_stub_generator::TraitImplMethodStubGenerator,
     use_segment_positions::UseSegmentPositions, utils, visibility::module_def_id_is_visible,
-    LspState,
 };
 
-use super::{process_request, TraitReexport};
+use super::{TraitReexport, process_request};
 
 mod auto_import;
 mod builtins;
@@ -608,7 +608,7 @@ impl<'a> NodeFinder<'a> {
                 self.complete_tuple_fields(types, self_prefix);
             }
             Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-                if let TypeBinding::Bound(ref typ) = &*var.borrow() {
+                if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
@@ -1907,7 +1907,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
         Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-            if let TypeBinding::Bound(ref typ) = &*var.borrow() {
+            if let TypeBinding::Bound(typ) = &*var.borrow() {
                 get_field_type(typ, name)
             } else {
                 None

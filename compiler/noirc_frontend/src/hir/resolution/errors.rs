@@ -4,6 +4,7 @@ use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
 use thiserror::Error;
 
 use crate::{
+    Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
     hir::{
         comptime::{InterpreterError, Value},
@@ -11,7 +12,6 @@ use crate::{
     },
     parser::ParserError,
     usage_tracker::UnusedItem,
-    Kind, Type,
 };
 
 use super::import::PathResolutionError;
@@ -91,8 +91,10 @@ pub enum ResolverError {
     )]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error(
-        "Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"
+        "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
+    LowLevelFunctionOutsideOfStdlib { ident: Ident },
+    #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident },
     #[error("Oracle functions cannot be called directly from constrained functions")]
     UnconstrainedOracleReturnToConstrained { location: Location },

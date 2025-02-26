@@ -8,7 +8,7 @@ use super::{
 };
 use crate::brillig::{Brillig, BrilligOptions, FunctionId};
 use crate::{
-    brillig::{brillig_ir::BrilligContext, ConstantAllocation, DataFlowGraph},
+    brillig::{ConstantAllocation, DataFlowGraph, brillig_ir::BrilligContext},
     ssa::ir::types::NumericType,
     ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
 };
@@ -147,11 +147,7 @@ impl BrilligGlobals {
                 .iter()
                 .filter_map(
                     |(&value, &num_occurrences)| {
-                        if num_occurrences > 1 {
-                            Some(value)
-                        } else {
-                            None
-                        }
+                        if num_occurrences > 1 { Some(value) } else { None }
                     },
                 )
                 .collect();
@@ -280,12 +276,12 @@ pub(crate) fn convert_ssa_globals(
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::{BitSize, IntegerBitSize, Opcode},
         FieldElement,
+        acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
     use crate::brillig::{
-        brillig_ir::registers::RegisterAllocator, BrilligOptions, GlobalSpace, LabelType, Ssa,
+        BrilligOptions, GlobalSpace, LabelType, Ssa, brillig_ir::registers::RegisterAllocator,
     };
 
     use super::ConstantAllocation;

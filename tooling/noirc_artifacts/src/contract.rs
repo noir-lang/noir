@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use serde::{Deserialize, Serialize};

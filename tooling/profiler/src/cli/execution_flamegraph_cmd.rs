@@ -4,12 +4,12 @@ use acir::circuit::Opcode;
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use nargo::PrintOutput;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
-use nargo::PrintOutput;
 use noirc_artifacts::program::ProgramArtifact;
 
-use crate::errors::{report_error, CliError};
+use crate::errors::{CliError, report_error};
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::fs::{read_inputs_from_file, read_program_from_file};
 use crate::opcode_formatter::format_brillig_opcode;

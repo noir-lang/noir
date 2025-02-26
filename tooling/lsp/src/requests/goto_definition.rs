@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use crate::attribute_reference_finder::AttributeReferenceFinder;
 use crate::utils;
-use crate::{types::GotoDefinitionResult, LspState};
+use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
 use fm::PathString;

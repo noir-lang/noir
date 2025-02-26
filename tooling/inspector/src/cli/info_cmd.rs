@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Args;
 use color_eyre::eyre;
 use noirc_artifacts::program::ProgramArtifact;
-use noirc_artifacts_info::{count_opcodes_and_gates_in_program, show_info_report, InfoReport};
+use noirc_artifacts_info::{InfoReport, count_opcodes_and_gates_in_program, show_info_report};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {

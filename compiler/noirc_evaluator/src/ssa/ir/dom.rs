@@ -292,8 +292,8 @@ mod tests {
     }
 
     // Testing setup for a function with an unreachable block2
-    fn unreachable_node_setup(
-    ) -> (DominatorTree, BasicBlockId, BasicBlockId, BasicBlockId, BasicBlockId) {
+    fn unreachable_node_setup()
+    -> (DominatorTree, BasicBlockId, BasicBlockId, BasicBlockId, BasicBlockId) {
         // func() {
         //   block0(cond: u1):
         //     jmpif v0 block2() block3()

@@ -57,7 +57,7 @@ mod tests {
     use crate::{
         ast::{NoirTypeAlias, UnresolvedTypeData},
         parse_program_with_dummy_file,
-        parser::{parser::tests::expect_no_errors, ItemKind},
+        parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
     fn parse_type_alias_no_errors(src: &str) -> NoirTypeAlias {

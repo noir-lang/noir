@@ -56,11 +56,7 @@ pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
         .iter()
         .filter_map(|action| {
             if let CodeActionOrCommand::CodeAction(action) = action {
-                if action.title == title {
-                    Some(action)
-                } else {
-                    None
-                }
+                if action.title == title { Some(action) } else { None }
             } else {
                 None
             }

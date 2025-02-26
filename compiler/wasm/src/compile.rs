@@ -5,7 +5,7 @@ use js_sys::{JsString, Object};
 use nargo::parse_all;
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 use noirc_driver::{
-    add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
+    CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
 use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
@@ -311,7 +311,7 @@ mod test {
 
     use crate::compile::PathToFileSourceMap;
 
-    use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
+    use super::{DependencyGraph, file_manager_with_source_map, process_dependency_graph};
     use std::{collections::HashMap, path::Path};
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {

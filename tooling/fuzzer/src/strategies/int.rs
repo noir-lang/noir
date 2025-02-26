@@ -54,20 +54,12 @@ impl IntStrategy {
 
     /// Maximum allowed positive number.
     fn type_max(&self) -> i128 {
-        if self.bits < 128 {
-            (1i128 << (self.bits - 1)) - 1
-        } else {
-            i128::MAX
-        }
+        if self.bits < 128 { (1i128 << (self.bits - 1)) - 1 } else { i128::MAX }
     }
 
     /// Minimum allowed negative number.
     fn type_min(&self) -> i128 {
-        if self.bits < 128 {
-            -(1i128 << (self.bits - 1))
-        } else {
-            i128::MIN
-        }
+        if self.bits < 128 { -(1i128 << (self.bits - 1)) } else { i128::MIN }
     }
 }
 

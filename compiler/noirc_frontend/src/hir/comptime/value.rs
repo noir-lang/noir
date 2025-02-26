@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
@@ -25,7 +26,6 @@ use crate::{
     parser::{Item, Parser},
     signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
-    Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
 

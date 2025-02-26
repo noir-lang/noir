@@ -4,11 +4,11 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::{
+    AcirField, FieldElement,
     acir::{
         circuit::ErrorSelector,
         native_types::{Witness, WitnessMap},
     },
-    AcirField, FieldElement,
 };
 use errors::AbiError;
 use input_parser::InputValue;

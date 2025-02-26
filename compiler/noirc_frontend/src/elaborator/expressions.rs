@@ -4,6 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, QuotedType, Shared, Type,
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -18,7 +19,7 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{generics::TraitGenerics, TypeCheckError},
+        type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
@@ -34,7 +35,6 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     token::{FmtStrFragment, Tokens},
-    DataType, Kind, QuotedType, Shared, Type,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};

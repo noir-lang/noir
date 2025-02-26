@@ -1,13 +1,13 @@
 use acvm::{
+    AcirField, FieldElement,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    AcirField, FieldElement,
 };
 use nargo::{
-    foreign_calls::{
-        layers::Layer, DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor,
-    },
     PrintOutput,
+    foreign_calls::{
+        DefaultForeignCallBuilder, ForeignCallError, ForeignCallExecutor, layers::Layer,
+    },
 };
 use noirc_artifacts::debug::{DebugArtifact, DebugVars, StackFrame};
 use noirc_errors::debug_info::{DebugFnId, DebugVarId};

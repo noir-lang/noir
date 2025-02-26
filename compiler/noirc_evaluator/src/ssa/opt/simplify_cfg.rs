@@ -295,6 +295,7 @@ fn try_inline_into_predecessor(
 #[cfg(test)]
 mod test {
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             instruction::{BinaryOp, TerminatorInstruction},
@@ -302,7 +303,6 @@ mod test {
             types::Type,
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
     use acvm::acir::AcirField;
 

@@ -1,12 +1,12 @@
 use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
 
+use acvm::AcirField;
 use acvm::acir::brillig::BitSize;
 use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
-use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::brillig_vm::MemoryValue;
-use acvm::AcirField;
+use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::{NargoError, PrintOutput};
 use noirc_driver::CompiledProgram;
@@ -14,7 +14,7 @@ use noirc_driver::CompiledProgram;
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 
-use easy_repl::{command, CommandStatus, Repl};
+use easy_repl::{CommandStatus, Repl, command};
 use noirc_printable_type::PrintableValueDisplay;
 use std::cell::RefCell;
 

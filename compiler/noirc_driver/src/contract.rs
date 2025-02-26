@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use fm::FileId;
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;

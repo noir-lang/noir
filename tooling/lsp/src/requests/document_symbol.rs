@@ -8,12 +8,12 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
         NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
-    ParsedModule,
 };
 
 use crate::LspState;

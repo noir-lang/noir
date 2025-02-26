@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
-use crate::types::GotoDeclarationResult;
 use crate::LspState;
+use crate::types::GotoDeclarationResult;
 use async_lsp::ResponseError;
 
 use lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};

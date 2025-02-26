@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::PrintOutput;
 
 use super::{
+    ForeignCallExecutor,
     layers::{self, Either, Layer, Layering},
     mocker::{DisabledMockForeignCallExecutor, MockForeignCallExecutor},
     print::PrintForeignCallExecutor,
-    ForeignCallExecutor,
 };
 
 #[cfg(feature = "rpc")]
@@ -80,7 +80,7 @@ impl<'a> DefaultForeignCallBuilder<'a> {
                 use rand::Rng;
 
                 base.add_layer(self.resolver_url.map(|resolver_url| {
-                    let id = rand::thread_rng().gen();
+                    let id = rand::thread_rng().r#gen();
                     RPCForeignCallExecutor::new(
                         &resolver_url,
                         id,

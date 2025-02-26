@@ -12,6 +12,10 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
+    parser::{Item, ItemKind, ParsedSubModule},
+};
+use noirc_frontend::{
     ast::{
         CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
         Path, UseTree, Visitor,
@@ -21,14 +25,10 @@ use noirc_frontend::{
     node_interner::{NodeInterner, Reexport},
     usage_tracker::UsageTracker,
 };
-use noirc_frontend::{
-    parser::{Item, ItemKind, ParsedSubModule},
-    ParsedModule,
-};
 
 use crate::{
-    modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions, utils,
-    visibility::module_def_id_is_visible, LspState,
+    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
+    utils, visibility::module_def_id_is_visible,
 };
 
 use super::{process_request, to_lsp_location};

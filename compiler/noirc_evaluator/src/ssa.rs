@@ -18,14 +18,14 @@ use crate::{
     errors::{RuntimeError, SsaReport},
 };
 use acvm::{
+    FieldElement,
     acir::{
         circuit::{
-            brillig::BrilligBytecode, Circuit, ErrorSelector, ExpressionWidth,
-            Program as AcirProgram, PublicInputs,
+            Circuit, ErrorSelector, ExpressionWidth, Program as AcirProgram, PublicInputs,
+            brillig::BrilligBytecode,
         },
         native_types::Witness,
     },
-    FieldElement,
 };
 
 use ir::instruction::ErrorType;
@@ -34,7 +34,7 @@ use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVaria
 use noirc_frontend::ast::Visibility;
 use noirc_frontend::{hir_def::function::FunctionSignature, monomorphization::ast::Program};
 use ssa_gen::Ssa;
-use tracing::{span, Level};
+use tracing::{Level, span};
 
 use crate::acir::{Artifacts, GeneratedAcir};
 

@@ -4,7 +4,7 @@ use proptest::prelude::*;
 
 use acvm::{AcirField, FieldElement};
 
-use noirc_abi::{input_parser::InputValue, Abi, AbiType, InputMap, Sign};
+use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use std::collections::{BTreeMap, HashSet};
 use uint::UintStrategy;
 

@@ -91,11 +91,7 @@ impl Parser<'_> {
             start_location,
         );
 
-        if path.segments.is_empty() && path.kind == PathKind::Plain {
-            None
-        } else {
-            Some(path)
-        }
+        if path.segments.is_empty() && path.kind == PathKind::Plain { None } else { Some(path) }
     }
 
     /// Parses a path assuming the path's kind (plain, `crate::`, `super::`, etc.)
@@ -214,8 +210,8 @@ mod tests {
     use crate::{
         ast::{Path, PathKind},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 

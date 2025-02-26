@@ -22,7 +22,7 @@ pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Location;
 pub use parser::{
-    parse_program, parse_program_with_dummy_file, Parser, StatementOrExpressionOrLValue,
+    Parser, StatementOrExpressionOrLValue, parse_program, parse_program_with_dummy_file,
 };
 
 #[derive(Clone, Default)]

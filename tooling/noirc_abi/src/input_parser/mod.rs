@@ -248,8 +248,8 @@ mod serialization_tests {
     use strum::IntoEnumIterator;
 
     use crate::{
-        input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign,
-        MAIN_RETURN_NAME,
+        Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, MAIN_RETURN_NAME, Sign,
+        input_parser::InputValue,
     };
 
     use super::Format;
@@ -467,7 +467,7 @@ mod test {
     use num_bigint::BigUint;
     use strum::IntoEnumIterator;
 
-    use super::{parse_str_to_field, parse_str_to_signed, Format};
+    use super::{Format, parse_str_to_field, parse_str_to_signed};
 
     fn big_uint_from_field(field: FieldElement) -> BigUint {
         BigUint::from_bytes_be(&field.to_be_bytes())

@@ -1,6 +1,6 @@
 use noirc_abi::{
-    input_parser::{Format, InputValue},
     Abi, InputMap, MAIN_RETURN_NAME,
+    input_parser::{Format, InputValue},
 };
 use std::{collections::BTreeMap, path::Path};
 

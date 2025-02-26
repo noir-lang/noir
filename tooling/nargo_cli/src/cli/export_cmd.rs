@@ -11,7 +11,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{compile_no_check, CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
 
 use clap::Args;
 

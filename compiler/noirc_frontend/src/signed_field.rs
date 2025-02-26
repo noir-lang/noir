@@ -88,11 +88,7 @@ impl std::ops::Neg for SignedField {
 impl Ord for SignedField {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.is_negative != other.is_negative {
-            if self.is_negative {
-                std::cmp::Ordering::Less
-            } else {
-                std::cmp::Ordering::Greater
-            }
+            if self.is_negative { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater }
         } else if self.is_negative {
             // Negative comparisons should be reversed so that -2 < -1
             other.field.cmp(&self.field)
@@ -116,11 +112,7 @@ impl From<FieldElement> for SignedField {
 
 impl From<SignedField> for FieldElement {
     fn from(value: SignedField) -> Self {
-        if value.is_negative {
-            -value.field
-        } else {
-            value.field
-        }
+        if value.is_negative { -value.field } else { value.field }
     }
 }
 

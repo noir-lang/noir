@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, path::Path};
 
 use color_eyre::eyre;
 use noirc_abi::{
-    input_parser::{Format, InputValue},
     Abi, InputMap, MAIN_RETURN_NAME,
+    input_parser::{Format, InputValue},
 };
 use noirc_artifacts::program::ProgramArtifact;
 

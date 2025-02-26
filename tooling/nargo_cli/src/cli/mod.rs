@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
@@ -271,9 +271,9 @@ mod tests {
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
-        assert!(err
-            .to_string()
-            .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+        assert!(
+            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
+        );
     }
 
     #[test]

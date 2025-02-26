@@ -1,14 +1,14 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
-    aes128_encrypt, blake2s, blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600,
-    sha256_compression, BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError,
+    BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s,
+    blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600, sha256_compression,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
 
-use crate::memory::MemoryValue;
 use crate::Memory;
+use crate::memory::MemoryValue;
 
 fn read_heap_vector<'a, F: AcirField>(
     memory: &'a Memory<F>,
