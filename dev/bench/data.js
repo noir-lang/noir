@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740574646873,
+  "lastUpdate": 1740574648150,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2b11fd7bb9a226499b4524cd2620c50e5677b840",
-          "message": "chore: Add SSA security checks description (#7366)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-19T08:56:05Z",
-          "tree_id": "d1030818be8dc016e2812bc5bd6d518fedac3c16",
-          "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
-        },
-        "date": 1739956431014,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.941,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.757,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.6,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.489,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.156,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.664,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.952,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.878,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.923,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 96.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 93.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.905,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.46,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8401,6 +8307,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.488,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a54402ea6ed63728987101641cb2f98212d4e6f",
+          "message": "chore(ssa): Do not run passes on Brillig functions post Brillig gen (#7527)",
+          "timestamp": "2025-02-26T12:35:48Z",
+          "tree_id": "b7a096fb4d4d1e72711b5466a3d43ed08ca8e369",
+          "url": "https://github.com/noir-lang/noir/commit/8a54402ea6ed63728987101641cb2f98212d4e6f"
+        },
+        "date": 1740574645241,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.944,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.681,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.3,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.495,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.12,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.416,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.53,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 5.152,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.963,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 93.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.933,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.518,
             "unit": "s"
           }
         ]
