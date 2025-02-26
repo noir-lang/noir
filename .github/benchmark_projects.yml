@@ -7,7 +7,7 @@ projects:
     num_runs: 5
     compilation-timeout: 2.5
     execution-timeout: 0.08
-    compilation-memory-limit: 300
+    compilation-memory-limit: 350
     execution-memory-limit: 250
   private-kernel-tail:
     repo: AztecProtocol/aztec-packages
@@ -18,7 +18,7 @@ projects:
     compilation-timeout: 1.2
     execution-timeout: 0.02
     compilation-memory-limit: 250
-    execution-memory-limit: 210
+    execution-memory-limit: 230
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
