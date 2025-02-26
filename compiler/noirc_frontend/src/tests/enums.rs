@@ -24,8 +24,8 @@ fn error_with_duplicate_enum_variant() {
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
-    assert!(matches!(&errors[0].0, DefinitionError(Duplicate { .. })));
-    assert!(matches!(&errors[1].0, ResolverError(UnusedItem { .. })));
+    assert!(matches!(&errors[0], DefinitionError(Duplicate { .. })));
+    assert!(matches!(&errors[1], ResolverError(UnusedItem { .. })));
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn errors_on_unspecified_unstable_enum() {
     let errors = get_program_using_features(src, no_features).2;
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ParseError(error) = &errors[0].0 else {
+    let CompilationError::ParseError(error) = &errors[0] else {
         panic!("Expected a ParseError experimental feature error");
     };
 
@@ -65,7 +65,7 @@ fn errors_on_unspecified_unstable_match() {
     let errors = get_program_using_features(src, no_features).2;
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::ParseError(error) = &errors[0].0 else {
+    let CompilationError::ParseError(error) = &errors[0] else {
         panic!("Expected a ParseError experimental feature error");
     };
 
@@ -85,7 +85,7 @@ fn errors_on_repeated_match_variables_in_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, ResolverError(VariableAlreadyDefinedInPattern { .. })));
+    assert!(matches!(&errors[0], ResolverError(VariableAlreadyDefinedInPattern { .. })));
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn duplicate_field_in_match_struct_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, ResolverError(DuplicateField { .. })));
+    assert!(matches!(&errors[0], ResolverError(DuplicateField { .. })));
 }
 
 #[test]
@@ -129,7 +129,7 @@ fn missing_field_in_match_struct_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, ResolverError(MissingFields { .. })));
+    assert!(matches!(&errors[0], ResolverError(MissingFields { .. })));
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn no_such_field_in_match_struct_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, ResolverError(NoSuchField { .. })));
+    assert!(matches!(&errors[0], ResolverError(NoSuchField { .. })));
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn match_integer_type_mismatch_in_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, TypeError(TypeMismatch { .. })));
+    assert!(matches!(&errors[0], TypeError(TypeMismatch { .. })));
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn match_no_shadow_global() {
     let errors = dbg!(get_program_errors(src));
     assert_eq!(errors.len(), 1);
 
-    assert!(matches!(&errors[0].0, ResolverError(UnexpectedItemInPattern { .. })));
+    assert!(matches!(&errors[0], ResolverError(UnexpectedItemInPattern { .. })));
 }
 
 #[test]
@@ -223,6 +223,6 @@ fn constructor_arg_arity_mismatch_in_pattern() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
 
-    assert!(matches!(&errors[0].0, TypeError(ArityMisMatch { .. })));
-    assert!(matches!(&errors[1].0, TypeError(ArityMisMatch { .. })));
+    assert!(matches!(&errors[0], TypeError(ArityMisMatch { .. })));
+    assert!(matches!(&errors[1], TypeError(ArityMisMatch { .. })));
 }
