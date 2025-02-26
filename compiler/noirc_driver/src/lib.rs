@@ -352,9 +352,10 @@ pub fn check_crate(
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
-        .map(|(error, file_id)| {
+        .map(|error| {
+            let location = error.location();
             let diagnostic = CustomDiagnostic::from(&error);
-            diagnostic.in_file(file_id)
+            diagnostic.in_file(location.file)
         })
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.

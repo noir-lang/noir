@@ -72,7 +72,7 @@ fn turbofish_in_constructor_generics_mismatch() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::TypeError(TypeCheckError::GenericCountMismatch { .. }),
     ));
 }
@@ -95,9 +95,9 @@ fn turbofish_in_constructor() {
 
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ, expr_typ, ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "i32");
@@ -137,9 +137,9 @@ fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
 
-    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0].0
+    let CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource { .. }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 }
 
@@ -165,9 +165,9 @@ fn turbofish_in_struct_pattern_generic_count_mismatch() {
         expected,
         found,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a generic count mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a generic count mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(item, "struct Foo");
@@ -210,9 +210,9 @@ fn errors_if_turbofish_after_module() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TurbofishNotAllowedOnItem { item, .. },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
-        panic!("Expected a turbofish not allowed on item error, got {:?}", errors[0].0);
+        panic!("Expected a turbofish not allowed on item error, got {:?}", errors[0]);
     };
     assert_eq!(item, "module `moo`");
 }
@@ -260,10 +260,10 @@ fn turbofish_in_type_before_call_errors() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
-    }) = &errors[0].0
+        expr_location: _,
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "i32");
@@ -320,10 +320,10 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
-    }) = &errors[0].0
+        expr_location: _,
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "i32");
@@ -379,10 +379,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
-    }) = &errors[0].0
+        expr_location: _,
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "bool");
@@ -415,10 +415,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
-    }) = &errors[0].0
+        expr_location: _,
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "i32");
@@ -448,10 +448,10 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     let CompilationError::TypeError(TypeCheckError::TypeMismatch {
         expected_typ,
         expr_typ,
-        expr_span: _,
-    }) = &errors[0].0
+        expr_location: _,
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected_typ, "bool");

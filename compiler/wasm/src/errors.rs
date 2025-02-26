@@ -96,8 +96,8 @@ impl Diagnostic {
             .iter()
             .map(|label| DiagnosticLabel {
                 message: label.message.clone(),
-                start: label.span.start(),
-                end: label.span.end(),
+                start: label.location.span.start(),
+                end: label.location.span.end(),
             })
             .collect();
 

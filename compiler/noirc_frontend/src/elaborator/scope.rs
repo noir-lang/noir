@@ -83,7 +83,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
-        let span = path.span();
+        let location = path.location;
         let item = self.resolve_path_or_error(path)?;
 
         if let Some(function) = item.function_id() {
@@ -97,7 +97,7 @@ impl<'context> Elaborator<'context> {
 
         let expected = "global variable";
         let got = "local variable";
-        Err(ResolverError::Expected { span, expected, got })
+        Err(ResolverError::Expected { location, expected, got })
     }
 
     pub fn push_scope(&mut self) {
@@ -122,10 +122,7 @@ impl<'context> Elaborator<'context> {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
                     let ident = Ident(Located::from(unused_var.location, name.to_owned()));
-                    self.push_err(
-                        ResolverError::UnusedVariable { ident },
-                        unused_var.location.file,
-                    );
+                    self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }
         }
@@ -147,19 +144,16 @@ impl<'context> Elaborator<'context> {
                 if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
                 } else {
-                    self.push_err(
-                        ResolverError::Expected {
-                            expected: "trait",
-                            got: item.description(),
-                            span: location.span,
-                        },
-                        location.file,
-                    );
+                    self.push_err(ResolverError::Expected {
+                        expected: "trait",
+                        got: item.description(),
+                        location,
+                    });
                     None
                 }
             }
             Err(err) => {
-                self.push_err(err, location.file);
+                self.push_err(err);
                 None
             }
         }
@@ -173,19 +167,16 @@ impl<'context> Elaborator<'context> {
                 if let PathResolutionItem::Type(struct_id) = item {
                     Some(self.get_type(struct_id))
                 } else {
-                    self.push_err(
-                        ResolverError::Expected {
-                            expected: "type",
-                            got: item.description(),
-                            span: location.span,
-                        },
-                        location.file,
-                    );
+                    self.push_err(ResolverError::Expected {
+                        expected: "type",
+                        got: item.description(),
+                        location,
+                    });
                     None
                 }
             }
             Err(err) => {
-                self.push_err(err, location.file);
+                self.push_err(err);
                 None
             }
         }
@@ -214,18 +205,15 @@ impl<'context> Elaborator<'context> {
                 Some(alias.instantiate(self.interner))
             }
             Ok(other) => {
-                self.push_err(
-                    ResolverError::Expected {
-                        expected: "type",
-                        got: other.description(),
-                        span: location.span,
-                    },
-                    location.file,
-                );
+                self.push_err(ResolverError::Expected {
+                    expected: "type",
+                    got: other.description(),
+                    location,
+                });
                 None
             }
             Err(error) => {
-                self.push_err(error, location.file);
+                self.push_err(error);
                 None
             }
         }

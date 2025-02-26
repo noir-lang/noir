@@ -243,14 +243,9 @@ impl From<LocatedToken> for Ident {
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression {
-            location: i.0.location(),
-            kind: ExpressionKind::Variable(Path {
-                location: i.location(),
-                segments: vec![PathSegment::from(i)],
-                kind: PathKind::Plain,
-            }),
-        }
+        let location = i.location();
+        let kind = ExpressionKind::Variable(Path::plain(vec![PathSegment::from(i)], location));
+        Expression { location, kind }
     }
 }
 
@@ -360,6 +355,12 @@ impl UseTree {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UnsafeExpression {
+    pub block: BlockExpression,
+    pub unsafe_keyword_location: Location,
+}
+
 /// A special kind of path in the form `<MyType as Trait>::ident`.
 /// Note that this path must consist of exactly two segments.
 ///
@@ -390,9 +391,15 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
     pub location: Location,
+    // The location of `kind` (this is the same as `location` for plain kinds)
+    pub kind_location: Location,
 }
 
 impl Path {
+    pub fn plain(segments: Vec<PathSegment>, location: Location) -> Self {
+        Self { segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
     pub fn pop(&mut self) -> PathSegment {
         self.segments.pop().unwrap()
     }
@@ -409,11 +416,8 @@ impl Path {
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path {
-            location: name.location(),
-            segments: vec![PathSegment::from(name)],
-            kind: PathKind::Plain,
-        }
+        let location = name.location();
+        Path::plain(vec![PathSegment::from(name)], location)
     }
 
     pub fn span(&self) -> Span {
@@ -812,11 +816,7 @@ impl ForRange {
 
                 // array.len()
                 let segments = vec![PathSegment::from(array_ident)];
-                let array_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    location: array_location,
-                });
+                let array_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
                     object: Expression::new(array_ident.clone(), array_location),
@@ -833,11 +833,7 @@ impl ForRange {
 
                 // array[i]
                 let segments = vec![PathSegment::from(Ident::new(index_name, array_location))];
-                let index_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    location: array_location,
-                });
+                let index_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
                     collection: Expression::new(array_ident, array_location),
