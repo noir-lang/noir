@@ -23,7 +23,7 @@ use super::process_request;
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
-) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
     let Ok(file_path) = params.text_document.uri.to_file_path() else {
         return future::ready(Ok(None));
     };

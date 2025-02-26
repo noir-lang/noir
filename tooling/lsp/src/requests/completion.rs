@@ -57,7 +57,7 @@ mod tests;
 pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
-) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
     let uri = params.text_document_position.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position.clone(), |args| {
@@ -141,12 +141,13 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
-        let local_id = if let Some((module_index, _)) =
-            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
+        let local_id = match def_map
+            .modules()
+            .iter()
+            .find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
-        } else {
-            def_map.root()
+            Some((module_index, _)) => LocalModuleId(module_index),
+            _ => def_map.root(),
         };
         let module_id = ModuleId { krate, local_id };
         Self {
@@ -1906,13 +1907,10 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
             }
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-            if let TypeBinding::Bound(typ) = &*var.borrow() {
-                get_field_type(typ, name)
-            } else {
-                None
-            }
-        }
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
+            TypeBinding::Bound(typ) => get_field_type(typ, name),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -1924,13 +1922,10 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             let typ = alias_type.borrow().get_type(&generics);
             get_array_element_type(typ)
         }
-        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => {
-            if let TypeBinding::Bound(typ) = &*var.borrow() {
-                get_array_element_type(typ.clone())
-            } else {
-                None
-            }
-        }
+        Type::TypeVariable(var) | Type::NamedGeneric(var, _) => match &*var.borrow() {
+            TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
+            _ => None,
+        },
         _ => None,
     }
 }

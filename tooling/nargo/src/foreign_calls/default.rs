@@ -136,7 +136,7 @@ impl DefaultForeignCallExecutor {
         resolver_url: Option<&str>,
         root_path: Option<std::path::PathBuf>,
         package_name: Option<String>,
-    ) -> impl ForeignCallExecutor<F> + 'a
+    ) -> impl ForeignCallExecutor<F> + 'a + use<'a, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
     {

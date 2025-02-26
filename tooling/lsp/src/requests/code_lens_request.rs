@@ -39,7 +39,7 @@ fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde
 pub(crate) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
-) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
+) -> impl Future<Output = Result<CodeLensResult, ResponseError>> + use<> {
     future::ready(on_code_lens_request_inner(state, params))
 }
 

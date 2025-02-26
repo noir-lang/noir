@@ -16,7 +16,7 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
-) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> + use<> {
     let result = process_request(state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
@@ -33,7 +33,7 @@ pub(crate) fn on_prepare_rename_request(
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
-) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> {
+) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> + use<> {
     let result = process_request(state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,

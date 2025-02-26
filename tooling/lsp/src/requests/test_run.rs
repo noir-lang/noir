@@ -19,7 +19,7 @@ use crate::{
 pub(crate) fn on_test_run_request(
     state: &mut LspState,
     params: NargoTestRunParams,
-) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> {
+) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> + use<> {
     future::ready(on_test_run_request_inner(state, params))
 }
 

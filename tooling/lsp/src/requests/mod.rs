@@ -191,7 +191,7 @@ impl Default for LspInitializationOptions {
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
-) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
     let initialization_options: LspInitializationOptions = params
         .initialization_options
@@ -293,7 +293,7 @@ pub(crate) fn on_initialize(
 pub(crate) fn on_formatting(
     state: &mut LspState,
     params: lsp_types::DocumentFormattingParams,
-) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
     std::future::ready(on_formatting_inner(state, params))
 }
 
@@ -441,7 +441,7 @@ where
 pub(crate) fn on_shutdown(
     _state: &mut LspState,
     _params: (),
-) -> impl Future<Output = Result<(), ResponseError>> {
+) -> impl Future<Output = Result<(), ResponseError>> + use<> {
     async { Ok(()) }
 }
 
@@ -548,16 +548,19 @@ where
     let interner;
     let def_maps;
     let usage_tracker;
-    if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
-        interner = &package_cache.node_interner;
-        def_maps = &package_cache.def_maps;
-        usage_tracker = &package_cache.usage_tracker;
-    } else {
-        // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
-        interner = &context.def_interner;
-        def_maps = &context.def_maps;
-        usage_tracker = &context.usage_tracker;
+    match state.package_cache.get(&package.root_dir) {
+        Some(package_cache) => {
+            interner = &package_cache.node_interner;
+            def_maps = &package_cache.def_maps;
+            usage_tracker = &package_cache.usage_tracker;
+        }
+        _ => {
+            // We ignore the warnings and errors produced by compilation while resolving the definition
+            let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
+            interner = &context.def_interner;
+            def_maps = &context.def_maps;
+            usage_tracker = &context.usage_tracker;
+        }
     }
 
     let files = workspace_file_manager.as_file_map();

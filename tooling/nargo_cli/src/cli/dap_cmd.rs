@@ -160,7 +160,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     server.respond(req.error("Missing launch arguments"))?;
                     continue;
                 };
-                let Some(Value::String(ref project_folder)) = additional_data.get("projectFolder")
+                let Some(Value::String(project_folder)) = additional_data.get("projectFolder")
                 else {
                     server.respond(req.error("Missing project folder argument"))?;
                     continue;

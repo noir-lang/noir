@@ -66,7 +66,7 @@ impl DefaultDebugForeignCallExecutor {
     pub fn from_artifact<'a>(
         output: PrintOutput<'a>,
         artifact: &DebugArtifact,
-    ) -> impl DebugForeignCallExecutor + 'a {
+    ) -> impl DebugForeignCallExecutor + use<'a> {
         let mut ex = Self::default();
         ex.load_artifact(artifact);
         Self::make(output, ex)

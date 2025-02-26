@@ -26,7 +26,7 @@ mod tests;
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
-) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> {
+) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let uri = params.text_document_position_params.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
