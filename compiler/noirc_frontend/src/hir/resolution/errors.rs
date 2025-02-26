@@ -309,7 +309,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
 
                 let mut diagnostic = Diagnostic::simple_warning(
                     format!("unused variable {name}"),
-                    "unused variable ".to_string(),
+                    "unused variable".to_string(),
                     ident.location(),
                 );
                 diagnostic.unnecessary = true;
