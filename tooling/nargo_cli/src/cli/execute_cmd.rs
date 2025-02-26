@@ -1,22 +1,22 @@
 use std::path::PathBuf;
 
-use acvm::acir::native_types::WitnessStack;
 use acvm::FieldElement;
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
+use nargo::PrintOutput;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
-use nargo::PrintOutput;
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
-use noirc_abi::input_parser::InputValue;
 use noirc_abi::InputMap;
+use noirc_abi::input_parser::InputValue;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::{CompileOptions, CompiledProgram};
 

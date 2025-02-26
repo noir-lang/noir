@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    Type,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -15,12 +16,11 @@ use crate::{
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
-    Type,
 };
 
 use super::{
-    value::{ExprValue, TypedExpr},
     Value,
+    value::{ExprValue, TypedExpr},
 };
 
 pub(super) fn display_quoted(

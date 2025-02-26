@@ -1,6 +1,6 @@
 use acir::{
-    brillig::{BitSize, IntegerBitSize, MemoryAddress},
     AcirField,
+    brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;

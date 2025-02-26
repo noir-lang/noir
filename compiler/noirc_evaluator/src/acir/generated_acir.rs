@@ -3,21 +3,21 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::{
+    AcirField, BlackBoxFunc,
     circuit::{
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
     native_types::{Expression, Witness},
-    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
 use crate::{
+    ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::call_stack::CallStack,
-    ErrorType,
 };
 
 use iter_extended::vecmap;

@@ -1,10 +1,10 @@
 use buffer::Buffer;
 use noirc_frontend::{
+    ParsedModule,
     ast::Ident,
     hir::resolution::errors::Span,
     lexer::Lexer,
     token::{Keyword, SpannedToken, Token},
-    ParsedModule,
 };
 
 use crate::Config;

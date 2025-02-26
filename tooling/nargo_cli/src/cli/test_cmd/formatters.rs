@@ -2,8 +2,8 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 
 use fm::FileManager;
 use nargo::ops::TestStatus;
-use noirc_errors::{reporter::stack_trace, FileDiagnostic};
-use serde_json::{json, Map};
+use noirc_errors::{FileDiagnostic, reporter::stack_trace};
+use serde_json::{Map, json};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
 use super::TestResult;

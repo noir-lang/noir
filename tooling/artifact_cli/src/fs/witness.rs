@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acir::{native_types::WitnessStackError, FieldElement};
+use acir::{FieldElement, native_types::WitnessStackError};
 use acvm::acir::native_types::WitnessStack;
 
 use crate::errors::{CliError, FilesystemError};

@@ -5,22 +5,22 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
-    OpcodeNotSolvable, StepResult, ACVM,
+    ACVM, ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
+    OpcodeNotSolvable, StepResult,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
+use nargo::errors::{ExecutionError, Location};
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
 use thiserror::Error;
 
 use std::collections::BTreeMap;
-use std::collections::{hash_set::Iter, HashSet};
+use std::collections::{HashSet, hash_set::Iter};
 
 /// A Noir program is composed by
 /// `n` ACIR circuits
@@ -960,13 +960,13 @@ mod tests {
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
+            AcirField,
             brillig::{HeapVector, IntegerBitSize},
             circuit::{
                 brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
                 opcodes::{AcirFunctionId, BlockId, BlockType},
             },
             native_types::Expression,
-            AcirField,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{

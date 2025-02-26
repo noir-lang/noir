@@ -1,6 +1,7 @@
 use noirc_errors::Span;
 
 use crate::{
+    ParsedModule, QuotedType,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -17,7 +18,6 @@ use crate::{
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
     token::{FmtStrFragment, MetaAttribute, SecondaryAttribute, Tokens},
-    ParsedModule, QuotedType,
 };
 
 use super::{

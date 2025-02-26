@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
         ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
@@ -15,7 +16,6 @@ use crate::{
         traits::{ResolvedTraitBound, TraitFunction},
     },
     node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
-    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;

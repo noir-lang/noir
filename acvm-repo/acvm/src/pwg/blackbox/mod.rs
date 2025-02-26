@@ -1,7 +1,7 @@
 use acir::{
+    AcirField,
     circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
 
@@ -10,8 +10,8 @@ use self::{
     hash::solve_poseidon2_permutation_opcode,
 };
 
-use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
-use crate::{pwg::input_to_value, BlackBoxFunctionSolver};
+use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
+use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 
 mod aes128;
 pub(crate) mod bigint;
@@ -37,12 +37,8 @@ fn first_missing_assignment<F>(
     inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(ref witness) = input.input_ref() {
-            if witness_assignments.contains_key(witness) {
-                None
-            } else {
-                Some(*witness)
-            }
+        if let ConstantOrWitnessEnum::Witness(witness) = input.input_ref() {
+            if witness_assignments.contains_key(witness) { None } else { Some(*witness) }
         } else {
             None
         }

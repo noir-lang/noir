@@ -1,16 +1,16 @@
-use acvm::acir::circuit::brillig::BrilligFunctionId;
 use acvm::acir::circuit::BrilligOpcodeLocation;
 use acvm::acir::circuit::OpcodeLocation;
+use acvm::acir::circuit::brillig::BrilligFunctionId;
 use acvm::compiler::AcirTransformationMap;
 
 use base64::Engine;
+use flate2::Compression;
 use flate2::read::DeflateDecoder;
 use flate2::write::DeflateEncoder;
-use flate2::Compression;
 use serde::Deserializer;
 use serde::Serializer;
-use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use serde_with::serde_as;
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::io::Write;
@@ -19,7 +19,7 @@ use std::mem;
 use crate::Location;
 use noirc_printable_type::PrintableType;
 use serde::{
-    de::Error as DeserializationError, ser::Error as SerializationError, Deserialize, Serialize,
+    Deserialize, Serialize, de::Error as DeserializationError, ser::Error as SerializationError,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]

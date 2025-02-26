@@ -4,7 +4,7 @@ use noirc_frontend::{
     token::{Attributes, Keyword, Token},
 };
 
-use super::{function::FunctionToFormat, Formatter};
+use super::{Formatter, function::FunctionToFormat};
 
 impl Formatter<'_> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {

@@ -1,15 +1,15 @@
 use acvm::{
-    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     AcirField,
+    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

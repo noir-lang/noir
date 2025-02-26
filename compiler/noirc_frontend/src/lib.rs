@@ -32,7 +32,7 @@ pub mod hir_def;
 pub use lexer::token;
 
 // Parser API
-pub use parser::{parse_program, parse_program_with_dummy_file, ParsedModule};
+pub use parser::{ParsedModule, parse_program, parse_program_with_dummy_file};
 
 // Type API
 pub use hir_def::types::*;

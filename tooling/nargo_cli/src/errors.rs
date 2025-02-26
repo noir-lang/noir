@@ -1,8 +1,8 @@
 use acvm::FieldElement;
-use nargo::{errors::CompileError, NargoError};
+use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
-use noirc_abi::{errors::AbiError, input_parser::InputValue, AbiReturnType};
+use noirc_abi::{AbiReturnType, errors::AbiError, input_parser::InputValue};
 use std::path::PathBuf;
 use thiserror::Error;
 

@@ -64,12 +64,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
+    Ssa,
     ir::{
         function::{Function, FunctionId},
         instruction::Instruction,
         value::Value,
     },
-    Ssa,
 };
 
 use super::inlining::called_functions_vec;
