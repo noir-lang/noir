@@ -101,7 +101,7 @@ fn is_conditional(
             }
         }
     } else if left_successors_len == 1 && next_left == Some(right) {
-        // Left branch joins the right branch, it is a if/then statement with no else
+        // Left branch joins the right branch, e.g if/then statement with no else
         // I am not sure whether this case can happen, but it is not difficult to handle it
         let cost = block_cost(left, &function.dfg);
         if cost < cost / 2 + jump_overhead {
@@ -129,7 +129,7 @@ fn is_conditional(
             }
         }
     } else if right_successors_len == 1 && next_right == Some(left) {
-        // Right branch joins the left branch, it is a if/else statement with no then
+        // Right branch joins the left branch, e.g if/else statement with no then
         // I am not sure whether this case can happen, but it is not difficult to handle it
         let cost = block_cost(right, &function.dfg);
         if cost < cost / 2 + jump_overhead {
