@@ -4531,3 +4531,17 @@ fn deny_capturing_mut_variable_without_reference_in_lambda() {
         CompilationError::TypeError(TypeCheckError::MutableCaptureWithoutRef { .. })
     ));
 }
+
+#[test]
+fn allow_capturing_mut_variable_only_used_immutably() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || x;
+        let _x2 = f();
+        assert(x == 3);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(errors.is_empty());
+}

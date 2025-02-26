@@ -153,6 +153,21 @@ impl<'context> Elaborator<'context> {
         if !mutable {
             let (name, span) = self.get_lvalue_name_and_span(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, span }, expr_location.file);
+        } else {
+            // We must check whether the mutable variable we are attempting to assign
+            // comes from a lambda capture. All captures are immutable so we want to error
+            // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+            let lambda_context = self.lambda_stack.last().unwrap().clone();
+            let (id, name, span) = self.get_lvalue_definition_id(&lvalue);
+            let typ = self.interner.definition_type(id);
+            for capture in lambda_context.captures.iter() {
+                if capture.ident.id == id && !typ.is_mutable_ref() {
+                    self.push_err(
+                        TypeCheckError::MutableCaptureWithoutRef { name: name.clone(), span },
+                        expr_location.file,
+                    );
+                }
+            }
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -363,6 +378,23 @@ impl<'context> Elaborator<'context> {
             HirLValue::MemberAccess { object, .. } => self.get_lvalue_name_and_span(object),
             HirLValue::Index { array, .. } => self.get_lvalue_name_and_span(array),
             HirLValue::Dereference { lvalue, .. } => self.get_lvalue_name_and_span(lvalue),
+        }
+    }
+
+    fn get_lvalue_definition_id(&self, lvalue: &HirLValue) -> (DefinitionId, String, Span) {
+        match lvalue {
+            HirLValue::Ident(name, _) => {
+                let span = name.location.span;
+
+                if let Some(definition) = self.interner.try_definition(name.id) {
+                    (name.id, definition.name.clone(), span)
+                } else {
+                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), span)
+                }
+            }
+            HirLValue::MemberAccess { object, .. } => self.get_lvalue_definition_id(object),
+            HirLValue::Index { array, .. } => self.get_lvalue_definition_id(array),
+            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_definition_id(lvalue),
         }
     }
 

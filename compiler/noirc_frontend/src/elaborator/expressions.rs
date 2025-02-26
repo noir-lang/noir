@@ -1220,20 +1220,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let captured_vars = vecmap(&lambda_context.captures, |capture| {
-            let typ = self.interner.definition_type(capture.ident.id);
-            if let Some(definition) = self.interner.try_definition(capture.ident.id) {
-                if definition.mutable && !typ.is_mutable_ref() {
-                    let location = definition.location;
-                    self.push_err(
-                        TypeCheckError::MutableCaptureWithoutRef {
-                            name: definition.name.clone(),
-                            span: location.span,
-                        },
-                        location.file,
-                    );
-                }
-            }
-            typ
+            self.interner.definition_type(capture.ident.id)
         });
 
         let env_type =
