@@ -6,7 +6,7 @@ use nargo_toml::{
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
-    fs::File,
+    fs::{File, OpenOptions},
     path::{Path, PathBuf},
 };
 
@@ -205,7 +205,9 @@ where
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
-        typ => Some(lock_workspace(&workspace, typ == LockType::Exclusive)?),
+        typ => {
+            Some(lock_target_dir(&workspace.target_directory_path(), typ == LockType::Exclusive)?)
+        }
     };
     run(cmd, workspace)
 }
@@ -213,7 +215,7 @@ where
 /// Lock the (selected) packages in the workspace.
 /// The lock taken can be shared for commands that only read the artifacts,
 /// or exclusive for the ones that (might) write artifacts as well.
-fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
+fn lock_target_dir(target_dir: &Path, exclusive: bool) -> Result<impl Drop, CliError> {
     struct LockedFile(File);
 
     impl Drop for LockedFile {
@@ -222,31 +224,32 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
         }
     }
 
-    let mut locks = Vec::new();
-    for pkg in workspace.into_iter() {
-        let toml_path = get_package_manifest(&pkg.root_dir)?;
-        let path_display = toml_path.display();
+    let lock_path = target_dir.join(".nargo-lock");
+    let path_display = lock_path.display();
 
-        let file = File::open(&toml_path)
-            .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
+    std::fs::create_dir_all(target_dir).unwrap();
+    let file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&lock_path)
+        .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
 
-        if exclusive {
-            if fs2::FileExt::try_lock_exclusive(&file).is_err() {
-                eprintln!("Waiting for lock on {path_display}...");
-            }
-            fs2::FileExt::lock_exclusive(&file)
-                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
-        } else {
-            if fs2::FileExt::try_lock_shared(&file).is_err() {
-                eprintln!("Waiting for lock on {path_display}...",);
-            }
-            fs2::FileExt::lock_shared(&file)
-                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+    if exclusive {
+        if fs2::FileExt::try_lock_exclusive(&file).is_err() {
+            eprintln!("Waiting for lock on {path_display}...");
         }
-
-        locks.push(LockedFile(file));
+        fs2::FileExt::lock_exclusive(&file)
+            .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+    } else {
+        if fs2::FileExt::try_lock_shared(&file).is_err() {
+            eprintln!("Waiting for lock on {path_display}...",);
+        }
+        fs2::FileExt::lock_shared(&file)
+            .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
     }
-    Ok(locks)
+
+    Ok(LockedFile(file))
 }
 
 /// Parses a path and turns it into an absolute one by joining to the current directory.
