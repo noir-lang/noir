@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use acvm::acir::circuit::Program;
 use acvm::FieldElement;
+use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::Abi;
 use noirc_driver::CompiledProgram;

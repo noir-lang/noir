@@ -540,7 +540,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location, ref note, .. } => {
+            TypeCheckError::CallDeprecated { location,  note, .. } => {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 

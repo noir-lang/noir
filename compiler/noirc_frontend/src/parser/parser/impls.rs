@@ -6,11 +6,11 @@ use crate::{
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
 };
 
-use super::{parse_many::without_separator, Parser};
+use super::{Parser, parse_many::without_separator};
 
 pub(crate) enum Impl {
     Impl(TypeImpl),
@@ -241,8 +241,8 @@ mod tests {
         },
         parse_program_with_dummy_file,
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             ItemKind,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 

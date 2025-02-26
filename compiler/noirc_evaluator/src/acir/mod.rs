@@ -5,15 +5,15 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt::Debug;
 
 use acvm::acir::{
+    BlackBoxFunc,
     circuit::{
+        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{AcirFunctionId, BlockType},
-        AssertionPayload, ErrorSelector, ExpressionWidth, OpcodeLocation,
     },
     native_types::Witness,
-    BlackBoxFunc,
 };
-use acvm::{acir::circuit::opcodes::BlockId, acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -25,12 +25,12 @@ mod brillig_call;
 mod brillig_directive;
 mod generated_acir;
 
-use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::BrilligOptions;
+use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
+    Brillig,
     brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
     brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
-    Brillig,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
@@ -51,7 +51,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use acir_variable::{power_of_two, AcirContext, AcirType, AcirVar};
+use acir_variable::{AcirContext, AcirType, AcirVar, power_of_two};
 use generated_acir::BrilligStdlibFunc;
 pub(crate) use generated_acir::GeneratedAcir;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -2902,15 +2902,15 @@ fn can_omit_element_sizes_array(array_typ: &Type) -> bool {
 mod test {
 
     use acvm::{
+        FieldElement,
         acir::{
             circuit::{
+                ExpressionWidth, Opcode, OpcodeLocation,
                 brillig::BrilligFunctionId,
                 opcodes::{AcirFunctionId, BlackBoxFuncCall},
-                ExpressionWidth, Opcode, OpcodeLocation,
             },
             native_types::Witness,
         },
-        FieldElement,
     };
     use noirc_errors::Location;
     use noirc_frontend::monomorphization::ast::InlineType;

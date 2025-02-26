@@ -23,7 +23,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
-pub(super) use inline_info::{compute_inline_infos, InlineInfo, InlineInfos};
+pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -784,10 +784,11 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use std::cmp::max;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
@@ -797,7 +798,6 @@ mod test {
             types::{NumericType, Type},
         },
         opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
-        Ssa,
     };
 
     #[test]

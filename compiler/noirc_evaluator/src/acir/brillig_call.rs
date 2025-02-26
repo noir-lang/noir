@@ -1,12 +1,12 @@
 use acvm::{
+    BlackBoxFunctionSolver,
     acir::{
+        AcirField,
         brillig::Opcode as BrilligOpcode,
         circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         native_types::{Expression, Witness},
-        AcirField,
     },
-    brillig_vm::{MemoryValue, VMStatus, VM},
-    BlackBoxFunctionSolver,
+    brillig_vm::{MemoryValue, VM, VMStatus},
 };
 use iter_extended::{try_vecmap, vecmap};
 

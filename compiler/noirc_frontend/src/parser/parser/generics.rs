@@ -3,11 +3,11 @@ use crate::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric,
         UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token, TokenKind},
 };
 
-use super::{parse_many::separated_by_comma, Parser};
+use super::{Parser, parse_many::separated_by_comma};
 
 impl Parser<'_> {
     /// Generics = ( '<' GenericsList? '>' )?
@@ -167,10 +167,10 @@ mod tests {
     use crate::{
         ast::{GenericTypeArgs, IntegerBitSize, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
     };
 

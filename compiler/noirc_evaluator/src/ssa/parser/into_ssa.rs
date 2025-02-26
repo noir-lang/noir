@@ -15,8 +15,8 @@ use crate::ssa::{
 };
 
 use super::{
-    ast::AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
-    ParsedInstruction, ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type,
+    Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue, ParsedInstruction,
+    ParsedSsa, ParsedTerminator, ParsedValue, RuntimeType, Ssa, SsaError, Type, ast::AssertMessage,
 };
 
 impl ParsedSsa {

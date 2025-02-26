@@ -4,12 +4,12 @@ use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField, Type,
+    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
 };
 use num_bigint::BigInt;
 
 use crate::{
-    requests::{to_lsp_location, ProcessRequestCallbackArgs},
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -86,9 +86,9 @@ fn format_integer(typ: Type, value: SignedField) -> String {
 #[cfg(test)]
 mod tests {
     use noirc_frontend::{
+        Type,
         ast::{IntegerBitSize, Signedness},
         signed_field::SignedField,
-        Type,
     };
 
     use super::format_integer;

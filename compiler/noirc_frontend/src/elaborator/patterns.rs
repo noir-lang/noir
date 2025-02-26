@@ -3,9 +3,10 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath, UnresolvedType,
-        ERROR_IDENT,
+        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
+        UnresolvedType,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -17,10 +18,9 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
 };
 
-use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
+use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(

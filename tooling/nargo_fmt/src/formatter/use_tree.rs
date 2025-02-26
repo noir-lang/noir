@@ -121,7 +121,7 @@ impl ChunkFormatter<'_, '_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
+    use crate::{Config, assert_format_with_config, config::ImportsGranularity};
 
     fn assert_format(src: &str, expected: &str) {
         let config = Config {

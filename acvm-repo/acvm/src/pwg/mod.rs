@@ -3,17 +3,17 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField, BlackBoxFunc,
     brillig::ForeignCallResult,
     circuit::{
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
+        RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligBytecode, BrilligFunctionId},
         opcodes::{
             AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
         },
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
-        RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::{Expression, Witness, WitnessMap},
-    AcirField, BlackBoxFunc,
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 
@@ -747,11 +747,7 @@ pub fn insert_value<F: AcirField>(
 // The function is used during partial witness generation to report unsolved witness
 fn any_witness_from_expression<F>(expr: &Expression<F>) -> Option<Witness> {
     if expr.linear_combinations.is_empty() {
-        if expr.mul_terms.is_empty() {
-            None
-        } else {
-            Some(expr.mul_terms[0].1)
-        }
+        if expr.mul_terms.is_empty() { None } else { Some(expr.mul_terms[0].1) }
     } else {
         Some(expr.linear_combinations[0].1)
     }
