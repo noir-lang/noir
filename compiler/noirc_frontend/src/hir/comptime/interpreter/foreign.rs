@@ -25,7 +25,7 @@ use super::{
     Interpreter,
 };
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_foreign(
         &mut self,
         name: &str,

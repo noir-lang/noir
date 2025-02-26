@@ -38,8 +38,7 @@ impl Function {
                     Instruction::Constrain(lhs, rhs, msg) => {
                         if self
                             .dfg
-                            .get_numeric_constant(*rhs)
-                            .map_or(false, |constant| constant.is_zero())
+                            .get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero())
                         {
                             if let Value::Instruction { instruction, .. } =
                                 &self.dfg[self.dfg.resolve(*lhs)]

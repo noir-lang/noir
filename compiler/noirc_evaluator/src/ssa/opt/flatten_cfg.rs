@@ -262,7 +262,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     context.flatten(no_predicates);
 }
 
-impl<'f> Context<'f> {
+impl Context<'_> {
     fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
         // Flatten the CFG by inlining all instructions from the queued blocks
         // until all blocks have been flattened.

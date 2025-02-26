@@ -50,7 +50,7 @@ impl<'a> HoverFinder<'a> {
     }
 }
 
-impl<'a> Visitor for HoverFinder<'a> {
+impl Visitor for HoverFinder<'_> {
     fn visit_literal_integer(&mut self, value: FieldElement, negative: bool, span: Span) {
         if !self.intersects_span(span) {
             return;

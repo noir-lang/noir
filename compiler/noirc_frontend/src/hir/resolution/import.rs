@@ -179,7 +179,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
     references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 'references_tracker> {
+impl PathResolutionTargetResolver<'_, '_> {
     fn resolve(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path),

@@ -22,7 +22,7 @@ use crate::{
 
 use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,

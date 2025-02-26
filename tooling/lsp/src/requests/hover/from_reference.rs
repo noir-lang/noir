@@ -781,7 +781,7 @@ struct TypeLinksGatherer<'a> {
     links: Vec<String>,
 }
 
-impl<'a> TypeLinksGatherer<'a> {
+impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),

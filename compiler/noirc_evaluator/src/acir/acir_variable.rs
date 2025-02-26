@@ -80,7 +80,7 @@ impl From<SsaType> for AcirType {
     }
 }
 
-impl<'a> From<&'a SsaType> for AcirType {
+impl From<&SsaType> for AcirType {
     fn from(value: &SsaType) -> Self {
         match value {
             SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),

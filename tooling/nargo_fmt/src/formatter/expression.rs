@@ -19,7 +19,7 @@ struct FormattedLambda {
     first_line_width: usize,
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for an expression could come before a potential non-doc comment
@@ -1320,7 +1320,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_empty_block_contents(&mut self) {
         if let Some(chunks) = self.chunk_formatter().empty_block_contents_chunk() {
             self.format_chunk_group(chunks);

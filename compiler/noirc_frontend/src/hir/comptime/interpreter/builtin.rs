@@ -49,7 +49,7 @@ use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_builtin(
         &mut self,
         name: &str,

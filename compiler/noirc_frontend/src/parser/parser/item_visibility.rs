@@ -5,7 +5,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ItemVisibility
     ///     = 'pub'                 // ItemVisibility::Public
     ///     | 'pub' '(' 'crate' ')' // ItemVisibility::PublicCrate

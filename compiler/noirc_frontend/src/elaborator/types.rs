@@ -47,7 +47,7 @@ pub(super) struct TraitPathResolution {
     pub(super) errors: Vec<PathResolutionError>,
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let location = typ.location;

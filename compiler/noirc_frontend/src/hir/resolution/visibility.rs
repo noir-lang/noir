@@ -60,8 +60,7 @@ pub(crate) fn module_descendent_of_target(
     }
 
     def_map.modules[current.0]
-        .parent
-        .map_or(false, |parent| module_descendent_of_target(def_map, target, parent))
+        .parent.is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
 }
 
 /// Returns true if `target` is a struct and its parent is `current`.

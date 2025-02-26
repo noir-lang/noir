@@ -170,7 +170,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopBack => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the last element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
@@ -185,7 +185,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopFront => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the first element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
@@ -243,7 +243,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SliceRemove => {
             let length = dfg.get_numeric_constant(arguments[0]);
-            if length.map_or(true, |length| length.is_zero()) {
+            if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to remove an element from an empty slice.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;

@@ -20,7 +20,7 @@ use super::{
     Parser,
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }

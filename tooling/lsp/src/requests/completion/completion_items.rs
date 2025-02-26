@@ -25,7 +25,7 @@ use super::{
     FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,

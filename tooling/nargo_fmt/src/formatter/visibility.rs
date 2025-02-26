@@ -4,7 +4,7 @@ use noirc_frontend::{
     token::Keyword,
 };
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_item_visibility(&mut self, visibility: ItemVisibility) {
         self.skip_comments_and_whitespace();
 

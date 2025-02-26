@@ -637,7 +637,7 @@ impl Elaborator<'_> {
         self.push_tests_against_bare_variables(&mut rows);
 
         // If the first row is a match-all we match it and the remaining rows are ignored.
-        if rows.first().map_or(false, |row| row.columns.is_empty()) {
+        if rows.first().is_some_and(|row| row.columns.is_empty()) {
             let row = rows.remove(0);
 
             return Ok(match row.guard {

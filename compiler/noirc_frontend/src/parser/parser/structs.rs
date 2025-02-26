@@ -8,7 +8,7 @@ use crate::{
 
 use super::{parse_many::separated_by_comma_until_right_brace, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Struct = 'struct' identifier Generics '{' StructField* '}'
     ///
     /// StructField = OuterDocComments identifier ':' Type

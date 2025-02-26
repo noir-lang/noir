@@ -39,7 +39,7 @@ use crate::{
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         self.elaborate_expression_with_target_type(expr, None)
     }
@@ -477,7 +477,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 return self
                     .call_macro(func, comptime_args, location, typ)
-                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                    .unwrap_or((HirExpression::Error, Type::Error));
             }
         }
 
@@ -595,7 +595,7 @@ impl<'context> Elaborator<'context> {
                         let args = function_call.arguments.clone();
                         return self
                             .call_macro(function_call.func, args, location, typ)
-                            .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                            .unwrap_or((HirExpression::Error, Type::Error));
                     }
                 }
                 (HirExpression::Call(function_call), typ)

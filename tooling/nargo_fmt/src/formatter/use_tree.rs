@@ -7,7 +7,7 @@ use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup};
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_import(&mut self, use_tree: UseTree, visibility: ItemVisibility) {
         let group = self.chunk_formatter().format_import(use_tree, visibility);
 
@@ -16,7 +16,7 @@ impl<'a> Formatter<'a> {
     }
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_import(
         &mut self,
         use_tree: UseTree,

@@ -884,7 +884,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 }
 
-impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+impl std::ops::Index<usize> for InsertInstructionResult<'_> {
     type Output = ValueId;
 
     fn index(&self, index: usize) -> &Self::Output {

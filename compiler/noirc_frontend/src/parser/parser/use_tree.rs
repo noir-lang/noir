@@ -8,7 +8,7 @@ use crate::{
 
 use super::{parse_many::separated_by_comma_until_right_brace, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Use = 'use' PathKind PathNoTurbofish UseTree
     ///
     /// UseTree = PathNoTurbofish ( '::' '{' UseTreeList? '}' )?

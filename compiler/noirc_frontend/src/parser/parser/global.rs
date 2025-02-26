@@ -11,7 +11,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
