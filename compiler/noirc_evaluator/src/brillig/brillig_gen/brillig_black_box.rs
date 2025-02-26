@@ -326,7 +326,9 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 brillig_context.deallocate_heap_vector(message_vector);
                 brillig_context.deallocate_heap_array(output_heap_array);
             } else {
-                unreachable!("ICE: Poseidon2Permutation expects one array argument, a length and one array result")
+                unreachable!(
+                    "ICE: Poseidon2Permutation expects one array argument, a length and one array result"
+                )
             }
         }
         BlackBoxFunc::Sha256Compression => {

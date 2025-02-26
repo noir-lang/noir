@@ -14,12 +14,13 @@ use crate::{
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
-            HirIdent, HirMatch, SignedField,
+            HirIdent, HirMatch,
         },
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    signed_field::SignedField,
     token::Attributes,
     DataType, Kind, Shared, Type,
 };
@@ -316,10 +317,10 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(value, negative)) => {
+            ExpressionKind::Literal(Literal::Integer(value)) => {
                 let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
                 unify_with_expected_type(self, &actual);
-                Pattern::Int(SignedField::new(value, negative))
+                Pattern::Int(value)
             }
             ExpressionKind::Literal(Literal::Bool(value)) => {
                 unify_with_expected_type(self, &Type::Bool);
@@ -637,7 +638,7 @@ impl Elaborator<'_> {
         self.push_tests_against_bare_variables(&mut rows);
 
         // If the first row is a match-all we match it and the remaining rows are ignored.
-        if rows.first().map_or(false, |row| row.columns.is_empty()) {
+        if rows.first().is_some_and(|row| row.columns.is_empty()) {
             let row = rows.remove(0);
 
             return Ok(match row.guard {

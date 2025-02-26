@@ -16,6 +16,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
+use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -98,8 +99,8 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
             }
-            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
-                ExpressionKind::Literal(Literal::Integer(*value, *sign))
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
+                ExpressionKind::Literal(Literal::Integer(*value))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -284,9 +285,7 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => {
-                ExpressionKind::Literal(Literal::Integer(value.field, value.is_negative))
-            }
+            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value)),
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -539,11 +538,13 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer(*length, false);
+                        let literal = Literal::Integer(SignedField::positive(*length));
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }
-                    other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
+                    other => panic!(
+                        "Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"
+                    ),
                 };
                 ArrayLiteral::Repeated { repeated_element, length }
             }

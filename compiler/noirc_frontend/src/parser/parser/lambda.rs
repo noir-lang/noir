@@ -6,7 +6,7 @@ use crate::{
 
 use super::{parse_many::separated_by_comma, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Lambda = '|' LambdaParameters? '|' ( '->' Type )? Expression
     ///
     /// LambdaParameters = LambdaParameter ( ',' LambdaParameter )? ','?

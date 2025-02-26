@@ -8,7 +8,7 @@ use noirc_frontend::{
 
 use crate::chunks::{ChunkFormatter, ChunkGroup, GroupKind};
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_statement(
         &mut self,
         statement: Statement,

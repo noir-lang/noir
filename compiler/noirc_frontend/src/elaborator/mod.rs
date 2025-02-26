@@ -2151,7 +2151,7 @@ impl<'context> Elaborator<'context> {
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
         !self.in_comptime_context()
-            && self.current_item.map_or(true, |id| match id {
+            && self.current_item.is_none_or(|id| match id {
                 DependencyId::Function(id) => {
                     !self.interner.function_modifiers(&id).is_unconstrained
                 }

@@ -9,7 +9,7 @@ use super::{
     Parser,
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// WhereClause = 'where' WhereClauseItems?
     ///
     /// WhereClauseItems = WhereClauseItem ( ',' WhereClauseItem )* ','?

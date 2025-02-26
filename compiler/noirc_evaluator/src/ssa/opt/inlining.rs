@@ -278,7 +278,9 @@ impl InlineContext {
 
         if self.recursion_level > RECURSION_LIMIT {
             panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}", source_function.name(), source_function
+                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}",
+                source_function.name(),
+                source_function
             );
         }
 
@@ -349,10 +351,14 @@ impl<'function> PerFunctionContext<'function> {
                         return id;
                     }
                 }
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
+                )
             }
             value @ Value::Param { .. } => {
-                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}"
+                )
             }
             Value::NumericConstant { constant, typ } => {
                 // The dfg indexes a global's inner value directly, so we need to check here

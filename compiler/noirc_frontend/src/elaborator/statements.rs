@@ -22,7 +22,7 @@ use crate::{
 
 use super::{lints, Elaborator, Loop};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }

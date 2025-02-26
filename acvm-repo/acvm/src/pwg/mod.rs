@@ -73,6 +73,7 @@ impl<F> std::fmt::Display for ACVMStatus<F> {
     }
 }
 
+#[expect(clippy::large_enum_variant)]
 pub enum StepResult<'a, F, B: BlackBoxFunctionSolver<F>> {
     Status(ACVMStatus<F>),
     IntoBrillig(BrilligSolver<'a, F, B>),
@@ -142,7 +143,9 @@ pub enum OpcodeResolutionError<F> {
     },
     #[error("Attempted to call `main` with a `Call` opcode")]
     AcirMainCallAttempted { opcode_location: ErrorLocation },
-    #[error("{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen")]
+    #[error(
+        "{results_size:?} result values were provided for {outputs_size:?} call output witnesses, most likely due to bad ACIR codegen"
+    )]
     AcirCallOutputsMismatch { opcode_location: ErrorLocation, results_size: u32, outputs_size: u32 },
     #[error("(--pedantic): Predicates are expected to be 0 or 1, but found: {pred_value}")]
     PredicateLargerThanOne { opcode_location: ErrorLocation, pred_value: F },
