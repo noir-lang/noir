@@ -21,4 +21,3 @@ comptime fn foo(_: FunctionDefinition) -> Quoted {
         }
     }
 }
-

@@ -80,7 +80,7 @@ pub(crate) struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub(crate) fn new(source: &'a str, config: &'a Config) -> Self {
-        let lexer = Lexer::new(source).skip_comments(false).skip_whitespaces(false);
+        let lexer = Lexer::new_with_dummy_file(source).skip_comments(false).skip_whitespaces(false);
         let mut formatter = Self {
             config,
             source,
@@ -107,6 +107,7 @@ impl<'a> Formatter<'a> {
         );
 
         self.format_parsed_module(parsed_module, self.ignore_next);
+        self.buffer.trim_multiple_newlines();
     }
 
     pub(crate) fn format_parsed_module(&mut self, parsed_module: ParsedModule, ignore_next: bool) {
@@ -295,7 +296,7 @@ impl<'a> Formatter<'a> {
         self.ignore_next = false;
 
         let next_token = self.read_token_internal();
-        self.token_span = next_token.to_span();
+        self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }
 
@@ -303,7 +304,7 @@ impl<'a> Formatter<'a> {
         let token = self.lexer.next();
         if let Some(token) = token {
             match token {
-                Ok(token) => token,
+                Ok(token) => token.into_spanned_token(),
                 Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
             }
         } else {

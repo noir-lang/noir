@@ -2,7 +2,7 @@
 name = "acir_field"
 description = "The field implementation being used by ACIR."
 # x-release-please-start-version
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -23,12 +23,18 @@ serde.workspace = true
 ark-bn254.workspace = true
 ark-bls12-381 = { workspace = true, optional = true }
 ark-ff.workspace = true
+ark-std.workspace = true
 
 cfg-if.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+criterion.workspace = true
 
 [features]
 bn254 = []
 bls12_381 = ["dep:ark-bls12-381"]
+
+[[bench]]
+name = "field_element"
+harness = false

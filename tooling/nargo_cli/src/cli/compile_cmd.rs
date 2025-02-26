@@ -82,7 +82,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         let noir_files_modified = debounced_events.iter().any(|event| {
             let mut event_paths = event.event.paths.iter();
             let event_affects_noir_file =
-                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+                event_paths.any(|path| path.extension().is_some_and(|ext| ext == "nr"));
 
             let is_relevant_event_kind = matches!(
                 event.kind,
@@ -325,6 +325,7 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
     use crate::cli::{
@@ -397,7 +398,7 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.iter().for_each(|workspace| {
+        test_workspaces.par_iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 

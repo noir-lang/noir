@@ -34,7 +34,7 @@ pub(super) fn hover_from_reference(
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = AttributeReferenceFinder::new(
                     file_id,
@@ -318,7 +318,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
                 get_global_array_value(interner, hir_array_literal, true)
             }
             HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Integer(value) => Some(value.to_string()),
             HirLiteral::Str(string) => Some(format!("{:?}", string)),
             HirLiteral::FmtStr(..) => None,
             HirLiteral::Unit => Some("()".to_string()),
@@ -781,7 +781,7 @@ struct TypeLinksGatherer<'a> {
     links: Vec<String>,
 }
 
-impl<'a> TypeLinksGatherer<'a> {
+impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),

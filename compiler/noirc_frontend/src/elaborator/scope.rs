@@ -1,4 +1,4 @@
-use noirc_errors::Spanned;
+use noirc_errors::Located;
 
 use crate::ast::{Ident, Path, ERROR_IDENT};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
@@ -22,7 +22,7 @@ use super::{Elaborator, ResolverMeta};
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
         assert_ne!(self.local_module, LocalModuleId::dummy_id(), "local_module is unset");
         ModuleId { krate: self.crate_id, local_id: self.local_module }
@@ -83,7 +83,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         path: Path,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
-        let span = path.span();
+        let location = path.location;
         let item = self.resolve_path_or_error(path)?;
 
         if let Some(function) = item.function_id() {
@@ -97,7 +97,7 @@ impl<'context> Elaborator<'context> {
 
         let expected = "global variable";
         let got = "local variable";
-        Err(ResolverError::Expected { span, expected, got })
+        Err(ResolverError::Expected { location, expected, got })
     }
 
     pub fn push_scope(&mut self) {
@@ -121,7 +121,7 @@ impl<'context> Elaborator<'context> {
             if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
-                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    let ident = Ident(Located::from(unused_var.location, name.to_owned()));
                     self.push_err(ResolverError::UnusedVariable { ident });
                 }
             }
@@ -138,7 +138,7 @@ impl<'context> Elaborator<'context> {
 
     /// Lookup a given trait by name/path.
     pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
-        let span = path.span();
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
@@ -147,7 +147,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(ResolverError::Expected {
                         expected: "trait",
                         got: item.description(),
-                        span,
+                        location,
                     });
                     None
                 }
@@ -161,7 +161,7 @@ impl<'context> Elaborator<'context> {
 
     /// Lookup a given struct type by name.
     pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
-        let span = path.span();
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(item) => {
                 if let PathResolutionItem::Type(struct_id) = item {
@@ -170,7 +170,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(ResolverError::Expected {
                         expected: "type",
                         got: item.description(),
-                        span,
+                        location,
                     });
                     None
                 }
@@ -186,13 +186,13 @@ impl<'context> Elaborator<'context> {
     /// This will also instantiate any struct types found.
     pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
         let ident = path.as_ident();
-        if ident.map_or(false, |i| i == SELF_TYPE_NAME) {
+        if ident.is_some_and(|i| i == SELF_TYPE_NAME) {
             if let Some(typ) = &self.self_type {
                 return Some(typ.clone());
             }
         }
 
-        let span = path.span;
+        let location = path.location;
         match self.resolve_path_or_error(path) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
@@ -208,7 +208,7 @@ impl<'context> Elaborator<'context> {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
                     got: other.description(),
-                    span,
+                    location,
                 });
                 None
             }

@@ -16,7 +16,7 @@ use crate::{
     Type,
 };
 
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location};
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -34,7 +34,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,
-        span: location.span,
+        location,
     })
 }
 
@@ -67,7 +67,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function().is_some_and(|func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -81,7 +81,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_function = modifiers.attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -97,16 +97,16 @@ pub(super) fn oracle_called_from_constrained_function(
     interner: &NodeInterner,
     called_func: &FuncId,
     calling_from_constrained_runtime: bool,
-    span: Span,
+    location: Location,
 ) -> Option<ResolverError> {
     if !calling_from_constrained_runtime {
         return None;
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_call {
-        Some(ResolverError::UnconstrainedOracleReturnToConstrained { span })
+        Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
         None
     }
@@ -127,13 +127,13 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
 
 /// Check that we are not passing a mutable reference from a constrained runtime to an unconstrained runtime.
 pub(super) fn unconstrained_function_args(
-    function_args: &[(Type, ExprId, Span)],
+    function_args: &[(Type, ExprId, Location)],
 ) -> Vec<TypeCheckError> {
     function_args
         .iter()
-        .filter_map(|(typ, _, span)| {
+        .filter_map(|(typ, _, location)| {
             if !typ.is_valid_for_unconstrained_boundary() {
-                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { span: *span })
+                Some(TypeCheckError::ConstrainedReferenceToUnconstrained { location: *location })
             } else {
                 None
             }
@@ -144,12 +144,12 @@ pub(super) fn unconstrained_function_args(
 /// Check that we are not passing a slice from an unconstrained runtime to a constrained runtime.
 pub(super) fn unconstrained_function_return(
     return_type: &Type,
-    span: Span,
+    location: Location,
 ) -> Option<TypeCheckError> {
     if return_type.contains_slice() {
-        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { span })
+        Some(TypeCheckError::UnconstrainedSliceReturnToConstrained { location })
     } else if !return_type.is_valid_for_unconstrained_boundary() {
-        Some(TypeCheckError::UnconstrainedReferenceToConstrained { span })
+        Some(TypeCheckError::UnconstrainedReferenceToConstrained { location })
     } else {
         None
     }
@@ -197,20 +197,20 @@ pub(crate) fn overflowing_int(
     annotated_type: &Type,
 ) -> Vec<TypeCheckError> {
     let expr = interner.expression(rhs_expr);
-    let span = interner.expr_span(rhs_expr);
+    let location = interner.expr_location(rhs_expr);
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
-            Type::Integer(Signedness::Unsigned, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
-                let max = 2u128.pow(bit_count) - 1;
-                if value > max.into() || negative {
+        HirExpression::Literal(HirLiteral::Integer(value)) => match annotated_type {
+            Type::Integer(Signedness::Unsigned, bit_size) => {
+                let bit_size: u32 = (*bit_size).into();
+                let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
+                if value.field > max.into() || value.is_negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max),
-                        span,
+                        location,
                     });
                 }
             }
@@ -218,12 +218,14 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                if (value.is_negative && value.field > min.into())
+                    || (!value.is_negative && value.field > max.into())
+                {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("-{}..={}", min, max),
-                        span,
+                        location,
                     });
                 }
             }
@@ -234,7 +236,7 @@ pub(crate) fn overflowing_int(
             if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
                 errors.push(TypeCheckError::InvalidUnaryOp {
                     kind: annotated_type.to_string(),
-                    span,
+                    location,
                 });
             }
         }
@@ -249,7 +251,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Spanned::from(func.name.location.span, modifiers.name.clone()))
+    Ident(Located::from(func.name.location, modifiers.name.clone()))
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.
@@ -257,13 +259,13 @@ pub(crate) fn unbounded_recursion<'a>(
     interner: &'a NodeInterner,
     func_id: FuncId,
     func_name: impl FnOnce() -> &'a str,
-    func_span: Span,
+    func_location: Location,
     body_id: ExprId,
 ) -> Option<ResolverError> {
     if !can_return_without_recursing(interner, func_id, body_id) {
         Some(ResolverError::UnconditionalRecursion {
             name: func_name().to_string(),
-            span: func_span,
+            location: func_location,
         })
     } else {
         None
@@ -344,7 +346,7 @@ fn can_return_without_recursing_match(
         HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))
-                && otherwise.as_ref().map_or(true, |case| check_match(case))
+                && otherwise.as_ref().is_none_or(|case| check_match(case))
         }
     }
 }

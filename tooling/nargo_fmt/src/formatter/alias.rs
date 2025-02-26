@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_type_alias(&mut self, type_alias: NoirTypeAlias) {
         self.write_indentation();
         self.format_item_visibility(type_alias.visibility);
