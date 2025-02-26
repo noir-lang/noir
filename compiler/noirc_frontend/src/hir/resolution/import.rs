@@ -49,7 +49,9 @@ pub enum PathResolutionError {
     TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
-    #[error("trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it")]
+    #[error(
+        "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
+    )]
     TraitMethodNotInScope { ident: Ident, trait_name: String },
     #[error("Could not resolve '{ident}' in path")]
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
@@ -116,7 +118,10 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
+                    format!(
+                        "The following traits which provide `{ident}` are implemented but not in scope: {}",
+                        traits.join(", ")
+                    ),
                     ident.location(),
                 )
             }

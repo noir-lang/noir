@@ -443,7 +443,7 @@ impl<'a> Lexer<'a> {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     location: self.location(Span::inclusive(start, end)),
                     found: integer_str,
-                })
+                });
             }
         };
 
@@ -1604,7 +1604,9 @@ mod tests {
             tokens.pop();
             match tokens.pop().unwrap() {
                 Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
-                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+                other => panic!(
+                    "test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`"
+                ),
             }
         }
     }

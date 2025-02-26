@@ -278,7 +278,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() })
+                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
             }
         };
         Ok(var_data.to_expression().into_owned())

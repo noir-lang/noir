@@ -834,13 +834,13 @@ impl Elaborator<'_> {
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
                 Err(error) => error,
             },

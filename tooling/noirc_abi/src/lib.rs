@@ -263,7 +263,7 @@ impl Abi {
                 encoded_inputs.push(encoded_return_fields);
             }
             (None, Some(return_value)) => {
-                return Err(AbiError::UnexpectedReturnValue(return_value))
+                return Err(AbiError::UnexpectedReturnValue(return_value));
             }
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.

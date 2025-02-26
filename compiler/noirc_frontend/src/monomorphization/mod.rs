@@ -603,7 +603,9 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
             HirExpression::MethodCall(hir_method_call) => {
-                unreachable!("Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}")
+                unreachable!(
+                    "Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}"
+                )
             }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
@@ -1081,7 +1083,9 @@ impl<'interner> Monomorphizer<'interner> {
                     .map_err(MonomorphizationError::InterpreterError)?;
                 (expr, is_closure)
             } else {
-                unreachable!("All global values should be resolved at compile time and before monomorphization");
+                unreachable!(
+                    "All global values should be resolved at compile time and before monomorphization"
+                );
             };
 
             let expr = self.expr(expr)?;
@@ -2076,7 +2080,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);
                 let fields_len = match &zeroed_tuple {
                     ast::Expression::Tuple(fields) => fields.len() as u64,
-                    _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
+                    _ => unreachable!(
+                        "ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"
+                    ),
                 };
                 ast::Expression::Literal(ast::Literal::FmtStr(
                     vec![FmtStrFragment::String("\0".repeat(*length as usize))],

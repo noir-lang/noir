@@ -1167,7 +1167,9 @@ impl ChunkFormatter<'_, '_> {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
             ConstrainKind::Constrain => {
-                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+                unreachable!(
+                    "constrain always produces an error, and the formatter doesn't run when there are errors"
+                )
             }
         };
 

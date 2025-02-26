@@ -105,7 +105,7 @@ impl Parser<'_> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
-                    return Some(StatementKind::Interned(statement))
+                    return Some(StatementKind::Interned(statement));
                 }
                 _ => unreachable!(),
             }

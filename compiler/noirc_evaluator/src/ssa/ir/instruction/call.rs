@@ -718,10 +718,10 @@ fn simplify_derive_generators(
             );
             let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
             let mut results = Vec::new();
-            for gen in generators {
-                let x_big: BigUint = gen.x.into();
+            for generator in generators {
+                let x_big: BigUint = generator.x.into();
                 let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-                let y_big: BigUint = gen.y.into();
+                let y_big: BigUint = generator.y.into();
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
