@@ -5,12 +5,12 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     ast::{
-        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression,
+        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -25,7 +25,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind, TraitMethod,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -34,7 +34,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     token::{FmtStrFragment, Tokens},
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeBindings,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
@@ -94,11 +94,8 @@ impl Elaborator<'_> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { location: expr.location });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::AsTraitPathNotYetImplemented {
-                    location: expr.location,
-                });
-                (HirExpression::Error, Type::Error)
+            ExpressionKind::AsTraitPath(path) => {
+                return self.elaborate_as_trait_path(path);
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
@@ -1318,5 +1315,51 @@ impl Elaborator<'_> {
 
         let (expr_id, typ) = self.inline_comptime_value(result, location);
         Some((self.interner.expression(&expr_id), typ))
+    }
+
+    fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
+        let location = path.typ.location.merge(path.trait_path.location);
+
+        let constraint = UnresolvedTraitConstraint {
+            typ: path.typ,
+            trait_bound: TraitBound {
+                trait_path: path.trait_path,
+                trait_id: None,
+                trait_generics: path.trait_generics,
+            },
+        };
+
+        let Some(constraint) = self.resolve_trait_constraint(&constraint) else {
+            // TODO: Error
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
+
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else { todo!() };
+
+        let trait_method =
+            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
+
+        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+
+        let ident = HirIdent {
+            location: path.impl_item.location(),
+            id: definition_id,
+            impl_kind: ImplKind::TraitMethod(trait_method),
+        };
+
+        // TODO: AsTraitPath doesn't support generics on the impl item
+        let typ = self.interner.id_type_substitute_trait_as_type(definition_id);
+        let (typ, bindings) = self.instantiate(typ, TypeBindings::default(), None, 0, location);
+
+        let id = self.interner.push_expr(HirExpression::Ident(ident, None));
+        self.interner.push_expr_location(id, location);
+        self.interner.push_expr_type(id, typ.clone());
+
+        self.interner.store_instantiation_bindings(id, bindings);
+
+        self.push_trait_constraint(constraint, id, true);
+        (id, typ)
     }
 }
