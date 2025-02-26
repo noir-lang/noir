@@ -4,11 +4,8 @@ use crate::{
         type_check::TypeCheckError,
     },
     parser::ParserErrorReason,
-    tests::{get_program_errors, get_program_using_features},
+    tests::{assert_no_errors, get_program_using_features},
 };
-use CompilationError::*;
-use ResolverError::*;
-use TypeCheckError::{ArityMisMatch, TypeMismatch};
 
 use super::{check_errors, check_errors_using_features};
 
@@ -147,6 +144,7 @@ fn match_integer_type_mismatch_in_pattern() {
         fn main() {
             match 2 {
                 Foo::One(_) => (),
+                ^^^^^^^^ Expected type Field, found type Foo
             }
         }
 
@@ -154,10 +152,7 @@ fn match_integer_type_mismatch_in_pattern() {
             One(i32),
         }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(&errors[0], TypeError(TypeMismatch { .. })));
+    check_errors(src);
 }
 
 #[test]
@@ -171,8 +166,7 @@ fn match_shadow_global() {
 
         fn foo() {}
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -181,15 +175,13 @@ fn match_no_shadow_global() {
         fn main() {
             match 2 {
                 crate::foo => (),
+                ^^^^^^^^^^ Expected a struct, enum, or literal pattern, but found a function
             }
         }
 
         fn foo() {}
     "#;
-    let errors = dbg!(get_program_errors(src));
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(&errors[0], ResolverError(UnexpectedItemInPattern { .. })));
+    check_errors(src);
 }
 
 #[test]
@@ -197,8 +189,10 @@ fn constructor_arg_arity_mismatch_in_pattern() {
     let src = r#"
         fn main() {
             match Foo::One(1) {
-                Foo::One(_, _) => (), // too many
-                Foo::Two(_) => (),    // too few
+                Foo::One(_, _) => (),
+                ^^^^^^^^ Expected 1 argument, but found 2
+                Foo::Two(_) => (),
+                ^^^^^^^^ Expected 2 arguments, but found 1
             }
         }
 
@@ -207,9 +201,5 @@ fn constructor_arg_arity_mismatch_in_pattern() {
             Two(i32, i32),
         }
     "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-
-    assert!(matches!(&errors[0], TypeError(ArityMisMatch { .. })));
-    assert!(matches!(&errors[1], TypeError(ArityMisMatch { .. })));
+    check_errors(src);
 }
