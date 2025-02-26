@@ -1,8 +1,5 @@
 use crate::{
-    hir::{
-        def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
-        type_check::TypeCheckError,
-    },
+    hir::def_collector::dc_crate::CompilationError,
     parser::ParserErrorReason,
     tests::{assert_no_errors, get_program_using_features},
 };
