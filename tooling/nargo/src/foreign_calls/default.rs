@@ -29,7 +29,7 @@ pub struct DefaultForeignCallBuilder<'a> {
     pub package_name: Option<String>,
 }
 
-impl<'a> Default for DefaultForeignCallBuilder<'a> {
+impl Default for DefaultForeignCallBuilder<'_> {
     fn default() -> Self {
         Self {
             output: PrintOutput::default(),

@@ -65,7 +65,7 @@ enum TokenStream<'a> {
     Tokens(Tokens),
 }
 
-impl<'a> TokenStream<'a> {
+impl TokenStream<'_> {
     fn next(&mut self) -> Option<LocatedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),

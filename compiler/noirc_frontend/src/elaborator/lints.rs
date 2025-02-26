@@ -67,7 +67,7 @@ pub(super) fn low_level_function_outside_stdlib(
     crate_id: CrateId,
 ) -> Option<ResolverError> {
     let is_low_level_function =
-        modifiers.attributes.function().map_or(false, |func| func.is_low_level());
+        modifiers.attributes.function().is_some_and(|func| func.is_low_level());
     if !crate_id.is_stdlib() && is_low_level_function {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::LowLevelFunctionOutsideOfStdlib { ident })
@@ -81,7 +81,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    let is_oracle_function = modifiers.attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_function = modifiers.attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_function && !modifiers.is_unconstrained {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleMarkedAsConstrained { ident })
@@ -104,7 +104,7 @@ pub(super) fn oracle_called_from_constrained_function(
     }
 
     let function_attributes = interner.function_attributes(called_func);
-    let is_oracle_call = function_attributes.function().map_or(false, |func| func.is_oracle());
+    let is_oracle_call = function_attributes.function().is_some_and(|func| func.is_oracle());
     if is_oracle_call {
         Some(ResolverError::UnconstrainedOracleReturnToConstrained { location })
     } else {
@@ -201,13 +201,13 @@ pub(crate) fn overflowing_int(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value)) => match annotated_type {
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value > max.into() || negative {
+                if value.field > max.into() || value.is_negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max),
                         location,
@@ -218,9 +218,11 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                if (value.is_negative && value.field > min.into())
+                    || (!value.is_negative && value.field > max.into())
+                {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("-{}..={}", min, max),
                         location,
@@ -344,7 +346,7 @@ fn can_return_without_recursing_match(
         HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))
-                && otherwise.as_ref().map_or(true, |case| check_match(case))
+                && otherwise.as_ref().is_none_or(|case| check_match(case))
         }
     }
 }

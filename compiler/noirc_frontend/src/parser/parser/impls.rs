@@ -17,7 +17,7 @@ pub(crate) enum Impl {
     TraitImpl(NoirTraitImpl),
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Impl
     ///     = TypeImpl
     ///     | TraitImpl

@@ -340,14 +340,19 @@ impl DataFlowGraph {
                     }
                 }
                 let mut instructions = instructions.unwrap_or(vec![instruction]);
-                assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
+                assert!(
+                    !instructions.is_empty(),
+                    "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
+                );
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
                     // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
                     // as this instruction type does not have any results.
                     assert!(
-                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        instructions
+                            .iter()
+                            .all(|instruction| matches!(instruction, Instruction::Constrain(..))),
                         "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
                     );
                 }
@@ -898,7 +903,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 }
 
-impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+impl std::ops::Index<usize> for InsertInstructionResult<'_> {
     type Output = ValueId;
 
     fn index(&self, index: usize) -> &Self::Output {

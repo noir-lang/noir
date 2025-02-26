@@ -5,7 +5,7 @@ use crate::{
 
 use super::{parse_many::without_separator, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// InnerDocComments = inner_doc_comment*
     pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
         self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
