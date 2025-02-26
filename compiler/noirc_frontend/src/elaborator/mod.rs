@@ -63,9 +63,8 @@ mod traits;
 pub mod types;
 mod unquote;
 
-use fm::FileId;
 use iter_extended::vecmap;
-use noirc_errors::{Located, Location, Span};
+use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
@@ -109,14 +108,12 @@ pub struct Loop {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub(crate) errors: Vec<(CompilationError, FileId)>,
+    pub(crate) errors: Vec<CompilationError>,
 
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
-
-    pub(crate) file: FileId,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -263,7 +260,6 @@ impl<'context> Elaborator<'context> {
             def_maps,
             usage_tracker,
             crate_graph,
-            file: FileId::dummy(),
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -308,7 +304,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
-    ) -> Vec<(CompilationError, FileId)> {
+    ) -> Vec<CompilationError> {
         Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
@@ -466,7 +462,6 @@ impl<'context> Elaborator<'context> {
         );
 
         self.local_module = func_meta.source_module;
-        self.file = func_meta.source_file;
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
 
@@ -553,12 +548,12 @@ impl<'context> Elaborator<'context> {
 
         // Check that the body can return without calling the function.
         if let FunctionKind::Normal = kind {
-            self.run_lint(func_meta.name.location.file, |elaborator| {
+            self.run_lint(|elaborator| {
                 lints::unbounded_recursion(
                     elaborator.interner,
                     id,
                     || elaborator.interner.definition_name(func_meta.name.id),
-                    func_meta.name.location.span,
+                    func_meta.name.location,
                     hir_func.as_expr(),
                 )
                 .map(Into::into)
@@ -649,7 +644,7 @@ impl<'context> Elaborator<'context> {
             let (type_var, name) = match self.resolve_generic(generic) {
                 Ok(values) => values,
                 Err(error) => {
-                    self.push_err(error, generic.location().file);
+                    self.push_err(error);
                     is_error = true;
                     let id = self.interner.next_type_variable_id();
                     let kind = self.resolve_generic_kind(generic);
@@ -667,14 +662,11 @@ impl<'context> Elaborator<'context> {
             // are all given the same default name "(error)".
             if !is_error {
                 if let Some(generic) = self.find_generic(&name_owned) {
-                    self.push_err(
-                        ResolverError::DuplicateDefinition {
-                            name: name_owned,
-                            first_span: generic.location.span,
-                            second_span: location.span,
-                        },
-                        location.file,
-                    );
+                    self.push_err(ResolverError::DuplicateDefinition {
+                        name: name_owned,
+                        first_location: generic.location,
+                        second_location: location,
+                    });
                 } else {
                     self.generics.push(resolved_generic.clone());
                 }
@@ -704,7 +696,7 @@ impl<'context> Elaborator<'context> {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(type_variable, name) => Ok((type_variable.clone(), name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
-                        span: location.span,
+                        location: *location,
                         typ: other.clone(),
                     }),
                 }
@@ -732,7 +724,7 @@ impl<'context> Elaborator<'context> {
                         ident: ident.clone(),
                         typ: unresolved_typ.typ.clone(),
                     });
-                self.push_err(unsupported_typ_err, generic.location().file);
+                self.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)
         } else {
@@ -740,21 +732,18 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>, file: FileId) {
+    pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push((error, file));
+        self.errors.push(error);
     }
 
-    pub(crate) fn push_errors(
-        &mut self,
-        errors: impl IntoIterator<Item = (CompilationError, FileId)>,
-    ) {
+    pub(crate) fn push_errors(&mut self, errors: impl IntoIterator<Item = CompilationError>) {
         self.errors.extend(errors);
     }
 
-    fn run_lint(&mut self, file: FileId, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
+    fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
-            self.push_err(error, file);
+            self.push_err(error);
         }
     }
 
@@ -772,18 +761,17 @@ impl<'context> Elaborator<'context> {
     }
 
     fn resolve_trait_by_path(&mut self, path: Path) -> Option<TraitId> {
-        let file = path.location.file;
         let error = match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
                 for error in errors {
-                    self.push_err(error, file);
+                    self.push_err(error);
                 }
                 return Some(trait_id);
             }
             Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
             Err(_) => DefCollectorErrorKind::TraitNotFound { trait_path: path },
         };
-        self.push_err(error, file);
+        self.push_err(error);
         None
     }
 
@@ -912,7 +900,7 @@ impl<'context> Elaborator<'context> {
             self.resolve_type_args(bound.trait_generics.clone(), trait_id, location);
 
         let trait_generics = TraitGenerics { ordered, named };
-        Some(ResolvedTraitBound { trait_id, trait_generics, span: location.span })
+        Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
     /// Extract metadata from a NoirFunction
@@ -961,8 +949,8 @@ impl<'context> Elaborator<'context> {
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
 
-        for Param { visibility, pattern, typ, location } in func.parameters().iter().cloned() {
-            self.run_lint(location.file, |_| {
+        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
+            self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
 
@@ -1119,17 +1107,14 @@ impl<'context> Elaborator<'context> {
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
-        let file = func.location.file;
-        self.run_lint(file, |_| lints::inlining_attributes(func, modifiers).map(Into::into));
-        self.run_lint(file, |_| lints::missing_pub(func, modifiers).map(Into::into));
-        self.run_lint(file, |_| {
+        self.run_lint(|_| lints::inlining_attributes(func, modifiers).map(Into::into));
+        self.run_lint(|_| lints::missing_pub(func, modifiers).map(Into::into));
+        self.run_lint(|_| {
             let pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
             lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
         });
-        self.run_lint(file, |_| {
-            lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into)
-        });
-        self.run_lint(file, |elaborator| {
+        self.run_lint(|_| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+        self.run_lint(|elaborator| {
             lints::low_level_function_outside_stdlib(func, modifiers, elaborator.crate_id)
                 .map(Into::into)
         });
@@ -1148,8 +1133,7 @@ impl<'context> Elaborator<'context> {
         if (is_entry_point && !typ.is_valid_for_program_input())
             || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
         {
-            let span = location.span;
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { span }, location.file);
+            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
         }
     }
 
@@ -1230,7 +1214,6 @@ impl<'context> Elaborator<'context> {
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) {
-        let span = location.span;
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
@@ -1238,10 +1221,11 @@ impl<'context> Elaborator<'context> {
             if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                 let trait_name = the_trait.name.to_string();
                 let typ = object.clone();
-                self.push_err(
-                    TypeCheckError::UnneededTraitConstraint { trait_name, typ, span },
-                    location.file,
-                );
+                self.push_err(TypeCheckError::UnneededTraitConstraint {
+                    trait_name,
+                    typ,
+                    location,
+                });
             }
         }
 
@@ -1269,13 +1253,11 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
-            self.file = functions.file_id;
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.file = trait_impl.file_id;
         self.local_module = trait_impl.module_id;
 
         self.generics = trait_impl.resolved_generics.clone();
@@ -1286,11 +1268,10 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        for (module, function, noir_function) in &trait_impl.methods.functions {
+        for (module, function, _) in &trait_impl.methods.functions {
             self.local_module = *module;
-            let file = noir_function.location().file;
             let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
-            self.push_errors(errors.into_iter().map(|error| (error.into(), file)));
+            self.push_errors(errors.into_iter().map(|error| error.into()));
         }
 
         self.elaborate_functions(trait_impl.methods);
@@ -1346,7 +1327,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let impl_trait = the_trait.name.to_string();
-        let the_trait_file = the_trait.location.file;
 
         let mut bindings = TypeBindings::new();
         bind_ordered_generics(
@@ -1378,16 +1358,13 @@ impl<'context> Elaborator<'context> {
             {
                 let missing_trait =
                     format!("{}{}", trait_constraint_trait.name, trait_bound.trait_generics);
-                self.push_err(
-                    ResolverError::TraitNotImplemented {
-                        impl_trait: impl_trait.clone(),
-                        missing_trait,
-                        type_missing_trait: trait_constraint_type.to_string(),
-                        span: trait_impl.object_type.location.span,
-                        missing_trait_location: Location::new(trait_bound.span, the_trait_file),
-                    },
-                    trait_impl.object_type.location.file,
-                );
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_constraint_type.to_string(),
+                    location: trait_impl.object_type.location,
+                    missing_trait_location: trait_bound.location,
+                });
             }
         }
     }
@@ -1410,7 +1387,6 @@ impl<'context> Elaborator<'context> {
         }
 
         let impl_trait = the_trait.name.to_string();
-        let the_trait_file = the_trait.location.file;
 
         let mut bindings = TypeBindings::new();
         bind_ordered_generics(
@@ -1448,19 +1424,13 @@ impl<'context> Elaborator<'context> {
             {
                 let missing_trait =
                     format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
-                self.push_err(
-                    ResolverError::TraitNotImplemented {
-                        impl_trait: impl_trait.clone(),
-                        missing_trait,
-                        type_missing_trait: trait_impl.object_type.to_string(),
-                        span: trait_impl.object_type.location.span,
-                        missing_trait_location: Location::new(
-                            parent_trait_bound.span,
-                            the_trait_file,
-                        ),
-                    },
-                    trait_impl.object_type.location.file,
-                );
+                self.push_err(ResolverError::TraitNotImplemented {
+                    impl_trait: impl_trait.clone(),
+                    missing_trait,
+                    type_missing_trait: trait_impl.object_type.to_string(),
+                    location: trait_impl.object_type.location,
+                    missing_trait_location: parent_trait_bound.location,
+                });
             }
         }
     }
@@ -1473,7 +1443,6 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
-            self.file = unresolved.file_id;
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
             self.declare_methods_on_struct(None, unresolved, *location);
@@ -1483,7 +1452,6 @@ impl<'context> Elaborator<'context> {
 
     fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
         self.current_trait_impl = trait_impl.impl_id;
 
         let self_type = trait_impl.methods.self_type.clone();
@@ -1494,11 +1462,9 @@ impl<'context> Elaborator<'context> {
         let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type, Type::MutableReference(_)) {
-            let span = self_type_location.span;
-            self.push_err(
-                DefCollectorErrorKind::MutableReferenceInTraitImpl { span },
-                self_type_location.file,
-            );
+            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl {
+                location: self_type_location,
+            });
         }
 
         if let Some(trait_id) = trait_impl.trait_id {
@@ -1554,29 +1520,18 @@ impl<'context> Elaborator<'context> {
 
             let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-            if let Err((prev_location, prev_file)) = self.interner.add_trait_implementation(
+            if let Err(prev_location) = self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
                 trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
                 generics,
                 resolved_trait_impl,
             ) {
-                self.push_err(
-                    DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type.clone(),
-                        span: self_type_location.span,
-                    },
-                    self_type_location.file,
-                );
-
-                // The 'previous impl defined here' note must be a separate error currently
-                // since it may be in a different file and all errors have the same file id.
-                self.file = prev_file;
-                self.push_err(
-                    DefCollectorErrorKind::OverlappingImplNote { span: prev_location.span },
-                    prev_location.file,
-                );
-                self.file = trait_impl.file_id;
+                self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                    typ: self_type.clone(),
+                    location: self_type_location,
+                    prev_location,
+                });
             }
         }
 
@@ -1602,7 +1557,6 @@ impl<'context> Elaborator<'context> {
         functions: &mut UnresolvedFunctions,
         location: Location,
     ) {
-        let span = location.span;
         let self_type = functions.self_type.as_ref();
         let self_type =
             self_type.expect("Expected struct type to be set before declare_methods_on_struct");
@@ -1615,10 +1569,7 @@ impl<'context> Elaborator<'context> {
             // `impl`s are only allowed on types defined within the current crate
             if trait_id.is_none() && struct_ref.id.krate() != self.crate_id {
                 let type_name = struct_ref.name.to_string();
-                self.push_err(
-                    DefCollectorErrorKind::ForeignImpl { span, type_name },
-                    location.file,
-                );
+                self.push_err(DefCollectorErrorKind::ForeignImpl { location, type_name });
                 return;
             }
 
@@ -1664,7 +1615,7 @@ impl<'context> Elaborator<'context> {
                     self.declare_methods(self_type, &function_ids);
                 }
             } else {
-                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { span }, location.file);
+                self.push_err(DefCollectorErrorKind::NonStructTypeInImpl { location });
             }
         }
     }
@@ -1680,16 +1631,15 @@ impl<'context> Elaborator<'context> {
                 let second_location = self.interner.function_ident(method_id).location();
                 let error = ResolverError::DuplicateDefinition {
                     name: method_name,
-                    first_span: first_location.span,
-                    second_span: second_location.span,
+                    first_location,
+                    second_location,
                 };
-                self.push_err(error, second_location.file);
+                self.push_err(error);
             }
         }
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.file = alias.file_id;
         self.local_module = alias.module_id;
 
         let name = &alias.type_alias_def.name;
@@ -1761,14 +1711,11 @@ impl<'context> Elaborator<'context> {
                 if struct_module_id.krate == self.crate_id {
                     if let Some(aliased_visibility) = self.find_struct_visibility(&struct_type) {
                         if aliased_visibility < visibility {
-                            self.push_err(
-                                ResolverError::TypeIsMorePrivateThenItem {
-                                    typ: struct_type.name.to_string(),
-                                    item: name.to_string(),
-                                    span: location.span,
-                                },
-                                location.file,
-                            );
+                            self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                                typ: struct_type.name.to_string(),
+                                item: name.to_string(),
+                                location,
+                            });
                         }
                     }
                 }
@@ -1839,7 +1786,6 @@ impl<'context> Elaborator<'context> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.file = typ.file_id;
             self.local_module = typ.module_id;
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
@@ -1892,9 +1838,7 @@ impl<'context> Elaborator<'context> {
                 for (_, field_type) in fields.iter() {
                     if field_type.is_nested_slice() {
                         let location = struct_type.borrow().location;
-                        let span = location.span;
-                        self.file = location.file;
-                        self.push_err(ResolverError::NestedSlices { span }, location.file);
+                        self.push_err(ResolverError::NestedSlices { location });
                     }
                 }
             }
@@ -1929,7 +1873,6 @@ impl<'context> Elaborator<'context> {
 
     fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
-            self.file = typ.file_id;
             self.local_module = typ.module_id;
             self.generics.clear();
 
@@ -1938,7 +1881,7 @@ impl<'context> Elaborator<'context> {
             let generics = datatype_ref.generic_types();
             self.add_existing_generics(&typ.enum_def.generics, &datatype_ref.generics);
 
-            self.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.span());
+            self.use_unstable_feature(UnstableFeature::Enums, datatype_ref.name.location());
             drop(datatype_ref);
 
             let self_type = Type::DataType(datatype.clone(), generics);
@@ -1980,7 +1923,6 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         let old_module = std::mem::replace(&mut self.local_module, global.module_id);
-        let old_file = std::mem::replace(&mut self.file, global.file_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -1994,16 +1936,15 @@ impl<'context> Elaborator<'context> {
         };
 
         let location = let_stmt.pattern.location();
-        let span = location.span;
 
         if !self.in_contract()
             && let_stmt.attributes.iter().any(|attr| matches!(attr, SecondaryAttribute::Abi(_)))
         {
-            self.push_err(ResolverError::AbiAttributeOutsideContract { span }, location.file);
+            self.push_err(ResolverError::AbiAttributeOutsideContract { location });
         }
 
         if !let_stmt.comptime && matches!(let_stmt.pattern, Pattern::Mutable(..)) {
-            self.push_err(ResolverError::MutableGlobal { span }, location.file);
+            self.push_err(ResolverError::MutableGlobal { location });
         }
 
         let (let_statement, _typ) = self
@@ -2025,7 +1966,6 @@ impl<'context> Elaborator<'context> {
         }
 
         self.local_module = old_module;
-        self.file = old_file;
         self.current_item = old_item;
     }
 
@@ -2041,8 +1981,8 @@ impl<'context> Elaborator<'context> {
         let mut interpreter = self.setup_interpreter();
 
         if let Err(error) = interpreter.evaluate_let(let_statement) {
-            let (error, file) = error.into_compilation_error_pair();
-            self.push_err(error, file);
+            let error: CompilationError = error.into();
+            self.push_err(error);
         } else {
             let value = interpreter
                 .lookup_id(definition_id, location)
@@ -2078,7 +2018,6 @@ impl<'context> Elaborator<'context> {
             self.local_module = *local_module;
 
             for (generics, _, function_set) in function_sets {
-                self.file = function_set.file_id;
                 self.add_generics(generics);
                 let self_type = self.resolve_type(self_type.clone());
                 function_set.self_type = Some(self_type.clone());
@@ -2090,7 +2029,6 @@ impl<'context> Elaborator<'context> {
         }
 
         for trait_impl in trait_impls {
-            self.file = trait_impl.file_id;
             self.local_module = trait_impl.module_id;
 
             let (trait_id, mut trait_generics, path_location) = match &trait_impl.r#trait.typ {
@@ -2101,10 +2039,9 @@ impl<'context> Elaborator<'context> {
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
                     let typ = self.interner.get_quoted_type(*quoted_type_id);
                     let location = trait_impl.r#trait.location;
-                    let span = location.span;
                     let Type::TraitAsType(trait_id, _, trait_generics) = typ else {
                         let found = typ.to_string();
-                        self.push_err(ResolverError::ExpectedTrait { span, found }, location.file);
+                        self.push_err(ResolverError::ExpectedTrait { location, found });
                         continue;
                     };
 
@@ -2131,10 +2068,9 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => {
                     let location = trait_impl.r#trait.location;
-                    let span = location.span;
                     let found = trait_impl.r#trait.typ.to_string();
-                    self.push_err(ResolverError::ExpectedTrait { span, found }, location.file);
-                    continue;
+                    self.push_err(ResolverError::ExpectedTrait { location, found });
+                    (None, GenericTypeArgs::default(), location)
                 }
             };
 
@@ -2203,8 +2139,6 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_function_metas_for_functions(&mut self, function_set: &mut UnresolvedFunctions) {
-        self.file = function_set.file_id;
-
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
@@ -2227,11 +2161,10 @@ impl<'context> Elaborator<'context> {
 
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
-    pub fn use_unstable_feature(&mut self, feature: UnstableFeature, span: Span) {
+    pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
         if !self.options.enabled_unstable_features.contains(&feature) {
             let reason = ParserErrorReason::ExperimentalFeature(feature);
-            let location = Location::new(span, self.file);
-            self.push_err(ParserError::with_reason(reason, location), self.file);
+            self.push_err(ParserError::with_reason(reason, location));
         }
     }
 }
