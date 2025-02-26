@@ -28,14 +28,14 @@ fn no_super() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-        PathResolutionError::NoSuper(span),
-    )) = &errors[0].0
+        PathResolutionError::NoSuper(location),
+    )) = &errors[0]
     else {
-        panic!("Expected a 'no super' error, got {:?}", errors[0].0);
+        panic!("Expected a 'no super' error, got {:?}", errors[0]);
     };
 
-    assert_eq!(span.start(), 4);
-    assert_eq!(span.end(), 9);
+    assert_eq!(location.span.start(), 4);
+    assert_eq!(location.span.end(), 9);
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn warns_on_use_of_private_exported_item() {
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::ResolverError(ResolverError::PathResolutionError(
             PathResolutionError::Private(..),
         ))
@@ -121,7 +121,7 @@ fn warns_on_re_export_of_item_with_less_visibility() {
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
-        &errors[0].0,
+        &errors[0],
         CompilationError::DefinitionError(
             DefCollectorErrorKind::CannotReexportItemWithLessVisibility { .. }
         )
@@ -146,9 +146,9 @@ fn errors_if_using_alias_in_import() {
 
     let CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
         PathResolutionError::NotAModule { ident, kind },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
-        panic!("Expected a 'not a module' error, got {:?}", errors[0].0);
+        panic!("Expected a 'not a module' error, got {:?}", errors[0]);
     };
 
     assert_eq!(ident.to_string(), "bar");

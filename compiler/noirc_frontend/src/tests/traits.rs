@@ -116,7 +116,7 @@ fn trait_inheritance_dependency_cycle() {
     assert_eq!(errors.len(), 1);
 
     assert!(matches!(
-        errors[0].0,
+        errors[0],
         CompilationError::ResolverError(ResolverError::DependencyCycle { .. })
     ));
 }
@@ -144,9 +144,9 @@ fn trait_inheritance_missing_parent_implementation() {
         missing_trait: the_trait,
         type_missing_trait: typ,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
+        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0]);
     };
 
     assert_eq!(the_trait, "Foo");
@@ -257,9 +257,9 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         missing_trait: the_trait,
         type_missing_trait: typ,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0].0);
+        panic!("Expected a TraitNotImplemented error, got {:?}", &errors[0]);
     };
 
     assert_eq!(the_trait, "Greeter");
@@ -473,7 +473,7 @@ fn trait_alias_polymorphic_where_clause() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 2);
 
-    match &errors[0].0 {
+    match &errors[0] {
         CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall {
             method_name, ..
         }) => {
@@ -484,7 +484,7 @@ fn trait_alias_polymorphic_where_clause() {
         }
     }
 
-    match &errors[1].0 {
+    match &errors[1] {
         CompilationError::TypeError(TypeCheckError::NoMatchingImplFound(err)) => {
             assert_eq!(err.constraints.len(), 2);
             assert_eq!(err.constraints[0].1, "Baz");
@@ -548,7 +548,7 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
     assert_eq!(errors.len(), 1);
     assert_eq!(alias_errors.len(), 1);
 
-    match (&errors[0].0, &alias_errors[0].0) {
+    match (&errors[0], &alias_errors[0]) {
         (
             CompilationError::TypeError(TypeCheckError::UnresolvedMethodCall {
                 method_name,
@@ -685,7 +685,7 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -824,7 +824,7 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, mut traits },
-    )) = errors.remove(0).0
+    )) = errors.remove(0)
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -873,7 +873,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::MultipleTraitsInScope { ident, mut traits },
-    )) = errors.remove(0).0
+    )) = errors.remove(0)
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -911,7 +911,7 @@ fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_me
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -987,7 +987,7 @@ fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candid
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, mut traits },
-    )) = errors.remove(0).0
+    )) = errors.remove(0)
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -1038,7 +1038,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::MultipleTraitsInScope { ident, mut traits },
-    )) = errors.remove(0).0
+    )) = errors.remove(0)
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -1099,9 +1099,9 @@ fn type_checks_trait_default_method_and_errors() {
         expected,
         actual,
         ..
-    }) = &errors[0].0
+    }) = &errors[0]
     else {
-        panic!("Expected a type mismatch error, got {:?}", errors[0].0);
+        panic!("Expected a type mismatch error, got {:?}", errors[0]);
     };
 
     assert_eq!(expected.to_string(), "i32");
@@ -1166,7 +1166,7 @@ fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -1199,7 +1199,7 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -1232,7 +1232,7 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
 
     let CompilationError::ResolverError(ResolverError::PathResolutionError(
         PathResolutionError::TraitMethodNotInScope { ident, trait_name },
-    )) = &errors[0].0
+    )) = &errors[0]
     else {
         panic!("Expected a 'trait method not in scope' error");
     };
@@ -1259,14 +1259,12 @@ fn error_on_duplicate_impl_with_associated_type() {
     "#;
 
     // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1);
 
     use CompilationError::DefinitionError;
     use DefCollectorErrorKind::*;
-    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+    assert!(matches!(&errors[0], DefinitionError(OverlappingImpl { .. })));
 }
 
 #[test]
@@ -1288,14 +1286,12 @@ fn error_on_duplicate_impl_with_associated_constant() {
     "#;
 
     // Expect "Impl for type `i32` overlaps with existing impl"
-    //    and "Previous impl defined here"
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
+    assert_eq!(errors.len(), 1);
 
     use CompilationError::DefinitionError;
     use DefCollectorErrorKind::*;
-    assert!(matches!(&errors[0].0, DefinitionError(OverlappingImpl { .. })));
-    assert!(matches!(&errors[1].0, DefinitionError(OverlappingImplNote { .. })));
+    assert!(matches!(&errors[0], DefinitionError(OverlappingImpl { .. })));
 }
 
 // See https://github.com/noir-lang/noir/issues/6530
@@ -1391,8 +1387,5 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_tur
     "#;
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })));
 }

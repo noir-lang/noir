@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{
@@ -97,7 +97,6 @@ impl<'context> Elaborator<'context> {
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
         self.local_module = unresolved_trait.module_id;
-        self.file = self.def_maps[&self.crate_id].file_id(unresolved_trait.module_id);
 
         let mut functions = vec![];
 
@@ -297,9 +296,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     if trait_info.generics.len() != impl_.trait_generics.len() {
         let expected = trait_info.generics.len();
         let found = impl_.trait_generics.len();
-        let span = impl_.ident.span();
+        let location = impl_.ident.location();
         let item = trait_info.name.to_string();
-        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
@@ -319,17 +318,17 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
         if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
             let expected = trait_fn_modifiers.is_unconstrained;
-            let span = meta.name.location.span;
+            let location = meta.name.location;
             let item = method_name.to_string();
-            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, span });
+            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, location });
         }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
             let found = meta.direct_generics.len();
-            let span = meta.name.location.span;
+            let location = meta.name.location;
             let item = method_name.to_string();
-            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
         }
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
@@ -350,7 +349,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             definition_type,
             method_name,
             &meta.parameters,
-            meta.name.location.span,
+            meta.name.location,
             &trait_info.name.0.contents,
             &mut errors,
         );
@@ -364,7 +363,7 @@ fn check_function_type_matches_expected_type(
     actual: &Type,
     method_name: &str,
     actual_parameters: &Parameters,
-    span: Span,
+    location: Location,
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
 ) {
@@ -386,7 +385,7 @@ fn check_function_type_matches_expected_type(
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
                         actual_typ: b.to_string(),
-                        parameter_span: actual_parameters.0[i].0.span(),
+                        parameter_location: actual_parameters.0[i].0.location(),
                         parameter_index: i + 1,
                     });
                 }
@@ -396,7 +395,7 @@ fn check_function_type_matches_expected_type(
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),
-                    expr_span: span,
+                    expr_location: location,
                 });
             }
         } else {
@@ -405,7 +404,7 @@ fn check_function_type_matches_expected_type(
                 expected_num_parameters: params_a.len(),
                 trait_name: trait_name.to_string(),
                 method_name: method_name.to_string(),
-                span,
+                location,
             });
         }
     }
@@ -416,6 +415,10 @@ fn check_function_type_matches_expected_type(
     if !bindings.is_empty() {
         let expected_typ = expected.to_string();
         let expr_typ = actual.to_string();
-        errors.push(TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span: span });
+        errors.push(TypeCheckError::TypeMismatch {
+            expected_typ,
+            expr_typ,
+            expr_location: location,
+        });
     }
 }
