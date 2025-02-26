@@ -115,7 +115,8 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
@@ -126,7 +127,8 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(

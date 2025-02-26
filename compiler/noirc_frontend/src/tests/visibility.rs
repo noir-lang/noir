@@ -1,11 +1,4 @@
-use crate::{
-    hir::{
-        comptime::ComptimeError,
-        def_collector::{dc_crate::CompilationError, errors::DefCollectorErrorKind},
-        resolution::{errors::ResolverError, import::PathResolutionError},
-    },
-    tests::{assert_no_errors, get_program_errors},
-};
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn errors_once_on_unused_import_that_is_not_accessible() {
@@ -15,39 +8,13 @@ fn errors_once_on_unused_import_that_is_not_accessible() {
             struct Foo {}
         }
         use moo::Foo;
+                 ^^^ Foo is private and not visible from the current module
+                 ~~~ Foo is private
         fn main() {
             let _ = Foo {};
         }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0],
-        CompilationError::DefinitionError(DefCollectorErrorKind::PathResolutionError(
-            PathResolutionError::Private { .. }
-        ))
-    ));
-}
-
-fn assert_type_is_more_private_than_item_error(src: &str, private_typ: &str, public_item: &str) {
-    let errors = get_program_errors(src);
-
-    assert!(!errors.is_empty(), "expected visibility error, got nothing");
-    for error in &errors {
-        let CompilationError::ResolverError(ResolverError::TypeIsMorePrivateThenItem {
-            typ,
-            item,
-            ..
-        }) = error
-        else {
-            panic!("Expected a type vs item visibility error, got {}", error);
-        };
-
-        assert_eq!(typ, private_typ);
-        assert_eq!(item, public_item);
-    }
-    assert_eq!(errors.len(), 1, "only expected one error");
+    check_errors(src);
 }
 
 #[test]
@@ -55,12 +22,13 @@ fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
+                   ^^^ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _: Bar = Foo {};
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
+    check_errors(src);
 }
 
 #[test]
@@ -69,13 +37,14 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     pub struct Generic<T> { value: T }
     struct Foo {}
     pub type Bar = Generic<Foo>;
+                   ^^^^^^^^^^^^ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _ = Foo {};
         let _: Bar = Generic { value: Foo {} };
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Foo", "Bar");
+    check_errors(src);
 }
 
 #[test]
@@ -85,6 +54,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
         struct Bar {}
         pub struct Foo<T> { pub value: T }
         pub type FooBar = Foo<Bar>;
+                          ^^^^^^^^ Type `Bar` is more private than item `FooBar`
 
         pub fn no_unused_warnings() {
             let _: FooBar = Foo { value: Bar {} };
@@ -92,7 +62,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar");
+    check_errors(src);
 }
 
 #[test]
@@ -102,6 +72,7 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
         struct Bar {}
         pub struct Foo<T> { pub value: T }
         pub struct FooBar { pub value: Foo<Bar> }
+                                ^^^^^ Type `Bar` is more private than item `FooBar::value`
 
         pub fn no_unused_warnings() {
             let _ = FooBar { value: Foo { value: Bar {} } };
@@ -109,7 +80,7 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "FooBar::value");
+    check_errors(src);
 }
 
 #[test]
@@ -119,12 +90,13 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
         struct Bar {}
 
         pub fn bar() -> Bar {
+               ^^^ Type `Bar` is more private than item `bar`
             Bar {}
         }
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+    check_errors(src);
 }
 
 #[test]
@@ -133,6 +105,7 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
     pub mod moo {
         struct Bar {}
         pub fn bar(_bar: Bar) {}
+               ^^^ Type `Bar` is more private than item `bar`
 
         pub fn no_unused_warnings() {
             let _ = Bar {};
@@ -140,7 +113,7 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+    check_errors(src);
 }
 
 #[test]
@@ -173,6 +146,7 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
 
         impl Foo { 
             pub fn bar() -> Bar { 
+                   ^^^ Type `Bar` is more private than item `bar`
                 Bar {}
             }
         }
@@ -183,7 +157,7 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "bar");
+    check_errors(src);
 }
 
 #[test]
@@ -219,6 +193,7 @@ fn errors_if_pub_trait_returns_private_struct() {
 
         pub trait Foo { 
             fn foo() -> Bar;
+               ^^^ Type `Bar` is more private than item `foo`
         }
 
         pub fn no_unused_warnings() {
@@ -227,7 +202,7 @@ fn errors_if_pub_trait_returns_private_struct() {
     }
     fn main() {}
     "#;
-    assert_type_is_more_private_than_item_error(src, "Bar", "foo");
+    check_errors(src);
 }
 
 #[test]
@@ -263,20 +238,11 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
     }
     fn main() {
         foo::bar::baz()
+             ^^^ bar is private and not visible from the current module
+             ~~~ bar is private
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
+    check_errors(src);
 }
 
 #[test]
@@ -294,22 +260,13 @@ fn warns_if_calling_private_struct_method() {
 
     pub fn method(foo: moo::Foo) {
         foo.bar()
+            ^^^ bar is private and not visible from the current module
+            ~~~ bar is private
     }
 
     fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "bar");
+    check_errors(src);
 }
 
 #[test]
@@ -386,22 +343,13 @@ fn error_when_accessing_private_struct_field() {
 
     fn foo(foo: moo::Foo) -> Field {
         foo.x
+            ^ x is private and not visible from the current module
+            ~ x is private
     }
 
     fn main() {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "x");
+    check_errors(src);
 }
 
 #[test]
@@ -455,20 +403,11 @@ fn error_when_using_private_struct_field_in_constructor() {
 
     fn main() {
         let _ = moo::Foo { x: 1 };
+                           ^ x is private and not visible from the current module
+                           ~ x is private
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "x");
+    check_errors(src);
 }
 
 #[test]
@@ -482,24 +421,15 @@ fn error_when_using_private_struct_field_in_struct_pattern() {
 
     fn foo(foo: moo::Foo) -> Field {
         let moo::Foo { x } = foo;
+                       ^ x is private and not visible from the current module
+                       ~ x is private
         x
     }
 
     fn main() {
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "x");
+    check_errors(src);
 }
 
 #[test]
@@ -564,21 +494,12 @@ fn errors_if_accessing_private_struct_member_inside_comptime_context() {
         comptime { 
             let foo = Foo::new(5);
             let _ = foo.inner;
+                        ^^^^^ inner is private and not visible from the current module
+                        ~~~~~ inner is private
         };
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = &errors[0]
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "inner");
+    check_errors(src);
 }
 
 #[test]
@@ -593,6 +514,7 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
     use foo::Foo;
 
     #[generate_inner_accessor]
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~ While running this function attribute
     struct Bar {
         bar_inner: Foo,
     }
@@ -601,6 +523,8 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
         quote {
             fn bar_get_foo_inner(x: Bar) -> Field {
                 x.bar_inner.foo_inner
+                            ^^^^^^^^^ foo_inner is private and not visible from the current module
+                            ~~~~~~~~~ foo_inner is private
             }
         }
     }
@@ -609,22 +533,5 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
         let _ = bar_get_foo_inner(x);
     }
     "#;
-
-    let mut errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
-        errors.remove(0)
-    else {
-        panic!("Expected a ComptimeError, got {:?}", errors[0]);
-    };
-
-    let CompilationError::ResolverError(ResolverError::PathResolutionError(
-        PathResolutionError::Private(ident),
-    )) = *error
-    else {
-        panic!("Expected a private error");
-    };
-
-    assert_eq!(ident.to_string(), "foo_inner");
+    check_errors(src);
 }
