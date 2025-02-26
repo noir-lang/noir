@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740574658542,
+  "lastUpdate": 1740574786136,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2b11fd7bb9a226499b4524cd2620c50e5677b840",
-          "message": "chore: Add SSA security checks description (#7366)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-19T08:56:05Z",
-          "tree_id": "d1030818be8dc016e2812bc5bd6d518fedac3c16",
-          "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
-        },
-        "date": 1739956753858,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.44,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "sirasistant@gmail.com",
             "name": "Álvaro Rodríguez",
             "username": "sirasistant"
@@ -14765,6 +14701,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f0c1c7ba3feaaa28905bb0813d14acc6673ca797"
         },
         "date": 1740516929119,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 231.86,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 266.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 201.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 447.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 388.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 327.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 334.27,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a54402ea6ed63728987101641cb2f98212d4e6f",
+          "message": "chore(ssa): Do not run passes on Brillig functions post Brillig gen (#7527)",
+          "timestamp": "2025-02-26T12:35:48Z",
+          "tree_id": "b7a096fb4d4d1e72711b5466a3d43ed08ca8e369",
+          "url": "https://github.com/noir-lang/noir/commit/8a54402ea6ed63728987101641cb2f98212d4e6f"
+        },
+        "date": 1740574784278,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
