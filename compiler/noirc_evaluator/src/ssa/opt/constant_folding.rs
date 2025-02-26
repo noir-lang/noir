@@ -114,6 +114,10 @@ impl Function {
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
+        if self.dfg.runtime().is_brillig() && brillig_info.is_some() {
+            return;
+        }
+
         while let Some(block) = context.block_queue.pop_front() {
             if context.visited_blocks.contains(&block) {
                 continue;
