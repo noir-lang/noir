@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(SignedField::new(1_i128.into(), true)).is_some());
+        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
         assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
         assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
@@ -313,8 +313,8 @@ mod tests {
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(SignedField::new(129_i128.into(), true)).is_some());
-        assert!(i8.value_is_outside_limits(SignedField::new(128_i128.into(), true)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());

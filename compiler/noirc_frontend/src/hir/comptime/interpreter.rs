@@ -1227,7 +1227,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Field(value) => {
                 value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
                     let typ = Type::default_int_type();
-                    let value = SignedField::new(value, false);
+                    let value = SignedField::positive(value);
                     InterpreterError::IntegerOutOfRangeForType { value, typ, location }
                 })?
             }

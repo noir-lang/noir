@@ -933,7 +933,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, SignedField::new(42_u128.into(), true));
+        assert_eq!(value, SignedField::negative(42_u128));
     }
 
     #[test]

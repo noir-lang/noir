@@ -15,6 +15,10 @@ impl SignedField {
         Self { field: field.into(), is_negative: false }
     }
 
+    pub fn negative(field: impl Into<FieldElement>) -> Self {
+        Self { field: field.into(), is_negative: true }
+    }
+
     /// Convert a signed integer to a SignedField, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
     /// you can call `SignedField::positive`.
@@ -89,6 +93,9 @@ impl Ord for SignedField {
             } else {
                 std::cmp::Ordering::Greater
             }
+        } else if self.is_negative {
+            // Negative comparisons should be reversed so that -2 < -1
+            other.field.cmp(&self.field)
         } else {
             self.field.cmp(&other.field)
         }
@@ -156,5 +163,21 @@ mod tests {
         let x = i128::MIN;
         let field = SignedField::from_signed(x);
         assert_eq!(field.try_to_signed(), Some(x));
+    }
+
+    #[test]
+    fn comparisons() {
+        let neg_two = SignedField::negative(2u32);
+        let neg_one = SignedField::negative(1u32);
+        let zero = SignedField::positive(0u32);
+        let one = SignedField::positive(1u32);
+        let two = SignedField::positive(2u32);
+
+        assert!(one < two);
+        assert!(zero < one);
+        assert!(neg_one < zero);
+        assert!(neg_two < neg_one);
+
+        assert!(two > neg_two);
     }
 }
