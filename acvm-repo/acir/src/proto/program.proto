@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package noir.proto.program;
+
+import public "acir.proto";
+import public "brillig.proto";
+
+// A program represents an entire circuit with ACIR and Brillig functions and
+// potentially multiple endpoints.
+message Program {
+  // ACIR circuits
+  repeated acir.Circuit functions = 1;
+  // Brillig functions
+  repeated brillig.BrilligBytecode unconstrained_functions = 2;
+}

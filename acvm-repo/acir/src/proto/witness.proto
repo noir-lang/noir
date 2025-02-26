@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package noir.proto.witness;
+
+message Witness { u32 index = 1; }

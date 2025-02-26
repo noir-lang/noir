@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package noir.proto.acir_program;
+
+// Only including the ACIR types for Berratenberg, not Brillig.
+import "acir.proto";
+
+// Same as in `program.proto` but ignores the `unconstrained_functions` field,
+// so that Berratenberg doesn't need to deserialize it.
+message Program {
+  // ACIR circuits
+  repeated acir.Circuit functions = 1;
+
+  reserved 2;
+  reserved "unconstrained_functions";
+}
