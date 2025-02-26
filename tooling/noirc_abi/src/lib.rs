@@ -201,7 +201,8 @@ impl Abi {
         let has_public_args = self.parameters.iter().any(|param| param.is_public());
         let has_public_return = self
             .return_type
-            .as_ref().is_some_and(|typ| matches!(typ.visibility, AbiVisibility::Public));
+            .as_ref()
+            .is_some_and(|typ| matches!(typ.visibility, AbiVisibility::Public));
         has_public_args || has_public_return
     }
 

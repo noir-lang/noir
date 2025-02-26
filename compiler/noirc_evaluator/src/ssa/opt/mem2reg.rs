@@ -200,7 +200,8 @@ impl<'f> PerFunctionContext<'f> {
 
                 let is_dereference = block
                     .expressions
-                    .get(store_address).is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
+                    .get(store_address)
+                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
                 if !self.last_loads.contains_key(store_address)
                     && !store_alias_used

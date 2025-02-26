@@ -91,7 +91,8 @@ impl Context {
                 // This is because we want to maximize the effect it will have.
                 let condition_is_one = function
                     .dfg
-                    .get_numeric_constant(*condition).is_some_and(|condition| condition.is_one());
+                    .get_numeric_constant(*condition)
+                    .is_some_and(|condition| condition.is_one());
                 if condition_is_one {
                     new_instructions.push(instruction_id);
                     last_side_effects_enabled_instruction = None;
