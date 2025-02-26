@@ -121,7 +121,11 @@ impl Parser<'_> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, location });
+                segments.push(PathSegment {
+                    ident,
+                    generics,
+                    location: self.location_since(location),
+                });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))

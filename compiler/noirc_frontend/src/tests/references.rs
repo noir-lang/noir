@@ -1,9 +1,4 @@
-use crate::hir::{
-    def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
-    type_check::TypeCheckError,
-};
-
-use super::get_program_errors;
+use crate::tests::check_errors;
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -11,21 +6,12 @@ fn cannot_mutate_immutable_variable() {
     fn main() {
         let array = [1];
         mutate(&mut array);
+                    ^^^^^ Cannot mutate immutable variable `array`
     }
 
     fn mutate(_: &mut [Field; 1]) {}
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
-        &errors[0]
-    else {
-        panic!("Expected a CannotMutateImmutableVariable error");
-    };
-
-    assert_eq!(name, "array");
+    check_errors(src);
 }
 
 #[test]
@@ -38,23 +24,14 @@ fn cannot_mutate_immutable_variable_on_member_access() {
     fn main() {
         let foo = Foo { x: 0 };
         mutate(&mut foo.x);
+                    ^^^^^ Cannot mutate immutable variable `foo`
     }
 
     fn mutate(foo: &mut Field) {
         *foo = 1;
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
-        &errors[0]
-    else {
-        panic!("Expected a CannotMutateImmutableVariable error");
-    };
-
-    assert_eq!(name, "foo");
+    check_errors(src);
 }
 
 #[test]
@@ -62,23 +39,15 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
     let src = r#"
     fn main() {
         mutate(&mut undefined);
+                    ^^^^^^^^^ cannot find `undefined` in this scope
+                    ~~~~~~~~~ not found in this scope
     }
 
     fn mutate(foo: &mut Field) {
         *foo = 1;
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
-        &errors[0]
-    else {
-        panic!("Expected a VariableNotDeclared error");
-    };
-
-    assert_eq!(name, "undefined");
+    check_errors(src);
 }
 
 #[test]
@@ -90,6 +59,7 @@ fn constrained_reference_to_unconstrained() {
             // Safety: test context
             unsafe {
                 mut_ref_input(x_ref, y);        
+                              ^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
             }
         }
 
@@ -100,13 +70,5 @@ fn constrained_reference_to_unconstrained() {
         *x = y;
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::TypeError(TypeCheckError::ConstrainedReferenceToUnconstrained { .. }) =
-        &errors[0]
-    else {
-        panic!("Expected an error about passing a constrained reference to unconstrained");
-    };
+    check_errors(src);
 }

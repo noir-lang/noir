@@ -505,7 +505,11 @@ impl PathSegment {
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
-        Span::from(self.ident.span().end()..self.location.span.end())
+        if self.ident.location().file == self.location.file {
+            Span::from(self.ident.span().end()..self.location.span.end())
+        } else {
+            self.location.span
+        }
     }
 
     pub fn turbofish_location(&self) -> Location {
