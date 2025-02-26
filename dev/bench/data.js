@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740608674436,
+  "lastUpdate": 1740608912969,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c63cc73313690dfd3ab0e4b190c5b6013dd6af03",
-          "message": "chore: standardize that doc comments on top of statements and expression are allowed but warn (#7450)",
-          "timestamp": "2025-02-19T21:47:04Z",
-          "tree_id": "57b68452ead9e066a6f3869e3fceedc96a3dfb04",
-          "url": "https://github.com/noir-lang/noir/commit/c63cc73313690dfd3ab0e4b190c5b6013dd6af03"
-        },
-        "date": 1740003083895,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.45,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14765,6 +14701,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b8b0e73eebb28ec0419570d30102a4550704b617"
         },
         "date": 1740603796291,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 280.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 469.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 410.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 356.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef2302b17a4aaa70c16cd437afc54bfb3d8540f2",
+          "message": "chore: revert bump of base64ct to `v1.6.0` after `v1.7.0` yanked (#7541)",
+          "timestamp": "2025-02-26T22:04:49Z",
+          "tree_id": "3c1a003749b3141cce429003ab7c036e7749f9b7",
+          "url": "https://github.com/noir-lang/noir/commit/ef2302b17a4aaa70c16cd437afc54bfb3d8540f2"
+        },
+        "date": 1740608910234,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
