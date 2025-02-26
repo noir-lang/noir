@@ -181,6 +181,7 @@ impl FuzzerContext {
             brillig_entry_block_index: brillig_entry_block,
             acir_terminated_blocks_indices: vec![],
             brillig_terminated_blocks_indices: vec![],
+            // TODO FIRST BLOCK ADD TO GLOBAL VARIABLES
             acir_current_block_variables_indices: acir_variables_indices.clone(),
             brillig_current_block_variables_indices: brillig_variables_indices.clone(),
             acir_builder,
@@ -369,9 +370,14 @@ impl FuzzerContext {
         for block_index in block_indices {
             self.finalize_block(block_index);
         }
-        let entry_blocks = (self.acir_entry_block_index, self.brillig_entry_block_index);
-        self.finalize_block(entry_blocks.0);
-        self.finalize_block(entry_blocks.1);
+
+        self.acir_builder.switch_to_block(u32_to_id_basic_block(self.acir_entry_block_index));
+        self.brillig_builder.switch_to_block(u32_to_id_basic_block(self.brillig_entry_block_index));
+        let acir_result_index = *self.acir_variables_indices.last().unwrap();
+        let brillig_result_index = *self.brillig_variables_indices.last().unwrap();
+        //jmp to first block and let it crash
+        self.acir_builder.insert_jmp_instruction(u32_to_id_basic_block(self.acir_blocks_indices[0]));
+        self.brillig_builder.insert_jmp_instruction(u32_to_id_basic_block(self.brillig_blocks_indices[0]));
     }
 
     fn get_return_witnesses(&mut self) -> (Witness, Witness) {
@@ -423,6 +429,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
 
     let initial_witness = witness_map;
     log::debug!("instructions: {:?}", data.blocks.clone());
+    log::debug!("logical_instructions: {:?}", data.logical_instructions.clone());
     log::debug!("initial_witness: {:?}", initial_witness);
 
     let mut fuzzer_context = FuzzerContext::new(type_.clone());
