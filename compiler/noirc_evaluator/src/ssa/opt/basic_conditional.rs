@@ -275,6 +275,8 @@ impl<'f> Context<'f> {
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
         //0. initialize the context for flattening a 'single conditional'
+        let old_target = self.target_block;
+        let old_no_predicate = self.no_predicate;
         let mut queue = vec![];
         self.target_block = conditional.block_entry;
         self.no_predicate = true;
@@ -335,6 +337,9 @@ impl<'f> Context<'f> {
         };
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);
         self.inserter.map_data_bus_in_place();
+        //4. restore the context, in case it is re-used.
+        self.target_block = old_target;
+        self.no_predicate = old_no_predicate;
     }
 
     fn map_block_with_mapping(
