@@ -340,44 +340,30 @@ impl Elaborator<'_> {
                 // - Possible diagnostics improvement: warn if `a` is defined as a variable
                 //   when there is a matching enum variant with name `Foo::a` which can
                 //   be imported. The user likely intended to reference the enum variant.
-                let path_len = path.segments.len();
                 let location = path.location;
                 let last_ident = path.last_ident();
+
+                // Setting this to `Some` allows us to shadow globals with the same name.
+                // We should avoid this if there is a `::` in the path since that means the
+                // user is trying to resolve to a non-local item.
+                let shadow_existing = path.is_ident().then_some(last_ident);
 
                 match self.resolve_path_or_error(path) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
+                        shadow_existing,
                         Vec::new(),
                         expected_type,
                         location,
                         variables_defined,
                     ),
-                    Err(_) if path_len == 1 => {
-                        // Define the variable
-                        let kind = DefinitionKind::Local(None);
-
-                        if let Some(existing) =
-                            variables_defined.iter().find(|elem| *elem == &last_ident)
-                        {
-                            // Allow redefinition of `_` only, to ignore variables
-                            if last_ident.0.contents != "_" {
-                                let error = ResolverError::VariableAlreadyDefinedInPattern {
-                                    existing: existing.clone(),
-                                    new_span: last_ident.span(),
-                                };
-                                self.push_err(error, self.file);
-                            }
-                        } else {
-                            variables_defined.push(last_ident.clone());
-                        }
-
-                        let id = self.add_variable_decl(last_ident, false, true, true, kind).id;
-                        self.interner.push_definition_type(id, expected_type.clone());
-                        Pattern::Binding(id)
-                    }
                     Err(error) => {
-                        self.push_err(error, location.file);
-                        Pattern::Error
+                        if let Some(name) = shadow_existing {
+                            self.define_pattern_variable(name, expected_type, variables_defined)
+                        } else {
+                            self.push_err(error, location.file);
+                            Pattern::Error
+                        }
                     }
                 }
             }
@@ -440,6 +426,33 @@ impl Elaborator<'_> {
             | ExpressionKind::Resolved(_)
             | ExpressionKind::Error => syntax_error(self),
         }
+    }
+
+    fn define_pattern_variable(
+        &mut self,
+        name: Ident,
+        expected_type: &Type,
+        variables_defined: &mut Vec<Ident>,
+    ) -> Pattern {
+        // Define the variable
+        let kind = DefinitionKind::Local(None);
+
+        if let Some(existing) = variables_defined.iter().find(|elem| *elem == &name) {
+            // Allow redefinition of `_` only, to ignore variables
+            if name.0.contents != "_" {
+                let error = ResolverError::VariableAlreadyDefinedInPattern {
+                    existing: existing.clone(),
+                    new_span: name.span(),
+                };
+                self.push_err(error, self.file);
+            }
+        } else {
+            variables_defined.push(name.clone());
+        }
+
+        let id = self.add_variable_decl(name, false, true, true, kind).id;
+        self.interner.push_definition_type(id, expected_type.clone());
+        Pattern::Binding(id)
     }
 
     fn constructor_to_pattern(
@@ -507,8 +520,11 @@ impl Elaborator<'_> {
                 let location = path.location;
 
                 match self.resolve_path_or_error(path) {
+                    // Use None for `name` here - we don't want to define a variable if this
+                    // resolves to an existing item.
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
+                        None,
                         args,
                         expected_type,
                         location,
@@ -545,9 +561,16 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Convert a PathResolutionItem - usually an enum variant or global - to a Constructor.
+    /// If `name` is `Some`, we'll define a Pattern::Binding instead of erroring if the
+    /// item doesn't resolve to a variant or global. This would shadow an existing
+    /// value such as a free function. Generally this is desired unless the variable was
+    /// a path with multiple components such as `foo::bar` which should always be treated as
+    /// a path to an existing item.
     fn path_resolution_to_constructor(
         &mut self,
-        name: PathResolutionItem,
+        resolution: PathResolutionItem,
+        name: Option<Ident>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
@@ -555,11 +578,11 @@ impl Elaborator<'_> {
     ) -> Pattern {
         let span = location.span;
 
-        let (actual_type, expected_arg_types, variant_index) = match name {
+        let (actual_type, expected_arg_types, variant_index) = match &resolution {
             PathResolutionItem::Global(id) => {
                 // variant constant
-                self.elaborate_global_if_unresolved(&id);
-                let global = self.interner.get_global(id);
+                self.elaborate_global_if_unresolved(id);
+                let global = self.interner.get_global(*id);
                 let variant_index = match &global.value {
                     GlobalValue::Resolved(Value::Enum(tag, ..)) => *tag,
                     // This may be a global constant. Treat it like a normal constant
@@ -583,7 +606,13 @@ impl Elaborator<'_> {
             PathResolutionItem::Method(_type_id, _type_turbofish, func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(&func_id);
-                let Some(variant_index) = meta.enum_variant_index else { todo!("not a variant") };
+                let Some(variant_index) = meta.enum_variant_index else {
+                    let item = resolution.description();
+                    let span = location.span;
+                    let error = ResolverError::UnexpectedItemInPattern { span, item };
+                    self.push_err(error, self.file);
+                    return Pattern::Error;
+                };
 
                 let (actual_type, expected_arg_types) = match meta.typ.instantiate(self.interner).0
                 {
@@ -593,18 +622,23 @@ impl Elaborator<'_> {
 
                 (actual_type, expected_arg_types, variant_index)
             }
-            PathResolutionItem::Module(_) => todo!("path_resolution_to_constructor {name:?}"),
-            PathResolutionItem::Type(_) => todo!("path_resolution_to_constructor {name:?}"),
-            PathResolutionItem::TypeAlias(_) => todo!("path_resolution_to_constructor {name:?}"),
-            PathResolutionItem::Trait(_) => todo!("path_resolution_to_constructor {name:?}"),
-            PathResolutionItem::ModuleFunction(_) => {
-                todo!("path_resolution_to_constructor {name:?}")
-            }
-            PathResolutionItem::TypeAliasFunction(_, _, _) => {
-                todo!("path_resolution_to_constructor {name:?}")
-            }
-            PathResolutionItem::TraitFunction(_, _, _) => {
-                todo!("path_resolution_to_constructor {name:?}")
+            PathResolutionItem::Module(_)
+            | PathResolutionItem::Type(_)
+            | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::Trait(_)
+            | PathResolutionItem::ModuleFunction(_)
+            | PathResolutionItem::TypeAliasFunction(_, _, _)
+            | PathResolutionItem::TraitFunction(_, _, _) => {
+                // This variable refers to an existing item
+                if let Some(name) = name {
+                    // If name is set, shadow the existing item
+                    return self.define_pattern_variable(name, expected_type, variables_defined);
+                } else {
+                    let item = resolution.description();
+                    let error = ResolverError::UnexpectedItemInPattern { span, item };
+                    self.push_err(error, self.file);
+                    return Pattern::Error;
+                }
             }
         };
 
@@ -617,7 +651,11 @@ impl Elaborator<'_> {
         });
 
         if args.len() != expected_arg_types.len() {
-            // error expected N args, found M?
+            let expected = expected_arg_types.len();
+            let found = args.len();
+            let error = TypeCheckError::ArityMisMatch { expected, found, span };
+            self.push_err(error, self.file);
+            return Pattern::Error;
         }
 
         let args = args.into_iter().zip(expected_arg_types);
@@ -740,8 +778,6 @@ impl Elaborator<'_> {
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
 
-            Type::Array(_, _) => todo!(),
-            Type::Slice(_) => todo!(),
             Type::Bool => {
                 let cases = vec![
                     (Constructor::False, Vec::new(), Vec::new()),
@@ -792,12 +828,17 @@ impl Elaborator<'_> {
                 } else {
                     drop(def);
                     let typ = Type::DataType(type_def, generics);
-                    todo!("Cannot match on type {typ}")
+                    let error = ResolverError::TypeUnsupportedInMatch { typ, span: location.span };
+                    Err((error, location.file))
                 }
             }
-            typ @ (Type::Alias(_, _)
-            | Type::TypeVariable(_)
+            // We could match on these types in the future
+            typ @ (Type::Array(_, _)
+            | Type::Slice(_)
             | Type::String(_)
+            // But we'll never be able to match on these
+            | Type::Alias(_, _)
+            | Type::TypeVariable(_)
             | Type::FmtString(_, _)
             | Type::TraitAsType(_, _, _)
             | Type::NamedGeneric(_, _)
@@ -808,7 +849,10 @@ impl Elaborator<'_> {
             | Type::Constant(_, _)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
-            | Type::Error) => todo!("Cannot match on type {typ:?}"),
+            | Type::Error) => {
+                let error = ResolverError::TypeUnsupportedInMatch { typ, span: location.span };
+                Err((error, location.file))
+            },
         }
     }
 
@@ -846,11 +890,9 @@ impl Elaborator<'_> {
                 let (key, cons) = match col.pattern {
                     Pattern::Int(val) => ((val, val), Constructor::Int(val)),
                     Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
-                    Pattern::Error => continue,
-                    pattern => {
-                        eprintln!("Unexpected pattern for integer type: {pattern:?}");
-                        continue;
-                    }
+                    // Any other pattern shouldn't have an integer type and we expect a type
+                    // check error to already have been issued.
+                    _ => continue,
                 };
 
                 if let Some(index) = tested.get(&key) {

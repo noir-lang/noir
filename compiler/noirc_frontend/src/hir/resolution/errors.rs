@@ -188,6 +188,10 @@ pub enum ResolverError {
     VariableAlreadyDefinedInPattern { existing: Ident, new_span: Span },
     #[error("Only integer globals can be used in match patterns")]
     NonIntegerGlobalUsedInPattern { location: Location },
+    #[error("Cannot match on values of type `{typ}`")]
+    TypeUnsupportedInMatch { typ: Type, span: Span },
+    #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
+    UnexpectedItemInPattern { span: noirc_errors::Span, item: &'static str },
 }
 
 impl ResolverError {
@@ -715,6 +719,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 let message = "Only integer or boolean globals can be used in match patterns".to_string();
                 let secondary = "This global is not an integer or boolean".to_string();
                 Diagnostic::simple_error(message, secondary, location.span)
+            },
+            ResolverError::TypeUnsupportedInMatch { typ, span } => {
+                Diagnostic::simple_error(
+                    format!("Cannot match on values of type `{typ}`"), 
+                    String::new(),
+                    *span,
+                )
+            },
+            ResolverError::UnexpectedItemInPattern { item, span } => {
+                Diagnostic::simple_error(
+                    format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    String::new(),
+                    *span,
+                )
             },
         }
     }
