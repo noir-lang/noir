@@ -38,7 +38,7 @@ impl<'a, E> LoggingForeignCallExecutor<'a, E> {
     }
 }
 
-impl<'a, E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<'a, E>
+impl<E, F> ForeignCallExecutor<F> for LoggingForeignCallExecutor<'_, E>
 where
     F: AcirField + Serialize,
     E: ForeignCallExecutor<F>,
