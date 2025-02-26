@@ -9,7 +9,7 @@ use crate::{
 
 use super::{parse_many::separated_by_comma, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Generics = ( '<' GenericsList? '>' )?
     ///
     /// GenericsList = Generic ( ',' Generic )* ','?

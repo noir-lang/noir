@@ -9,6 +9,9 @@ use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::fs::artifact::{
+    read_program_from_file, save_contract_to_file, save_program_to_file,
+};
 use noirc_driver::DEFAULT_EXPRESSION_WIDTH;
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_driver::{CompilationResult, CompileOptions, CompiledContract};
@@ -20,7 +23,6 @@ use notify_debouncer_full::new_debouncer;
 
 use crate::errors::CliError;
 
-use super::fs::program::{read_program_from_file, save_contract_to_file, save_program_to_file};
 use super::{LockType, PackageOptions, WorkspaceCommand};
 use rayon::prelude::*;
 
@@ -80,7 +82,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         let noir_files_modified = debounced_events.iter().any(|event| {
             let mut event_paths = event.event.paths.iter();
             let event_affects_noir_file =
-                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+                event_paths.any(|path| path.extension().is_some_and(|ext| ext == "nr"));
 
             let is_relevant_event_kind = matches!(
                 event.kind,
@@ -181,7 +183,7 @@ fn compile_programs(
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
         let program_artifact_path = workspace.package_build_path(package);
-        read_program_from_file(program_artifact_path)
+        read_program_from_file(&program_artifact_path)
             .ok()
             .filter(|p| p.noir_version == NOIR_ARTIFACT_VERSION_STRING)
             .map(|p| p.into())
@@ -241,7 +243,8 @@ fn compile_programs(
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, workspace.target_directory_path());
+        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
+            .expect("failed to save program");
 
         Ok(((), warnings))
     };
@@ -292,7 +295,8 @@ fn save_contract(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         target_dir,
-    );
+    )
+    .expect("failed to save contract");
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
     }
@@ -321,6 +325,7 @@ mod tests {
     use nargo::ops::compile_program;
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
     use crate::cli::{
@@ -393,7 +398,7 @@ mod tests {
 
         assert!(!test_workspaces.is_empty(), "should find some test workspaces");
 
-        test_workspaces.iter().for_each(|workspace| {
+        test_workspaces.par_iter().for_each(|workspace| {
             let (file_manager, parsed_files) = parse_workspace(workspace);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 

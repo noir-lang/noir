@@ -7,7 +7,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// TypeAlias = 'type' identifier Generics '=' Type ';'
     pub(crate) fn parse_type_alias(
         &mut self,

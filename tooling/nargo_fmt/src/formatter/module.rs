@@ -4,7 +4,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_module_declaration(&mut self, module_declaration: ModuleDeclaration) {
         self.format_secondary_attributes(module_declaration.outer_attributes);
         self.write_indentation();

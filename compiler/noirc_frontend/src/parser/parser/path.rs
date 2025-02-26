@@ -9,7 +9,7 @@ use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     #[cfg(test)]
     pub(crate) fn parse_path_or_error(&mut self) -> Path {
         if let Some(path) = self.parse_path() {
@@ -125,7 +125,11 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, location });
+                segments.push(PathSegment {
+                    ident,
+                    generics,
+                    location: self.location_since(location),
+                });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))

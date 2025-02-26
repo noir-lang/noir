@@ -136,10 +136,7 @@ impl DominatorTree {
             if let Some(value) = f(block_id) {
                 return Some(value);
             }
-            block_id = match self.immediate_dominator(block_id) {
-                Some(immediate_dominator) => immediate_dominator,
-                None => return None,
-            }
+            block_id = self.immediate_dominator(block_id)?;
         }
     }
 

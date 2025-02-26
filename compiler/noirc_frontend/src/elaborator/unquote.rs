@@ -5,7 +5,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl<'a> Elaborator<'a> {
+impl Elaborator<'_> {
     /// Go through the given tokens looking for a '$' token followed by a variable to unquote.
     /// Each time these two tokens are found, they are replaced by a new UnquoteMarker token
     /// containing the ExprId of the resolved variable to unquote.
