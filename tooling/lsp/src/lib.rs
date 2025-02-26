@@ -144,7 +144,7 @@ pub struct NargoLspService {
 }
 
 impl NargoLspService {
-    pub fn new<'a>(
+    pub fn new(
         client: &ClientSocket,
         solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
     ) -> Self {

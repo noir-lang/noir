@@ -44,7 +44,7 @@ mod tests;
 pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
-) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> + use<> {
     let uri = params.text_document.clone().uri;
     let position = params.range.start;
     let text_document_position_params =
