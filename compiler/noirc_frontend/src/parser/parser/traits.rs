@@ -15,7 +15,7 @@ use crate::{
 use super::parse_many::without_separator;
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
     ///       | 'trait' identifier Generics '=' TraitBounds WhereClause ';'
     pub(crate) fn parse_trait(

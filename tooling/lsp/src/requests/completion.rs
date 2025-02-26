@@ -1202,7 +1202,7 @@ impl<'a> NodeFinder<'a> {
     }
 }
 
-impl<'a> Visitor for NodeFinder<'a> {
+impl Visitor for NodeFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {

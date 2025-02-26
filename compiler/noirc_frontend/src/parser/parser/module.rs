@@ -8,7 +8,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ModOrContract
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(

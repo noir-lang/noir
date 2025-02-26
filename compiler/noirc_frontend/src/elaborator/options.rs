@@ -50,7 +50,7 @@ pub(crate) type ElaboratorOptions<'a> = GenericOptions<'a, fm::FileId>;
 /// CLI options that need to be passed to the compiler frontend (the elaborator).
 pub type FrontendOptions<'a> = GenericOptions<'a, &'a str>;
 
-impl<'a, T> GenericOptions<'a, T> {
+impl<T> GenericOptions<'_, T> {
     /// A sane default of frontend options for running tests
     pub fn test_default() -> GenericOptions<'static, T> {
         GenericOptions {

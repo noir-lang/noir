@@ -49,7 +49,7 @@ use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_builtin(
         &mut self,
         name: &str,
@@ -561,7 +561,10 @@ fn struct_def_fields(
     if actual != expected {
         let s = if expected == 1 { "" } else { "s" };
         let was_were = if actual == 1 { "was" } else { "were" };
-        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let message = Some(format!(
+            "`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
+            struct_def.name
+        ));
         let location = args_location;
         let call_stack = call_stack.clone();
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
@@ -1924,14 +1927,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+            Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
-                interner.expression(&id)
-            {
-                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
+                Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
             } else {
                 None
             }
@@ -3025,10 +3026,10 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
-    for gen in generators {
-        let x_big: BigUint = gen.x.into();
+    for generator in generators {
+        let x_big: BigUint = generator.x.into();
         let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = gen.y.into();
+        let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));

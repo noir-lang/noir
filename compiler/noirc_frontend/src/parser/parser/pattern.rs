@@ -22,7 +22,7 @@ pub(crate) struct SelfPattern {
     pub(crate) mutable: bool,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_pattern_or_error(&mut self) -> Pattern {
         if let Some(pattern) = self.parse_pattern() {
             return pattern;

@@ -116,7 +116,7 @@ pub fn collect_defs(
     errors
 }
 
-impl<'a> ModCollector<'a> {
+impl ModCollector<'_> {
     fn collect_attributes(
         &mut self,
         attributes: Vec<SecondaryAttribute>,

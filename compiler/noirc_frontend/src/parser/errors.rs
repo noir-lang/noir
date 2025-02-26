@@ -62,7 +62,9 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    #[error(
+        "Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context."
+    )]
     InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,

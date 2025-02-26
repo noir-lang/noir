@@ -20,7 +20,7 @@ use crate::{
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;

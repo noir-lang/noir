@@ -600,7 +600,7 @@ mod proptests {
         #[test]
         // Expect cases that don't resolve to constants, e.g. see
         // `arithmetic_generics_checked_cast_indirect_zeros`
-        #[should_panic(expected = "matches!(infix, Type :: Constant(..))")]
+        #[should_panic(expected = "matches!(infix, Type::Constant(..))")]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 

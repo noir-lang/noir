@@ -4568,3 +4568,33 @@ struct Foo {
         CompilationError::ResolverError(ResolverError::NoSuchField { .. })
     ));
 }
+
+#[test]
+fn int_min_global() {
+    let src = r#"
+        global MIN: i8 = -128;
+        fn main() {
+            let _x = MIN;
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn subtract_to_int_min() {
+    // This would cause an integer underflow panic before
+    let src = r#"
+        fn main() {
+            let _x: i8 = comptime {
+                let y: i8 = -127;
+                let z = y - 1;
+                z
+            };
+        }
+    "#;
+
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 0);
+}

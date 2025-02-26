@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_struct(&mut self, noir_struct: NoirStruct) {
         self.format_secondary_attributes(noir_struct.attributes);
         self.write_indentation();

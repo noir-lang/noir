@@ -30,7 +30,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) return_visibility: Visibility,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,

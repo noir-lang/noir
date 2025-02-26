@@ -460,7 +460,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                         element_size,
                                     );
                                 } else {
-                                    unreachable!("ICE: a vector must be preceded by a register containing its length");
+                                    unreachable!(
+                                        "ICE: a vector must be preceded by a register containing its length"
+                                    );
                                 }
                                 self.brillig_context.deallocate_heap_vector(*heap_vector);
                             }
@@ -1439,7 +1441,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 NumericType::Unsigned { .. } => (false, false),
                 NumericType::NativeField => (true, false),
             },
-            _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
+            _ => unreachable!(
+                "only numeric types are allowed in binary operations. References are handled separately"
+            ),
         };
 
         let brillig_binary_op = match binary.operator {
@@ -1998,14 +2002,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         self.allocate_foreign_call_result_array(element_type, inner_array);
 
                         // We add one since array.pointer points to [RC, ...items]
-                        let idx =
-                            self.brillig_context.make_usize_constant_instruction((index + 1).into()  );
-                        self.brillig_context.codegen_store_with_offset(array.pointer, idx, inner_array.pointer);
+                        let idx = self
+                            .brillig_context
+                            .make_usize_constant_instruction((index + 1).into());
+                        self.brillig_context.codegen_store_with_offset(
+                            array.pointer,
+                            idx,
+                            inner_array.pointer,
+                        );
 
                         self.brillig_context.deallocate_single_addr(idx);
                         self.brillig_context.deallocate_register(inner_array.pointer);
                     }
-                    Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                    Type::Slice(_) => unreachable!(
+                        "ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
+                    ),
                     _ => (),
                 }
                 index += 1;

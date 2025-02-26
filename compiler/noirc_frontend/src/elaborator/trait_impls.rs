@@ -19,7 +19,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn collect_trait_impl_methods(
         &mut self,
         trait_id: TraitId,

@@ -9,7 +9,7 @@ use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn fill_struct_fields(&mut self, constructor: &ConstructorExpression, span: Span) {
         if !self.includes_span(span) {
             return;

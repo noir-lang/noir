@@ -1158,7 +1158,9 @@ impl NodeInterner {
                 HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
                 HirStatement::Error => None,
                 other => {
-                    panic!("ice: all globals should correspond to a let statement in the interner: {other:?}")
+                    panic!(
+                        "ice: all globals should correspond to a let statement in the interner: {other:?}"
+                    )
                 }
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
