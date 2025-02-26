@@ -20,7 +20,7 @@ fn cannot_mutate_immutable_variable() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
-        &errors[0].0
+        &errors[0]
     else {
         panic!("Expected a CannotMutateImmutableVariable error");
     };
@@ -49,7 +49,7 @@ fn cannot_mutate_immutable_variable_on_member_access() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::CannotMutateImmutableVariable { name, .. }) =
-        &errors[0].0
+        &errors[0]
     else {
         panic!("Expected a CannotMutateImmutableVariable error");
     };
@@ -73,7 +73,7 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) =
-        &errors[0].0
+        &errors[0]
     else {
         panic!("Expected a VariableNotDeclared error");
     };
@@ -105,7 +105,7 @@ fn constrained_reference_to_unconstrained() {
     assert_eq!(errors.len(), 1);
 
     let CompilationError::TypeError(TypeCheckError::ConstrainedReferenceToUnconstrained { .. }) =
-        &errors[0].0
+        &errors[0]
     else {
         panic!("Expected an error about passing a constrained reference to unconstrained");
     };

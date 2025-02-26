@@ -8,13 +8,14 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
+use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::{acir::AcirField, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
-use super::{AsTraitPath, TypePath};
+use super::{AsTraitPath, TypePath, UnsafeExpression};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -38,7 +39,7 @@ pub enum ExpressionKind {
     Quote(Tokens),
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
-    Unsafe(BlockExpression, Location),
+    Unsafe(UnsafeExpression),
     AsTraitPath(AsTraitPath),
     TypePath(TypePath),
 
@@ -170,8 +171,8 @@ impl ExpressionKind {
         match (operator, &rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field, sign)), .. },
-            ) => ExpressionKind::Literal(Literal::Integer(*field, !sign)),
+                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
+            ) => ExpressionKind::Literal(Literal::Integer(-*field)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
@@ -199,7 +200,7 @@ impl ExpressionKind {
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(contents, false))
+        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents)))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -249,7 +250,7 @@ impl Expression {
         match &self.kind {
             ExpressionKind::Block(block_expression)
             | ExpressionKind::Comptime(block_expression, _)
-            | ExpressionKind::Unsafe(block_expression, _) => {
+            | ExpressionKind::Unsafe(UnsafeExpression { block: block_expression, .. }) => {
                 if let Some(statement) = block_expression.statements.last() {
                     statement.type_location()
                 } else {
@@ -409,7 +410,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, /*sign*/ bool), // false for positive integer and true for negative
+    Integer(SignedField),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
@@ -652,7 +653,7 @@ impl Display for ExpressionKind {
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
             Comptime(block, _) => write!(f, "comptime {block}"),
-            Unsafe(block, _) => write!(f, "unsafe {block}"),
+            Unsafe(UnsafeExpression { block, .. }) => write!(f, "unsafe {block}"),
             Error => write!(f, "Error"),
             Resolved(_) => write!(f, "?Resolved"),
             Interned(_) => write!(f, "?Interned"),
@@ -686,12 +687,8 @@ impl Display for Literal {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
-            Literal::Integer(integer, sign) => {
-                if *sign {
-                    write!(f, "-{}", integer.to_u128())
-                } else {
-                    write!(f, "{}", integer.to_u128())
-                }
+            Literal::Integer(signed_field) => {
+                write!(f, "{signed_field}")
             }
             Literal::Str(string) => write!(f, "\"{string}\""),
             Literal::RawStr(string, num_hashes) => {

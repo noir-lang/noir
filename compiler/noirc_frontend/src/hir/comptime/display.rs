@@ -10,7 +10,7 @@ use crate::{
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
+        StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
@@ -645,10 +645,13 @@ fn remove_interned_in_expression_kind(
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Comptime(BlockExpression { statements }, span)
         }
-        ExpressionKind::Unsafe(block, span) => {
+        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) => {
             let statements =
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-            ExpressionKind::Unsafe(BlockExpression { statements }, span)
+            ExpressionKind::Unsafe(UnsafeExpression {
+                block: BlockExpression { statements },
+                unsafe_keyword_location,
+            })
         }
         ExpressionKind::AsTraitPath(mut path) => {
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
@@ -697,7 +700,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_, _)
+        | Literal::Integer(_)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)

@@ -12,6 +12,7 @@ use crate::ast::{FunctionKind, IntegerBitSize, Signedness, UnaryOp, Visibility};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
 use crate::{
     debug::DebugInstrumenter,
@@ -481,10 +482,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
-            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(value, sign, typ, location))
+                Literal(Integer(value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
@@ -646,7 +647,7 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
 
-        let length = length.evaluate_to_u32(location.span).map_err(|err| {
+        let length = length.evaluate_to_u32(location).map_err(|err| {
             let location = self.interner.expr_location(&array);
             MonomorphizationError::UnknownArrayLength { location, err, length }
         })?;
@@ -819,7 +820,8 @@ impl<'interner> Monomorphizer<'interner> {
         })?;
 
         let tag_value = FieldElement::from(constructor.variant_index);
-        let tag = ast::Literal::Integer(tag_value, false, ast::Type::Field, location);
+        let tag_value = SignedField::positive(tag_value);
+        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         fields.insert(0, ast::Expression::Literal(tag));
 
         Ok(ast::Expression::Tuple(fields))
@@ -1027,7 +1029,7 @@ impl<'interner> Monomorphizer<'interner> {
                         binding
                             .evaluate_to_field_element(
                                 &Kind::Numeric(numeric_typ.clone()),
-                                location.span,
+                                location,
                             )
                             .map_err(|err| MonomorphizationError::UnknownArrayLength {
                                 length: binding.clone(),
@@ -1044,7 +1046,8 @@ impl<'interner> Monomorphizer<'interner> {
                 }
 
                 let typ = Self::convert_type(&typ, ident.location)?;
-                ast::Expression::Literal(ast::Literal::Integer(value, false, typ, location))
+                let value = SignedField::positive(value);
+                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
             }
         };
 
@@ -1119,7 +1122,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
             HirType::String(size) => {
-                let size = match size.evaluate_to_u32(location.span) {
+                let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // only default variable sizes to size 0
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
@@ -1135,7 +1138,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::String(size)
             }
             HirType::FmtString(size, fields) => {
-                let size = match size.evaluate_to_u32(location.span) {
+                let size = match size.evaluate_to_u32(location) {
                     Ok(size) => size,
                     // only default variable sizes to size 0
                     Err(TypeCheckError::NonConstantEvaluated { .. }) => 0,
@@ -1154,7 +1157,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
                 let element = Box::new(Self::convert_type(element.as_ref(), location)?);
-                let length = match length.evaluate_to_u32(location.span) {
+                let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
                         let length = length.as_ref().clone();
@@ -1402,14 +1405,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind(), location.span);
+        let to_value = to.evaluate_to_field_element(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
-            let from_value = from.evaluate_to_field_element_helper(
-                &to.kind(),
-                location.span,
-                skip_simplifications,
-            );
+            let from_value =
+                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
@@ -1628,12 +1628,11 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.expr_location(expr_id);
                 return Ok(match opcode.as_str() {
                     "modulus_num_bits" => {
-                        let bits = (FieldElement::max_num_bits() as u128).into();
+                        let bits = FieldElement::max_num_bits();
                         let typ =
                             ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        Some(ast::Expression::Literal(ast::Literal::Integer(
-                            bits, false, typ, location,
-                        )))
+                        let bits = SignedField::positive(bits);
+                        Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
                     }
                     "zeroed" => {
                         let location = self.interner.expr_location(expr_id);
@@ -1697,12 +1696,8 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(crate::ast::Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            Expression::Literal(Literal::Integer(
-                (byte as u128).into(),
-                false,
-                int_type.clone(),
-                location,
-            ))
+            let value = SignedField::positive(byte as u32);
+            Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
         let typ = Type::Slice(Box::new(int_type));
@@ -2062,7 +2057,8 @@ impl<'interner> Monomorphizer<'interner> {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), false, typ, location))
+                let zero = SignedField::positive(0u32);
+                ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
@@ -2217,8 +2213,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let int_value =
-                    ast::Literal::Integer(ordering_value, false, ast::Type::Field, location);
+                let ordering_value = SignedField::positive(ordering_value);
+                let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));
 
@@ -2375,10 +2371,9 @@ pub fn resolve_trait_method(
                 }
                 Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
-                        NoMatchingImplFoundError::new(interner, constraints, location.span)
+                        NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        let file = location.file;
-                        return Err(InterpreterError::NoMatchingImplFound { error, file });
+                        return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
                         return Err(InterpreterError::NoImpl { location });
                     }
