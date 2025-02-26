@@ -95,6 +95,11 @@ impl Ssa {
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
+            // We have already performed our final Brillig generation, so constant folding
+            // Brillig functions is unnecessary work.
+            if function.dfg.runtime().is_brillig() {
+                continue;
+            }
             function.constant_fold(false, brillig_info);
         }
 
@@ -113,10 +118,6 @@ impl Function {
         let mut context = Context::new(use_constraint_info, brillig_info);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
-
-        if self.dfg.runtime().is_brillig() && brillig_info.is_some() {
-            return;
-        }
 
         while let Some(block) = context.block_queue.pop_front() {
             if context.visited_blocks.contains(&block) {
