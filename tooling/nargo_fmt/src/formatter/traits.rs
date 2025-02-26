@@ -301,6 +301,23 @@ mod tests {
     }
 
     #[test]
+    fn format_trait_with_function_with_multiple_where_clauses() {
+        let src = " mod moo { trait Foo { 
+            fn  foo<T> () where  A: B, C: D;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        fn foo<T>()
+        where
+            A: B,
+            C: D;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_trait_with_function_with_visibility() {
         let src = " mod moo { trait Foo { 
     /// hello 
