@@ -9,13 +9,33 @@ use crate::{
 
 use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
         if let Some(typ) = self.parse_type() {
             typ
         } else {
             self.expected_label(ParsingRuleLabel::Type);
             UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
+        }
+    }
+
+    /// Tries to parse a type. If the current token doesn't denote a type and it's not
+    /// one of `stop_tokens`, try to parse a type starting from the next token (and so on).
+    pub(crate) fn parse_type_or_error_with_recovery(
+        &mut self,
+        stop_tokens: &[Token],
+    ) -> UnresolvedType {
+        loop {
+            let typ = self.parse_type_or_error();
+            if typ.typ != UnresolvedTypeData::Error {
+                return typ;
+            }
+
+            if self.at_eof() || stop_tokens.contains(self.token.token()) {
+                return typ;
+            }
+
+            self.bump();
         }
     }
 

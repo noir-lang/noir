@@ -39,7 +39,11 @@ impl Function {
         let reachable_blocks = self.reachable_blocks();
 
         if !self.runtime().is_entry_point() {
-            assert_eq!(reachable_blocks.len(), 1, "Expected there to be 1 block remaining in Acir function for array_set optimization");
+            assert_eq!(
+                reachable_blocks.len(),
+                1,
+                "Expected there to be 1 block remaining in Acir function for array_set optimization"
+            );
         }
 
         let mut context = Context::new(&self.dfg);

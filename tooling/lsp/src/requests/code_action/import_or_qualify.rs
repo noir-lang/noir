@@ -12,7 +12,7 @@ use crate::{
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn import_or_qualify(&mut self, path: &Path) {
         if path.segments.len() != 1 {
             return;

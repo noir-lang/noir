@@ -190,7 +190,7 @@ impl PackageConfig {
                 return Err(ManifestError::InvalidPackageType(
                     root_dir.join("Nargo.toml"),
                     invalid.to_string(),
-                ))
+                ));
             }
             None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
         };
@@ -389,7 +389,7 @@ fn toml_to_workspace(
             let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
-                    return Err(ManifestError::MissingSelectedPackage(member.name))
+                    return Err(ManifestError::MissingSelectedPackage(member.name));
                 }
                 _ => Workspace {
                     root_dir: nargo_toml.root_dir,
@@ -649,7 +649,8 @@ mod tests {
 
                     assert!(
                         indent <= current_indent + 1,
-                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}", current_dir.display()
+                        "cannot increase indent by more than {INDENT_SIZE}; item = {item}, current_dir={}",
+                        current_dir.display()
                     );
 
                     // Go into the last created directory

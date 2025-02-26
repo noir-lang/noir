@@ -302,7 +302,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
-        self.span.map_or(true, |span| span.intersects(&other_span))
+        self.span.is_none_or(|span| span.intersects(&other_span))
     }
 
     fn show_closing_brace_hint<F>(&mut self, span: Span, f: F)
@@ -320,7 +320,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 }
 
-impl<'a> Visitor for InlayHintCollector<'a> {
+impl Visitor for InlayHintCollector<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.intersects_span(item.location.span)
     }

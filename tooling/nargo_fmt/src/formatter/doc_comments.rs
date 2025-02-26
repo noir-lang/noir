@@ -2,7 +2,7 @@ use noirc_frontend::token::{DocStyle, Token};
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_inner_doc_comments(&mut self) {
         loop {
             self.skip_comments_and_whitespace();

@@ -14,7 +14,7 @@ use super::{
     NodeFinder,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn complete_auto_imports(
         &mut self,
         prefix: &str,

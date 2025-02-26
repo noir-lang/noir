@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use noirc_frontend::ast::{BinaryOpKind, Signedness};
 use noirc_frontend::monomorphization::ast::{self, GlobalId, InlineType, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
+use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -289,33 +290,30 @@ impl<'a> FunctionContext<'a> {
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: impl Into<FieldElement>,
-        negative: bool,
+        value: SignedField,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
-        let value = value.into();
-
-        if let Some(range) = numeric_type.value_is_outside_limits(value, negative) {
+        if let Some(range) = numeric_type.value_is_outside_limits(value) {
             let call_stack = self.builder.get_call_stack();
             return Err(RuntimeError::IntegerOutOfBounds {
-                value: if negative { -value } else { value },
+                value,
                 typ: numeric_type,
                 range,
                 call_stack,
             });
         }
 
-        let value = if negative {
+        let value = if value.is_negative {
             match numeric_type {
-                NumericType::NativeField => -value,
+                NumericType::NativeField => -value.field,
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value
+                    FieldElement::from(base) - value.field
                 }
             }
         } else {
-            value
+            value.field
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
