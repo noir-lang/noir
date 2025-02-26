@@ -231,13 +231,11 @@ fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Outp
     match op {
         BinaryIntOp::Shl => {
             let rhs_usize: usize = rhs as usize;
-            #[allow(unused_qualifications)]
-            if rhs_usize >= 8 * std::mem::size_of::<T>() { T::zero() } else { lhs << rhs.into() }
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs << rhs.into() }
         }
         BinaryIntOp::Shr => {
             let rhs_usize: usize = rhs as usize;
-            #[allow(unused_qualifications)]
-            if rhs_usize >= 8 * std::mem::size_of::<T>() { T::zero() } else { lhs >> rhs.into() }
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs >> rhs.into() }
         }
         _ => unreachable!("Operator not handled by this function: {op:?}"),
     }

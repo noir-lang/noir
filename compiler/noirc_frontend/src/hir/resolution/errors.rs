@@ -90,10 +90,6 @@ pub enum ResolverError {
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
-    #[error(
-        "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
-    )]
-    LowLevelFunctionOutsideOfStdlib { ident: Ident },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident },
     #[error("Oracle functions cannot be called directly from constrained functions")]
