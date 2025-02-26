@@ -172,29 +172,66 @@ This is however good to keep in mind in case you start noticing execution speeds
 
 ### Profiling proving backend gates
 
-ACIR opcodes do not give us a full picture of where the cost of this program lies.
-The `gates` command also accepts a backend binary. In the [quick start guide](../getting_started/quick_start.md#proving-backend) you can see how to get started with the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg).
+The profiler further provides the ability to flamegraph a Noir program's proving backend gates footprint. This is useful for fully identifying and optimizing proving bottlenecks of Noir programs.
 
-Run the following command:
+This feature depends on the proving backend you are using. We will use [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) as an example here. Follow the [quick start guide](../getting_started/quick_start.md#proving-backend) to install it if you have not already.
+
+#### Updating the demonstrative project
+
+Let's first revert our demonstrative program into a constrained program by removing the `unconstrained` modifier from the main function:
+
+```rust
+fn main(...){...}
+```
+
+Then recompile the program running `nargo compile`.
+
+#### Flamegraphing
+
+Let's take a granular look at our program's proving backend gates footprint using the profiler, running:
+
 ```sh
 noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target
 ```
-`--backend-path` accepts a path to the backend binary. In the above command we assume that you have the backend binary path saved in your PATH. If you do not, you will have to pass the binary's absolute path.
 
-This produces the following flamegraph with 3,737 total backend gates (using bb v0.76.4):
-![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
+The `--backend-path` flag takes in the path to your proving backend binary.
 
-Searching for ACIR `memory::op` opcodes, they look to cause about 18.2% of the backend gates.
+The above command assumes you have Barretenberg (bb) installed and that its path is saved in your PATH. If that is not the case, you can pass in the absolute path to your proving backend binary instead.
 
-You will notice that the majority of the backend gates come from the ACIR range opcodes. This is due to the way UltraHonk handles range constraints, which is the backend used in this example. UltraHonk uses lookup tables internally for its range gates. These can take up the majority of the gates for a small circuit, but whose impact becomes more meaningful in larger circuits. If our array was much larger, range gates would become a much smaller percentage of our total circuit.
-Here is an example backend gates flamegraph for the same program in this guide but with an array of size 2048:
-![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
-Every backend implements ACIR opcodes differently, so it is important to profile both the ACIR and the backend gates to get a full picture.
+Flamegraph of the demonstrative project generated with bb v0.76.4:
 
-Now let's generate a graph for our optimized circuit with an array of size 32. We get the following flamegraph that produces 3,062 total backend gates:
 ![Gates Flamegraph Optimized](@site/static/img/tooling/profiler/gates-flamegraph-optimized.png)
 
-In the optimized flamegraph, we searched for the backend gates due to `i > ptr` in the source code. The backend gates associated with this call stack were only 3.8% of the total backend gates. If we look back to the ACIR flamegraph, that same code was the cause of 43.3% ACIR opcodes. This discrepancy reiterates the earlier point about profiling both the ACIR opcodes and backend gates.
+The demonstrative project consists of 3,062 proving backend gates in total.
 
-For posterity, here is the flamegraph for the same program with a size 2048 array:
+:::note
+
+If you try searching for `i > ptr` in the source code, you will notice that this call stack is only contributing 3.8% of the total proving backend gates, versus the 43.3% ACIR opcodes it contributes.
+
+This illustrates that number of ACIR opcodes are at best approximations of proving performances, where actual proving performances depend on how the proving backend interprets and translates ACIR opcodes into proving gates.
+
+:::
+
+:::tip
+
+Profiling your program with different parameters is good way to understand your program's bottlenecks as it scales.
+
+From the flamegraph above, you will notice that `blackbox::range` contributes the majority of the backend gates. This comes from how Barretenberg UltraHonk uses lookup tables for its range gates under the hood, which comes with a considerable but fixed setup cost in terms of proving gates.
+
+If our array is larger, range gates would become a much smaller percentage of our total circuit. See this flamegraph for the same program but with an array of size 2,048 (versus originally 32) in comparison:
+
 ![Gates Flamegraph Optimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-optimized-2048.png)
+
+Where `blackbox::range` contributes a considerably smaller portion of the total proving gates.
+
+Every proving backend interprets ACIR opcodes differently, so it is important to profile proving backend gates to get the full picture of proving performance.
+
+As additional reference, this is the flamegraph of the pre-optimization demonstrative project at array size 32:
+
+![Gates Flamegraph Unoptimized](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized.png)
+
+And at array size 2,048:
+
+![Gates Flamegraph Unoptimized 2048](@site/static/img/tooling/profiler/gates-flamegraph-unoptimized-2048.png)
+
+:::
