@@ -2,7 +2,9 @@
 //! Certain operations such as array gets only utilize the items pointer.
 //! Without handling the items pointer offset in SSA, it is left to Brillig generation
 //! to offset the array pointer.
-//! Slices are represented in a similar manner, except the items pointer starts at three rather than one.
+//!
+//! Slices are represented as Brillig vectors, where the items pointer instead starts at three rather than one.
+//! A Brillig vector is represented as [RC, Size, Capacity, ...items].
 //!
 //! For array operations with constant indices adding an instruction to offset the pointer
 //! is unnecessary as we already know the index. This pass looks for such array operations
@@ -59,8 +61,10 @@ impl Function {
                     let index_constant =
                         self.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
                     let offset = if matches!(self.dfg.type_of_value(array), Type::Array(..)) {
+                        // Brillig arrays are [RC, ...items]
                         1u128
                     } else {
+                        // Brillig vectors are [RC, Size, Capacity, ...items]
                         3u128
                     };
                     let index = self.dfg.make_constant(
@@ -136,5 +140,29 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.brillig_array_gets();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn offset_slice_array_get_constant_index() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_array_gets();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field]):
+            v2 = array_get v0, index u32 3 -> Field
+            return v2
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
