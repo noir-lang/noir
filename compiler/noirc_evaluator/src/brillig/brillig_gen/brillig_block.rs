@@ -771,21 +771,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 // Slice access checks are generated separately against the slice's dynamic length field.
                 if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_index(*index, *array)
+                    && !dfg.is_safe_brillig_index(*index, *array)
                 {
                     self.validate_array_index(array_variable, index_variable);
                 }
 
-                let items_pointer =
-                    self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable);
-
-                self.brillig_context.codegen_load_with_offset(
-                    items_pointer,
-                    index_variable,
-                    destination_variable.extract_register(),
-                );
-
-                self.brillig_context.deallocate_register(items_pointer);
+                if dfg.is_constant(*index) {
+                    self.brillig_context.codegen_load_with_offset(
+                        array_variable.extract_register(),
+                        index_variable,
+                        destination_variable.extract_register(),
+                    );
+                } else {
+                    let items_pointer = self
+                        .brillig_context
+                        .codegen_make_array_or_vector_items_pointer(array_variable);
+                    self.brillig_context.codegen_load_with_offset(
+                        items_pointer,
+                        index_variable,
+                        destination_variable.extract_register(),
+                    );
+                    self.brillig_context.deallocate_register(items_pointer);
+                }
             }
             Instruction::ArraySet { array, index, value, mutable } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
