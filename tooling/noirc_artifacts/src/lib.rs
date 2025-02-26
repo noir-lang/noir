@@ -34,7 +34,7 @@ where
     // Backwards compatible with `hash` serialized as a number.
     struct StringOrU64;
 
-    impl<'de> Visitor<'de> for StringOrU64 {
+    impl Visitor<'_> for StringOrU64 {
         type Value = u64;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
