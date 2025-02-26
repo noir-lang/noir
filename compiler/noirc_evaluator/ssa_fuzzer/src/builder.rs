@@ -10,6 +10,8 @@ use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_driver::{CompileOptions, CompiledProgram, CompileError};
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
+use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+
 pub struct FuzzerBuilder {
     builder: FunctionBuilder,
     numeric_type: NumericType,
@@ -181,7 +183,7 @@ impl FuzzerBuilder {
     pub fn insert_make_array(&mut self, elements: Vec<u32>) -> Id<Value> {
         let mut elems = Vec::new();
         for elem in elements.clone() {
-            elems.push(helpers::u32_to_id(elem));
+            elems.push(helpers::u32_to_id_value(elem));
         }
         let types = vec![self.type_.clone(); elements.len()];
         let result = self.builder.insert_make_array(
@@ -201,5 +203,30 @@ impl FuzzerBuilder {
         let index_var = self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
         let result = self.builder.insert_array_set(array, index_var, value);
         return result;
+    }
+
+    pub fn get_entry_block_index(&mut self) -> u32 {
+        return helpers::id_to_int(self.builder.get_current_block_index());
+    }
+
+    pub fn switch_to_block(&mut self, block: BasicBlockId) {
+        self.builder.switch_to_block(block);
+    }
+
+    pub fn insert_block(&mut self) -> u32 {
+        return helpers::id_to_int(self.builder.insert_block());
+    }
+
+    pub fn insert_return_instruction(&mut self, return_value: Id<Value>) {
+        self.builder.terminate_with_return(vec![return_value]);
+    }
+
+    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId) {
+        // we have no arguments to jump to the destination block, we work in single function
+        self.builder.terminate_with_jmp(destination, vec![]);
+    }
+
+    pub fn insert_jmpif_instruction(&mut self, condition: Id<Value>, then_destination: BasicBlockId, else_destination: BasicBlockId) {
+        self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
     }
 }

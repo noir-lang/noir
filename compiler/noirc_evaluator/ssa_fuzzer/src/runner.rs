@@ -5,6 +5,7 @@ use acvm::{
     },
     FieldElement, BlackBoxFunctionSolver
 };
+use std::time::Instant;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::ops::execute::execute_program;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
@@ -47,8 +48,14 @@ pub fn run_and_compare(
     return_witness_acir: Witness,
     return_witness_brillig: Witness
 ) -> (bool, FieldElement, FieldElement) {
+    let acir_start = Instant::now();
     let acir_result = execute_single(acir_program, initial_witness.clone(), return_witness_acir);
+    let acir_duration = acir_start.elapsed();
+    //println!("ACIR execution took: {:?}", acir_duration);
+    let brillig_start = Instant::now();
     let brillig_result = execute_single(brillig_program, initial_witness, return_witness_brillig);
+    let brillig_duration = brillig_start.elapsed();
+    //println!("Brillig execution took: {:?}", brillig_duration);
     let _ = env_logger::try_init();
     match (acir_result, brillig_result) {
         (Ok(acir_result), Ok(brillig_result)) => {

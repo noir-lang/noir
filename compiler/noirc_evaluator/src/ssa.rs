@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{
+pub use crate::{
     brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };

@@ -87,7 +87,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
         self.to_brillig_with_globals(options, HashMap::default())
     }
 
