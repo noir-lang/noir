@@ -545,6 +545,7 @@ fn compile_contract_inner(
 
         functions.push(ContractFunction {
             name,
+            hash: function.hash,
             custom_attributes,
             abi: function.abi,
             bytecode: function.program,

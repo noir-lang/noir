@@ -71,7 +71,7 @@ jobs:
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.86
+          tool: wasm-bindgen-cli@0.2.100
 
       - name: Install wasm-opt
         run: |
