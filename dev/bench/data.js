@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740574786136,
+  "lastUpdate": 1740574790972,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2b11fd7bb9a226499b4524cd2620c50e5677b840",
-          "message": "chore: Add SSA security checks description (#7366)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-19T08:56:05Z",
-          "tree_id": "d1030818be8dc016e2812bc5bd6d518fedac3c16",
-          "url": "https://github.com/noir-lang/noir/commit/2b11fd7bb9a226499b4524cd2620c50e5677b840"
-        },
-        "date": 1739956752997,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 275.64,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 586.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 950.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 816.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 326.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 6860,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 6870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.33,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 390.3,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a54402ea6ed63728987101641cb2f98212d4e6f",
+          "message": "chore(ssa): Do not run passes on Brillig functions post Brillig gen (#7527)",
+          "timestamp": "2025-02-26T12:35:48Z",
+          "tree_id": "b7a096fb4d4d1e72711b5466a3d43ed08ca8e369",
+          "url": "https://github.com/noir-lang/noir/commit/8a54402ea6ed63728987101641cb2f98212d4e6f"
+        },
+        "date": 1740574788437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 604.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 961.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 834.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 344.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7850,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7850,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 342.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 390.26,
             "unit": "MB"
           }
         ]
