@@ -150,40 +150,49 @@ fn assert_no_errors(src: &str) {
     }
 }
 
-/// Given a source file with annotated errors, like this:
+/// Given a source file with annotated errors, like this
 ///
-/// ```
-/// "
-/// fn main(_: some_type) {}
-///            ^^^^^^^^^ Could not resolve 'some_type' in path
-/// "
-/// ```
+/// fn main() -> pub i32 {
+///                  ^^^ expected i32 because of return type
+///     true        
+///     ~~~~ bool returned here
+/// }
 ///
-/// compiles the program without lines that have the "^^^" annotations,
-/// gathers the errors and expects the errors to land on the given
-/// annotations and their messages to match.
+/// where:
+/// - lines with "^^^" are primary errors
+/// - lines with "~~~" are secondary errors
+///
+/// this method will check that compiling the program without those error markers
+/// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
     let mut code_lines = Vec::new();
-    // Here we'll capture lines that are error spans, like:
+    // Here we'll capture lines that are primary error spans, like:
     //
     //   ^^^ error message
-    let mut spans_with_errors: Vec<(Span, String)> = Vec::new();
+    let mut primary_spans_with_errors: Vec<(Span, String)> = Vec::new();
+    // Here we'll capture lines that are secondary error spans, like:
+    //
+    //   ~~~ error message
+    let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
     // The byte at the start of this line
     let mut byte = 0;
-    // The length of the last line
+    // The length of the last line, needed to go back to the byte at the beginning of the last line
     let mut last_line_length = 0;
     for line in lines {
-        if line.trim().starts_with('^') {
-            let chars = line.chars().collect::<Vec<_>>();
-            let first_caret = chars.iter().position(|char| *char == '^').unwrap();
-            let last_caret = chars.iter().rposition(|char| *char == '^').unwrap();
-            let start = byte - last_line_length;
-            let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
-            let error = line.trim().trim_start_matches('^').trim().to_string();
-            spans_with_errors.push((span, error));
+        if let Some((span, message)) =
+            get_error_line_span_and_message(line, '^', byte, last_line_length)
+        {
+            primary_spans_with_errors.push((span, message));
+            continue;
+        }
+
+        if let Some((span, message)) =
+            get_error_line_span_and_message(line, '~', byte, last_line_length)
+        {
+            secondary_spans_with_errors.push((span, message));
             continue;
         }
 
@@ -193,7 +202,11 @@ fn check_errors(src: &str) {
         last_line_length = line.len();
     }
 
-    let mut spans_with_errors: HashMap<Span, String> = spans_with_errors.into_iter().collect();
+    let mut primary_spans_with_errors: HashMap<Span, String> =
+        primary_spans_with_errors.into_iter().collect();
+
+    let mut secondary_spans_with_errors: HashMap<Span, String> =
+        secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
     let errors = get_program_errors(&src);
@@ -210,16 +223,51 @@ fn check_errors(src: &str) {
         let span = secondary.location.span;
         let message = &error.message;
 
-        let Some(expected_message) = spans_with_errors.remove(&span) else {
-            panic!("Couldn't find error at {span:?}.\nAll errors: {errors:?}");
+        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
+            panic!("Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}");
         };
 
-        assert_eq!(message, &expected_message, "Error at {span:?} has unexpected message");
+        assert_eq!(message, &expected_message, "Primary error at {span:?} has unexpected message");
+
+        let message = &secondary.message;
+        if message.is_empty() {
+            continue;
+        }
+
+        let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
+            panic!("Couldn't find secondary error at {span:?} with message {message:?}.\nAll errors: {errors:?}");
+        };
+
+        assert_eq!(
+            message, &expected_message,
+            "Secondary error at {span:?} has unexpected message"
+        );
     }
 
-    if !spans_with_errors.is_empty() {
-        panic!("These errors didn't happen: {spans_with_errors:?}");
+    if !primary_spans_with_errors.is_empty() {
+        panic!("These errors didn't happen: {primary_spans_with_errors:?}");
     }
+}
+
+/// Helper function for `check_errors` that returns the span that
+/// `^^^^` or `~~~~` occupy, together with the message that follows it.
+fn get_error_line_span_and_message(
+    line: &str,
+    char: char,
+    byte: usize,
+    last_line_length: usize,
+) -> Option<(Span, String)> {
+    if !line.trim().starts_with(char) {
+        return None;
+    }
+
+    let chars = line.chars().collect::<Vec<_>>();
+    let first_caret = chars.iter().position(|c| *c == char).unwrap();
+    let last_caret = chars.iter().rposition(|c| *c == char).unwrap();
+    let start = byte - last_line_length;
+    let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
+    let error = line.trim().trim_start_matches(char).trim().to_string();
+    Some((span, error))
 }
 
 #[test]
@@ -285,10 +333,12 @@ fn check_trait_implementation_duplicate_method() {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
            ^^^^^^^ Duplicate definitions of trait associated function with name default found
+           ~~~~~~~ First trait associated function found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
+           ~~~~~~~ Second trait associated function found here
             x + 2 * y
         }
     }
@@ -367,6 +417,7 @@ fn check_trait_missing_implementation() {
 
     impl Default for Foo {
                      ^^^ Method `method2` from trait `Default` is not implemented
+                     ~~~ Please implement method2 here
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
