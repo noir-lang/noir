@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740581413425,
+  "lastUpdate": 1740581414555,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5d19109b6a5738a97b745c6117cf0a1e9f1552bb",
-          "message": "feat: simplify assertions that squared values are equal to zero (#7432)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-02-19T12:17:26Z",
-          "tree_id": "487c875a72303339f0b71bcbd09b5ef817d44512",
-          "url": "https://github.com/noir-lang/noir/commit/5d19109b6a5738a97b745c6117cf0a1e9f1552bb"
-        },
-        "date": 1739968522013,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.979,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.756,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.9,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.501,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.102,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.368,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.978,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.962,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.951,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 92.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 96.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.911,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.486,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8401,6 +8307,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.522,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6",
+          "message": "fix: No longer error on INT_MIN globals (#7519)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-02-26T14:27:59Z",
+          "tree_id": "80376e153ade79349b08210ff3a8012112fb9846",
+          "url": "https://github.com/noir-lang/noir/commit/0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6"
+        },
+        "date": 1740581412437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 0.94,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.681,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 20.5,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.517,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.368,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.009,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 8.684,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 4.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 94.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 96.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.936,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.528,
             "unit": "s"
           }
         ]
