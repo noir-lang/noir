@@ -6,8 +6,8 @@ cd $(dirname "$0")
 ./cargo-binstall-install.sh
 
 # Install wasm-bindgen-cli.
-if [ "$(wasm-bindgen --version &> /dev/null | cut -d' ' -f2)" != "0.2.86" ]; then
+if [ "$(wasm-bindgen --version &> /dev/null | cut -d' ' -f2)" != "0.2.100" ]; then
   echo "Building wasm-bindgen..."
-  cargo binstall wasm-bindgen-cli@0.2.86 --force --no-confirm
+  cargo binstall wasm-bindgen-cli@0.2.100 --force --no-confirm
 fi
 

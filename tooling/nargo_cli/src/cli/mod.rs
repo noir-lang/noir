@@ -14,8 +14,6 @@ use color_eyre::eyre;
 
 use crate::errors::CliError;
 
-mod fs;
-
 mod check_cmd;
 mod compile_cmd;
 mod dap_cmd;
@@ -214,13 +212,11 @@ where
 /// The lock taken can be shared for commands that only read the artifacts,
 /// or exclusive for the ones that (might) write artifacts as well.
 fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
-    use fs2::FileExt as _;
-
     struct LockedFile(File);
 
     impl Drop for LockedFile {
         fn drop(&mut self) {
-            let _ = self.0.unlock();
+            let _ = fs2::FileExt::unlock(&self.0);
         }
     }
 
@@ -233,15 +229,17 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
             .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
 
         if exclusive {
-            if file.try_lock_exclusive().is_err() {
+            if fs2::FileExt::try_lock_exclusive(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...");
             }
-            file.lock_exclusive().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_exclusive(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         } else {
-            if file.try_lock_shared().is_err() {
+            if fs2::FileExt::try_lock_shared(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...",);
             }
-            file.lock_shared().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_shared(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         }
 
         locks.push(LockedFile(file));

@@ -800,11 +800,11 @@ impl Attributes {
     }
 
     pub fn is_foldable(&self) -> bool {
-        self.function().map_or(false, |func_attribute| func_attribute.is_foldable())
+        self.function().is_some_and(|func_attribute| func_attribute.is_foldable())
     }
 
     pub fn is_no_predicates(&self) -> bool {
-        self.function().map_or(false, |func_attribute| func_attribute.is_no_predicates())
+        self.function().is_some_and(|func_attribute| func_attribute.is_no_predicates())
     }
 
     pub fn has_varargs(&self) -> bool {

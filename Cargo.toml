@@ -54,7 +54,7 @@ version = "1.0.0-beta.3"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
@@ -118,9 +118,9 @@ lsp-types = "0.94.1"
 tower = "0.4"
 
 # Wasm
-wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
-wasm-bindgen-test = "0.3.36"
-wasm-bindgen-futures = "0.4.36"
+wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.50"
+wasm-bindgen-futures = "0.4.50"
 console_error_panic_hook = "0.1.7"
 gloo-utils = { version = "0.1", features = ["serde"] }
 js-sys = "0.3.62"

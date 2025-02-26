@@ -7,7 +7,7 @@ const NEWLINE: &str = "\r\n";
 #[cfg(not(windows))]
 const NEWLINE: &str = "\n";
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     /// Writes a single space, skipping any whitespace and comments.
     /// That is, suppose the next token is a big whitespace, possibly with multiple lines.
     /// Those are skipped but only one space is written. In this way if we have

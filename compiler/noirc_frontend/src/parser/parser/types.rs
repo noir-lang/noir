@@ -9,7 +9,7 @@ use crate::{
 
 use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
         if let Some(typ) = self.parse_type() {
             typ

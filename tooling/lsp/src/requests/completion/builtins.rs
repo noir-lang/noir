@@ -11,7 +11,7 @@ use super::{
     name_matches, NodeFinder,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn builtin_functions_completion(
         &mut self,
         prefix: &str,
