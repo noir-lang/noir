@@ -462,7 +462,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
                 let secondary = if let Some(err) = err {
-                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                    format!(
+                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
+                    )
                 } else {
                     "Array lengths must be integers".to_string()
                 };

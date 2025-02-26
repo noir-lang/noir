@@ -27,7 +27,9 @@ pub enum InputValue {
 pub enum InputTypecheckingError {
     #[error("Value {value:?} does not fall within range of allowable values for a {typ:?}")]
     OutsideOfValidRange { path: String, typ: AbiType, value: InputValue },
-    #[error("Type {typ:?} is expected to have length {expected_length} but value {value:?} has length {actual_length}")]
+    #[error(
+        "Type {typ:?} is expected to have length {expected_length} but value {value:?} has length {actual_length}"
+    )]
     LengthMismatch {
         path: String,
         typ: AbiType,
@@ -35,9 +37,13 @@ pub enum InputTypecheckingError {
         expected_length: usize,
         actual_length: usize,
     },
-    #[error("Could not find value for required field `{expected_field}`. Found values for fields {found_fields:?}")]
+    #[error(
+        "Could not find value for required field `{expected_field}`. Found values for fields {found_fields:?}"
+    )]
     MissingField { path: String, expected_field: String, found_fields: Vec<String> },
-    #[error("Additional unexpected field was provided for type {typ:?}. Found field named `{extra_field}`")]
+    #[error(
+        "Additional unexpected field was provided for type {typ:?}. Found field named `{extra_field}`"
+    )]
     UnexpectedField { path: String, typ: AbiType, extra_field: String },
     #[error("Type {typ:?} and value {value:?} do not match")]
     IncompatibleTypes { path: String, typ: AbiType, value: InputValue },

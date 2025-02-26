@@ -20,7 +20,7 @@ use super::{
     Parser,
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
@@ -1637,14 +1637,22 @@ mod tests {
         let multiply_or_divide_or_modulo = "1 * 2 / 3 % 4";
         let expected_multiply_or_divide_or_modulo = "(((1 * 2) / 3) % 4)";
 
-        let add_or_subtract = format!("{multiply_or_divide_or_modulo} + {multiply_or_divide_or_modulo} - {multiply_or_divide_or_modulo}");
-        let expected_add_or_subtract = format!("(({expected_multiply_or_divide_or_modulo} + {expected_multiply_or_divide_or_modulo}) - {expected_multiply_or_divide_or_modulo})");
+        let add_or_subtract = format!(
+            "{multiply_or_divide_or_modulo} + {multiply_or_divide_or_modulo} - {multiply_or_divide_or_modulo}"
+        );
+        let expected_add_or_subtract = format!(
+            "(({expected_multiply_or_divide_or_modulo} + {expected_multiply_or_divide_or_modulo}) - {expected_multiply_or_divide_or_modulo})"
+        );
 
         let shift = format!("{add_or_subtract} << {add_or_subtract} >> {add_or_subtract}");
-        let expected_shift = format!("(({expected_add_or_subtract} << {expected_add_or_subtract}) >> {expected_add_or_subtract})");
+        let expected_shift = format!(
+            "(({expected_add_or_subtract} << {expected_add_or_subtract}) >> {expected_add_or_subtract})"
+        );
 
         let less_or_greater = format!("{shift} < {shift} > {shift} <= {shift} >= {shift}");
-        let expected_less_or_greater = format!("(((({expected_shift} < {expected_shift}) > {expected_shift}) <= {expected_shift}) >= {expected_shift})");
+        let expected_less_or_greater = format!(
+            "(((({expected_shift} < {expected_shift}) > {expected_shift}) <= {expected_shift}) >= {expected_shift})"
+        );
 
         let xor = format!("{less_or_greater} ^ {less_or_greater}");
         let expected_xor = format!("({expected_less_or_greater} ^ {expected_less_or_greater})");

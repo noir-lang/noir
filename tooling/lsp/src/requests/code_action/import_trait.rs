@@ -17,7 +17,7 @@ use crate::{
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn import_trait_in_method_call(&mut self, method_call: &MethodCallExpression) {
         // First see if the method name already points to a function.
         let name_location = Location::new(method_call.method_name.span(), self.file);

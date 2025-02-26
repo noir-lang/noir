@@ -9,7 +9,7 @@ use crate::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn merge_and_format_imports(
         &mut self,
         imports: Vec<UseTree>,

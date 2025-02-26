@@ -6,7 +6,7 @@ use noirc_frontend::{
 
 use super::{function::FunctionToFormat, Formatter};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
         self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();

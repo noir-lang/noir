@@ -140,11 +140,11 @@ impl Binary {
             };
         }
 
-        let lhs_is_zero = lhs_value.map_or(false, |lhs| lhs.is_zero());
-        let rhs_is_zero = rhs_value.map_or(false, |rhs| rhs.is_zero());
+        let lhs_is_zero = lhs_value.is_some_and(|lhs| lhs.is_zero());
+        let rhs_is_zero = rhs_value.is_some_and(|rhs| rhs.is_zero());
 
-        let lhs_is_one = lhs_value.map_or(false, |lhs| lhs.is_one());
-        let rhs_is_one = rhs_value.map_or(false, |rhs| rhs.is_one());
+        let lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
+        let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
 
         match self.operator {
             BinaryOp::Add { .. } => {

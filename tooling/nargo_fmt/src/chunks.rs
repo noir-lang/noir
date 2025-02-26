@@ -546,7 +546,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
 /// Treating a `ChunkFormatter` as a `Formatter` in read-only mode is always fine,
 /// and reduces some boilerplate.
-impl<'a, 'b> Deref for ChunkFormatter<'a, 'b> {
+impl<'b> Deref for ChunkFormatter<'_, 'b> {
     type Target = Formatter<'b>;
 
     fn deref(&self) -> &Self::Target {

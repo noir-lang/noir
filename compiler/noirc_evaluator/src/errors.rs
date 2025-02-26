@@ -34,7 +34,9 @@ pub enum RuntimeError {
     UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
-    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    #[error(
+        "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
+    )]
     InvalidBlackBoxInputBitSize {
         value: String,
         num_bits: u32,
@@ -59,7 +61,9 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
-    #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
+    #[error(
+        "Could not resolve some references to the array. All references must be resolved at compile time"
+    )]
     UnknownReference { call_stack: CallStack },
 }
 

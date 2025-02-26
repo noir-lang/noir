@@ -48,7 +48,7 @@ pub(super) struct TraitPathResolution {
     pub(super) errors: Vec<PathResolutionError>,
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let location = typ.location;
@@ -1008,7 +1008,9 @@ impl<'context> Elaborator<'context> {
             if from_is_polymorphic && from_value > to_maximum_size {
                 let from = from.clone();
                 let to = to.clone();
-                let reason = format!("casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it");
+                let reason = format!(
+                    "casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it"
+                );
                 // we warn that the 'to' type is too small for the value
                 self.push_err(TypeCheckError::DownsizingCast { from, to, location, reason });
             }

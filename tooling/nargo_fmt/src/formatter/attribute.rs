@@ -6,7 +6,7 @@ use crate::chunks::ChunkGroup;
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_attributes(&mut self, attributes: Attributes) {
         let mut all_attributes = Vec::new();
         for attribute in attributes.secondary {

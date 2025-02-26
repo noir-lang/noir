@@ -29,7 +29,7 @@ impl From<u128> for SourceFieldId {
     }
 }
 
-impl<'interner> Monomorphizer<'interner> {
+impl Monomorphizer<'_> {
     /// Patch instrumentation calls inserted for debugging. This will record
     /// tracked variables and their types, and assign them an ID to use at
     /// runtime. This ID is different from the source ID assigned at

@@ -14,7 +14,7 @@ use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn remove_unused_import(
         &mut self,
         use_tree: &UseTree,

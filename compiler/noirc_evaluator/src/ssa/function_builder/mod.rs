@@ -85,7 +85,11 @@ impl FunctionBuilder {
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        assert_eq!(
+            self.finished_functions.len(),
+            0,
+            "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function"
+        );
         self.current_function.set_runtime(runtime);
     }
 

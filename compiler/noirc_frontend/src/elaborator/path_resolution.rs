@@ -102,7 +102,7 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<TraitId>),
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,

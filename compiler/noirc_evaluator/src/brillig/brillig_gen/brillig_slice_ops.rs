@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::{
 
 use super::brillig_block::BrilligBlock;
 
-impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
+impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());

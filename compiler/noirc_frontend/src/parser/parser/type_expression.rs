@@ -10,7 +10,7 @@ use noirc_errors::Location;
 
 use super::{parse_many::separated_by_comma_until_right_paren, Parser};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// TypeExpression= AddOrSubtractTypeExpression
     pub(crate) fn parse_type_expression(
         &mut self,
