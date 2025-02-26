@@ -12,7 +12,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
         if let Some((statement, (_token, _span))) = self.parse_statement() {
             statement
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
-                    return Some(StatementKind::Interned(statement))
+                    return Some(StatementKind::Interned(statement));
                 }
                 _ => unreachable!(),
             }

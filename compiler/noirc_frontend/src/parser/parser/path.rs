@@ -9,7 +9,7 @@ use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     #[cfg(test)]
     pub(crate) fn parse_path_or_error(&mut self) -> Path {
         if let Some(path) = self.parse_path() {
@@ -17,11 +17,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                location: self.location_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -44,11 +40,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                location: self.location_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -151,7 +143,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Path { segments, kind, location: self.location_since(start_location) }
+        let location = self.location_since(start_location);
+        Path { segments, kind, kind_location: start_location, location }
     }
 
     /// PathGenerics = GenericTypeArgs

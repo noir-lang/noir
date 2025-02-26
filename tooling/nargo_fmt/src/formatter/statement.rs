@@ -8,7 +8,7 @@ use noirc_frontend::{
 
 use crate::chunks::{ChunkFormatter, ChunkGroup, GroupKind};
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_statement(
         &mut self,
         statement: Statement,
@@ -52,9 +52,10 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                 ExpressionKind::Block(block) => group.group(self.format_block_expression(
                     block, true, // force multiple lines
                 )),
-                ExpressionKind::Unsafe(block, _) => {
+                ExpressionKind::Unsafe(unsafe_expression) => {
                     group.group(self.format_unsafe_expression(
-                        block, true, // force multiple lines
+                        unsafe_expression.block,
+                        true, // force multiple lines
                     ));
                 }
                 ExpressionKind::If(if_expression) => {

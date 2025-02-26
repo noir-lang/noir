@@ -202,7 +202,7 @@ impl Abi {
         let has_public_return = self
             .return_type
             .as_ref()
-            .map_or(false, |typ| matches!(typ.visibility, AbiVisibility::Public));
+            .is_some_and(|typ| matches!(typ.visibility, AbiVisibility::Public));
         has_public_args || has_public_return
     }
 
@@ -263,7 +263,7 @@ impl Abi {
                 encoded_inputs.push(encoded_return_fields);
             }
             (None, Some(return_value)) => {
-                return Err(AbiError::UnexpectedReturnValue(return_value))
+                return Err(AbiError::UnexpectedReturnValue(return_value));
             }
             // We allow not passing a return value despite the circuit defining one
             // in order to generate the initial partial witness.

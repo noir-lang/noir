@@ -10,7 +10,7 @@ use crate::token::{CustomAttribute, SecondaryAttribute};
 use super::parse_many::without_separator;
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
         let start_location = self.current_token_location;

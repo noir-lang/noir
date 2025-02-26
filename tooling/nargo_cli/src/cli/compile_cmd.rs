@@ -82,7 +82,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         let noir_files_modified = debounced_events.iter().any(|event| {
             let mut event_paths = event.event.paths.iter();
             let event_affects_noir_file =
-                event_paths.any(|path| path.extension().map_or(false, |ext| ext == "nr"));
+                event_paths.any(|path| path.extension().is_some_and(|ext| ext == "nr"));
 
             let is_relevant_event_kind = matches!(
                 event.kind,

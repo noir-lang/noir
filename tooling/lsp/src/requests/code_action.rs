@@ -233,7 +233,7 @@ impl<'a> CodeActionFinder<'a> {
     }
 }
 
-impl<'a> Visitor for CodeActionFinder<'a> {
+impl Visitor for CodeActionFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
             if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {

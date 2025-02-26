@@ -65,7 +65,7 @@ impl<'a> AttributeReferenceFinder<'a> {
     }
 }
 
-impl<'a> Visitor for AttributeReferenceFinder<'a> {
+impl Visitor for AttributeReferenceFinder<'_> {
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
