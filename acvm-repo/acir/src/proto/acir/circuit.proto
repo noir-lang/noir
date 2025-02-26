@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package acvm.acir.circuit;
+
+import "acir/witness.proto";
+
+message Circuit {
+  uint32 current_witness_index = 1;
+  repeated Opcode opcodes = 2;
+  ExpressionWidth expression_width = 3;
+  repeated witness.Witness private_parameters = 4;
+  repeated witness.Witness public_parameters = 5;
+  repeated witness.Witness return_values = 6;
+  repeated AssertMessage assert_messages = 7;
+}
+
+message ExpressionWidth {
+  oneof value {
+    Unbounded unbounded = 1;
+    Bounded bounded = 2;
+  }
+  message Unbounded {}
+  message Bounded { uint64 width = 1; }
+}
+
+message AssertMessage {
+  OpcodeLocation location = 1;
+  AssertionPayload payload = 2;
+}
+
+message OpcodeLocation {
+  oneof value {
+    uint64 acir = 1;
+    BrilligLocation brillig = 2;
+  }
+  message BrilligLocation {
+    uint64 acir_index = 1;
+    uint64 brillig_index = 2;
+  }
+}
+
+message AssertionPayload {
+  uint64 error_selector = 1;
+  repeated ExpressionOrMemory payload = 2;
+}
+
+message ExpressionOrMemory {
+  oneof value {
+    Expression expression = 1;
+    BlockId memory = 2;
+  }
+}
+
+message BlockId { uint32 value = 1; }
+
+message Expression {
+  repeated MulTerm mul_terms = 1;
+  repeated LinearCombination linear_combinations = 2;
+  Field q_c = 3;
+
+  message MulTerm {
+    Field q_m = 1;
+    witness.Witness witness_left = 2;
+    witness.Witness witness_right = 3;
+  }
+
+  message LinearCombination {
+    Field q_l = 1;
+    witness.Witness witness = 2;
+  }
+}
+
+message Field { bytes value = 1; }
+
+message Opcode {
+  oneof value {
+    Expression assert_zero = 1;
+    BlackBoxFuncCall blackbox_func_call = 2;
+    MemoryOp memory_op = 3;
+    MemoryInit memory_init = 4;
+    BrilligCall brillig_call = 5;
+    Call call = 6;
+  }
+  message MemoryOp {
+    BlockId block_id = 1;
+    MemOp op = 2;
+    optional Expression predicate = 3;
+  }
+  message MemoryInit {
+    BlockId block_id = 1;
+    repeated witness.Witness init = 2;
+    BlockType block_type = 3;
+  }
+  message BrilligCall {
+    BrilligFunctionId id = 1;
+    repeated BrilligInputs inputs = 2;
+    repeated BrilligOutputs outputs = 3;
+    optional Expression predicate = 4;
+  }
+  message Call {
+    AcirFunctionId id = 1;
+    repeated witness.Witness inputs = 2;
+    repeated witness.Witness outputs = 3;
+    optional Expression predicate = 4;
+  }
+}
+
+message BlackBoxFuncCall {
+  //   oneof value {
+  //     // TODO
+  //   }
+}
+
+message MemOp {
+  Expression operation = 1;
+  Expression index = 2;
+  Expression value = 3;
+}
+
+message BlockType {
+  oneof value {
+    Memory memory = 1;
+    CallData call_data = 2;
+    ReturnData return_data = 3;
+  }
+  message Memory {}
+  message CallData { uint32 value = 1; }
+  message ReturnData {}
+}
+
+message BrilligFunctionId { uint32 value = 1; }
+message AcirFunctionId { uint32 value = 1; }
+
+message BrilligInputs {
+  oneof value {
+    Expression single = 1;
+    Array array = 2;
+    BlockId memory_array = 3;
+  }
+  message Array { repeated Expression values = 2; }
+}
+
+message BrilligOutputs {
+  oneof value {
+    witness.Witness simple = 1;
+    Array array = 2;
+  }
+  message Array { repeated witness.Witness values = 1; }
+}

@@ -11,7 +11,7 @@ fn main() {
             "./src/proto/program.proto",
             // This is only included to make sure it compiles.
             // A separate compilation is needed to turn it into C++ code.
-            "./src/proto/acir-program.proto",
+            "./src/proto/acir/program.proto",
         ],
         &[Path::new("./src/proto"), include_dir.as_path()],
     )

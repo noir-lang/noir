@@ -24,26 +24,22 @@ pub trait ProtoRepr: Sized {
     fn decode(&self) -> eyre::Result<Self::Type>;
 }
 
+/// Convert a domain type to its protobuf representation.
 pub fn to_proto<T: ProtoCodec>(value: &T) -> T::Repr {
     value.encode()
 }
 
-pub fn into_proto<T: ProtoCodec>(value: T) -> T::Repr {
-    to_proto(&value)
-}
-
+/// Convert a protobuf representation into its domain type.
 pub fn from_proto<T: ProtoCodec>(value: &T::Repr) -> eyre::Result<T> {
     T::decode(value)
 }
 
+/// Same as [to_proto] but works with [ProtoRepr].
 pub fn to_proto_repr<R: ProtoRepr>(value: &R::Type) -> R {
     R::encode(value)
 }
 
-pub fn into_proto_repr<R: ProtoRepr>(value: R::Type) -> R {
-    to_proto_repr(&value)
-}
-
+/// Same as [from_proto] but works with [ProtoRepr].
 pub fn from_proto_repr<R: ProtoRepr>(value: &R) -> eyre::Result<R::Type> {
     value.decode()
 }

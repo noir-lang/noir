@@ -1,16 +1,24 @@
 mod conversion;
 
-#[allow(unreachable_pub)]
 pub(crate) mod acir {
-    include!(concat!(env!("OUT_DIR"), "/noir.proto.acir.rs"));
+
+    #[allow(unreachable_pub)]
+    pub(crate) mod witness {
+        include!(concat!(env!("OUT_DIR"), "/acvm.acir.witness.rs"));
+    }
+
+    #[allow(unreachable_pub)]
+    pub(crate) mod circuit {
+        include!(concat!(env!("OUT_DIR"), "/acvm.acir.circuit.rs"));
+    }
 }
 
 #[allow(unreachable_pub)]
 pub(crate) mod brillig {
-    include!(concat!(env!("OUT_DIR"), "/noir.proto.brillig.rs"));
+    include!(concat!(env!("OUT_DIR"), "/acvm.brillig.rs"));
 }
 
 #[allow(unreachable_pub)]
 pub(crate) mod program {
-    include!(concat!(env!("OUT_DIR"), "/noir.proto.program.rs"));
+    include!(concat!(env!("OUT_DIR"), "/acvm.program.rs"));
 }

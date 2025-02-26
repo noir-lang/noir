@@ -1,5 +1,5 @@
 syntax = "proto3";
 
-package noir.proto.brillig;
+package acvm.brillig;
 
 message BrilligBytecode {}

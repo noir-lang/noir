@@ -2,7 +2,9 @@ use color_eyre::eyre::{self, Context};
 use iter_extended::{try_vecmap, vecmap};
 use noir_protobuf::{from_proto, to_proto, ProtoCodec, ProtoRepr};
 
-use super::program::Program;
+use crate::proto::acir::circuit::Circuit;
+use crate::proto::brillig::BrilligBytecode;
+use crate::proto::program::Program;
 
 impl<F> ProtoCodec for crate::circuit::Program<F> {
     type Repr = Program;
@@ -24,7 +26,7 @@ impl<F> ProtoCodec for crate::circuit::Program<F> {
 }
 
 impl<F> ProtoCodec for crate::circuit::brillig::BrilligBytecode<F> {
-    type Repr = super::brillig::BrilligBytecode;
+    type Repr = BrilligBytecode;
 
     fn encode(&self) -> Self::Repr {
         todo!()
@@ -36,7 +38,7 @@ impl<F> ProtoCodec for crate::circuit::brillig::BrilligBytecode<F> {
 }
 
 impl<F> ProtoCodec for crate::circuit::Circuit<F> {
-    type Repr = super::acir::Circuit;
+    type Repr = Circuit;
 
     fn encode(&self) -> Self::Repr {
         todo!()
