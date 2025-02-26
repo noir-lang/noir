@@ -188,6 +188,12 @@ pub enum ResolverError {
     InvalidSyntaxInPattern { location: Location },
     #[error("Variable '{existing}' was already defined in the same match pattern")]
     VariableAlreadyDefinedInPattern { existing: Ident, new_location: Location },
+    #[error("Only integer globals can be used in match patterns")]
+    NonIntegerGlobalUsedInPattern { location: Location },
+    #[error("Cannot match on values of type `{typ}`")]
+    TypeUnsupportedInMatch { typ: Type, location: Location },
+    #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
+    UnexpectedItemInPattern { location: Location, item: &'static str },
 }
 
 impl ResolverError {
@@ -254,6 +260,9 @@ impl ResolverError {
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
+            | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
+            | ResolverError::TypeUnsupportedInMatch { location, .. }
+            | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
                 *location
             }
@@ -795,6 +804,25 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 let mut error = Diagnostic::simple_error(message, secondary, *new_location);
                 error.add_secondary(format!("`{existing}` was previously defined here"), existing.location());
                 error
+            },
+            ResolverError::NonIntegerGlobalUsedInPattern { location } => {
+                let message = "Only integer or boolean globals can be used in match patterns".to_string();
+                let secondary = "This global is not an integer or boolean".to_string();
+                Diagnostic::simple_error(message, secondary, *location)
+            },
+            ResolverError::TypeUnsupportedInMatch { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot match on values of type `{typ}`"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::UnexpectedItemInPattern { item, location } => {
+                Diagnostic::simple_error(
+                    format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    String::new(),
+                    *location,
+                )
             },
         }
     }

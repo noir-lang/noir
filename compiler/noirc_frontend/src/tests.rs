@@ -3,6 +3,7 @@
 mod aliases;
 mod arithmetic_generics;
 mod bound_checks;
+mod enums;
 mod imports;
 mod metaprogramming;
 mod name_shadowing;
@@ -4214,28 +4215,6 @@ fn regression_7088() {
 }
 
 #[test]
-fn error_with_duplicate_enum_variant() {
-    let src = r#"
-    enum Foo {
-        Bar(i32),
-        Bar(u8),
-    }
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 2);
-    assert!(matches!(
-        &errors[0],
-        CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate { .. })
-    ));
-    assert!(matches!(
-        &errors[1],
-        CompilationError::ResolverError(ResolverError::UnusedItem { .. })
-    ));
-}
-
-#[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {
@@ -4411,69 +4390,6 @@ fn errors_if_while_body_type_is_not_unit() {
 }
 
 #[test]
-fn errors_on_unspecified_unstable_enum() {
-    // Enums are experimental - this will need to be updated when they are stabilized
-    let src = r#"
-    enum Foo { Bar }
-
-    fn main() {
-        let _x = Foo::Bar;
-    }
-    "#;
-
-    let no_features = &[];
-    let errors = get_program_using_features(src, no_features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
-}
-
-#[test]
-fn errors_on_unspecified_unstable_match() {
-    // Enums are experimental - this will need to be updated when they are stabilized
-    let src = r#"
-    fn main() {
-        match 3 {
-            _ => (),
-        }
-    }
-    "#;
-
-    let no_features = &[];
-    let errors = get_program_using_features(src, no_features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
-}
-
-#[test]
-fn errors_on_repeated_match_variables_in_pattern() {
-    let src = r#"
-    fn main() {
-        match (1, 2) {
-            (_x, _x) => (),
-        }
-    }
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0],
-        CompilationError::ResolverError(ResolverError::VariableAlreadyDefinedInPattern { .. })
-    ));
-}
-
-#[test]
 fn check_impl_duplicate_method_without_self() {
     let src = "
     pub struct Foo {}
@@ -4491,81 +4407,6 @@ fn check_impl_duplicate_method_without_self() {
     assert!(matches!(
         errors[0],
         CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
-    ));
-}
-
-#[test]
-fn duplicate_field_in_match_struct_pattern() {
-    let src = r#"
-fn main() {
-    let foo = Foo { x: 10, y: 20 };
-    match foo {
-        Foo { x: _, x: _, y: _ } => {}
-    }
-}
-
-struct Foo {
-    x: i32,
-    y: Field,
-}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0],
-        CompilationError::ResolverError(ResolverError::DuplicateField { .. })
-    ));
-}
-
-#[test]
-fn missing_field_in_match_struct_pattern() {
-    let src = r#"
-fn main() {
-    let foo = Foo { x: 10, y: 20 };
-    match foo {
-        Foo { x: _ } => {}
-    }
-}
-
-struct Foo {
-    x: i32,
-    y: Field,
-}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0],
-        CompilationError::ResolverError(ResolverError::MissingFields { .. })
-    ));
-}
-
-#[test]
-fn no_such_field_in_match_struct_pattern() {
-    let src = r#"
-fn main() {
-    let foo = Foo { x: 10, y: 20 };
-    match foo {
-        Foo { x: _, y: _, z: _ } => {}
-    }
-}
-
-struct Foo {
-    x: i32,
-    y: Field,
-}
-    "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        &errors[0],
-        CompilationError::ResolverError(ResolverError::NoSuchField { .. })
     ));
 }
 
