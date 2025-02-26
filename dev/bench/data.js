@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740581557340,
+  "lastUpdate": 1740581663384,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5d19109b6a5738a97b745c6117cf0a1e9f1552bb",
-          "message": "feat: simplify assertions that squared values are equal to zero (#7432)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-02-19T12:17:26Z",
-          "tree_id": "487c875a72303339f0b71bcbd09b5ef817d44512",
-          "url": "https://github.com/noir-lang/noir/commit/5d19109b6a5738a97b745c6117cf0a1e9f1552bb"
-        },
-        "date": 1739968897611,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 275.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 586.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 199.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 950.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 816.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 326.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 6860,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 6870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 372.35,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3679,6 +3605,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root-empty",
             "value": 344.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7850,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7850,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 342.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 390.29,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6",
+          "message": "fix: No longer error on INT_MIN globals (#7519)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-02-26T14:27:59Z",
+          "tree_id": "80376e153ade79349b08210ff3a8012112fb9846",
+          "url": "https://github.com/noir-lang/noir/commit/0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6"
+        },
+        "date": 1740581661161,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 604.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 216.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 961.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 834.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 344.32,
             "unit": "MB"
           },
           {
