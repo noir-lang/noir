@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740598757024,
+  "lastUpdate": 1740598764972,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11621,70 +11621,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "1d04f8ba0292e493e4e64cf8caf6df15c51b3346",
-          "message": "fix: do not discard negative sign from field literals in comptime interpreter (#7439)",
-          "timestamp": "2025-02-19T15:22:39Z",
-          "tree_id": "3f7d52cbebe5498027a141d9a86ba0867f75fbff",
-          "url": "https://github.com/noir-lang/noir/commit/1d04f8ba0292e493e4e64cf8caf6df15c51b3346"
-        },
-        "date": 1739980233425,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 214.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 184.8,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.45,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d0d04e8e67715766de5f41be78300774e139dd75",
           "message": "chore: simplify reports (#7421)",
@@ -14800,6 +14736,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 350.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 357,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d118e170a33d1307ccc1240374e22d86180216ed",
+          "message": "fix(experimental): Replace most remaining match panics with errors (#7536)",
+          "timestamp": "2025-02-26T19:15:13Z",
+          "tree_id": "ac85cb7caa824af84aad35d93628c347dfcf5aae",
+          "url": "https://github.com/noir-lang/noir/commit/d118e170a33d1307ccc1240374e22d86180216ed"
+        },
+        "date": 1740598762214,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 280.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 469.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 411,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 350,
             "unit": "MB"
           },
           {
