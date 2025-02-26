@@ -430,7 +430,7 @@ lazy_static! {
     };
 }
 
-impl<'a> Poseidon2<'a> {
+impl Poseidon2<'_> {
     pub(crate) fn new() -> Self {
         Poseidon2 { config: &POSEIDON2_CONFIG }
     }

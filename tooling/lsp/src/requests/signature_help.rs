@@ -332,7 +332,7 @@ impl<'a> SignatureFinder<'a> {
     }
 }
 
-impl<'a> Visitor for SignatureFinder<'a> {
+impl Visitor for SignatureFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.includes_span(item.location.span)
     }

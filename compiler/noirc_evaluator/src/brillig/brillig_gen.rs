@@ -88,7 +88,7 @@ pub(crate) fn gen_brillig_for(
                 return Err(InternalError::General {
                     message: format!("Cannot find linked fn {unresolved_fn_label}"),
                     call_stack: CallStack::new(),
-                })
+                });
             }
         };
         entry_point.link_with(artifact);

@@ -106,7 +106,7 @@ fn insert_all_files_for_package_into_file_manager(
             continue;
         }
 
-        if !entry.path().extension().map_or(false, |ext| ext == FILE_EXTENSION) {
+        if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
             continue;
         };
 

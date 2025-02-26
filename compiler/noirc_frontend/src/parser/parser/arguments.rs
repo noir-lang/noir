@@ -7,7 +7,7 @@ pub(crate) struct CallArguments {
     pub(crate) is_macro_call: bool,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Arguments = '(' ArgumentsList? ')'
     ///
     /// ArgumentsList = Expression ( ',' Expression )? ','?

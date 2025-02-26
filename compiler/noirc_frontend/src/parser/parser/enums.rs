@@ -11,7 +11,7 @@ use super::{
     Parser,
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
     ///
     /// EnumField = OuterDocComments identifier ':' Type
