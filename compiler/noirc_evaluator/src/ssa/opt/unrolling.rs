@@ -490,9 +490,19 @@ impl Loop {
         context.inline_instructions_from_block();
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 let condition = *condition;
-                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, *call_stack);
+                let next_blocks = context.handle_jmpif(
+                    condition,
+                    *then_destination,
+                    *else_destination,
+                    *call_stack,
+                );
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
                 // This is the expected case and lets us know if we should loop again or not.
@@ -515,7 +525,9 @@ impl Loop {
                     Err(context.inserter.function.dfg.get_value_call_stack(condition))
                 }
             }
-            other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
+            other => unreachable!(
+                "Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"
+            ),
         }
     }
 

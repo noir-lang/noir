@@ -32,6 +32,10 @@ pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver<FieldElement>> {
 
     // Brillig functions referenced from the ACIR circuits above
     unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+
+    // whether to print the source without highlighting, pretty-printing,
+    // or line numbers
+    raw_source_printing: bool,
 }
 
 impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
@@ -41,6 +45,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
         unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        raw_source_printing: bool,
     ) -> Self {
         let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
             PrintOutput::Stdout,
@@ -68,6 +73,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             initial_witness,
             last_result,
             unconstrained_functions,
+            raw_source_printing,
         }
     }
 
@@ -97,7 +103,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                     }
                 }
                 let locations = self.context.get_source_location_for_debug_location(&location);
-                print_source_code_location(self.debug_artifact, &locations);
+                print_source_code_location(
+                    self.debug_artifact,
+                    &locations,
+                    self.raw_source_printing,
+                );
             }
         }
     }
@@ -125,7 +135,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             }
         }
         let locations = self.context.get_source_location_for_debug_location(debug_location);
-        print_source_code_location(self.debug_artifact, &locations);
+        print_source_code_location(self.debug_artifact, &locations, self.raw_source_printing);
     }
 
     pub fn show_current_call_stack(&self) {
@@ -230,6 +240,24 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             println!("Added breakpoint at {location}");
         } else {
             println!("Breakpoint at {location} already set");
+        }
+    }
+
+    fn add_breakpoint_at_line(&mut self, line_number: i64) {
+        let Some(current_file) = self.context.get_current_file() else {
+            println!("No current file.");
+            return;
+        };
+
+        let best_location =
+            self.context.find_opcode_for_source_location(&current_file, line_number);
+
+        match best_location {
+            Some(location) => {
+                println!("Added breakpoint at line {}", line_number);
+                self.add_breakpoint_at(location)
+            }
+            None => println!("No opcode at line {}", line_number),
         }
     }
 
@@ -427,6 +455,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
     blackbox_solver: &B,
     program: CompiledProgram,
     initial_witness: WitnessMap<FieldElement>,
+    raw_source_printing: bool,
 ) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
     let circuits = &program.program.functions;
     let debug_artifact =
@@ -438,6 +467,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
         debug_artifact,
         initial_witness,
         unconstrained_functions,
+        raw_source_printing,
     ));
     let ref_context = &context;
 
@@ -520,6 +550,16 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
                 "display ACIR opcodes",
                 () => || {
                     ref_context.borrow().display_opcodes();
+                    Ok(CommandStatus::Done)
+                }
+            },
+        )
+        .add(
+            "break",
+            command! {
+                "add a breakpoint at a line of the current file",
+                (line_number: i64) => |line_number| {
+                    ref_context.borrow_mut().add_breakpoint_at_line(line_number);
                     Ok(CommandStatus::Done)
                 }
             },

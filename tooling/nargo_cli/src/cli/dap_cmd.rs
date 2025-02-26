@@ -144,12 +144,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
     expression_width: ExpressionWidth,
     pedantic_solving: bool,
 ) -> Result<(), DapError> {
-    loop {
-        let req = match server.poll_request()? {
-            Some(req) => req,
-            None => break,
-        };
-
+    while let Some(req) = server.poll_request()? {
         match req.command {
             Command::Initialize(_) => {
                 let rsp = req.success(ResponseBody::Initialize(Capabilities {

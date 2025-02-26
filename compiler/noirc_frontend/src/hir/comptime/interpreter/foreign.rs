@@ -25,7 +25,7 @@ use super::{
     Interpreter,
 };
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_foreign(
         &mut self,
         name: &str,
@@ -40,7 +40,7 @@ impl<'local, 'context> Interpreter<'local, 'context> {
             arguments,
             return_type,
             location,
-            self.pedantic_solving,
+            self.elaborator.pedantic_solving(),
         )
     }
 }
@@ -234,7 +234,7 @@ fn blake_hash(
 ///   signature: [u8; 64],
 ///   message_hash: [u8; N],
 /// ) -> bool
-
+///
 /// pub fn verify_signature_slice(
 ///   public_key_x: [u8; 32],
 ///   public_key_y: [u8; 32],

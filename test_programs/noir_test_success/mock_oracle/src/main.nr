@@ -151,4 +151,3 @@ fn test_mock_struct_field() {
         assert_eq(20, struct_field(point, another_array));
     }
 }
-

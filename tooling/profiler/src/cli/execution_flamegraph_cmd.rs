@@ -1,18 +1,23 @@
 use std::path::{Path, PathBuf};
 
+use acir::circuit::Opcode;
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use nargo::errors::try_to_diagnose_runtime_error;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::PrintOutput;
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
+use noirc_artifacts::program::ProgramArtifact;
 
+use crate::errors::{report_error, CliError};
 use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_artifacts::debug::DebugArtifact;
 
+/// Generates a flamegraph mapping unconstrained Noir execution to source code.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecutionFlamegraphCommand {
     /// The path to the artifact JSON file
@@ -54,18 +59,41 @@ fn run_with_generator(
     let program =
         read_program_from_file(artifact_path).context("Error reading program from file")?;
 
+    ensure_brillig_entry_point(&program)?;
+
     let (inputs_map, _) =
         read_inputs_from_file(&prover_toml_path.with_extension("toml"), &program.abi)?;
 
     let initial_witness = program.abi.encode(&inputs_map, None)?;
 
-    println!("Executing");
-    let (_, mut profiling_samples) = nargo::ops::execute_program_with_profiling(
+    println!("Executing...");
+
+    let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
         &Bn254BlackBoxSolver(pedantic_solving),
         &mut DefaultForeignCallBuilder::default().with_output(PrintOutput::Stdout).build(),
-    )?;
+    );
+    let mut profiling_samples = match solved_witness_stack_err {
+        Ok((_, profiling_samples)) => profiling_samples,
+        Err(err) => {
+            let debug_artifact = DebugArtifact {
+                debug_symbols: program.debug_symbols.debug_infos.clone(),
+                file_map: program.file_map.clone(),
+            };
+
+            if let Some(diagnostic) = try_to_diagnose_runtime_error(
+                &err,
+                &program.abi,
+                &program.debug_symbols.debug_infos,
+            ) {
+                diagnostic.report(&debug_artifact, false);
+            }
+
+            return Err(CliError::Generic.into());
+        }
+    };
+
     println!("Executed");
 
     println!("Collecting {} samples", profiling_samples.len());
@@ -100,8 +128,27 @@ fn run_with_generator(
         &debug_artifact,
         artifact_path.to_str().unwrap(),
         "main",
-        &Path::new(&output_path).join(Path::new(&format!("{}.svg", "main"))),
+        &Path::new(&output_path).join(Path::new(&format!("{}_brillig_trace.svg", "main"))),
     )?;
+
+    Ok(())
+}
+
+fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError> {
+    let err_msg = "Command only supports fully unconstrained Noir programs e.g. `unconstrained fn main() { .. }".to_owned();
+    let program = &artifact.bytecode;
+    if program.functions.len() != 1 || program.unconstrained_functions.len() != 1 {
+        return report_error(err_msg);
+    }
+
+    let main_function = &program.functions[0];
+    let Opcode::BrilligCall { id, .. } = main_function.opcodes[0] else {
+        return report_error(err_msg);
+    };
+
+    if id.as_usize() != 0 {
+        return report_error(err_msg);
+    }
 
     Ok(())
 }

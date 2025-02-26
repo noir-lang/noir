@@ -26,4 +26,3 @@ fn hello_world() {}
 comptime fn call(x: Quoted) -> Quoted {
     quote { $x() }
 }
-

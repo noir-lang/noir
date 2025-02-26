@@ -805,4 +805,3 @@ fn main() {
 //     assert_eq(result.leftover.len, 0);
 //     // adapted URL parser: (https?:\/\/)?([\da-c.\-]+)\.([a-c.]+)([\/\w \.\-]*)*\/?
 // }
-

@@ -95,6 +95,11 @@ impl Ssa {
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
+            // We have already performed our final Brillig generation, so constant folding
+            // Brillig functions is unnecessary work.
+            if function.dfg.runtime().is_brillig() {
+                continue;
+            }
             function.constant_fold(false, brillig_info);
         }
 
@@ -1446,6 +1451,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        // Need to run SSA pass that sets up Brillig array gets
+        let ssa = ssa.brillig_array_gets();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "

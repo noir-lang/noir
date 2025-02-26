@@ -7,9 +7,9 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
 use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
@@ -23,7 +23,7 @@ pub enum RuntimeError {
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: FieldElement,
+        value: SignedField,
         typ: NumericType,
         range: String,
         call_stack: CallStack,
@@ -34,7 +34,9 @@ pub enum RuntimeError {
     UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
-    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    #[error(
+        "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
+    )]
     InvalidBlackBoxInputBitSize {
         value: String,
         num_bits: u32,
@@ -59,7 +61,9 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
-    #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
+    #[error(
+        "Could not resolve some references to the array. All references must be resolved at compile time"
+    )]
     UnknownReference { call_stack: CallStack },
 }
 
@@ -85,8 +89,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic =
-                    Diagnostic::simple_warning(message, secondary_message, location.span);
+                let diagnostic = Diagnostic::simple_warning(message, secondary_message, *location);
                 diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
             SsaReport::Bug(bug) => {
@@ -103,7 +106,7 @@ impl From<SsaReport> for FileDiagnostic {
                 let call_stack = vecmap(call_stack, |location| location);
                 let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
-                let diagnostic = Diagnostic::simple_bug(message, secondary_message, location.span);
+                let diagnostic = Diagnostic::simple_bug(message, secondary_message, *location);
                 diagnostic.with_call_stack(call_stack).in_file(file_id)
             }
         }
@@ -195,7 +198,7 @@ impl RuntimeError {
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     cause.to_string(),
-                    noirc_errors::Span::inclusive(0, 0)
+                    Location::dummy(),
                 )
             }
             RuntimeError::UnknownLoopBound { .. } => {
@@ -206,7 +209,7 @@ impl RuntimeError {
                 Diagnostic::simple_error(
                     primary_message,
                     "If attempting to fetch the length of a slice, try converting to an array. Slices only use dynamic lengths.".to_string(),
-                    location.span,
+                    *location,
                 )
             }
             _ => {
@@ -214,7 +217,7 @@ impl RuntimeError {
                 let location =
                     self.call_stack().last().unwrap_or_else(|| panic!("Expected RuntimeError to have a location. Error message: {message}"));
 
-                Diagnostic::simple_error(message, String::new(), location.span)
+                Diagnostic::simple_error(message, String::new(), *location)
             }
         }
     }
