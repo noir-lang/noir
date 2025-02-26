@@ -122,10 +122,8 @@ function clearFileIdentifiersProgram(debugSymbols: ProgramDebugInfo) {
 
 /** Clears file identifiers from a set of debug symbols. */
 function clearFileIdentifiers(debugSymbols: DebugInfo) {
-  for (const loc of Object.values(debugSymbols.locations)) {
-    for (const span of loc) {
-      span.file = 0;
-    }
+  for (const locationNode of debugSymbols.location_tree.locations) {
+    locationNode.value.file = 0;
   }
 }
 

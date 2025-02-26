@@ -1,9 +1,9 @@
 use acvm::{AcirField, FieldElement};
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
