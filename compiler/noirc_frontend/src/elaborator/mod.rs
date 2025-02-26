@@ -84,7 +84,6 @@ pub struct ResolverMeta {
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
-#[derive(Clone, Debug)]
 pub struct LambdaContext {
     pub captures: Vec<HirCapturedVar>,
     /// the index in the scope tree
