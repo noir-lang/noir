@@ -141,13 +141,12 @@ impl<'a> NodeFinder<'a> {
     ) -> Self {
         // Find the module the current file belongs to
         let def_map = &def_maps[&krate];
-        let local_id = match def_map
-            .modules()
-            .iter()
-            .find(|(_, module_data)| module_data.location.file == file)
+        let local_id = if let Some((module_index, _)) =
+            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            Some((module_index, _)) => LocalModuleId(module_index),
-            _ => def_map.root(),
+            LocalModuleId(module_index)
+        } else {
+            def_map.root()
         };
         let module_id = ModuleId { krate, local_id };
         Self {

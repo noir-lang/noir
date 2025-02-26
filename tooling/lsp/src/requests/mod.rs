@@ -548,19 +548,16 @@ where
     let interner;
     let def_maps;
     let usage_tracker;
-    match state.package_cache.get(&package.root_dir) {
-        Some(package_cache) => {
-            interner = &package_cache.node_interner;
-            def_maps = &package_cache.def_maps;
-            usage_tracker = &package_cache.usage_tracker;
-        }
-        _ => {
-            // We ignore the warnings and errors produced by compilation while resolving the definition
-            let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
-            interner = &context.def_interner;
-            def_maps = &context.def_maps;
-            usage_tracker = &context.usage_tracker;
-        }
+    if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
+        interner = &package_cache.node_interner;
+        def_maps = &package_cache.def_maps;
+        usage_tracker = &package_cache.usage_tracker;
+    } else {
+        // We ignore the warnings and errors produced by compilation while resolving the definition
+        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
+        interner = &context.def_interner;
+        def_maps = &context.def_maps;
+        usage_tracker = &context.usage_tracker;
     }
 
     let files = workspace_file_manager.as_file_map();
