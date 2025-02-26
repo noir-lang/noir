@@ -6,8 +6,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
-    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WhileStatement,
+    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -200,9 +200,10 @@ impl HirExpression {
             HirExpression::Comptime(block) => {
                 ExpressionKind::Comptime(block.to_display_ast(interner), location)
             }
-            HirExpression::Unsafe(block) => {
-                ExpressionKind::Unsafe(block.to_display_ast(interner), location)
-            }
+            HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
+                block: block.to_display_ast(interner),
+                unsafe_keyword_location: location,
+            }),
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here: return the quoted result
@@ -215,8 +216,7 @@ impl HirExpression {
                 let segment1 = PathSegment { ident: typ.name.clone(), location, generics: None };
                 let segment2 =
                     PathSegment { ident: variant.name.clone(), location, generics: None };
-                let path =
-                    Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
+                let path = Path::plain(vec![segment1, segment2], location);
                 let func = Box::new(Expression::new(ExpressionKind::Variable(path), location));
                 let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
                 let call = CallExpression { func, arguments, is_macro_call: false };
@@ -382,7 +382,7 @@ impl HirIdent {
             location,
         };
 
-        let path = Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, location };
+        let path = Path::plain(vec![segment], location);
 
         ExpressionKind::Variable(path)
     }

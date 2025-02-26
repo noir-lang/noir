@@ -13,7 +13,7 @@ use noirc_frontend::{
         PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
         TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
-        UseTree, UseTreeKind, WhileStatement,
+        UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
     parser::{Item, ItemKind, ParsedSubModule},
     token::{
@@ -426,6 +426,7 @@ fn path_with_file(path: Path, file: FileId) -> Path {
     Path {
         segments: vecmap(path.segments, |segment| path_segment_with_file(segment, file)),
         kind: path.kind,
+        kind_location: location_with_file(path.kind_location, file),
         location: location_with_file(path.location, file),
     }
 }
@@ -670,10 +671,12 @@ fn expression_kind_with_file(kind: ExpressionKind, file: FileId) -> ExpressionKi
             block_expression_with_file(block_expression, file),
             location_with_file(location, file),
         ),
-        ExpressionKind::Unsafe(block_expression, location) => ExpressionKind::Unsafe(
-            block_expression_with_file(block_expression, file),
-            location_with_file(location, file),
-        ),
+        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) => {
+            ExpressionKind::Unsafe(UnsafeExpression {
+                block: block_expression_with_file(block, file),
+                unsafe_keyword_location: location_with_file(unsafe_keyword_location, file),
+            })
+        }
         ExpressionKind::AsTraitPath(as_trait_path) => {
             ExpressionKind::AsTraitPath(as_trait_path_with_file(as_trait_path, file))
         }
