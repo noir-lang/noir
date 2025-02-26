@@ -318,7 +318,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
                 get_global_array_value(interner, hir_array_literal, true)
             }
             HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Integer(value) => Some(value.to_string()),
             HirLiteral::Str(string) => Some(format!("{:?}", string)),
             HirLiteral::FmtStr(..) => None,
             HirLiteral::Unit => Some("()".to_string()),

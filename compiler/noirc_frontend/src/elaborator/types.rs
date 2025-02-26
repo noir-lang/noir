@@ -33,6 +33,7 @@ use crate::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
         TraitImplKind, TraitMethodId,
     },
+    signed_field::SignedField,
     token::SecondaryAttribute,
     Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
@@ -965,8 +966,9 @@ impl Elaborator<'_> {
     ) -> Type {
         let from_follow_bindings = from.follow_bindings();
 
+        use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
+            Literal(HirLiteral::Integer(SignedField { field, is_negative: false })) => Some(field),
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals

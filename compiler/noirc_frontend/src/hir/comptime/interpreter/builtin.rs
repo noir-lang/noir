@@ -1924,14 +1924,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+            Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
-                interner.expression(&id)
-            {
-                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
+                Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
             } else {
                 None
             }

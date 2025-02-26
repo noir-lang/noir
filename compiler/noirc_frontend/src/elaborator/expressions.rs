@@ -220,9 +220,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer, sign) => {
-                let int = HirLiteral::Integer(integer, sign);
-                (Lit(int), self.polymorphic_integer_or_field())
+            Literal::Integer(integer) => {
+                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());

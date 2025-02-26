@@ -201,13 +201,13 @@ pub(crate) fn overflowing_int(
 
     let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value, negative)) => match annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value)) => match annotated_type {
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value > max.into() || negative {
+                if value.field > max.into() || value.is_negative {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("0..={}", max),
                         location,
@@ -218,9 +218,11 @@ pub(crate) fn overflowing_int(
                 let bit_count: u32 = (*bit_count).into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
-                if (negative && value > min.into()) || (!negative && value > max.into()) {
+                if (value.is_negative && value.field > min.into())
+                    || (!value.is_negative && value.field > max.into())
+                {
                     errors.push(TypeCheckError::OverflowingAssignment {
-                        expr: if negative { -value } else { value },
+                        expr: value,
                         ty: annotated_type.clone(),
                         range: format!("-{}..={}", min, max),
                         location,

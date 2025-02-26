@@ -23,7 +23,8 @@ impl Formatter<'_> {
         // To format it we'll have to skip the second type `F` if we find a `+` token.
         let mut write_type = true;
 
-        for constraint in constraints {
+        let constrains_len = constraints.len();
+        for (index, constraint) in constraints.into_iter().enumerate() {
             if write_type {
                 self.write_line();
                 self.write_indentation();
@@ -45,7 +46,9 @@ impl Formatter<'_> {
 
             write_type = true;
 
-            if self.is_at(Token::Comma) {
+            if index < constrains_len - 1 {
+                self.write_token(Token::Comma);
+            } else if self.is_at(Token::Comma) {
                 if write_trailing_comma_and_new_line {
                     self.write_token(Token::Comma);
                 } else {
