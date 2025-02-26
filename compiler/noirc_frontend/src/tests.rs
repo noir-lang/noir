@@ -3902,8 +3902,7 @@ fn mutate_with_reference_in_lambda() {
     }
     "#;
 
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -3918,9 +3917,7 @@ fn mutate_with_reference_marked_mutable_in_lambda() {
         assert(*x == 5);
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -3930,19 +3927,14 @@ fn deny_capturing_mut_variable_without_reference_in_lambda() {
         let mut x = 3;
         let f = || {
             x += 2;
+            ^ Mutable variable x captured in lambda must be a mutable reference
+            ~ Use '&mut' instead of 'mut' to capture a mutable variable.
         };
         f();
         assert(x == 5);
     }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::MutableCaptureWithoutRef { .. })
-    ));
+    check_errors(src);
 }
 
 #[test]
@@ -3955,6 +3947,5 @@ fn allow_capturing_mut_variable_only_used_immutably() {
         assert(x == 3);
     }
     "#;
-    let errors = get_program_errors(src);
-    assert!(errors.is_empty());
+    assert_no_errors(src);
 }

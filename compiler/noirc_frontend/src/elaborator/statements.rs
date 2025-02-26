@@ -153,12 +153,12 @@ impl Elaborator<'_> {
         if !mutable {
             let (_, name, location) = self.get_lvalue_error_info(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
-        } else {
+        } else if let Some(lambda_context) = self.lambda_stack.last() {
             // We must check whether the mutable variable we are attempting to assign
             // comes from a lambda capture. All captures are immutable so we want to error
             // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
             let capture_ids =
-                self.lambda_stack.last().unwrap().captures.iter().map(|var| var.ident.id).collect::<Vec<_>>();
+                lambda_context.captures.iter().map(|var| var.ident.id).collect::<Vec<_>>();
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
             let typ = self.interner.definition_type(id);
             for capture_id in capture_ids {
