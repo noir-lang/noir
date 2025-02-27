@@ -194,6 +194,8 @@ pub enum ResolverError {
     TypeUnsupportedInMatch { typ: Type, location: Location },
     #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
     UnexpectedItemInPattern { location: Location, item: &'static str },
+    #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
+    NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
 }
 
 impl ResolverError {
@@ -263,6 +265,7 @@ impl ResolverError {
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
+            | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
                 *location
             }
@@ -820,6 +823,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
+                Diagnostic::simple_error(
+                    format!("Trait `{trait_name}` has no method named `{method_name}`"), 
                     String::new(),
                     *location,
                 )

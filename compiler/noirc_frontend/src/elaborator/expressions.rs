@@ -34,7 +34,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     token::{FmtStrFragment, Tokens},
-    DataType, Kind, QuotedType, Shared, Type, TypeBindings,
+    DataType, Kind, QuotedType, Shared, Type,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
@@ -1329,14 +1329,25 @@ impl Elaborator<'_> {
             },
         };
 
-        let Some(constraint) = self.resolve_trait_constraint(&constraint) else {
-            // TODO: Error
+        let typ = self.resolve_type(constraint.typ.clone());
+        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+            // resolve_trait_bound only returns None if it has already issued an error, so don't
+            // issue another here.
             let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
             return (error, Type::Error);
         };
 
+        let constraint = TraitConstraint { typ, trait_bound };
+
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else { todo!() };
+        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else {
+            let trait_name = the_trait.name.to_string();
+            let method_name = path.impl_item.to_string();
+            let location = path.impl_item.location();
+            self.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
 
         let trait_method =
             TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
@@ -1349,17 +1360,11 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitMethod(trait_method),
         };
 
-        // TODO: AsTraitPath doesn't support generics on the impl item
-        let typ = self.interner.id_type_substitute_trait_as_type(definition_id);
-        let (typ, bindings) = self.instantiate(typ, TypeBindings::default(), None, 0, location);
-
-        let id = self.interner.push_expr(HirExpression::Ident(ident, None));
+        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
         self.interner.push_expr_location(id, location);
+
+        let typ = self.type_check_variable(ident, id, None);
         self.interner.push_expr_type(id, typ.clone());
-
-        self.interner.store_instantiation_bindings(id, bindings);
-
-        self.push_trait_constraint(constraint, id, true);
         (id, typ)
     }
 }
