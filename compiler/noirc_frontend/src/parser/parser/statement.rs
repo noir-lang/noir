@@ -521,7 +521,9 @@ mod tests {
     fn parses_let_statement_with_unsafe() {
         let src = "// Safety: comment
         let x = unsafe { 1 };";
-        let statement = parse_statement_no_errors(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -534,6 +536,20 @@ mod tests {
         let x = unsafe { 1 };";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let (statement, _) = parser.parse_statement().unwrap();
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_unsafe_after_some_other_comment() {
+        let src = "// Top comment
+        // Safety: comment
+        let x = unsafe { 1 };";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };

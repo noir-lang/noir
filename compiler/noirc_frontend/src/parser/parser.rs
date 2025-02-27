@@ -208,6 +208,9 @@ impl<'a> Parser<'a> {
             match self.tokens.next() {
                 Some(Ok(token)) => match token.token() {
                     Token::LineComment(comment, None) | Token::BlockComment(comment, None) => {
+                        if !last_comments.is_empty() {
+                            last_comments.push('\n');
+                        }
                         last_comments.push_str(comment);
                         continue;
                     }
