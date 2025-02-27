@@ -398,7 +398,7 @@ impl Parser<'_> {
             if let Some(statement_comments) = &self.statement_comments {
                 statement_comments
             } else {
-                &""
+                ""
             }
         } else {
             &comments_before_unsafe
