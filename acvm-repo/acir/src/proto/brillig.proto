@@ -125,7 +125,7 @@ message ValueOrArray {
 
 message HeapArray {
   MemoryAddress pointer = 1;
-  MemoryAddress size = 2;
+  uint64 size = 2;
 }
 
 message HeapVector {
@@ -152,10 +152,10 @@ enum BinaryFieldOpKind {
   BFO_SUB = 2;
   BFO_MUL = 3;
   BFO_DIV = 4;
-  BFO_INT_DIV = 5;
-  BFO_EQ = 6;
-  BFO_LT = 7;
-  BFO_LTE = 8;
+  BFO_INTEGER_DIV = 5;
+  BFO_EQUALS = 6;
+  BFO_LESS_THAN = 7;
+  BFO_LESS_THAN_EQUALS = 8;
 }
 
 enum BinaryIntOpKind {
@@ -164,10 +164,10 @@ enum BinaryIntOpKind {
   BIO_SUB = 2;
   BIO_MUL = 3;
   BIO_DIV = 4;
-  BIO_INT_DIV = 5;
-  BIO_EQ = 6;
-  BIO_LT = 7;
-  BIO_LTE = 8;
+  BIO_INTEGER_DIV = 5;
+  BIO_EQUALS = 6;
+  BIO_LESS_THAN = 7;
+  BIO_LESS_THAN_EQUALS = 8;
   BIO_AND = 9;
   BIO_OR = 10;
   BIO_XOR = 11;
@@ -187,10 +187,10 @@ enum IntegerBitSize {
 
 message BitSize {
   oneof value {
-    FieldSize field = 1;
+    Field field = 1;
     IntegerBitSize integer = 2;
   }
-  message FieldSize {}
+  message Field {}
 }
 
 message BlackBoxOp {

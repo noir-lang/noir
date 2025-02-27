@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use acir_field::AcirField;
-use color_eyre::eyre;
+use color_eyre::eyre::{self, Context};
 use noir_protobuf::ProtoCodec;
 
 use crate::circuit;
@@ -44,5 +44,15 @@ impl<F: AcirField> ProtoCodec<F, Field> for ProtoSchema<F> {
 
     fn decode(value: &Field) -> eyre::Result<F> {
         Ok(F::from_le_bytes_reduce(&value.value))
+    }
+}
+
+impl<F> ProtoCodec<usize, u64> for ProtoSchema<F> {
+    fn encode(value: &usize) -> u64 {
+        *value as u64
+    }
+
+    fn decode(value: &u64) -> eyre::Result<usize> {
+        (*value).try_into().wrap_err("failed to convert u64 to usize")
     }
 }
