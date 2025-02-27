@@ -53,11 +53,12 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
 
     let mut y = 0;
     if a == 0 {
-        let digest = std::hash::sha256(x);
+        let digest = std::hash::blake3(x);
         y = digest[0];
     } else {
         y = 5;
     }
+    println(y);
     assert(y == result[0]);
     c = sort(c);
     assert(c[0] == 0);
