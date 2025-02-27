@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_pattern(&mut self, pattern: Pattern) {
         self.skip_comments_and_whitespace();
 
@@ -93,11 +93,7 @@ impl<'a> Formatter<'a> {
 }
 
 fn is_identifier_pattern(pattern: &Pattern, ident: &Ident) -> bool {
-    if let Pattern::Identifier(pattern_ident) = pattern {
-        pattern_ident == ident
-    } else {
-        false
-    }
+    if let Pattern::Identifier(pattern_ident) = pattern { pattern_ident == ident } else { false }
 }
 
 #[cfg(test)]

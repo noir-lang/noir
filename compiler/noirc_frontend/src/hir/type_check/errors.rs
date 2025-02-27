@@ -13,6 +13,7 @@ use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
+use crate::signed_field::SignedField;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -42,8 +43,8 @@ pub enum TypeCheckError {
     DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
-    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, location: Location },
+    #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: SignedField, ty: Type, range: String, location: Location },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
@@ -115,11 +116,15 @@ pub enum TypeCheckError {
     InvalidInfixOp { kind: &'static str, location: Location },
     #[error("{kind} cannot be used in a unary operation")]
     InvalidUnaryOp { kind: String, location: Location },
-    #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
+    #[error(
+        "Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
+    )]
     FieldBitwiseOp { location: Location },
     #[error("Integer cannot be used with type {typ}")]
     IntegerTypeMismatch { typ: Type, location: Location },
-    #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
+    #[error(
+        "Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first"
+    )]
     IntegerAndFieldBinaryOperation { location: Location },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { location: Location },
@@ -127,9 +132,13 @@ pub enum TypeCheckError {
     FieldNot { location: Location },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { location: Location },
-    #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
+    #[error(
+        "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
+    )]
     InvalidShiftSize { location: Location },
-    #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
+    #[error(
+        "The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified"
+    )]
     AmbiguousBitWidth { location: Location },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
@@ -164,7 +173,9 @@ pub enum TypeCheckError {
     },
     #[error("No matching impl found")]
     NoMatchingImplFound(NoMatchingImplFoundError),
-    #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
+    #[error(
+        "Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope"
+    )]
     UnneededTraitConstraint { trait_name: String, typ: Type, location: Location },
     #[error(
         "Expected {expected_count} generic(s) from this function, but {actual_count} were provided"
@@ -184,7 +195,9 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { location: Location },
-    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    #[error(
+        "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
+    )]
     Unsafe { location: Location },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
     UnsafeFn { location: Location },
@@ -527,7 +540,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location, ref note, .. } => {
+            TypeCheckError::CallDeprecated { location,  note, .. } => {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 

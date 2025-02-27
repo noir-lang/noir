@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use jsonrpsee::{
     core::client::ClientT,
     http_client::{HttpClient, HttpClientBuilder},
@@ -115,8 +115,8 @@ where
 #[cfg(test)]
 mod tests {
     use acvm::{
-        acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
-        pwg::ForeignCallWaitInfo, FieldElement,
+        FieldElement, acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
+        pwg::ForeignCallWaitInfo,
     };
     use jsonrpsee::proc_macros::rpc;
     use jsonrpsee::server::Server;

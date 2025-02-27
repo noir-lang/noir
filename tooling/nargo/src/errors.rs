@@ -1,16 +1,16 @@
 use std::collections::BTreeMap;
 
 use acvm::{
+    AcirField, FieldElement,
     acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
-        ResolvedAssertionPayload, ResolvedOpcodeLocation,
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
+        ResolvedOpcodeLocation, brillig::BrilligFunctionId,
     },
     pwg::{ErrorLocation, OpcodeResolutionError},
-    AcirField, FieldElement,
 };
-use noirc_abi::{display_abi_error, Abi, AbiErrorType};
+use noirc_abi::{Abi, AbiErrorType, display_abi_error};
 use noirc_errors::{
-    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
+    CustomDiagnostic, FileDiagnostic, debug_info::DebugInfo, reporter::ReportedErrors,
 };
 
 pub use noirc_errors::Location;

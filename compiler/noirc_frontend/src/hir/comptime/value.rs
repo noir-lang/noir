@@ -7,6 +7,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstructorExpression, Expression, ExpressionKind, Ident,
         IntegerBitSize, LValue, Literal, Pattern, Signedness, Statement, StatementKind,
@@ -23,8 +24,8 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
+    signed_field::SignedField,
     token::{LocatedToken, Token, Tokens},
-    Kind, QuotedType, Shared, Type, TypeBindings,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -180,47 +181,39 @@ impl Value {
         let kind = match self {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => ExpressionKind::Literal(Literal::Integer(value, false)),
+            Value::Field(value) => {
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+            }
             Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                ExpressionKind::Literal(Literal::Integer(value, negative))
+                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
             Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
             }
             Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
             }
             Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
             Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer((value as u128).into(), false))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
             }
-            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(value.into(), false)),
+            Value::U128(value) => {
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+            }
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -357,47 +350,37 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value, false)),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::I8(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I16(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I32(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::I64(value) => {
-                let negative = value < 0;
-                let value = value.abs();
-                let value = (value as u128).into();
-                HirExpression::Literal(HirLiteral::Integer(value, negative))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
             Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
             }
             Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
             }
             Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
             Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer((value as u128).into(), false))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U128(value) => HirExpression::Literal(HirLiteral::Integer(value.into(), false)),
+            Value::U128(value) => {
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+            }
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
             }

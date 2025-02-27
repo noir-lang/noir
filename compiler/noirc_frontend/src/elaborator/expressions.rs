@@ -4,6 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, QuotedType, Shared, Type,
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -18,7 +19,7 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{generics::TraitGenerics, TypeCheckError},
+        type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
@@ -34,12 +35,11 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     token::{FmtStrFragment, Tokens},
-    DataType, Kind, QuotedType, Shared, Type,
 };
 
 use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
         self.elaborate_expression_with_target_type(expr, None)
     }
@@ -59,7 +59,7 @@ impl<'context> Elaborator<'context> {
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location)
+                return self.elaborate_member_access(*access, expr.location);
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
@@ -71,11 +71,11 @@ impl<'context> Elaborator<'context> {
                 self.elaborate_lambda_with_target_type(*lambda, target_type)
             }
             ExpressionKind::Parenthesized(expr) => {
-                return self.elaborate_expression_with_target_type(*expr, target_type)
+                return self.elaborate_expression_with_target_type(*expr, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type)
+                return self.elaborate_comptime_block(comptime, expr.location, target_type);
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
@@ -220,9 +220,8 @@ impl<'context> Elaborator<'context> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer, sign) => {
-                let int = HirLiteral::Integer(integer, sign);
-                (Lit(int), self.polymorphic_integer_or_field())
+            Literal::Integer(integer) => {
+                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -477,7 +476,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 return self
                     .call_macro(func, comptime_args, location, typ)
-                    .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                    .unwrap_or((HirExpression::Error, Type::Error));
             }
         }
 
@@ -595,7 +594,7 @@ impl<'context> Elaborator<'context> {
                         let args = function_call.arguments.clone();
                         return self
                             .call_macro(function_call.func, args, location, typ)
-                            .unwrap_or_else(|| (HirExpression::Error, Type::Error));
+                            .unwrap_or((HirExpression::Error, Type::Error));
                     }
                 }
                 (HirExpression::Call(function_call), typ)

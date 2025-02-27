@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    Type,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -15,12 +16,11 @@ use crate::{
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
     token::{Keyword, LocatedToken, Token},
-    Type,
 };
 
 use super::{
-    value::{ExprValue, TypedExpr},
     Value,
+    value::{ExprValue, TypedExpr},
 };
 
 pub(super) fn display_quoted(
@@ -49,7 +49,7 @@ struct TokensPrettyPrinter<'tokens, 'interner> {
     indent: usize,
 }
 
-impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
+impl Display for TokensPrettyPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
         for token in self.tokens {
@@ -327,7 +327,7 @@ pub struct ValuePrinter<'value, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
+impl Display for ValuePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.value {
             Value::Unit => write!(f, "()"),
@@ -494,7 +494,7 @@ pub struct TokenPrinter<'token, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
+impl Display for TokenPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.token {
             Token::QuotedType(id) => {
@@ -700,7 +700,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_, _)
+        | Literal::Integer(_)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)

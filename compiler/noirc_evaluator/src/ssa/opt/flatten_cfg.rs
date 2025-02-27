@@ -133,7 +133,7 @@
 //!   store v12 at v5         (new store)
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
+use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -262,7 +262,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     context.flatten(no_predicates);
 }
 
-impl<'f> Context<'f> {
+impl Context<'_> {
     fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
         // Flatten the CFG by inlining all instructions from the queued blocks
         // until all blocks have been flattened.
@@ -816,13 +816,13 @@ mod test {
     use acvm::acir::AcirField;
 
     use crate::ssa::{
+        Ssa,
         ir::{
             dfg::DataFlowGraph,
             instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]

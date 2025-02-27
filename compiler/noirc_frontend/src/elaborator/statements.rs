@@ -1,6 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
+    DataType, Type,
     ast::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
         LetStatement, Path, Statement, StatementKind, WhileStatement,
@@ -17,12 +18,11 @@ use crate::{
         stmt::{HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirStatement},
     },
     node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    DataType, Type,
 };
 
-use super::{lints, Elaborator, Loop};
+use super::{Elaborator, Loop, lints};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }

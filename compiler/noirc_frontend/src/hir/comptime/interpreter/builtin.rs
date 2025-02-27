@@ -17,6 +17,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
@@ -26,9 +27,9 @@ use crate::{
     elaborator::{ElaborateReason, Elaborator},
     hir::{
         comptime::{
+            InterpreterError, Value,
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
@@ -41,7 +42,6 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, LocatedToken, Token},
-    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -49,7 +49,7 @@ use super::Interpreter;
 
 pub(crate) mod builtin_helpers;
 
-impl<'local, 'context> Interpreter<'local, 'context> {
+impl Interpreter<'_, '_> {
     pub(super) fn call_builtin(
         &mut self,
         name: &str,
@@ -561,7 +561,10 @@ fn struct_def_fields(
     if actual != expected {
         let s = if expected == 1 { "" } else { "s" };
         let was_were = if actual == 1 { "was" } else { "were" };
-        let message = Some(format!("`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given", struct_def.name));
+        let message = Some(format!(
+            "`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
+            struct_def.name
+        ));
         let location = args_location;
         let call_stack = call_stack.clone();
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
@@ -955,11 +958,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits {
-            Value::U1(digit != 0)
-        } else {
-            Value::U8(digit)
-        }
+        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
     let result_type = Type::Array(
@@ -1042,11 +1041,7 @@ fn type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::MutableReference(typ) = typ {
-            Some(Value::Type(*typ))
-        } else {
-            None
-        }
+        if let Type::MutableReference(typ) = typ { Some(Value::Type(*typ)) } else { None }
     })
 }
 
@@ -1057,11 +1052,7 @@ fn type_as_slice(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Slice(slice_type) = typ {
-            Some(Value::Type(*slice_type))
-        } else {
-            None
-        }
+        if let Type::Slice(slice_type) = typ { Some(Value::Type(*slice_type)) } else { None }
     })
 }
 
@@ -1072,11 +1063,7 @@ fn type_as_str(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::String(n) = typ {
-            Some(Value::Type(*n))
-        } else {
-            None
-        }
+        if let Type::String(n) = typ { Some(Value::Type(*n)) } else { None }
     })
 }
 
@@ -1319,11 +1306,7 @@ fn typed_expr_get_type(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let typ = interner.id_type(expr_id);
-        if typ == Type::Error {
-            None
-        } else {
-            Some(Value::Type(typ))
-        }
+        if typ == Type::Error { None } else { Some(Value::Type(typ)) }
     } else {
         None
     };
@@ -1924,14 +1907,12 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, sign))) => {
-            Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+            Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
-            if let HirExpression::Literal(HirLiteral::Integer(field, sign)) =
-                interner.expression(&id)
-            {
-                Some(Value::Tuple(vec![Value::Field(field), Value::Bool(sign)]))
+            if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
+                Some(Value::Tuple(vec![Value::Field(field.field), Value::Bool(field.is_negative)]))
             } else {
                 None
             }
@@ -3025,10 +3006,10 @@ fn derive_generators(
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
     let mut results = Vector::new();
-    for gen in generators {
-        let x_big: BigUint = gen.x.into();
+    for generator in generators {
+        let x_big: BigUint = generator.x.into();
         let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = gen.y.into();
+        let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields.insert(x_field_name.clone(), Value::Field(x));

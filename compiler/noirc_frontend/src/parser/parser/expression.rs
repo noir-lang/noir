@@ -8,19 +8,19 @@ use crate::{
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
         Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
     },
-    parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
 };
 
 use super::{
+    Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
     },
-    Parser,
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_expression_or_error(&mut self) -> Expression {
         self.parse_expression_or_error_impl(true) // allow constructors
     }
@@ -887,12 +887,13 @@ mod tests {
             StatementKind, UnaryOp, UnresolvedTypeData,
         },
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
+        signed_field::SignedField,
         token::Token,
     };
 
@@ -919,22 +920,20 @@ mod tests {
     fn parses_integer_literal() {
         let src = "42";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 42_u128.into());
-        assert!(!negative);
+        assert_eq!(value, SignedField::positive(42_u128));
     }
 
     #[test]
     fn parses_negative_integer_literal() {
         let src = "-42";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 42_u128.into());
-        assert!(negative);
+        assert_eq!(value, SignedField::negative(42_u128));
     }
 
     #[test]
@@ -944,11 +943,10 @@ mod tests {
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
         };
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 42_u128.into());
-        assert!(!negative);
+        assert_eq!(value, SignedField::positive(42_u128));
     }
 
     #[test]
@@ -1000,18 +998,16 @@ mod tests {
         assert_eq!(exprs.len(), 2);
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 1_u128.into());
-        assert!(!negative);
+        assert_eq!(value, SignedField::positive(1_u128));
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 2_u128.into());
-        assert!(!negative);
+        assert_eq!(value, SignedField::positive(2_u128));
     }
 
     #[test]
@@ -1028,11 +1024,10 @@ mod tests {
             panic!("Expected expression statement");
         };
 
-        let ExpressionKind::Literal(Literal::Integer(field, negative)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(field, 1_u128.into());
-        assert!(!negative);
+        assert_eq!(value, SignedField::positive(1_u128));
     }
 
     #[test]
@@ -1642,14 +1637,22 @@ mod tests {
         let multiply_or_divide_or_modulo = "1 * 2 / 3 % 4";
         let expected_multiply_or_divide_or_modulo = "(((1 * 2) / 3) % 4)";
 
-        let add_or_subtract = format!("{multiply_or_divide_or_modulo} + {multiply_or_divide_or_modulo} - {multiply_or_divide_or_modulo}");
-        let expected_add_or_subtract = format!("(({expected_multiply_or_divide_or_modulo} + {expected_multiply_or_divide_or_modulo}) - {expected_multiply_or_divide_or_modulo})");
+        let add_or_subtract = format!(
+            "{multiply_or_divide_or_modulo} + {multiply_or_divide_or_modulo} - {multiply_or_divide_or_modulo}"
+        );
+        let expected_add_or_subtract = format!(
+            "(({expected_multiply_or_divide_or_modulo} + {expected_multiply_or_divide_or_modulo}) - {expected_multiply_or_divide_or_modulo})"
+        );
 
         let shift = format!("{add_or_subtract} << {add_or_subtract} >> {add_or_subtract}");
-        let expected_shift = format!("(({expected_add_or_subtract} << {expected_add_or_subtract}) >> {expected_add_or_subtract})");
+        let expected_shift = format!(
+            "(({expected_add_or_subtract} << {expected_add_or_subtract}) >> {expected_add_or_subtract})"
+        );
 
         let less_or_greater = format!("{shift} < {shift} > {shift} <= {shift} >= {shift}");
-        let expected_less_or_greater = format!("(((({expected_shift} < {expected_shift}) > {expected_shift}) <= {expected_shift}) >= {expected_shift})");
+        let expected_less_or_greater = format!(
+            "(((({expected_shift} < {expected_shift}) > {expected_shift}) <= {expected_shift}) >= {expected_shift})"
+        );
 
         let xor = format!("{less_or_greater} ^ {less_or_greater}");
         let expected_xor = format!("({expected_less_or_greater} ^ {expected_less_or_greater})");

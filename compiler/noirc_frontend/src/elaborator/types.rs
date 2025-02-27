@@ -6,6 +6,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
         Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
@@ -13,11 +14,11 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::{fully_qualified_module_path, ModuleDefId},
+        def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
-            generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
+            generics::{Generic, TraitGenerics},
         },
     },
     hir_def::{
@@ -33,11 +34,11 @@ use crate::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
         TraitImplKind, TraitMethodId,
     },
+    signed_field::SignedField,
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
+use super::{Elaborator, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
@@ -47,7 +48,7 @@ pub(super) struct TraitPathResolution {
     pub(super) errors: Vec<PathResolutionError>,
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
     pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         let location = typ.location;
@@ -965,8 +966,9 @@ impl<'context> Elaborator<'context> {
     ) -> Type {
         let from_follow_bindings = from.follow_bindings();
 
+        use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            HirExpression::Literal(HirLiteral::Integer(int, false)) => Some(int),
+            Literal(HirLiteral::Integer(SignedField { field, is_negative: false })) => Some(field),
 
             // TODO(https://github.com/noir-lang/noir/issues/6247):
             // handle negative literals
@@ -1006,7 +1008,9 @@ impl<'context> Elaborator<'context> {
             if from_is_polymorphic && from_value > to_maximum_size {
                 let from = from.clone();
                 let to = to.clone();
-                let reason = format!("casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it");
+                let reason = format!(
+                    "casting untyped value ({from_value}) to a type with a maximum size ({to_maximum_size}) that's smaller than it"
+                );
                 // we warn that the 'to' type is too small for the value
                 self.push_err(TypeCheckError::DownsizingCast { from, to, location, reason });
             }
@@ -1048,7 +1052,7 @@ impl<'context> Elaborator<'context> {
             // Matches on TypeVariable must be first to follow any type
             // bindings.
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(ref binding) = &*var.borrow() {
+                if let TypeBinding::Bound(binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
 
@@ -1175,7 +1179,7 @@ impl<'context> Elaborator<'context> {
                     };
                     return Ok((lhs_type.clone(), use_impl));
                 }
-                if let TypeBinding::Bound(ref binding) = &*int.borrow() {
+                if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
@@ -1261,7 +1265,7 @@ impl<'context> Elaborator<'context> {
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
                     TypeVariable(int) => {
-                        if let TypeBinding::Bound(ref binding) = &*int.borrow() {
+                        if let TypeBinding::Bound(binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, location);
                         }
 

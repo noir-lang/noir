@@ -17,7 +17,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::rc::{pop_rc_for, RcInstruction};
+use super::rc::{RcInstruction, pop_rc_for};
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
@@ -26,20 +26,22 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true)
+        self.dead_instruction_elimination_inner(true, false)
     }
 
-    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> Ssa {
+    /// Post the Brillig generation we do not need to run this pass on Brillig functions.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
+        self.dead_instruction_elimination_inner(true, true)
+    }
+
+    fn dead_instruction_elimination_inner(mut self, flattened: bool, skip_brillig: bool) -> Ssa {
         let mut used_globals_map: HashMap<_, _> = self
             .functions
             .par_iter_mut()
             .filter_map(|(id, func)| {
-                let set = func.dead_instruction_elimination(true, flattened);
-                if func.runtime().is_brillig() {
-                    Some((*id, set))
-                } else {
-                    None
-                }
+                let set = func.dead_instruction_elimination(true, flattened, skip_brillig);
+                if func.runtime().is_brillig() { Some((*id, set)) } else { None }
             })
             .collect();
 
@@ -79,7 +81,12 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
+        skip_brillig: bool,
     ) -> HashSet<ValueId> {
+        if skip_brillig && self.dfg.runtime().is_brillig() {
+            return HashSet::default();
+        }
+
         let mut context = Context { flattened, ..Default::default() };
 
         context.mark_function_parameter_arrays_as_used(self);
@@ -103,7 +110,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened);
+            return self.dead_instruction_elimination(false, flattened, skip_brillig);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -751,6 +758,7 @@ mod test {
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             function::RuntimeType,
@@ -758,7 +766,6 @@ mod test {
             types::{NumericType, Type},
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]
@@ -1099,7 +1106,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let ssa = ssa.dead_instruction_elimination_inner(false);
+        let ssa = ssa.dead_instruction_elimination_inner(false, false);
 
         let expected = "
           acir(inline) fn main f0 {

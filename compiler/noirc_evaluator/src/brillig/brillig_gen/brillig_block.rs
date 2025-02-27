@@ -1,11 +1,11 @@
 use crate::brillig::brillig_ir::artifact::Label;
 use crate::brillig::brillig_ir::brillig_variable::{
-    type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
+    BrilligArray, BrilligVariable, SingleAddrVariable, type_to_heap_value_type,
 };
 
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 use crate::ssa::ir::call_stack::CallStack;
 use crate::ssa::ir::instruction::{ConstrainError, Hint};
@@ -21,7 +21,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -29,7 +29,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use super::brillig_black_box::convert_black_box_call;
-use super::brillig_block_variables::{allocate_value_with_type, BlockVariables};
+use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
@@ -460,7 +460,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                         element_size,
                                     );
                                 } else {
-                                    unreachable!("ICE: a vector must be preceded by a register containing its length");
+                                    unreachable!(
+                                        "ICE: a vector must be preceded by a register containing its length"
+                                    );
                                 }
                                 self.brillig_context.deallocate_heap_vector(*heap_vector);
                             }
@@ -769,21 +771,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 // Slice access checks are generated separately against the slice's dynamic length field.
                 if matches!(dfg.type_of_value(*array), Type::Array(..))
-                    && !dfg.is_safe_index(*index, *array)
+                    && !dfg.is_safe_brillig_index(*index, *array)
                 {
                     self.validate_array_index(array_variable, index_variable);
                 }
 
-                let items_pointer =
-                    self.brillig_context.codegen_make_array_or_vector_items_pointer(array_variable);
-
-                self.brillig_context.codegen_load_with_offset(
-                    items_pointer,
-                    index_variable,
-                    destination_variable.extract_register(),
-                );
-
-                self.brillig_context.deallocate_register(items_pointer);
+                if dfg.is_constant(*index) {
+                    self.brillig_context.codegen_load_with_offset(
+                        array_variable.extract_register(),
+                        index_variable,
+                        destination_variable.extract_register(),
+                    );
+                } else {
+                    let items_pointer = self
+                        .brillig_context
+                        .codegen_make_array_or_vector_items_pointer(array_variable);
+                    self.brillig_context.codegen_load_with_offset(
+                        items_pointer,
+                        index_variable,
+                        destination_variable.extract_register(),
+                    );
+                    self.brillig_context.deallocate_register(items_pointer);
+                }
             }
             Instruction::ArraySet { array, index, value, mutable } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
@@ -1432,7 +1441,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 NumericType::Unsigned { .. } => (false, false),
                 NumericType::NativeField => (true, false),
             },
-            _ => unreachable!("only numeric types are allowed in binary operations. References are handled separately"),
+            _ => unreachable!(
+                "only numeric types are allowed in binary operations. References are handled separately"
+            ),
         };
 
         let brillig_binary_op = match binary.operator {
@@ -1991,14 +2002,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         self.allocate_foreign_call_result_array(element_type, inner_array);
 
                         // We add one since array.pointer points to [RC, ...items]
-                        let idx =
-                            self.brillig_context.make_usize_constant_instruction((index + 1).into()  );
-                        self.brillig_context.codegen_store_with_offset(array.pointer, idx, inner_array.pointer);
+                        let idx = self
+                            .brillig_context
+                            .make_usize_constant_instruction((index + 1).into());
+                        self.brillig_context.codegen_store_with_offset(
+                            array.pointer,
+                            idx,
+                            inner_array.pointer,
+                        );
 
                         self.brillig_context.deallocate_single_addr(idx);
                         self.brillig_context.deallocate_register(inner_array.pointer);
                     }
-                    Type::Slice(_) => unreachable!("ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"),
+                    Type::Slice(_) => unreachable!(
+                        "ICE: unsupported slice type in allocate_nested_array(), expects an array or a numeric type"
+                    ),
                     _ => (),
                 }
                 index += 1;

@@ -17,8 +17,8 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -363,11 +363,7 @@ pub fn check_crate(
         })
         .filter(|error| {
             // Only keep warnings from the crate we are checking
-            if error.diagnostic.is_warning() {
-                crate_files.contains(&error.file_id)
-            } else {
-                true
-            }
+            if error.diagnostic.is_warning() { crate_files.contains(&error.file_id) } else { true }
         })
         .collect();
 
@@ -549,6 +545,7 @@ fn compile_contract_inner(
 
         functions.push(ContractFunction {
             name,
+            hash: function.hash,
             custom_attributes,
             abi: function.abi,
             bytecode: function.program,

@@ -9,6 +9,8 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
+// Temporary allows.
+#![allow(clippy::mutable_key_type, clippy::result_large_err)]
 
 pub mod ast;
 pub mod debug;
@@ -20,6 +22,7 @@ pub mod monomorphization;
 pub mod node_interner;
 pub mod parser;
 pub mod resolve_locations;
+pub mod signed_field;
 pub mod usage_tracker;
 
 pub mod hir;
@@ -29,7 +32,7 @@ pub mod hir_def;
 pub use lexer::token;
 
 // Parser API
-pub use parser::{parse_program, parse_program_with_dummy_file, ParsedModule};
+pub use parser::{ParsedModule, parse_program, parse_program_with_dummy_file};
 
 // Type API
 pub use hir_def::types::*;

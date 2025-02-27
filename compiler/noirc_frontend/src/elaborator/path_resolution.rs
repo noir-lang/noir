@@ -3,7 +3,7 @@ use noirc_errors::Location;
 
 use crate::ast::{Ident, Path, PathKind, UnresolvedType};
 use crate::hir::def_map::{ModuleData, ModuleDefId, ModuleId, PerNs};
-use crate::hir::resolution::import::{resolve_path_kind, PathResolutionError};
+use crate::hir::resolution::import::{PathResolutionError, resolve_path_kind};
 
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
@@ -12,8 +12,8 @@ use crate::locations::ReferencesTracker;
 use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
-use super::types::SELF_TYPE_NAME;
 use super::Elaborator;
+use super::types::SELF_TYPE_NAME;
 
 #[derive(Debug)]
 pub(crate) struct PathResolution {
@@ -102,7 +102,7 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<TraitId>),
 }
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: Path,

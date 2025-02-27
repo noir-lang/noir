@@ -1,10 +1,10 @@
 use acvm::{
-    acir::circuit::{brillig::BrilligFunctionId, OpcodeLocation, RawAssertionPayload},
     FieldElement,
+    acir::circuit::{OpcodeLocation, RawAssertionPayload, brillig::BrilligFunctionId},
 };
 use gloo_utils::format::JsValueSerdeExt;
 use js_sys::{Array, Error, JsString, Reflect};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 #[wasm_bindgen(typescript_custom_section)]
 const EXECUTION_ERROR: &'static str = r#"

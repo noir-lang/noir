@@ -1,6 +1,8 @@
 use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_frontend::{
+    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    TypeVariable,
     ast::{ItemVisibility, Visibility},
     hir::def_map::ModuleId,
     hir_def::{
@@ -13,14 +15,12 @@ use noirc_frontend::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
-    TypeVariable,
 };
 
 use crate::{
     attribute_reference_finder::AttributeReferenceFinder,
     modules::module_full_path,
-    requests::{to_lsp_location, ProcessRequestCallbackArgs},
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -318,7 +318,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
                 get_global_array_value(interner, hir_array_literal, true)
             }
             HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Integer(value) => Some(value.to_string()),
             HirLiteral::Str(string) => Some(format!("{:?}", string)),
             HirLiteral::FmtStr(..) => None,
             HirLiteral::Unit => Some("()".to_string()),
@@ -338,11 +338,7 @@ fn get_global_array_value(
     match literal {
         HirArrayLiteral::Standard(values) => {
             get_exprs_global_value(interner, &values).map(|value| {
-                if is_slice {
-                    format!("&[{}]", value)
-                } else {
-                    format!("[{}]", value)
-                }
+                if is_slice { format!("&[{}]", value) } else { format!("[{}]", value) }
             })
         }
         HirArrayLiteral::Repeated { repeated_element, length } => {
@@ -360,11 +356,7 @@ fn get_global_array_value(
 fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
     let strings: Vec<String> =
         exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-    if strings.len() == exprs.len() {
-        Some(strings.join(", "))
-    } else {
-        None
-    }
+    if strings.len() == exprs.len() { Some(strings.join(", ")) } else { None }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
@@ -403,11 +395,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 .trait_generics
                 .iter()
                 .filter_map(|generic| {
-                    if let Type::NamedGeneric(_, name) = generic {
-                        Some(name)
-                    } else {
-                        None
-                    }
+                    if let Type::NamedGeneric(_, name) = generic { Some(name) } else { None }
                 })
                 .collect();
 
@@ -781,7 +769,7 @@ struct TypeLinksGatherer<'a> {
     links: Vec<String>,
 }
 
-impl<'a> TypeLinksGatherer<'a> {
+impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),

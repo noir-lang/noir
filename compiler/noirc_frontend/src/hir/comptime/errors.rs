@@ -2,15 +2,16 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    Type,
     ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    Type,
+    signed_field::SignedField,
 };
-use acvm::{acir::AcirField, BlackBoxResolutionError, FieldElement};
+use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -34,7 +35,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: FieldElement,
+        value: SignedField,
         typ: Type,
         location: Location,
     },
@@ -385,11 +386,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IntegerOutOfRangeForType { value, typ, location } => {
-                let int = match value.try_into_u128() {
-                    Some(int) => int.to_string(),
-                    None => value.to_string(),
-                };
-                let msg = format!("{int} is outside the range of the {typ} type");
+                let msg = format!("{value} is outside the range of the {typ} type");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ErrorNodeEncountered { location } => {
@@ -465,7 +462,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
                 let secondary = if let Some(err) = err {
-                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                    format!(
+                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
+                    )
                 } else {
                     "Array lengths must be integers".to_string()
                 };

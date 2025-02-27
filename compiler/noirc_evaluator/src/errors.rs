@@ -7,9 +7,9 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
 use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
@@ -23,7 +23,7 @@ pub enum RuntimeError {
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: FieldElement,
+        value: SignedField,
         typ: NumericType,
         range: String,
         call_stack: CallStack,
@@ -34,7 +34,9 @@ pub enum RuntimeError {
     UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
-    #[error("Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs")]
+    #[error(
+        "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
+    )]
     InvalidBlackBoxInputBitSize {
         value: String,
         num_bits: u32,
@@ -59,7 +61,9 @@ pub enum RuntimeError {
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
     #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
     UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
-    #[error("Could not resolve some references to the array. All references must be resolved at compile time")]
+    #[error(
+        "Could not resolve some references to the array. All references must be resolved at compile time"
+    )]
     UnknownReference { call_stack: CallStack },
 }
 
