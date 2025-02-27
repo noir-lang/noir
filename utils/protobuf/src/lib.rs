@@ -24,6 +24,16 @@ pub trait ProtoRepr: Sized {
     fn decode(&self) -> eyre::Result<Self::Type>;
 }
 
+/// Similar to [ProtoRepr] but used when `Self::Type` is generic in the `F` field type.
+pub trait ProtoReprF<F>: Sized {
+    /// The domain type.
+    type Type;
+    /// Convert `Type` to `Self`.
+    fn encode(value: &Self::Type) -> Self;
+    /// Try to convert `Self` to `Type`.
+    fn decode(&self) -> eyre::Result<Self::Type>;
+}
+
 /// Convert a domain type to its protobuf representation.
 pub fn to_proto<T: ProtoCodec>(value: &T) -> T::Repr {
     value.encode()
@@ -42,4 +52,18 @@ pub fn to_proto_repr<R: ProtoRepr>(value: &R::Type) -> R {
 /// Same as [from_proto] but works with [ProtoRepr].
 pub fn from_proto_repr<R: ProtoRepr>(value: &R) -> eyre::Result<R::Type> {
     value.decode()
+}
+
+/// Same as [to_proto_repr] but works with [ProtoReprF].
+pub fn to_proto_repr_f<F, R: ProtoReprF<F>>(value: &R::Type) -> R {
+    R::encode(value)
+}
+
+/// Same as [from_proto_repr] but works with [ProtoReprF].
+pub fn from_proto_repr_f<F, R: ProtoReprF<F>>(value: &R) -> eyre::Result<R::Type> {
+    value.decode()
+}
+
+pub fn to_proto_enum<R: ProtoRepr + Into<i32>>(value: &R::Type) -> i32 {
+    to_proto_repr::<R>(value).into()
 }
