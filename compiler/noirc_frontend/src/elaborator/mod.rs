@@ -734,25 +734,11 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        if matches!(
-            &error,
-            CompilationError::TypeError(TypeCheckError::GenericCountMismatch { .. })
-        ) {
-            panic!("oops!");
-        }
         self.errors.push(error);
     }
 
     pub(crate) fn push_errors(&mut self, errors: impl IntoIterator<Item = CompilationError>) {
-        self.errors.extend(errors.into_iter().map(|e| {
-            if matches!(
-                &e,
-                CompilationError::TypeError(TypeCheckError::GenericCountMismatch { .. })
-            ) {
-                panic!("oops!");
-            }
-            e
-        }));
+        self.errors.extend(errors);
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
