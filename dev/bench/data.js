@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740656422972,
+  "lastUpdate": 1740656427885,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1fa9b33aab796dbc2a61f3062bf80e120831b462",
-          "message": "fix: prevent incorrect ACIRgen caused by noop truncations (#7456)",
-          "timestamp": "2025-02-20T15:20:30Z",
-          "tree_id": "82a6f11687e4ac77b1e5d8834f1b150f741a1d1f",
-          "url": "https://github.com/noir-lang/noir/commit/1fa9b33aab796dbc2a61f3062bf80e120831b462"
-        },
-        "date": 1740066272204,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 215.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.78,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -14775,6 +14711,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 280.51,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 469.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 410.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 356.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b7c86f4535a3617d8aaf892140ed1d412bf30287",
+          "message": "chore: put RcTracker as part of the DIE context (#7309)",
+          "timestamp": "2025-02-27T11:17:20Z",
+          "tree_id": "274eed8565677fd71f9f9da4f2ef22cc1fae3b16",
+          "url": "https://github.com/noir-lang/noir/commit/b7c86f4535a3617d8aaf892140ed1d412bf30287"
+        },
+        "date": 1740656424980,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 280.52,
             "unit": "MB"
           },
           {
