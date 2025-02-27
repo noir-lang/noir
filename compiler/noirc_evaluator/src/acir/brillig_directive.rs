@@ -1,9 +1,9 @@
 use acvm::acir::{
+    AcirField,
     brillig::{
         BinaryFieldOp, BinaryIntOp, BitSize, HeapVector, IntegerBitSize, MemoryAddress,
         Opcode as BrilligOpcode,
     },
-    AcirField,
 };
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;

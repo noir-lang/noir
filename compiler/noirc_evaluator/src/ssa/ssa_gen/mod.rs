@@ -130,7 +130,7 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     Ok(ssa)
 }
 
-impl<'a> FunctionContext<'a> {
+impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
@@ -233,10 +233,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, negative, typ, location) => {
+            ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
+                self.checked_numeric_constant(*value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -252,7 +252,7 @@ impl<'a> FunctionContext<'a> {
                             let value = value.replace('{', "{{").replace('}', "}}");
                             string.push_str(&value);
                         }
-                        FmtStrFragment::Interpolation(value, _span) => {
+                        FmtStrFragment::Interpolation(value, _) => {
                             string.push('{');
                             string.push_str(value);
                             string.push('}');
@@ -820,9 +820,7 @@ impl<'a> FunctionContext<'a> {
         typ: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         match constructor {
-            Constructor::Int(value) => {
-                self.checked_numeric_constant(value.field, value.is_negative, typ)
-            }
+            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
             other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
         }
     }

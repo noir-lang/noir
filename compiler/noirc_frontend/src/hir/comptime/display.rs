@@ -1,30 +1,30 @@
-use std::{fmt::Display, rc::Rc};
+use std::fmt::Display;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
+    Type,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression, IndexExpression,
         InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression, Statement,
-        StatementKind, UnresolvedType, UnresolvedTypeData, WhileStatement,
+        StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression, WhileStatement,
     },
     hir_def::traits::TraitConstraint,
     node_interner::{InternedStatementKind, NodeInterner},
-    token::{Keyword, Token},
-    Type,
+    token::{Keyword, LocatedToken, Token},
 };
 
 use super::{
-    value::{ExprValue, TypedExpr},
     Value,
+    value::{ExprValue, TypedExpr},
 };
 
 pub(super) fn display_quoted(
-    tokens: &[Token],
+    tokens: &[LocatedToken],
     indent: usize,
     interner: &NodeInterner,
     f: &mut std::fmt::Formatter<'_>,
@@ -44,16 +44,16 @@ pub(super) fn display_quoted(
 }
 
 struct TokensPrettyPrinter<'tokens, 'interner> {
-    tokens: &'tokens [Token],
+    tokens: &'tokens [LocatedToken],
     interner: &'interner NodeInterner,
     indent: usize,
 }
 
-impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
+impl Display for TokensPrettyPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
         for token in self.tokens {
-            token_printer.print(token, f)?;
+            token_printer.print(token.token(), f)?;
         }
 
         // If the printer refrained from printing a token right away, this will make it do it
@@ -63,9 +63,8 @@ impl<'tokens, 'interner> Display for TokensPrettyPrinter<'tokens, 'interner> {
     }
 }
 
-pub(super) fn tokens_to_string(tokens: Rc<Vec<Token>>, interner: &NodeInterner) -> String {
-    let tokens: Vec<Token> = tokens.iter().cloned().collect();
-    TokensPrettyPrinter { tokens: &tokens, interner, indent: 0 }.to_string()
+pub(super) fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
+    TokensPrettyPrinter { tokens, interner, indent: 0 }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a
@@ -180,7 +179,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 self.print_value(&value, f)
             }
             Token::InternedLValue(id) => {
-                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
                 self.print_value(&value, f)
             }
             Token::InternedUnresolvedTypeData(id) => {
@@ -188,7 +187,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 self.print_value(&value, f)
             }
             Token::InternedPattern(id) => {
-                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
+                let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 self.print_value(&value, f)
             }
             Token::UnquoteMarker(id) => {
@@ -229,8 +228,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 if last_was_alphanumeric {
                     write!(f, " ")?;
                 }
-                let tokens = vecmap(&tokens.0, |spanned_token| spanned_token.clone().into_token());
-                display_quoted(&tokens, self.indent, self.interner, f)
+                display_quoted(&tokens.0, self.indent, self.interner, f)
             }
             Token::Colon => {
                 write!(f, "{token} ")
@@ -329,7 +327,7 @@ pub struct ValuePrinter<'value, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
+impl Display for ValuePrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.value {
             Value::Unit => write!(f, "()"),
@@ -347,6 +345,7 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             Value::U16(value) => write!(f, "{value}"),
             Value::U32(value) => write!(f, "{value}"),
             Value::U64(value) => write!(f, "{value}"),
+            Value::U128(value) => write!(f, "{value}"),
             Value::String(value) => write!(f, "{value}"),
             Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(value, _) => write!(f, "{value}"),
@@ -466,12 +465,12 @@ impl<'value, 'interner> Display for ValuePrinter<'value, 'interner> {
             },
             Value::TypedExpr(TypedExpr::ExprId(id)) => {
                 let hir_expr = self.interner.expression(id);
-                let expr = hir_expr.to_display_ast(self.interner, Span::default());
+                let expr = hir_expr.to_display_ast(self.interner, Location::dummy());
                 write!(f, "{}", expr.kind)
             }
             Value::TypedExpr(TypedExpr::StmtId(id)) => {
                 let hir_statement = self.interner.statement(id);
-                let stmt = hir_statement.to_display_ast(self.interner, Span::default());
+                let stmt = hir_statement.to_display_ast(self.interner, Location::dummy());
                 write!(f, "{}", stmt.kind)
             }
             Value::UnresolvedType(typ) => {
@@ -495,7 +494,7 @@ pub struct TokenPrinter<'token, 'interner> {
     interner: &'interner NodeInterner,
 }
 
-impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
+impl Display for TokenPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.token {
             Token::QuotedType(id) => {
@@ -510,7 +509,7 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
                 value.display(self.interner).fmt(f)
             }
             Token::InternedLValue(id) => {
-                let value = Value::lvalue(LValue::Interned(*id, Span::default()));
+                let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
                 value.display(self.interner).fmt(f)
             }
             Token::InternedUnresolvedTypeData(id) => {
@@ -518,7 +517,7 @@ impl<'token, 'interner> Display for TokenPrinter<'token, 'interner> {
                 value.display(self.interner).fmt(f)
             }
             Token::InternedPattern(id) => {
-                let value = Value::pattern(Pattern::Interned(*id, Span::default()));
+                let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 value.display(self.interner).fmt(f)
             }
             Token::UnquoteMarker(id) => {
@@ -540,7 +539,10 @@ fn display_trait_constraint(interner: &NodeInterner, trait_constraint: &TraitCon
 
 // Returns a new Expression where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
 fn remove_interned_in_expression(interner: &NodeInterner, expr: Expression) -> Expression {
-    Expression { kind: remove_interned_in_expression_kind(interner, expr.kind), span: expr.span }
+    Expression {
+        kind: remove_interned_in_expression_kind(interner, expr.kind),
+        location: expr.location,
+    }
 }
 
 // Returns a new ExpressionKind where all Interned and Resolved expressions have been turned into non-interned ExpressionKind.
@@ -643,10 +645,13 @@ fn remove_interned_in_expression_kind(
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
             ExpressionKind::Comptime(BlockExpression { statements }, span)
         }
-        ExpressionKind::Unsafe(block, span) => {
+        ExpressionKind::Unsafe(UnsafeExpression { block, unsafe_keyword_location }) => {
             let statements =
                 vecmap(block.statements, |stmt| remove_interned_in_statement(interner, stmt));
-            ExpressionKind::Unsafe(BlockExpression { statements }, span)
+            ExpressionKind::Unsafe(UnsafeExpression {
+                block: BlockExpression { statements },
+                unsafe_keyword_location,
+            })
         }
         ExpressionKind::AsTraitPath(mut path) => {
             path.typ = remove_interned_in_unresolved_type(interner, path.typ);
@@ -663,7 +668,7 @@ fn remove_interned_in_expression_kind(
         }
         ExpressionKind::Resolved(id) => {
             let expr = interner.expression(&id);
-            expr.to_display_ast(interner, Span::default()).kind
+            expr.to_display_ast(interner, Location::dummy()).kind
         }
         ExpressionKind::Interned(id) => {
             let expr = interner.get_expression_kind(id).clone();
@@ -695,7 +700,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_, _)
+        | Literal::Integer(_)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)
@@ -724,7 +729,7 @@ fn remove_interned_in_array_literal(
 fn remove_interned_in_statement(interner: &NodeInterner, statement: Statement) -> Statement {
     Statement {
         kind: remove_interned_in_statement_kind(interner, statement.kind),
-        span: statement.span,
+        location: statement.location,
     }
 }
 
@@ -769,7 +774,7 @@ fn remove_interned_in_statement_kind(
         StatementKind::While(while_) => StatementKind::While(WhileStatement {
             condition: remove_interned_in_expression(interner, while_.condition),
             body: remove_interned_in_expression(interner, while_.body),
-            while_keyword_span: while_.while_keyword_span,
+            while_keyword_location: while_.while_keyword_location,
         }),
         StatementKind::Comptime(statement) => {
             StatementKind::Comptime(Box::new(remove_interned_in_statement(interner, *statement)))
@@ -789,15 +794,15 @@ fn remove_interned_in_statement_kind(
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
         LValue::Ident(_) => lvalue,
-        LValue::MemberAccess { object, field_name, span } => LValue::MemberAccess {
+        LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,
-            span,
+            location: span,
         },
-        LValue::Index { array, index, span } => LValue::Index {
+        LValue::Index { array, index, location: span } => LValue::Index {
             array: Box::new(remove_interned_in_lvalue(interner, *array)),
             index: remove_interned_in_expression(interner, index),
-            span,
+            location: span,
         },
         LValue::Dereference(lvalue, span) => {
             LValue::Dereference(Box::new(remove_interned_in_lvalue(interner, *lvalue)), span)
@@ -815,7 +820,7 @@ fn remove_interned_in_unresolved_type(
 ) -> UnresolvedType {
     UnresolvedType {
         typ: remove_interned_in_unresolved_type_data(interner, typ.typ),
-        span: typ.span,
+        location: typ.location,
     }
 }
 

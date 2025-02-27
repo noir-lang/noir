@@ -32,8 +32,8 @@ use registers::{RegisterAllocator, ScratchSpace};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use crate::ssa::ir::call_stack::CallStack;
 use acvm::{
-    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
     AcirField,
+    acir::brillig::{MemoryAddress, Opcode as BrilligOpcode},
 };
 use debug_show::DebugShow;
 
@@ -281,11 +281,11 @@ pub(crate) mod tests {
         ValueOrArray,
     };
     use acvm::brillig_vm::brillig::HeapValueType;
-    use acvm::brillig_vm::{VMStatus, VM};
+    use acvm::brillig_vm::{VM, VMStatus};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::brillig::BrilligOptions;
+    use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
     use crate::ssa::ir::function::FunctionId;
 
     use super::artifact::{BrilligParameter, GeneratedBrillig, Label, LabelType};

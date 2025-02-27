@@ -3,12 +3,12 @@ use fxhash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{
+        BrilligContext,
         brillig_variable::{
-            get_bit_size_from_ssa_type, BrilligArray, BrilligVariable, BrilligVector,
-            SingleAddrVariable,
+            BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable,
+            get_bit_size_from_ssa_type,
         },
         registers::RegisterAllocator,
-        BrilligContext,
     },
     ssa::ir::{
         dfg::DataFlowGraph,

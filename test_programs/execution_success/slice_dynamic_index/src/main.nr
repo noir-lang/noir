@@ -305,4 +305,3 @@ fn dynamic_slice_merge_push_then_pop(mut slice: [Field], x: Field, y: Field) {
     let (_, elem) = slice.pop_back();
     assert(elem == y);
 }
-

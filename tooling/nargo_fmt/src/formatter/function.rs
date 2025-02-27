@@ -22,7 +22,7 @@ pub(super) struct FunctionToFormat {
     pub(super) skip_visibility: bool,
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_function(&mut self, func: NoirFunction, skip_visibility: bool) {
         self.format_function_impl(FunctionToFormat {
             attributes: func.def.attributes,
@@ -542,7 +542,6 @@ fn bar() {
 // noir-fmt:ignore
 fn baz() { let  z  = 3  ; 
             }
-
 ";
         assert_format(src, expected);
     }

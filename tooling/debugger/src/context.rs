@@ -5,22 +5,22 @@ use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
 use acvm::brillig_vm::MemoryValue;
 use acvm::pwg::{
-    ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
-    OpcodeNotSolvable, StepResult, ACVM,
+    ACVM, ACVMStatus, AcirCallWaitInfo, BrilligSolver, BrilligSolverStatus, ForeignCallWaitInfo,
+    OpcodeNotSolvable, StepResult,
 };
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 
 use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
-use nargo::errors::{ExecutionError, Location};
 use nargo::NargoError;
+use nargo::errors::{ExecutionError, Location};
 use noirc_artifacts::debug::{DebugArtifact, StackFrame};
 use noirc_driver::DebugFile;
 
 use thiserror::Error;
 
 use std::collections::BTreeMap;
-use std::collections::{hash_set::Iter, HashSet};
+use std::collections::{HashSet, hash_set::Iter};
 
 /// A Noir program is composed by
 /// `n` ACIR circuits
@@ -429,6 +429,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
             .filter(|v: &Vec<Location>| !v.is_empty())
     }
 
+    /// Returns the `FileId` of the file associated with the innermost function on the call stack.
+    pub(super) fn get_current_file(&mut self) -> Option<FileId> {
+        self.get_current_source_location()
+            .and_then(|locations| locations.last().map(|location| location.file))
+    }
+
     /// Returns the (possible) stack of source locations corresponding to the
     /// given opcode location. Due to compiler inlining it's possible for this
     /// function to return multiple source locations. An empty vector means that
@@ -788,11 +794,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
-        return self.foreign_call_executor.get_variables();
+        self.foreign_call_executor.get_variables()
     }
 
     pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
-        return self.foreign_call_executor.current_stack_frame();
+        self.foreign_call_executor.current_stack_frame()
     }
 
     fn breakpoint_reached(&self) -> bool {
@@ -954,13 +960,13 @@ mod tests {
     use crate::foreign_calls::DefaultDebugForeignCallExecutor;
     use acvm::{
         acir::{
+            AcirField,
             brillig::{HeapVector, IntegerBitSize},
             circuit::{
                 brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
                 opcodes::{AcirFunctionId, BlockId, BlockType},
             },
             native_types::Expression,
-            AcirField,
         },
         blackbox_solver::StubbedBlackBoxSolver,
         brillig_vm::brillig::{
