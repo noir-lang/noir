@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
@@ -195,10 +195,6 @@ pub enum ResolverError {
 }
 
 impl ResolverError {
-    pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
-        Diagnostic::from(self).in_file(file)
-    }
-
     pub fn location(&self) -> Location {
         match self {
             ResolverError::DuplicateDefinition { first_location: location, .. }

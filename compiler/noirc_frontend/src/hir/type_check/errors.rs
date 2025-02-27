@@ -648,15 +648,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
     fn from(error: &'a NoMatchingImplFoundError) -> Self {
         let constraints = &error.constraints;
-        let span = error.location;
+        let location = error.location;
 
         assert!(!constraints.is_empty());
         let msg =
             format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-        let mut diagnostic = Diagnostic::from_message(&msg);
+        let mut diagnostic = Diagnostic::from_message(&msg, location.file);
 
         let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
-        diagnostic.add_secondary(secondary, span);
+        diagnostic.add_secondary(secondary, location);
 
         // These must be notes since secondaries are unordered
         for (typ, trait_name) in &constraints[1..] {

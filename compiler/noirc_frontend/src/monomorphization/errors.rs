@@ -1,4 +1,4 @@
-use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location};
 
 use crate::{
     Type,
@@ -34,18 +34,9 @@ impl MonomorphizationError {
     }
 }
 
-impl From<MonomorphizationError> for FileDiagnostic {
-    fn from(error: MonomorphizationError) -> FileDiagnostic {
-        let location = error.location();
-        let call_stack = vec![location];
-        let diagnostic = error.into_diagnostic();
-        diagnostic.with_call_stack(call_stack).in_file(location.file)
-    }
-}
-
-impl MonomorphizationError {
-    fn into_diagnostic(self) -> CustomDiagnostic {
-        let message = match &self {
+impl From<MonomorphizationError> for CustomDiagnostic {
+    fn from(error: MonomorphizationError) -> CustomDiagnostic {
+        let message = match &error {
             MonomorphizationError::UnknownArrayLength { length, err, .. } => {
                 format!("Could not determine array length `{length}`, encountered error: `{err}`")
             }
@@ -78,7 +69,7 @@ impl MonomorphizationError {
             }
         };
 
-        let location = self.location();
+        let location = error.location();
         CustomDiagnostic::simple_error(message, String::new(), location)
     }
 }
