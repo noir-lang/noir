@@ -46,31 +46,14 @@ message AssertionPayload {
 
 message ExpressionOrMemory {
   oneof value {
-    Expression expression = 1;
+    native.Expression expression = 1;
     uint32 memory = 2;
-  }
-}
-
-message Expression {
-  repeated MulTerm mul_terms = 1;
-  repeated LinearCombination linear_combinations = 2;
-  native.Field q_c = 3;
-
-  message MulTerm {
-    native.Field q_m = 1;
-    native.Witness witness_left = 2;
-    native.Witness witness_right = 3;
-  }
-
-  message LinearCombination {
-    native.Field q_l = 1;
-    native.Witness witness = 2;
   }
 }
 
 message Opcode {
   oneof value {
-    Expression assert_zero = 1;
+    native.Expression assert_zero = 1;
     BlackBoxFuncCall blackbox_func_call = 2;
     MemoryOp memory_op = 3;
     MemoryInit memory_init = 4;
@@ -80,7 +63,7 @@ message Opcode {
   message MemoryOp {
     uint32 block_id = 1;
     MemOp op = 2;
-    optional Expression predicate = 3;
+    optional native.Expression predicate = 3;
   }
   message MemoryInit {
     uint32 block_id = 1;
@@ -91,13 +74,13 @@ message Opcode {
     uint32 id = 1;
     repeated BrilligInputs inputs = 2;
     repeated BrilligOutputs outputs = 3;
-    optional Expression predicate = 4;
+    optional native.Expression predicate = 4;
   }
   message Call {
     uint32 id = 1;
     repeated native.Witness inputs = 2;
     repeated native.Witness outputs = 3;
-    optional Expression predicate = 4;
+    optional native.Expression predicate = 4;
   }
 }
 
@@ -238,9 +221,9 @@ message ConstantOrWitnessEnum {
 }
 
 message MemOp {
-  Expression operation = 1;
-  Expression index = 2;
-  Expression value = 3;
+  native.Expression operation = 1;
+  native.Expression index = 2;
+  native.Expression value = 3;
 }
 
 message BlockType {
@@ -256,11 +239,11 @@ message BlockType {
 
 message BrilligInputs {
   oneof value {
-    Expression single = 1;
+    native.Expression single = 1;
     Array array = 2;
     uint32 memory_array = 3;
   }
-  message Array { repeated Expression values = 2; }
+  message Array { repeated native.Expression values = 2; }
 }
 
 message BrilligOutputs {
