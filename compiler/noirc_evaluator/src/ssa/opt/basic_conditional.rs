@@ -264,7 +264,34 @@ fn flatten_function(function: &mut Function, no_predicates: &mut HashMap<Functio
     // process basic conditionals in reverse order so that
     // a conditional does not impact the previous ones
     conditionals.reverse();
-    Context::flatten_multiple(&conditionals, function, no_predicates);
+    flatten_multiple(&conditionals, function, no_predicates);
+}
+
+fn flatten_multiple(
+    conditionals: &Vec<BasicConditional>,
+    function: &mut Function,
+    no_predicates: &mut HashMap<FunctionId, bool>,
+) {
+    // 1. process each basic conditional, using a new context per conditional
+    let post_order = PostOrder::with_function(function);
+
+    let mut mapping = HashMap::default();
+    for conditional in conditionals {
+        let cfg = ControlFlowGraph::with_function(function);
+        let cfg_root = function.entry_block();
+        let mut branch_ends = HashMap::default();
+        branch_ends.insert(conditional.block_entry, conditional.block_exit);
+        let mut context = Context::new(function, cfg, branch_ends, cfg_root);
+        context.flatten_single_conditional(conditional, no_predicates);
+        // extract the mapping into 'mapping
+        context.inserter.extract_mapping(&mut mapping);
+    }
+    // 2. re-map the full program for values that may been simplified.
+    if !mapping.is_empty() {
+        for block in post_order.as_slice() {
+            Context::map_block_with_mapping(mapping.clone(), function, *block);
+        }
+    }
 }
 
 impl<'f> Context<'f> {
@@ -355,33 +382,6 @@ impl<'f> Context<'f> {
             inserter.map_instruction_in_place(instruction);
         }
         inserter.map_terminator_in_place(block);
-    }
-
-    fn flatten_multiple(
-        conditionals: &Vec<BasicConditional>,
-        function: &mut Function,
-        no_predicates: &mut HashMap<FunctionId, bool>,
-    ) {
-        // 1. process each basic conditional, using a new context per conditional
-        let post_order = PostOrder::with_function(function);
-
-        let mut mapping = HashMap::default();
-        for conditional in conditionals {
-            let cfg = ControlFlowGraph::with_function(function);
-            let cfg_root = function.entry_block();
-            let mut branch_ends = HashMap::default();
-            branch_ends.insert(conditional.block_entry, conditional.block_exit);
-            let mut context = Context::new(function, cfg, branch_ends, cfg_root);
-            context.flatten_single_conditional(conditional, no_predicates);
-            // extract the mapping into 'mapping
-            context.inserter.extract_mapping(&mut mapping);
-        }
-        // 2. re-map the full program for values that may been simplified.
-        if !mapping.is_empty() {
-            for block in post_order.as_slice() {
-                Context::map_block_with_mapping(mapping.clone(), function, *block);
-            }
-        }
     }
 }
 
