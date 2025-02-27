@@ -102,7 +102,7 @@ fn is_conditional(
         }
     } else if left_successors_len == 1 && next_left == Some(right) {
         // Left branch joins the right branch, e.g if/then statement with no else
-        // I am not sure whether this case can happen, but it is not difficult to handle it
+        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
         let cost = block_cost(left, &function.dfg);
         if cost < cost / 2 + jump_overhead {
             if let Some(TerminatorInstruction::JmpIf {
@@ -130,7 +130,7 @@ fn is_conditional(
         }
     } else if right_successors_len == 1 && next_right == Some(left) {
         // Right branch joins the left branch, e.g if/else statement with no then
-        // I am not sure whether this case can happen, but it is not difficult to handle it
+        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
         let cost = block_cost(right, &function.dfg);
         if cost < cost / 2 + jump_overhead {
             if let Some(TerminatorInstruction::JmpIf {
@@ -162,7 +162,7 @@ fn is_conditional(
 
 /// Computes a cost estimate of a basic block
 /// returns u32::MAX if the block has side-effect instructions
-/// WARNING: the estimates are estimate of the runtime cost of each instructions,
+/// WARNING: these are estimates of the runtime cost of each instruction,
 /// 1 being the cost of the simplest instruction. These numbers can be improved.
 fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
     let mut cost: u32 = 0;
