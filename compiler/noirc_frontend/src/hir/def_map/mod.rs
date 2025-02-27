@@ -3,7 +3,7 @@ use crate::graph::{CrateGraph, CrateId};
 use crate::hir::Context;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
-use crate::parser::{ParsedModule, ParserError};
+use crate::parser::{ParsedModule, ParserError, parse_program};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};

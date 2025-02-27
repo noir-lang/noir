@@ -98,7 +98,12 @@ impl<'a> Parser<'a> {
             self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
-        vecmap(kinds, |(kind, cfg_feature_disabled)| Item { kind, location, doc_comments: doc_comments.clone(), cfg_feature_disabled })
+        vecmap(kinds, |(kind, cfg_feature_disabled)| Item {
+            kind,
+            location,
+            doc_comments: doc_comments.clone(),
+            cfg_feature_disabled,
+        })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -141,29 +146,22 @@ impl<'a> Parser<'a> {
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            let parsed_mod_or_contract = self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility);
+            let parsed_mod_or_contract =
+                self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility);
             return vec![(parsed_mod_or_contract, cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Struct) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            let parsed_struct = self.parse_struct(
-                attributes,
-                modifiers.visibility,
-                start_location,
-            );
+            let parsed_struct = self.parse_struct(attributes, modifiers.visibility, start_location);
             return vec![(ItemKind::Struct(parsed_struct), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Enum) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            let parsed_enum = self.parse_enum(
-                attributes,
-                modifiers.visibility,
-                start_location,
-            );
+            let parsed_enum = self.parse_enum(attributes, modifiers.visibility, start_location);
             return vec![(ItemKind::Enum(parsed_enum), cfg_feature_disabled)];
         }
 
@@ -171,10 +169,13 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let parsed_impl = self.parse_impl();
-            return vec![(match parsed_impl {
-                Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
-                Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
-            }, cfg_feature_disabled)];
+            return vec![(
+                match parsed_impl {
+                    Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
+                    Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
+                },
+                cfg_feature_disabled,
+            )];
         }
 
         if self.eat_keyword(Keyword::Trait) {
@@ -198,19 +199,17 @@ impl<'a> Parser<'a> {
                 modifiers.comptime.is_some(),
                 modifiers.mutable.is_some(),
             );
-            return vec![(ItemKind::Global(
-                parsed_global,
-                modifiers.visibility,
-            ), cfg_feature_disabled)];
+            return vec![(
+                ItemKind::Global(parsed_global, modifiers.visibility),
+                cfg_feature_disabled,
+            )];
         }
 
         if self.eat_keyword(Keyword::Type) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let parsed_type_alias = self.parse_type_alias(modifiers.visibility, start_location);
-            return vec![(ItemKind::TypeAlias(
-                parsed_type_alias
-            ), cfg_feature_disabled)];
+            return vec![(ItemKind::TypeAlias(parsed_type_alias), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Fn) {
@@ -296,11 +295,11 @@ mod tests {
 
         fn main() { }
         "#;
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         // TODO cleanup
         dbg!(&module, &errors);
-        assert_eq!(module.items.len(), 1);
+        assert_eq!(module.items.len(), 2);
         assert_eq!(errors, vec![]);
     }
 }

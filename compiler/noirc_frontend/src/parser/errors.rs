@@ -78,11 +78,10 @@ pub enum ParserErrorReason {
     TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
-    #[error("Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}")]
-    MultipleCfgAttributesFound {
-        cfg_attribute: CfgAttribute,
-        second_cfg_attribute: CfgAttribute,
-    },
+    #[error(
+        "Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}"
+    )]
+    MultipleCfgAttributesFound { cfg_attribute: CfgAttribute, second_cfg_attribute: CfgAttribute },
     #[error("This requires the unstable feature '{0}' which is not enabled")]
     ExperimentalFeature(UnstableFeature),
     #[error(

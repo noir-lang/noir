@@ -806,22 +806,19 @@ fn quoted_as_expr(
         "an expression",
     );
 
-    let value =
-        result.ok().and_then(
-            |(statement_or_expression_or_lvalue, opt_cfg_attribute)| {
-                if elaborator.is_cfg_attribute_enabled(opt_cfg_attribute) {
-                    Some(match statement_or_expression_or_lvalue {
-                        StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
-                        StatementOrExpressionOrLValue::Statement(statement) => {
-                            Value::statement(statement.kind)
-                        }
-                        StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
-                    })
-                } else {
-                    None
+    let value = result.ok().and_then(|(statement_or_expression_or_lvalue, opt_cfg_attribute)| {
+        if elaborator.is_cfg_attribute_enabled(opt_cfg_attribute) {
+            Some(match statement_or_expression_or_lvalue {
+                StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
+                StatementOrExpressionOrLValue::Statement(statement) => {
+                    Value::statement(statement.kind)
                 }
-            }
-        );
+                StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
+            })
+        } else {
+            None
+        }
+    });
 
     Ok(option(return_type, value, location))
 }
@@ -2751,10 +2748,11 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
 
     let parser = Parser::parse_top_level_items;
-    let top_level_statements: Vec<_> = parse(interpreter.elaborator, item, parser, "a top-level item")?
-        .into_iter()
-        .filter(|item| item.cfg_feature_disabled)
-        .collect();
+    let top_level_statements: Vec<_> =
+        parse(interpreter.elaborator, item, parser, "a top-level item")?
+            .into_iter()
+            .filter(|item| !item.cfg_feature_disabled)
+            .collect();
 
     interpreter.elaborate_in_module(module_id, |elaborator| {
         let previous_errors = elaborator

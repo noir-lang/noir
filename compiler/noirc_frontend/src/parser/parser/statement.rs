@@ -12,18 +12,27 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement_or_error(&mut self) -> (Statement, Option<CfgAttribute>) {
         if let Some((statement, (_token, _location), cfg_attribute)) = self.parse_statement() {
             (statement, cfg_attribute)
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
-            (Statement { kind: StatementKind::Error, span: self.location_at_previous_token_end() }, None)
+            (
+                Statement {
+                    kind: StatementKind::Error,
+                    location: self.location_at_previous_token_end(),
+                },
+                None,
+            )
         }
     }
 
     /// Statement = Attributes StatementKind ';'?
-    pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location), Option<CfgAttribute>)> {
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn parse_statement(
+        &mut self,
+    ) -> Option<(Statement, (Option<Token>, Location), Option<CfgAttribute>)> {
         loop {
             // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
             self.warn_on_outer_doc_comments();
@@ -36,7 +45,7 @@ impl<'a> Parser<'a> {
 
             let attributes = self.parse_attributes();
             let start_location = self.current_token_location;
-            let cfg_attribute = self.cfg_attribute(&attributes);          
+            let cfg_attribute = self.cfg_attribute(&attributes);
             let kind = self.parse_statement_kind(attributes);
             self.statement_comments = None;
 
@@ -50,11 +59,10 @@ impl<'a> Parser<'a> {
                 (None, self.previous_token_location)
             };
 
-            let location = self.location_since(start_location);
-
             if let Some(kind) = kind {
+                let location = self.location_since(start_location);
                 let statement = Statement { kind, location };
-                return Some((statement, (semicolon_token, semicolon_span), cfg_attribute));
+                return Some((statement, (semicolon_token, semicolon_location), cfg_attribute));
             }
 
             self.expected_label(ParsingRuleLabel::Statement);
@@ -71,10 +79,7 @@ impl<'a> Parser<'a> {
     //
     /// Return the unique `CfgAttribute` in the given `attributes` list along
     /// with its `Span`, if it exists
-    fn cfg_attribute(
-        &mut self,
-        attributes: &Vec<(Attribute, Span)>,
-    ) -> Option<CfgAttribute> {
+    fn cfg_attribute(&mut self, attributes: &Vec<(Attribute, Location)>) -> Option<CfgAttribute> {
         let mut found_cfg_attribute: Option<CfgAttribute> = None;
         for (attribute, attribute_span) in attributes {
             if let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute {
@@ -489,11 +494,14 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
-            parser::{CfgAttribute, tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            }},
             Parser, ParserErrorReason,
+            parser::{
+                CfgAttribute,
+                tests::{
+                    expect_no_errors, get_single_error, get_single_error_reason,
+                    get_source_with_error_span,
+                },
+            },
         },
     };
 
@@ -560,7 +568,7 @@ mod tests {
         let src = "/// Safety: doc comment
         let x = unsafe { 1 };";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (statement, _) = parser.parse_statement().unwrap();
+        let (statement, _semicolon, _location) = parser.parse_statement().unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -758,7 +766,7 @@ mod tests {
         ^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);      
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let (statement, None) = parser.parse_statement_or_error() else { panic!("cfg found") };
         assert!(matches!(statement.kind, StatementKind::Error));
         let reason = get_single_error_reason(&parser.errors, span);
@@ -842,7 +850,7 @@ mod tests {
     fn parses_empty_while() {
         let src = "while true { }";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, _location) = parser.parse_statement_or_error();
         let StatementKind::While(while_) = statement.kind else {
             panic!("Expected while");
         };
@@ -860,7 +868,7 @@ mod tests {
     fn parses_while_with_statements() {
         let src = "while true { 1; 2 }";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let statement = parser.parse_statement_or_error();
+        let (statement, _location) = parser.parse_statement_or_error();
         let StatementKind::While(while_) = statement.kind else {
             panic!("Expected while");
         };

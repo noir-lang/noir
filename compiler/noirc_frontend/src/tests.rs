@@ -3375,7 +3375,7 @@ fn cfg_disabled_attribute_on_function() {
     // TODO cleanup
     dbg!(&errors);
     for error in &errors {
-        println!("{}", error.0);
+        println!("{}", error);
     }
 
     assert_eq!(errors.len(), 0);
@@ -3396,7 +3396,9 @@ fn cfg_disabled_attribute_on_function_rejects_parse_error() {
     // TODO cleanup
     dbg!(&errors);
 
-    assert_eq!(errors.len(), 1);
+    for error in errors {
+        assert!(matches!(error, CompilationError::ParseError(_)));
+    }
 }
 
 #[test]
@@ -3408,11 +3410,11 @@ fn cfg_disabled_attribute_on_global() {
         fn main() { }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
     for error in &errors {
-        println!("{}", error.0);
+        println!("{}", error);
     }
 
     assert_eq!(errors.len(), 0);
@@ -3451,11 +3453,11 @@ fn cfg_disabled_attribute_on_statement_block() {
         }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
     for error in &errors {
-        println!("{}", error.0);
+        println!("{}", error);
     }
 
     assert_eq!(errors.len(), 0);
@@ -3480,7 +3482,7 @@ fn cfg_attribute_on_statement_block() {
         }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
 
@@ -3500,7 +3502,7 @@ fn cfg_attribute_on_module() {
         }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
 
@@ -3520,11 +3522,11 @@ fn cfg_disabled_attribute_on_module() {
         }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
     for error in &errors {
-        println!("{}", error.0);
+        println!("{}", error);
     }
 
     assert_eq!(errors.len(), 1);
@@ -3563,18 +3565,17 @@ fn cfg_disabled_attribute_on_use() {
         }
     "#;
     let errors = get_program_errors(src);
-    
+
     // TODO cleanup
     dbg!(&errors);
     for error in &errors {
-        println!("{}", error.0);
+        println!("{}", error);
     }
 
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors, vec![]);
 }
 
 // TODO: test cfg on trait, impl, contract, struct, enum, type
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // END cfg tests

@@ -1,6 +1,10 @@
-use noirc_frontend::{ast::Path, token::{
-    Attribute, Attributes, CfgAttribute, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
-}};
+use noirc_frontend::{
+    ast::Path,
+    token::{
+        Attribute, Attributes, CfgAttribute, FunctionAttribute, MetaAttribute, SecondaryAttribute,
+        TestScope, Token,
+    },
+};
 
 use crate::chunks::ChunkGroup;
 
@@ -171,10 +175,11 @@ impl Formatter<'_> {
     fn format_cfg_attribute(&mut self, cfg_attribute: CfgAttribute) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.format_path(Path::from_single("cfg".to_string(), cfg_attribute.span()));
+        self.format_path(Path::from_single("cfg".to_string(), cfg_attribute.location()));
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
-            let comments_count_before_arguments = self.written_comments_count;
+            // TODO: unused variable from 'master' branch
+            let _comments_count_before_arguments = self.written_comments_count;
             let feature_eq_name = format!("feature = {}", cfg_attribute.name());
 
             let mut chunk_formatter = self.chunk_formatter();
@@ -192,7 +197,6 @@ impl Formatter<'_> {
         }
         self.write_right_bracket();
     }
-
 
     fn format_no_args_attribute(&mut self) {
         self.write_current_token_and_bump(); // #[

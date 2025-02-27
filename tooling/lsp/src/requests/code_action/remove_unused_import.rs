@@ -129,6 +129,8 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
             kind: ItemKind::Import(use_tree, visibility),
             location: Location::new(Span::from(0..source.len() as u32), FileId::dummy()),
             doc_comments: Vec::new(),
+            // expect that a UseTree that reaches this point is feature-enabled
+            cfg_feature_disabled: false,
         }],
         inner_doc_comments: Vec::new(),
     };

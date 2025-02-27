@@ -2155,7 +2155,10 @@ impl<'context> Elaborator<'context> {
             })
     }
 
-    pub(crate) fn is_cfg_attribute_enabled(&self, _opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+    pub(crate) fn is_cfg_attribute_enabled(
+        &self,
+        _opt_cfg_attribute: Option<CfgAttribute>,
+    ) -> bool {
         // TODO
         true
     }

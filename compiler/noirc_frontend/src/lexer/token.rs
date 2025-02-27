@@ -1023,7 +1023,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => false,
             SecondaryAttribute::UseCallersScope => false,
             SecondaryAttribute::Allow(..) => false,
-            SecondaryAttribute::Cfg(ref cfg_attribute) => cfg_attribute.is_disabled(),
+            SecondaryAttribute::Cfg(cfg_attribute) => cfg_attribute.is_disabled(),
         }
     }
 
@@ -1042,7 +1042,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(k) => format!("allow({k})"),
-            SecondaryAttribute::Cfg(ref cfg_attribute) => format!("cfg({cfg_attribute})"),
+            SecondaryAttribute::Cfg(cfg_attribute) => format!("cfg({cfg_attribute})"),
         }
     }
 }
@@ -1075,10 +1075,7 @@ impl Display for MetaAttribute {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum CfgAttribute {
     // feature = "{name}"
-    Feature {
-        name: String,
-        span: Span,
-    },
+    Feature { name: String, location: Location },
 }
 
 impl CfgAttribute {
@@ -1088,9 +1085,9 @@ impl CfgAttribute {
         }
     }
 
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            CfgAttribute::Feature { span, .. } => span.clone(),
+            CfgAttribute::Feature { location, .. } => *location,
         }
     }
 }
@@ -1098,29 +1095,26 @@ impl CfgAttribute {
 impl Display for CfgAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CfgAttribute::Feature { name, span: _ } => {
+            CfgAttribute::Feature { name, location: _ } => {
                 write!(f, "feature = {:?}", name)
             }
         }
     }
 }
 
-// TODO: enable more features once working
 impl CfgAttribute {
+    // TODO(follow-up-issue): enable more features once working
     pub(crate) fn is_disabled(&self) -> bool {
         match self {
-            CfgAttribute::Feature { name, .. } => {
-                name != &"default"
-            }
+            CfgAttribute::Feature { name, .. } => name != "default",
         }
     }
-
 }
-
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {
     pub contents: String,
+    // TODO: follow up to use Location here and/or for "contents_span"?
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
     // The span for the attribute contents (what's inside `#[...]`)
