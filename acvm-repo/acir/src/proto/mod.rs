@@ -3,6 +3,11 @@ mod conversion;
 pub(crate) mod acir {
 
     #[allow(unreachable_pub)]
+    pub(crate) mod native {
+        include!(concat!(env!("OUT_DIR"), "/acvm.acir.native.rs"));
+    }
+
+    #[allow(unreachable_pub)]
     pub(crate) mod witness {
         include!(concat!(env!("OUT_DIR"), "/acvm.acir.witness.rs"));
     }

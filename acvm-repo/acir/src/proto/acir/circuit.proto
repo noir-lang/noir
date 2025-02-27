@@ -2,15 +2,15 @@ syntax = "proto3";
 
 package acvm.acir.circuit;
 
-import "acir/witness.proto";
+import "acir/native.proto";
 
 message Circuit {
   uint32 current_witness_index = 1;
   repeated Opcode opcodes = 2;
   ExpressionWidth expression_width = 3;
-  repeated witness.Witness private_parameters = 4;
-  repeated witness.Witness public_parameters = 5;
-  repeated witness.Witness return_values = 6;
+  repeated native.Witness private_parameters = 4;
+  repeated native.Witness public_parameters = 5;
+  repeated native.Witness return_values = 6;
   repeated AssertMessage assert_messages = 7;
 }
 
@@ -47,30 +47,26 @@ message AssertionPayload {
 message ExpressionOrMemory {
   oneof value {
     Expression expression = 1;
-    BlockId memory = 2;
+    uint32 memory = 2;
   }
 }
-
-message BlockId { uint32 value = 1; }
 
 message Expression {
   repeated MulTerm mul_terms = 1;
   repeated LinearCombination linear_combinations = 2;
-  Field q_c = 3;
+  native.Field q_c = 3;
 
   message MulTerm {
-    Field q_m = 1;
-    witness.Witness witness_left = 2;
-    witness.Witness witness_right = 3;
+    native.Field q_m = 1;
+    native.Witness witness_left = 2;
+    native.Witness witness_right = 3;
   }
 
   message LinearCombination {
-    Field q_l = 1;
-    witness.Witness witness = 2;
+    native.Field q_l = 1;
+    native.Witness witness = 2;
   }
 }
-
-message Field { bytes value = 1; }
 
 message Opcode {
   oneof value {
@@ -82,33 +78,163 @@ message Opcode {
     Call call = 6;
   }
   message MemoryOp {
-    BlockId block_id = 1;
+    uint32 block_id = 1;
     MemOp op = 2;
     optional Expression predicate = 3;
   }
   message MemoryInit {
-    BlockId block_id = 1;
-    repeated witness.Witness init = 2;
+    uint32 block_id = 1;
+    repeated native.Witness init = 2;
     BlockType block_type = 3;
   }
   message BrilligCall {
-    BrilligFunctionId id = 1;
+    uint32 id = 1;
     repeated BrilligInputs inputs = 2;
     repeated BrilligOutputs outputs = 3;
     optional Expression predicate = 4;
   }
   message Call {
-    AcirFunctionId id = 1;
-    repeated witness.Witness inputs = 2;
-    repeated witness.Witness outputs = 3;
+    uint32 id = 1;
+    repeated native.Witness inputs = 2;
+    repeated native.Witness outputs = 3;
     optional Expression predicate = 4;
   }
 }
 
 message BlackBoxFuncCall {
-  //   oneof value {
-  //     // TODO
-  //   }
+  oneof value {
+    AES128Encrypt aes128_encrypt = 1;
+    AND and = 2;
+    XOR xor = 3;
+    RANGE range = 4;
+    Blake2s blake2s = 5;
+    Blake3 blake3 = 6;
+    EcdsaSecp256k1 ecdsa_secp256k1 = 7;
+    EcdsaSecp256r1 ecdsa_secp256r1 = 8;
+    MultiScalarMul multi_scalar_mul = 9;
+    EmbeddedCurveAdd embedded_curve_add = 10;
+    Keccakf1600 keccak_f1600 = 11;
+    RecursiveAggregation recursive_aggregation = 12;
+    BigIntAdd bigint_add = 13;
+    BigIntSub bigint_sub = 14;
+    BigIntMul bigint_mul = 15;
+    BigIntDiv bigint_div = 16;
+    BigIntFromLeBytes bigint_from_le_bytes = 17;
+    BigIntToLeBytes bigint_to_le_bytes = 18;
+    Poseidon2Permutation poseidon2_permutation = 19;
+    Sha256Compression sha256_compression = 20;
+  }
+  message AES128Encrypt {
+    repeated FunctionInput inputs = 1;
+    repeated FunctionInput iv = 2;
+    repeated FunctionInput key = 3;
+    repeated native.Witness outputs = 4;
+  }
+  message AND {
+    FunctionInput lhs = 1;
+    FunctionInput rhs = 2;
+    native.Witness output = 3;
+  }
+  message XOR {
+    FunctionInput lhs = 1;
+    FunctionInput rhs = 2;
+    native.Witness output = 3;
+  }
+  message RANGE { FunctionInput input = 1; }
+  message Blake2s {
+    repeated FunctionInput inputs = 1;
+    repeated native.Witness outputs = 2;
+  }
+  message Blake3 {
+    repeated FunctionInput inputs = 1;
+    repeated native.Witness outputs = 2;
+  }
+  message EcdsaSecp256k1 {
+    repeated FunctionInput public_key_x = 1;
+    repeated FunctionInput public_key_y = 2;
+    repeated FunctionInput signature = 3;
+    repeated FunctionInput hashed_message = 4;
+    native.Witness output = 5;
+  }
+  message EcdsaSecp256r1 {
+    repeated FunctionInput public_key_x = 1;
+    repeated FunctionInput public_key_y = 2;
+    repeated FunctionInput signature = 3;
+    repeated FunctionInput hashed_message = 4;
+    native.Witness output = 5;
+  }
+  message MultiScalarMul {
+    repeated FunctionInput points = 1;
+    repeated FunctionInput scalars = 2;
+    repeated native.Witness outputs = 3;
+  }
+  message EmbeddedCurveAdd {
+    repeated FunctionInput points = 1;
+    repeated FunctionInput scalars = 2;
+    repeated native.Witness outputs = 3;
+  }
+  message Keccakf1600 {
+    repeated FunctionInput points = 1;
+    repeated native.Witness outputs = 2;
+  }
+  message RecursiveAggregation {
+    repeated FunctionInput verification_key = 1;
+    repeated FunctionInput proof = 2;
+    repeated FunctionInput public_inputs = 3;
+    FunctionInput key_hash = 4;
+    uint32 proof_type = 5;
+  }
+  message BigIntAdd {
+    uint32 lhs = 1;
+    uint32 rhs = 2;
+    uint32 output = 3;
+  }
+  message BigIntSub {
+    uint32 lhs = 1;
+    uint32 rhs = 2;
+    uint32 output = 3;
+  }
+  message BigIntMul {
+    uint32 lhs = 1;
+    uint32 rhs = 2;
+    uint32 output = 3;
+  }
+  message BigIntDiv {
+    uint32 lhs = 1;
+    uint32 rhs = 2;
+    uint32 output = 3;
+  }
+  message BigIntFromLeBytes {
+    repeated FunctionInput inputs = 1;
+    bytes modulus = 2;
+    uint32 output = 3;
+  }
+  message BigIntToLeBytes {
+    uint32 input = 1;
+    repeated native.Witness outputs = 2;
+  }
+  message Poseidon2Permutation {
+    repeated FunctionInput inputs = 1;
+    repeated native.Witness outputs = 2;
+    uint32 len = 3;
+  }
+  message Sha256Compression {
+    repeated FunctionInput inputs = 1;
+    repeated FunctionInput hash_values = 2;
+    repeated native.Witness outputs = 3;
+  }
+}
+
+message FunctionInput {
+  ConstantOrWitnessEnum input = 1;
+  uint32 num_bits = 2;
+}
+
+message ConstantOrWitnessEnum {
+  oneof value {
+    native.Field constant = 1;
+    native.Witness witness = 2;
+  }
 }
 
 message MemOp {
@@ -128,22 +254,19 @@ message BlockType {
   message ReturnData {}
 }
 
-message BrilligFunctionId { uint32 value = 1; }
-message AcirFunctionId { uint32 value = 1; }
-
 message BrilligInputs {
   oneof value {
     Expression single = 1;
     Array array = 2;
-    BlockId memory_array = 3;
+    uint32 memory_array = 3;
   }
   message Array { repeated Expression values = 2; }
 }
 
 message BrilligOutputs {
   oneof value {
-    witness.Witness simple = 1;
+    native.Witness simple = 1;
     Array array = 2;
   }
-  message Array { repeated witness.Witness values = 1; }
+  message Array { repeated native.Witness values = 1; }
 }

@@ -2,4 +2,4 @@ syntax = "proto3";
 
 package acvm.acir.witness;
 
-message Witness { uint32 index = 1; }
+import "acir/native.proto";

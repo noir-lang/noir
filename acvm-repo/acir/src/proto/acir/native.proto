@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package acvm.acir.native;
+
+message Field { bytes value = 1; }
+message Witness { uint32 index = 1; }

@@ -1,6 +1,6 @@
 use color_eyre::eyre::{self, Context};
 use iter_extended::{try_vecmap, vecmap};
-use noir_protobuf::{from_proto, to_proto, ProtoCodec, ProtoRepr};
+use noir_protobuf::{from_proto, to_proto, ProtoCodec};
 
 use crate::proto::acir::circuit::Circuit;
 use crate::proto::brillig::BrilligBytecode;
