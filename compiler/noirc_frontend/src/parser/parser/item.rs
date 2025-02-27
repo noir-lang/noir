@@ -295,7 +295,7 @@ mod tests {
 
         fn main() { }
         "#;
-        let (module, errors) = parse_program_with_dummy_file(&src);
+        let (module, errors) = parse_program_with_dummy_file(src);
 
         // TODO cleanup
         dbg!(&module, &errors);
