@@ -18,7 +18,7 @@ message BrilligOpcode {
     CalldataCopy calldata_copy = 8;
     Call call = 9;
     Const const = 10;
-    IndirectConst indirect_cost = 11;
+    IndirectConst indirect_const = 11;
     Return return = 12;
     ForeignCall foreign_call = 13;
     Mov mov = 14;
@@ -50,7 +50,7 @@ message BrilligOpcode {
   message Cast {
     MemoryAddress destination = 1;
     MemoryAddress source = 2;
-    IntegerBitSize bit_size = 3;
+    BitSize bit_size = 3;
   }
   message JumpIfNot {
     MemoryAddress condition = 1;
@@ -73,7 +73,7 @@ message BrilligOpcode {
     acir.native.Field value = 3;
   }
   message IndirectConst {
-    MemoryAddress destination = 1;
+    MemoryAddress destination_pointer = 1;
     BitSize bit_size = 2;
     acir.native.Field value = 3;
   }
@@ -105,7 +105,7 @@ message BrilligOpcode {
   }
   message BlackBox { BlackBoxOp op = 1; }
   message Trap { HeapVector revert_data = 1; }
-  message Stop { HeapVector revert_data = 1; }
+  message Stop { HeapVector return_data = 1; }
 }
 
 message MemoryAddress {
