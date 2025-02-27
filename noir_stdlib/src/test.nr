@@ -1,3 +1,5 @@
+use super::validation::AssertsIsValidInput;
+
 #[oracle(create_mock)]
 unconstrained fn create_mock_oracle<let N: u32>(name: str<N>) -> Field {}
 
@@ -47,4 +49,8 @@ impl OracleMock {
     pub unconstrained fn clear(self) {
         clear_mock_oracle(self.id);
     }
+}
+
+impl AssertsIsValidInput for OracleMock {
+    fn assert_is_valid_input(self) {}
 }

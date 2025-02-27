@@ -2,6 +2,7 @@ use crate::cmp::Eq;
 use crate::default::Default;
 use crate::hash::{BuildHasher, Hash, Hasher};
 use crate::option::Option;
+use crate::validation::AssertsIsValidInput;
 
 // An unconstrained hash table with open addressing and quadratic probing.
 // Note that "unconstrained" here means that almost all operations on this
@@ -114,7 +115,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     {
         // docs:end:contains_key
         // Safety: unconstrained context
-        unsafe { self.get(key) }.is_some()
+        unsafe { self.get_valid(key) }.input.is_some()
     }
 
     // Returns true if the map contains no elements.
@@ -288,6 +289,16 @@ impl<K, V, B> UHashMap<K, V, B> {
         H: Hasher,
     {
         // docs:end:get
+        self.get_valid(key).input
+    }
+
+    unconstrained fn get_valid<H>(self, key: K) -> ValidInput<Option<V>>
+    where
+        K: Eq + Hash,
+        B: BuildHasher<H>,
+        H: Hasher,
+    {
+        // docs:end:get
         let mut result = Option::none();
 
         let hash = self.hash(key);
@@ -306,7 +317,7 @@ impl<K, V, B> UHashMap<K, V, B> {
             }
         }
 
-        result
+        ValidInput { input: result }
     }
 
     // Insert key-value entry. In case key was already present, value is overridden.
@@ -434,7 +445,7 @@ where
                 if equal & slot.is_valid() {
                     let (key, value) = slot.key_value_unchecked();
                     // Safety: unconstrained context
-                    let other_value = unsafe { other.get(key) };
+                    let other_value = unsafe { other.get_valid(key) }.input;
 
                     if other_value.is_none() {
                         equal = false;
@@ -462,4 +473,12 @@ where
         // docs:end:default
         UHashMap::with_hasher(B::default())
     }
+}
+
+struct ValidInput<T> {
+    input: T,
+}
+
+impl<T> AssertsIsValidInput for ValidInput<T> {
+    fn assert_is_valid_input(self) {}
 }

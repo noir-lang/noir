@@ -1,8 +1,7 @@
 use crate::cmp::{Eq, Ord};
 use crate::convert::From;
-use crate::runtime::is_unconstrained;
 
-mod check_shuffle;
+pub(crate) mod check_shuffle;
 mod quicksort;
 
 impl<T, let N: u32> [T; N] {
@@ -188,18 +187,7 @@ where
         // a. a permutation of `input`'s elements
         // b. satisfying the predicate `ordering`
         unsafe {
-            let sorted = quicksort::quicksort(self, ordering);
-
-            if !is_unconstrained() {
-                for i in 0..N - 1 {
-                    assert(
-                        ordering(sorted[i], sorted[i + 1]),
-                        "Array has not been sorted correctly according to `ordering`.",
-                    );
-                }
-                check_shuffle::check_shuffle(self, sorted);
-            }
-            sorted
+            quicksort::quicksort(self, ordering).sorted
         }
     }
 }

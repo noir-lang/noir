@@ -1,5 +1,6 @@
-use std::test::OracleMock;
+use std::{test::OracleMock, validation::AssertsIsValidInput};
 
+#[derive(AssertsIsValidInput)]
 struct Point {
     x: Field,
     y: Field,

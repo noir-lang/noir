@@ -6,6 +6,8 @@ struct Trigger {
     y: Field,
     z: [Field; 3],
 }
+
+#[derive(AssertsIsValidInput)]
 struct ResultType {
     a: u32,
     b: Field,

@@ -466,6 +466,7 @@ impl Elaborator<'_> {
             comptime_args = arguments.clone();
         }
 
+        let crossing_runtime_boundary = self.is_crossing_runtime_boundary(&func_type, func);
         let is_macro_call = call.is_macro_call;
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let mut typ = self.type_check_call(&hir_call, func_type, args, location);
@@ -480,7 +481,13 @@ impl Elaborator<'_> {
             }
         }
 
-        (HirExpression::Call(hir_call), typ)
+        let hir_expr = HirExpression::Call(hir_call);
+
+        if crossing_runtime_boundary {
+            self.wrap_with_input_validation(hir_expr, typ, location)
+        } else {
+            (hir_expr, typ)
+        }
     }
 
     fn elaborate_method_call(
@@ -495,111 +502,110 @@ impl Elaborator<'_> {
         let method_name_location = method_call.method_name.location();
         let method_name = method_call.method_name.0.contents.as_str();
         let check_self_param = true;
-        match self.lookup_method(&object_type, method_name, location, check_self_param) {
-            Some(method_ref) => {
-                // Automatically add `&mut` if the method expects a mutable reference and
-                // the object is not already one.
-                let func_id = method_ref
-                    .func_id(self.interner)
-                    .expect("Expected trait function to be a DefinitionKind::Function");
+        let Some(method_ref) =
+            self.lookup_method(&object_type, method_name, location, check_self_param)
+        else {
+            return (HirExpression::Error, Type::Error);
+        };
 
-                let generics = if func_id != FuncId::dummy_id() {
-                    let function_type = self.interner.function_meta(&func_id).typ.clone();
-                    self.try_add_mutable_reference_to_object(
-                        &function_type,
-                        &mut object_type,
-                        &mut object,
-                    );
+        // Automatically add `&mut` if the method expects a mutable reference and
+        // the object is not already one.
+        let func_id = method_ref
+            .func_id(self.interner)
+            .expect("Expected trait function to be a DefinitionKind::Function");
 
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
-                } else {
-                    None
-                };
+        let generics = if func_id != FuncId::dummy_id() {
+            let function_type = self.interner.function_meta(&func_id).typ.clone();
+            self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
 
-                let location = object_location.merge(method_name_location);
+            self.resolve_function_turbofish_generics(&func_id, method_call.generics, location)
+        } else {
+            None
+        };
 
-                let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
-                    object_type.clone(),
-                    generics.clone(),
-                    location,
-                    self.interner,
-                );
+        let location = object_location.merge(method_name_location);
 
-                let func_type =
-                    self.type_check_variable(function_name.clone(), function_id, generics.clone());
-                self.interner.push_expr_type(function_id, func_type.clone());
+        let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+            object_type.clone(),
+            generics.clone(),
+            location,
+            self.interner,
+        );
 
-                let func_arg_types =
-                    if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+        let func_type =
+            self.type_check_variable(function_name.clone(), function_id, generics.clone());
+        self.interner.push_expr_type(function_id, func_type.clone());
 
-                // Try to unify the object type with the first argument of the function.
-                // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
-                // as a parameter. By unifying `self` with the first argument we'll potentially get more
-                // concrete types in the arguments that are function types, which will later be passed as
-                // lambda parameter hints.
-                if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
-                    let _ = first_arg_type.unify(&object_type);
-                }
+        let func_arg_types =
+            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
 
-                // These arguments will be given to the desugared function call.
-                // Compared to the method arguments, they also contain the object.
-                let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
-                let mut arguments = Vec::with_capacity(method_call.arguments.len());
+        // Try to unify the object type with the first argument of the function.
+        // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
+        // as a parameter. By unifying `self` with the first argument we'll potentially get more
+        // concrete types in the arguments that are function types, which will later be passed as
+        // lambda parameter hints.
+        if let Some(first_arg_type) = func_arg_types.and_then(|args| args.first()) {
+            let _ = first_arg_type.unify(&object_type);
+        }
 
-                function_args.push((object_type.clone(), object, object_location));
+        // These arguments will be given to the desugared function call.
+        // Compared to the method arguments, they also contain the object.
+        let mut function_args = Vec::with_capacity(method_call.arguments.len() + 1);
+        let mut arguments = Vec::with_capacity(method_call.arguments.len());
 
-                for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
-                    let location = arg.location;
-                    let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
-                    let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
+        function_args.push((object_type.clone(), object, object_location));
 
-                    // Try to unify this argument type against the function's argument type
-                    // so that a potential lambda following this argument can have more concrete types.
-                    if let Some(expected_type) = expected_type {
-                        let _ = expected_type.unify(&typ);
-                    }
+        for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
+            let location = arg.location;
+            let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
+            let (arg, typ) = self.elaborate_expression_with_type(arg, expected_type);
 
-                    arguments.push(arg);
-                    function_args.push((typ, arg, location));
-                }
-
-                let method = method_call.method_name;
-                let is_macro_call = method_call.is_macro_call;
-                let method_call =
-                    HirMethodCallExpression { method, object, arguments, location, generics };
-
-                self.check_method_call_visibility(func_id, &object_type, &method_call.method);
-
-                // Desugar the method call into a normal, resolved function call
-                // so that the backend doesn't need to worry about methods
-                // TODO: update object_type here?
-
-                let function_call =
-                    method_call.into_function_call(function_id, is_macro_call, location);
-
-                self.interner.add_function_reference(func_id, method_name_location);
-
-                // Type check the new call now that it has been changed from a method call
-                // to a function call. This way we avoid duplicating code.
-                let mut typ =
-                    self.type_check_call(&function_call, func_type, function_args, location);
-                if is_macro_call {
-                    if self.in_comptime_context() {
-                        typ = self.interner.next_type_variable();
-                    } else {
-                        let args = function_call.arguments.clone();
-                        return self
-                            .call_macro(function_call.func, args, location, typ)
-                            .unwrap_or((HirExpression::Error, Type::Error));
-                    }
-                }
-                (HirExpression::Call(function_call), typ)
+            // Try to unify this argument type against the function's argument type
+            // so that a potential lambda following this argument can have more concrete types.
+            if let Some(expected_type) = expected_type {
+                let _ = expected_type.unify(&typ);
             }
-            None => (HirExpression::Error, Type::Error),
+
+            arguments.push(arg);
+            function_args.push((typ, arg, location));
+        }
+
+        let method = method_call.method_name;
+        let is_macro_call = method_call.is_macro_call;
+        let method_call = HirMethodCallExpression { method, object, arguments, location, generics };
+
+        self.check_method_call_visibility(func_id, &object_type, &method_call.method);
+
+        // Desugar the method call into a normal, resolved function call
+        // so that the backend doesn't need to worry about methods
+        // TODO: update object_type here?
+
+        let crossing_runtime_boundary = self.is_crossing_runtime_boundary(&func_type, function_id);
+        let function_call = method_call.into_function_call(function_id, is_macro_call, location);
+
+        self.interner.add_function_reference(func_id, method_name_location);
+
+        // Type check the new call now that it has been changed from a method call
+        // to a function call. This way we avoid duplicating code.
+        let mut typ = self.type_check_call(&function_call, func_type, function_args, location);
+
+        if is_macro_call {
+            if self.in_comptime_context() {
+                typ = self.interner.next_type_variable();
+            } else {
+                let args = function_call.arguments.clone();
+                return self
+                    .call_macro(function_call.func, args, location, typ)
+                    .unwrap_or((HirExpression::Error, Type::Error));
+            }
+        }
+
+        let hir_expr = HirExpression::Call(function_call);
+
+        if crossing_runtime_boundary {
+            self.wrap_with_input_validation(hir_expr, typ, location)
+        } else {
+            (hir_expr, typ)
         }
     }
 

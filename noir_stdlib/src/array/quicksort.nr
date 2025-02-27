@@ -1,3 +1,6 @@
+use crate::validation::AssertsIsValidInput;
+use super::check_shuffle::check_shuffle;
+
 unconstrained fn partition<T, Env, let N: u32>(
     arr: &mut [T; N],
     low: u32,
@@ -38,10 +41,33 @@ unconstrained fn quicksort_recursive<T, Env, let N: u32>(
 pub(crate) unconstrained fn quicksort<T, Env, let N: u32>(
     _arr: [T; N],
     sortfn: fn[Env](T, T) -> bool,
-) -> [T; N] {
+) -> SortedArrray<T, N, Env> {
     let mut arr: [T; N] = _arr;
     if arr.len() <= 1 {} else {
         quicksort_recursive(&mut arr, 0, arr.len() - 1, sortfn);
     }
-    arr
+    SortedArrray { sorted: arr, array: _arr, ordering: sortfn }
+}
+
+pub(crate) struct SortedArrray<T, let N: u32, Env> {
+    pub(crate) sorted: [T; N],
+    array: [T; N],
+    ordering: fn[Env](T, T) -> bool,
+}
+
+impl<T, let N: u32, Env> AssertsIsValidInput for SortedArrray<T, N, Env>
+where
+    T: crate::cmp::Eq,
+{
+    fn assert_is_valid_input(self) {
+        let sorted = self.array;
+        let ordering = self.ordering;
+        for i in 0..N - 1 {
+            assert(
+                ordering(sorted[i], sorted[i + 1]),
+                "Array has not been sorted correctly according to `ordering`.",
+            );
+        }
+        check_shuffle(self.array, sorted);
+    }
 }
