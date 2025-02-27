@@ -8,6 +8,7 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CustomDiagnostic {
+    pub file: fm::FileId,
     pub message: String,
     pub secondaries: Vec<CustomLabel>,
     pub notes: Vec<String>,
@@ -35,8 +36,9 @@ pub struct ReportedErrors {
 }
 
 impl CustomDiagnostic {
-    pub fn from_message(msg: &str) -> CustomDiagnostic {
+    pub fn from_message(msg: &str, file: fm::FileId) -> CustomDiagnostic {
         Self {
+            file,
             message: msg.to_owned(),
             secondaries: Vec::new(),
             notes: Vec::new(),
@@ -54,6 +56,7 @@ impl CustomDiagnostic {
         kind: DiagnosticKind,
     ) -> CustomDiagnostic {
         CustomDiagnostic {
+            file: secondary_location.file,
             message: primary_message,
             secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),
@@ -109,6 +112,7 @@ impl CustomDiagnostic {
         secondary_location: Location,
     ) -> CustomDiagnostic {
         CustomDiagnostic {
+            file: secondary_location.file,
             message: primary_message,
             secondaries: vec![CustomLabel::new(secondary_message, secondary_location)],
             notes: Vec::new(),

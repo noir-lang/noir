@@ -401,6 +401,7 @@ pub fn compile_main(
         // TODO(#2155): This error might be a better to exist in Nargo
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a program as it does not contain a `main` function",
+            FileId::default(),
         )
         .in_file(FileId::default());
         vec![err]
@@ -439,12 +440,16 @@ pub fn compile_contract(
     let mut errors = warnings;
 
     if contracts.len() > 1 {
-        let err = CustomDiagnostic::from_message("Packages are limited to a single contract")
-            .in_file(FileId::default());
+        let err = CustomDiagnostic::from_message(
+            "Packages are limited to a single contract",
+            FileId::default(),
+        )
+        .in_file(FileId::default());
         return Err(vec![err]);
     } else if contracts.is_empty() {
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a contract as it does not contain any contracts",
+            FileId::default(),
         )
         .in_file(FileId::default());
         return Err(vec![err]);
