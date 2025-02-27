@@ -3896,3 +3896,64 @@ fn subtract_to_int_min() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn mutate_with_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn mutate_with_reference_marked_mutable_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            x += 2;
+            ^ Mutable variable x captured in lambda must be a mutable reference
+            ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allow_capturing_mut_variable_only_used_immutably() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || x;
+        let _x2 = f();
+        assert(x == 3);
+    }
+    "#;
+    assert_no_errors(src);
+}

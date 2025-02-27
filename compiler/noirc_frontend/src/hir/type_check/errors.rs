@@ -100,6 +100,8 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
+    #[error("Variable {name} captured in lambda must be a mutable reference")]
+    MutableCaptureWithoutRef { name: String, location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -321,9 +323,12 @@ impl TypeCheckError {
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
-            | TypeCheckError::NestedUnsafeBlock { location } => *location,
+            | TypeCheckError::NestedUnsafeBlock { location }
+            | TypeCheckError::MutableCaptureWithoutRef { location, .. } => *location,
+
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
+
             TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
             }
@@ -476,6 +481,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
+            TypeCheckError::MutableCaptureWithoutRef { name, location } => Diagnostic::simple_error(
+                format!("Mutable variable {name} captured in lambda must be a mutable reference"),
+                "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
+                *location,
+            ),
             TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),

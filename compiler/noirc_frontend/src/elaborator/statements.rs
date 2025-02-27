@@ -151,8 +151,24 @@ impl Elaborator<'_> {
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
-            let (name, location) = self.get_lvalue_name_and_location(&lvalue);
+            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+        } else if let Some(lambda_context) = self.lambda_stack.last() {
+            // We must check whether the mutable variable we are attempting to assign
+            // comes from a lambda capture. All captures are immutable so we want to error
+            // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+            let capture_ids =
+                lambda_context.captures.iter().map(|var| var.ident.id).collect::<Vec<_>>();
+            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
+            let typ = self.interner.definition_type(id);
+            for capture_id in capture_ids {
+                if capture_id == id && !typ.is_mutable_ref() {
+                    self.push_err(TypeCheckError::MutableCaptureWithoutRef {
+                        name: name.clone(),
+                        location,
+                    });
+                }
+            }
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -331,20 +347,20 @@ impl Elaborator<'_> {
         (expr, self.interner.next_type_variable())
     }
 
-    fn get_lvalue_name_and_location(&self, lvalue: &HirLValue) -> (String, Location) {
+    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
                 let location = name.location;
 
                 if let Some(definition) = self.interner.try_definition(name.id) {
-                    (definition.name.clone(), location)
+                    (name.id, definition.name.clone(), location)
                 } else {
-                    ("(undeclared variable)".into(), location)
+                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
                 }
             }
-            HirLValue::MemberAccess { object, .. } => self.get_lvalue_name_and_location(object),
-            HirLValue::Index { array, .. } => self.get_lvalue_name_and_location(array),
-            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_name_and_location(lvalue),
+            HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
+            HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
+            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
         }
     }
 
@@ -446,8 +462,8 @@ impl Elaborator<'_> {
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
-                        let (_lvalue_name, lvalue_location) =
-                            self.get_lvalue_name_and_location(&lvalue);
+                        let (_id, _lvalue_name, lvalue_location) =
+                            self.get_lvalue_error_info(&lvalue);
                         self.push_err(TypeCheckError::StringIndexAssign {
                             location: lvalue_location,
                         });
