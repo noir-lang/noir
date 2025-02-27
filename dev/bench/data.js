@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740659742359,
+  "lastUpdate": 1740659947827,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "263922da5af9a8d7bf85cbe268f381dc1f650913",
-          "message": "chore: Copy #7387 docs into v1.0.0-beta.2 versioned_docs (#7458)",
-          "timestamp": "2025-02-20T17:15:20Z",
-          "tree_id": "eb3d4aeba454a3b5ccfc91dee00a458b0a35dba2",
-          "url": "https://github.com/noir-lang/noir/commit/263922da5af9a8d7bf85cbe268f381dc1f650913"
-        },
-        "date": 1740073581227,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 215.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 249.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 185.17,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 431.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 370.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 309.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 316.78,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14770,6 +14706,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 246.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 280.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 215.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 469.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 410.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 356.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9056d74cb30853fbeb44cedee5cb8f20f775f005",
+          "message": "feat: simplify simple conditionals for brillig (#7205)",
+          "timestamp": "2025-02-27T12:16:50Z",
+          "tree_id": "d2bf1f448cfe030060c7ab91ccf9533e298693b2",
+          "url": "https://github.com/noir-lang/noir/commit/9056d74cb30853fbeb44cedee5cb8f20f775f005"
+        },
+        "date": 1740659945709,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 246.28,
             "unit": "MB"
           },
           {
