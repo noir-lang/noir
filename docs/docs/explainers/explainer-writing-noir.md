@@ -70,7 +70,7 @@ A few things to do when converting Rust code to Noir:
 - No early `return` in function. Use constrain via assertion instead
 - No passing by reference. Remove `&` operator to pass by value (copy)
 - No boolean operators (`&&`, `||`). Use bitwise operators (`&`, `|`) with boolean values
-- No type `usize`. Use types `u8`, `u32`, `u64`, ... 
+- No type `usize`. Use types `u8`, `u32`, `u64`, ...
 - `main` return must be public, `pub`
 - No `const`, use `global`
 - Noir's LSP is your friend, so error message should be informative enough to resolve syntax issues.
@@ -183,6 +183,18 @@ Use `  if is_unconstrained() { /`, to conditionally execute code if being called
 ## Advanced
 
 Unless you're well into the depth of gate optimization, this advanced section can be ignored.
+
+### `#[no_predicates]` over for "pure" functions
+
+When conditional logic is compiled into gates, it is predicated with boolean expressions like X, where `X * V1() + (1-X) * V2()` is calculated. This returns `V1()` when `X` is true or `V2()` if `X` is false.
+
+If a function is guaranteed to never fail an assertion no matter the inputs, or roughly considered "pure", it can use the macro `#[no_predicates]`, telling the compiler to not add such predicates. This can beneficially be used in say hashing functions to reduce the gate count when they intuitively must be written/used inside an `if`.
+
+:::note
+If a function may call other predicated functions, do not mark it with `#[no_predicates]`.
+:::
+
+Having a `#[no_predicates]` function call a regular function severely breaks the intended representation, proof generation, and verification of the program.
 
 ### Combine arithmetic operations
 
