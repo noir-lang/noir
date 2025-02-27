@@ -2,7 +2,7 @@ pub(crate) mod data_bus;
 
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
-use acvm::{acir::circuit::ErrorSelector, FieldElement};
+use acvm::{FieldElement, acir::circuit::ErrorSelector};
 use noirc_errors::Location;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -85,7 +85,11 @@ impl FunctionBuilder {
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
     pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
-        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        assert_eq!(
+            self.finished_functions.len(),
+            0,
+            "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function"
+        );
         self.current_function.set_runtime(runtime);
     }
 
@@ -584,7 +588,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},

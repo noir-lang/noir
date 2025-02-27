@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::ir::function::RuntimeType;
@@ -8,6 +8,7 @@ use crate::ssa::ir::instruction::Hint;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::{
+    Ssa,
     ir::{
         dfg::DataFlowGraph,
         function::Function,
@@ -16,7 +17,6 @@ use crate::ssa::{
         value::Value,
     },
     opt::flatten_cfg::value_merger::ValueMerger,
-    Ssa,
 };
 
 impl Ssa {

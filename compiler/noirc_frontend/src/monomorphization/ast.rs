@@ -1,15 +1,15 @@
 use std::{collections::BTreeMap, fmt::Display};
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, Signedness, Visibility},
     hir_def::expr::Constructor,
+    signed_field::SignedField,
     token::{Attributes, FunctionAttribute},
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
@@ -123,7 +123,7 @@ pub struct While {
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(FieldElement, /*sign*/ bool, Type, Location), // false for positive integer and true for negative
+    Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,
     Str(String),

@@ -2,11 +2,11 @@ use acvm::AcirField;
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
+    BrilligBinaryOp, BrilligContext, ReservedRegisters,
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     entry_point::{MAX_STACK_FRAME_SIZE, MAX_STACK_SIZE},
     registers::{RegisterAllocator, ScratchSpace},
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {

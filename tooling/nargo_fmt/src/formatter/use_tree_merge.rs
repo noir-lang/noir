@@ -9,7 +9,7 @@ use crate::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn merge_and_format_imports(
         &mut self,
         imports: Vec<UseTree>,
@@ -180,11 +180,7 @@ impl Ord for Segment {
         if let (Segment::Plain(self_string), Segment::Plain(other_string)) = (self, other) {
             // Case-insensitive comparison for plain segments
             let ordering = self_string.to_lowercase().cmp(&other_string.to_lowercase());
-            if ordering == Ordering::Equal {
-                self_string.cmp(other_string)
-            } else {
-                ordering
-            }
+            if ordering == Ordering::Equal { self_string.cmp(other_string) } else { ordering }
         } else {
             order_number_ordering
         }
@@ -299,7 +295,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format_with_config, config::ImportsGranularity, Config};
+    use crate::{Config, assert_format_with_config, config::ImportsGranularity};
 
     fn assert_format(src: &str, expected: &str) {
         let config = Config {

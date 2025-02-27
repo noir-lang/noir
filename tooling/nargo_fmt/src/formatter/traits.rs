@@ -4,9 +4,9 @@ use noirc_frontend::{
     token::{Attributes, Keyword, Token},
 };
 
-use super::{function::FunctionToFormat, Formatter};
+use super::{Formatter, function::FunctionToFormat};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait(&mut self, noir_trait: NoirTrait) {
         self.format_secondary_attributes(noir_trait.attributes);
         self.write_indentation();
@@ -294,6 +294,23 @@ mod tests {
         fn foo<T>()
         where
             T: Bar;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_function_with_multiple_where_clauses() {
+        let src = " mod moo { trait Foo { 
+            fn  foo<T> () where  A: B, C: D;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        fn foo<T>()
+        where
+            A: B,
+            C: D;
     }
 }
 ";

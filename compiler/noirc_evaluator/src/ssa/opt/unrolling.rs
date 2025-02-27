@@ -20,7 +20,7 @@
 //! only used by Brillig bytecode.
 use std::collections::BTreeSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use im::HashSet;
 
 use crate::{
@@ -490,9 +490,19 @@ impl Loop {
         context.inline_instructions_from_block();
         // Mutate the terminator if possible so that it points at the iteration block.
         match context.dfg()[fresh_block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { condition, then_destination, else_destination, call_stack } => {
+            TerminatorInstruction::JmpIf {
+                condition,
+                then_destination,
+                else_destination,
+                call_stack,
+            } => {
                 let condition = *condition;
-                let next_blocks = context.handle_jmpif(condition, *then_destination, *else_destination, *call_stack);
+                let next_blocks = context.handle_jmpif(
+                    condition,
+                    *then_destination,
+                    *else_destination,
+                    *call_stack,
+                );
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
                 // This is the expected case and lets us know if we should loop again or not.
@@ -515,7 +525,9 @@ impl Loop {
                     Err(context.inserter.function.dfg.get_value_call_stack(condition))
                 }
             }
-            other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
+            other => unreachable!(
+                "Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"
+            ),
         }
     }
 
@@ -1021,9 +1033,9 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
-    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{is_new_size_ok, BoilerplateStats, Loops};
+    use super::{BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimisations.

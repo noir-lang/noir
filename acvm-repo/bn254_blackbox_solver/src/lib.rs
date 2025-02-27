@@ -11,8 +11,8 @@ mod poseidon2;
 pub use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 pub use generator::generators::derive_generators;
 pub use poseidon2::{
-    field_from_hex, poseidon2_permutation, poseidon_hash, Poseidon2Config, Poseidon2Sponge,
-    POSEIDON2_CONFIG,
+    POSEIDON2_CONFIG, Poseidon2Config, Poseidon2Sponge, field_from_hex, poseidon_hash,
+    poseidon2_permutation,
 };
 
 // Temporary hack, this ensure that we always use a bn254 field here

@@ -1,11 +1,11 @@
 use iter_extended::vecmap;
 
 use crate::{
-    parser::{labels::ParsingRuleLabel, Item, ItemKind, ParserErrorReason},
+    parser::{Item, ItemKind, ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
 };
 
-use super::{impls::Impl, parse_many::without_separator, Parser};
+use super::{Parser, impls::Impl, parse_many::without_separator};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {

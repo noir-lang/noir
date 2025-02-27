@@ -1,6 +1,6 @@
 use acir::{
-    native_types::{Expression, Witness},
     AcirField,
+    native_types::{Expression, Witness},
 };
 use indexmap::IndexMap;
 

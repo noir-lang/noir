@@ -12,16 +12,18 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::token::LocatedToken;
+use crate::{DataType, Kind, Shared};
 use crate::{
+    QuotedType, Type,
     ast::{
         BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
     hir::{
         comptime::{
+            Interpreter, InterpreterError, Value,
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            Interpreter, InterpreterError, Value,
         },
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
@@ -32,9 +34,7 @@ use crate::{
     },
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     token::{SecondaryAttribute, Token, Tokens},
-    QuotedType, Type,
 };
-use crate::{DataType, Kind, Shared};
 use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) fn check_argument_count(
@@ -509,9 +509,8 @@ where
     let (result, warnings) =
         parse_tokens(tokens, quoted, elaborator.interner, location, parser, rule)?;
     for warning in warnings {
-        let location = warning.location();
         let warning: CompilationError = warning.into();
-        elaborator.push_err(warning, location.file);
+        elaborator.push_err(warning);
     }
     Ok(result)
 }

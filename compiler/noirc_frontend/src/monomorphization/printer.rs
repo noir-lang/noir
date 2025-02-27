@@ -105,7 +105,7 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _, _) => x.fmt(f),
+            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => write!(f, "\"{s}\""),
             super::ast::Literal::FmtStr(fragments, _, _) => {

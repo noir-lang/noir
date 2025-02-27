@@ -6,7 +6,7 @@ use std::process::Command;
 include!("./utils.rs");
 
 macro_rules! iai_command {
-    ($command_name:tt, $command_string:expr) => {
+    ($command_name:tt, $command_string:expr_2021) => {
         paste! {
             fn [<iai_selected_tests_ $command_name>]() {
                 let test_program_dirs = get_selected_tests();

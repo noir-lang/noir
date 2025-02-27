@@ -7,6 +7,7 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule, Type,
     ast::{
         CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
@@ -14,10 +15,9 @@ use noirc_frontend::{
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{NodeInterner, ReferenceId},
     parser::Item,
-    ParsedModule, Type,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
 use super::process_request;
 
@@ -26,7 +26,7 @@ mod tests;
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
-) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> {
+) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let uri = params.text_document_position_params.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
@@ -332,7 +332,7 @@ impl<'a> SignatureFinder<'a> {
     }
 }
 
-impl<'a> Visitor for SignatureFinder<'a> {
+impl Visitor for SignatureFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.includes_span(item.location.span)
     }

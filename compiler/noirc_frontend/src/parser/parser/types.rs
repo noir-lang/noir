@@ -1,15 +1,15 @@
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
-    token::{Keyword, Token, TokenKind},
     QuotedType,
+    ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
+    token::{Keyword, Token, TokenKind},
 };
 
-use super::{parse_many::separated_by_comma_until_right_paren, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
         if let Some(typ) = self.parse_type() {
             typ
@@ -320,11 +320,7 @@ impl<'a> Parser<'a> {
 
     fn parse_parameter(&mut self) -> Option<UnresolvedType> {
         let typ = self.parse_type_or_error();
-        if let UnresolvedTypeData::Error = typ.typ {
-            None
-        } else {
-            Some(typ)
-        }
+        if let UnresolvedTypeData::Error = typ.typ { None } else { Some(typ) }
     }
 
     fn parse_trait_as_type(&mut self) -> Option<UnresolvedTypeData> {
@@ -462,12 +458,12 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use crate::{
+        QuotedType,
         ast::{IntegerBitSize, Signedness, UnresolvedType, UnresolvedTypeData},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
-        QuotedType,
     };
 
     fn parse_type_no_errors(src: &str) -> UnresolvedType {

@@ -17,7 +17,7 @@ use noirc_errors::{Location, Span};
 
 use super::parse_many::separated_by_comma_until_right_paren;
 use super::pattern::SelfPattern;
-use super::{pattern::PatternOrSelf, Parser};
+use super::{Parser, pattern::PatternOrSelf};
 
 pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) name: Ident,
@@ -30,7 +30,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) return_visibility: Visibility,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
@@ -315,11 +315,11 @@ mod tests {
         },
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 

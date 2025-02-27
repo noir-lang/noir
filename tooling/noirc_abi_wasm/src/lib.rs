@@ -6,24 +6,23 @@
 use getrandom as _;
 
 use acvm::{
+    FieldElement,
     acir::{
         circuit::RawAssertionPayload,
         native_types::{WitnessMap, WitnessStack},
     },
-    FieldElement,
 };
 use iter_extended::try_btree_map;
 use noirc_abi::{
-    decode_value, display_abi_error,
+    Abi, AbiErrorType, MAIN_RETURN_NAME, decode_value, display_abi_error,
     errors::InputParserError,
-    input_parser::{json::JsonTypes, InputValue},
-    Abi, AbiErrorType, MAIN_RETURN_NAME,
+    input_parser::{InputValue, json::JsonTypes},
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
 
 use gloo_utils::format::JsValueSerdeExt;
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 mod errors;
 mod js_witness_map;

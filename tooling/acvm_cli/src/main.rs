@@ -8,7 +8,7 @@ mod cli;
 use std::env;
 
 use tracing_appender::rolling;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 mod fs;
 

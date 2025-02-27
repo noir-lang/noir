@@ -1,16 +1,16 @@
 use crate::{
-    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    parser::{labels::ParsingRuleLabel, ParserError},
-    token::Token,
     BinaryTypeOperator,
+    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    parser::{ParserError, labels::ParsingRuleLabel},
+    token::Token,
 };
 
 use acvm::acir::{AcirField, FieldElement};
 use noirc_errors::Location;
 
-use super::{parse_many::separated_by_comma_until_right_paren, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// TypeExpression= AddOrSubtractTypeExpression
     pub(crate) fn parse_type_expression(
         &mut self,
@@ -394,15 +394,15 @@ mod tests {
     use core::panic;
 
     use crate::{
+        BinaryTypeOperator,
         ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
         token::Token,
-        BinaryTypeOperator,
     };
 
     fn parse_type_expression_no_errors(src: &str) -> UnresolvedTypeExpression {
