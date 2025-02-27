@@ -119,7 +119,7 @@ fn on_test_run_request_inner(
                 TestStatus::CompileError(diag) => NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
-                    message: Some(diag.diagnostic.message),
+                    message: Some(diag.message),
                 },
             };
             Ok(result)

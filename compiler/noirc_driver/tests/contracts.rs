@@ -33,13 +33,10 @@ contract Bar {}";
 
     assert_eq!(
         errors,
-        vec![
-            CustomDiagnostic::from_message(
-                "Packages are limited to a single contract",
-                FileId::default()
-            )
-            .in_file(FileId::default())
-        ],
+        vec![CustomDiagnostic::from_message(
+            "Packages are limited to a single contract",
+            FileId::default()
+        )],
         "stdlib is producing warnings"
     );
 

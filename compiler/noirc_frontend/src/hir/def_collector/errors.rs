@@ -2,7 +2,6 @@ use crate::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
 use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::type_check::generics::TraitGenerics;
 
-use noirc_errors::FileDiagnostic;
 use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
@@ -76,10 +75,6 @@ pub enum DefCollectorErrorKind {
 }
 
 impl DefCollectorErrorKind {
-    pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
-        Diagnostic::from(self).in_file(file)
-    }
-
     pub fn location(&self) -> Location {
         match self {
             DefCollectorErrorKind::Duplicate { first_def: ident, .. }

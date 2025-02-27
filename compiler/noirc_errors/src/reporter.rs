@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use crate::{FileDiagnostic, Location, Span};
+use crate::{Location, Span};
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::Files;
 use codespan_reporting::term;
@@ -123,10 +123,6 @@ impl CustomDiagnostic {
         }
     }
 
-    pub fn in_file(self, file_id: fm::FileId) -> FileDiagnostic {
-        FileDiagnostic::new(file_id, self)
-    }
-
     pub fn with_call_stack(mut self, call_stack: Vec<Location>) -> Self {
         self.call_stack = call_stack;
         self
@@ -189,16 +185,16 @@ impl CustomLabel {
 /// of diagnostics that were errors.
 pub fn report_all<'files>(
     files: &'files impl Files<'files, FileId = fm::FileId>,
-    diagnostics: &[FileDiagnostic],
+    diagnostics: &[CustomDiagnostic],
     deny_warnings: bool,
     silence_warnings: bool,
 ) -> ReportedErrors {
     // Report warnings before any errors
     let (warnings_and_bugs, mut errors): (Vec<_>, _) =
-        diagnostics.iter().partition(|item| !item.diagnostic.is_error());
+        diagnostics.iter().partition(|item| !item.is_error());
 
     let (warnings, mut bugs): (Vec<_>, _) =
-        warnings_and_bugs.iter().partition(|item| item.diagnostic.is_warning());
+        warnings_and_bugs.iter().partition(|item| item.is_warning());
     let mut diagnostics = if silence_warnings { Vec::new() } else { warnings };
     diagnostics.append(&mut bugs);
     diagnostics.append(&mut errors);
@@ -209,14 +205,14 @@ pub fn report_all<'files>(
     ReportedErrors { error_count }
 }
 
-impl FileDiagnostic {
+impl CustomDiagnostic {
     /// Print the report; return true if it was an error.
     pub fn report<'files>(
         &self,
         files: &'files impl Files<'files, FileId = fm::FileId>,
         deny_warnings: bool,
     ) -> bool {
-        report(files, &self.diagnostic, deny_warnings)
+        report(files, self, deny_warnings)
     }
 }
 

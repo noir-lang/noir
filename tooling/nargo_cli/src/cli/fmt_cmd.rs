@@ -56,11 +56,8 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
             let is_all_warnings = errors.iter().all(ParserError::is_warning);
             if !is_all_warnings {
                 let errors = errors
-                    .into_iter()
-                    .map(|error| {
-                        let error = CustomDiagnostic::from(&error);
-                        error.in_file(file_id)
-                    })
+                    .iter()
+                    .map(CustomDiagnostic::from)
                     .collect();
 
                 let _ = report_errors::<()>(
