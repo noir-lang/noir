@@ -15,7 +15,6 @@ dependencies = [
  "flate2",
  "flexbuffers",
  "fxhash",
- "iter-extended",
  "noir_protobuf",
  "pprof",
  "prost",

@@ -1,74 +1,76 @@
-use color_eyre::eyre::{self, Context};
-use iter_extended::{try_vecmap, vecmap};
-use noir_protobuf::{from_proto, to_proto, ProtoCodec};
+use std::marker::PhantomData;
 
+use color_eyre::eyre;
+use noir_protobuf::ProtoCodec;
+
+use crate::circuit;
 use crate::proto::program::Program;
 
-impl<F> ProtoCodec for crate::circuit::Program<F> {
-    type Repr = Program;
+pub struct ProtoSchema<F> {
+    field: PhantomData<F>,
+}
 
-    fn encode(&self) -> Self::Repr {
+impl<F> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F> {
+    fn encode(value: &circuit::Program<F>) -> Program {
         Program {
-            functions: vecmap(&self.functions, to_proto),
-            unconstrained_functions: vecmap(&self.unconstrained_functions, to_proto),
+            functions: Self::encode_vec(&value.functions),
+            unconstrained_functions: Self::encode_vec(&value.unconstrained_functions),
         }
     }
 
-    fn decode(value: &Self::Repr) -> eyre::Result<Self> {
-        Ok(Self {
-            functions: try_vecmap(&value.functions, from_proto).wrap_err("functions")?,
-            unconstrained_functions: try_vecmap(&value.unconstrained_functions, from_proto)
-                .wrap_err("unconstrained_functions")?,
+    fn decode(value: &Program) -> eyre::Result<circuit::Program<F>> {
+        Ok(circuit::Program {
+            functions: Self::decode_vec_msg(&value.functions, "functions")?,
+            unconstrained_functions: Self::decode_vec_msg(
+                &value.unconstrained_functions,
+                "unconstrained_functions",
+            )?,
         })
     }
 }
 
 mod brillig {
+    use crate::circuit;
     use color_eyre::eyre;
-    use iter_extended::vecmap;
-    use noir_protobuf::{
-        from_proto, to_proto, to_proto_repr, to_proto_repr_f, ProtoCodec, ProtoRepr, ProtoReprF,
-    };
+    use noir_protobuf::ProtoCodec;
 
     use crate::proto::brillig::{
         brillig_opcode, BinaryFieldOpKind, BinaryIntOpKind, BrilligBytecode, BrilligOpcode,
         IntegerBitSize, MemoryAddress,
     };
 
-    impl<F> ProtoCodec for crate::circuit::brillig::BrilligBytecode<F> {
-        type Repr = BrilligBytecode;
+    use super::ProtoSchema;
 
-        fn encode(&self) -> Self::Repr {
-            BrilligBytecode { bytecode: vecmap(&self.bytecode, to_proto_repr_f) }
+    impl<F> ProtoCodec<circuit::brillig::BrilligBytecode<F>, BrilligBytecode> for ProtoSchema<F> {
+        fn encode(value: &circuit::brillig::BrilligBytecode<F>) -> BrilligBytecode {
+            BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
         }
 
-        fn decode(value: &Self::Repr) -> eyre::Result<Self> {
+        fn decode(value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
             todo!()
         }
     }
 
-    impl<F> ProtoReprF<F> for BrilligOpcode {
-        type Type = brillig::Opcode<F>;
-
-        fn encode(value: &Self::Type) -> Self {
+    impl<F> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema<F> {
+        fn encode(value: &brillig::Opcode<F>) -> BrilligOpcode {
             use brillig_opcode::*;
 
             let value = match value {
                 brillig::Opcode::BinaryFieldOp { destination, op, lhs, rhs } => {
                     Value::BinaryFieldOp(BinaryFieldOp {
-                        destination: Some(to_proto_repr(destination)),
-                        op: to_proto_repr::<BinaryFieldOpKind>(op).into(),
-                        lhs: Some(to_proto_repr(lhs)),
-                        rhs: Some(to_proto_repr(rhs)),
+                        destination: Self::encode_some(destination),
+                        op: Self::encode_enum(op),
+                        lhs: Self::encode_some(lhs),
+                        rhs: Self::encode_some(rhs),
                     })
                 }
                 brillig::Opcode::BinaryIntOp { destination, op, bit_size, lhs, rhs } => {
                     Value::BinaryIntOp(BinaryIntOp {
-                        destination: Some(to_proto_repr(destination)),
-                        op: to_proto_repr::<BinaryIntOpKind>(op).into(),
-                        bit_size: to_proto_repr::<IntegerBitSize>(bit_size).into(),
-                        lhs: Some(to_proto_repr(lhs)),
-                        rhs: Some(to_proto_repr(rhs)),
+                        destination: Self::encode_some(destination),
+                        op: Self::encode_enum(op),
+                        bit_size: Self::encode_enum(bit_size),
+                        lhs: Self::encode_some(lhs),
+                        rhs: Self::encode_some(rhs),
                     })
                 }
                 brillig::Opcode::Not { destination, source, bit_size } => todo!(),
@@ -105,73 +107,65 @@ mod brillig {
             BrilligOpcode { value: Some(value) }
         }
 
-        fn decode(&self) -> eyre::Result<Self::Type> {
+        fn decode(value: &BrilligOpcode) -> eyre::Result<brillig::Opcode<F>> {
             todo!()
         }
     }
 
-    impl ProtoRepr for MemoryAddress {
-        type Type = brillig::MemoryAddress;
-
-        fn encode(value: &Self::Type) -> Self {
+    impl<F> ProtoCodec<brillig::MemoryAddress, MemoryAddress> for ProtoSchema<F> {
+        fn encode(value: &brillig::MemoryAddress) -> MemoryAddress {
             todo!()
         }
 
-        fn decode(&self) -> eyre::Result<Self::Type> {
-            todo!()
-        }
-    }
-
-    impl ProtoRepr for BinaryFieldOpKind {
-        type Type = brillig::BinaryFieldOp;
-
-        fn encode(value: &Self::Type) -> Self {
-            todo!()
-        }
-
-        fn decode(&self) -> eyre::Result<Self::Type> {
+        fn decode(value: &MemoryAddress) -> eyre::Result<brillig::MemoryAddress> {
             todo!()
         }
     }
 
-    impl ProtoRepr for BinaryIntOpKind {
-        type Type = brillig::BinaryIntOp;
-
-        fn encode(value: &Self::Type) -> Self {
+    impl<F> ProtoCodec<brillig::BinaryFieldOp, BinaryFieldOpKind> for ProtoSchema<F> {
+        fn encode(value: &brillig::BinaryFieldOp) -> BinaryFieldOpKind {
             todo!()
         }
 
-        fn decode(&self) -> eyre::Result<Self::Type> {
+        fn decode(value: &BinaryFieldOpKind) -> eyre::Result<brillig::BinaryFieldOp> {
             todo!()
         }
     }
 
-    impl ProtoRepr for IntegerBitSize {
-        type Type = brillig::IntegerBitSize;
-
-        fn encode(value: &Self::Type) -> Self {
+    impl<F> ProtoCodec<brillig::BinaryIntOp, BinaryIntOpKind> for ProtoSchema<F> {
+        fn encode(value: &brillig::BinaryIntOp) -> BinaryIntOpKind {
             todo!()
         }
 
-        fn decode(&self) -> eyre::Result<Self::Type> {
+        fn decode(value: &BinaryIntOpKind) -> eyre::Result<brillig::BinaryIntOp> {
+            todo!()
+        }
+    }
+
+    impl<F> ProtoCodec<brillig::IntegerBitSize, IntegerBitSize> for ProtoSchema<F> {
+        fn encode(value: &brillig::IntegerBitSize) -> IntegerBitSize {
+            todo!()
+        }
+
+        fn decode(value: &IntegerBitSize) -> eyre::Result<brillig::IntegerBitSize> {
             todo!()
         }
     }
 }
 
 mod acir {
-    use crate::proto::acir::circuit::Circuit;
+    use crate::{circuit, proto::acir::circuit::Circuit};
     use color_eyre::eyre;
-    use noir_protobuf::{from_proto, to_proto, to_proto_repr, ProtoCodec};
+    use noir_protobuf::ProtoCodec;
 
-    impl<F> ProtoCodec for crate::circuit::Circuit<F> {
-        type Repr = Circuit;
+    use super::ProtoSchema;
 
-        fn encode(&self) -> Self::Repr {
+    impl<F> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
+        fn encode(value: &circuit::Circuit<F>) -> Circuit {
             todo!()
         }
 
-        fn decode(value: &Self::Repr) -> eyre::Result<Self> {
+        fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
             todo!()
         }
     }
