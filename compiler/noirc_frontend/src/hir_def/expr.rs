@@ -358,15 +358,13 @@ pub enum HirMatch {
     /// Jump directly to ExprId
     Success(ExprId),
 
-    Failure,
+    /// A Failure node in the match. `missing_case` is true if this node is the result of a missing
+    /// case of the match for which we should later reconstruct an example of.
+    Failure { missing_case: bool },
 
     /// Run `body` if the given expression is true.
     /// Otherwise continue with the given decision tree.
-    Guard {
-        cond: ExprId,
-        body: ExprId,
-        otherwise: Box<HirMatch>,
-    },
+    Guard { cond: ExprId, body: ExprId, otherwise: Box<HirMatch> },
 
     /// Switch on the given variable with the given cases to test.
     /// The final argument is an optional match-all case to take if

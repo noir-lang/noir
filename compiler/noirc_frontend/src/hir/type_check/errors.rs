@@ -235,6 +235,8 @@ pub enum TypeCheckError {
     UnnecessaryUnsafeBlock { location: Location },
     #[error("Unnecessary `unsafe` block")]
     NestedUnsafeBlock { location: Location },
+    #[error("Unreachable match case")]
+    UnreachableCase { location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -321,6 +323,7 @@ impl TypeCheckError {
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
+            | TypeCheckError::UnreachableCase { location }
             | TypeCheckError::NestedUnsafeBlock { location } => *location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -638,6 +641,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(
                     "Unnecessary `unsafe` block".into(), 
                     "Because it's nested inside another `unsafe` block".into(),
+                    *location,
+                )
+            },
+            TypeCheckError::UnreachableCase { location } => {
+                Diagnostic::simple_warning(
+                    "Unreachable match case".into(), 
+                    "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )
             },

@@ -200,3 +200,25 @@ fn constructor_arg_arity_mismatch_in_pattern() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn unreachable_match_case() {
+    check_errors(
+        r#"
+        fn main() {
+            match Opt::Some(Opt::Some(3)) {
+                Opt::Some(_) => (),
+                Opt::None => (),
+                Opt::Some(Opt::Some(_)) => (),
+                ^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    "#,
+    );
+}

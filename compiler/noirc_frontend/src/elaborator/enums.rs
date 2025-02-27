@@ -20,12 +20,86 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, NodeInterner, TypeId,
+    },
     signed_field::SignedField,
     token::Attributes,
 };
 
 use super::Elaborator;
+
+struct MatchCompiler<'elab, 'ctx> {
+    elaborator: &'elab mut Elaborator<'ctx>,
+    has_missing_cases: bool,
+    // We iterate on this to issue errors later so it needs to be a BTreeMap (versus HashMap) to be
+    // deterministic.
+    unreachable_cases: BTreeMap<RowBody, Location>,
+}
+
+/// A Pattern is anything that can appear before the `=>` in a match rule.
+#[derive(Debug, Clone)]
+enum Pattern {
+    /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
+    Constructor(Constructor, Vec<Pattern>),
+    /// An integer literal pattern such as `4`, `12345`, or `-56`
+    Int(SignedField),
+    /// A pattern binding a variable such as `a` or `_`
+    Binding(DefinitionId),
+
+    /// Multiple patterns combined with `|` where we should match this pattern if any
+    /// constituent pattern matches. e.g. `Some(3) | None` or `Some(1) | Some(2) | None`
+    #[allow(unused)]
+    Or(Vec<Pattern>),
+
+    /// An integer range pattern such as `1..20` which will match any integer n such that
+    /// 1 <= n < 20.
+    #[allow(unused)]
+    Range(SignedField, SignedField),
+
+    /// An error occurred while translating this pattern. This Pattern kind always translates
+    /// to a Fail branch in the decision tree, although the compiler is expected to halt
+    /// with errors before execution.
+    Error,
+}
+
+#[derive(Clone)]
+struct Column {
+    variable_to_match: DefinitionId,
+    pattern: Pattern,
+}
+
+impl Column {
+    fn new(variable_to_match: DefinitionId, pattern: Pattern) -> Self {
+        Column { variable_to_match, pattern }
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct Row {
+    columns: Vec<Column>,
+    guard: Option<RowBody>,
+    body: RowBody,
+    original_body: RowBody,
+    location: Location,
+}
+
+type RowBody = ExprId;
+
+impl Row {
+    fn new(columns: Vec<Column>, guard: Option<RowBody>, body: RowBody, location: Location) -> Row {
+        Row { columns, guard, body, original_body: body, location }
+    }
+}
+
+impl Row {
+    fn remove_column(&mut self, variable: DefinitionId) -> Option<Column> {
+        self.columns
+            .iter()
+            .position(|c| c.variable_to_match == variable)
+            .map(|idx| self.columns.remove(idx))
+    }
+}
 
 impl Elaborator<'_> {
     /// Defines the value of an enum variant that we resolve an enum
@@ -273,6 +347,7 @@ impl Elaborator<'_> {
 
         let rows = vecmap(rules, |(pattern, branch)| {
             self.push_scope();
+            let pattern_location = pattern.location;
             let pattern =
                 self.expression_to_pattern(pattern, &expected_pattern_type, &mut Vec::new());
             let columns = vec![Column::new(variable_to_match, pattern)];
@@ -288,7 +363,7 @@ impl Elaborator<'_> {
             });
 
             self.pop_scope();
-            Row::new(columns, guard, body)
+            Row::new(columns, guard, body, pattern_location)
         });
         (rows, result_type)
     }
@@ -524,7 +599,11 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         self.push_err(error);
-                        let id = self.fresh_match_variable(expected_type.clone(), location);
+                        let id = MatchCompiler::fresh_match_variable(
+                            self.interner,
+                            expected_type.clone(),
+                            location,
+                        );
                         Pattern::Binding(id)
                     }
                 }
@@ -722,16 +801,38 @@ impl Elaborator<'_> {
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
     pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>) -> HirMatch {
-        self.compile_rows(rows).unwrap_or_else(|error| {
-            self.push_err(error);
-            HirMatch::Failure
-        })
+        MatchCompiler::run(self, rows)
+    }
+}
+
+impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
+    fn run(elaborator: &'elab mut Elaborator<'ctx>, rows: Vec<Row>) -> HirMatch {
+        let mut compiler = Self {
+            elaborator,
+            has_missing_cases: false,
+            unreachable_cases: rows.iter().map(|row| (row.body, row.location)).collect(),
+        };
+
+        let hir_match = compiler.compile_rows(rows).unwrap_or_else(|error| {
+            compiler.elaborator.push_err(error);
+            HirMatch::Failure { missing_case: false }
+        });
+
+        if compiler.has_missing_cases {
+            compiler.issue_missing_cases_error(&hir_match);
+        }
+
+        if !compiler.unreachable_cases.is_empty() {
+            compiler.issue_unreachable_cases_warning();
+        }
+
+        hir_match
     }
 
     fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
-            eprintln!("Warning: missing case");
-            return Ok(HirMatch::Failure);
+            self.has_missing_cases = true;
+            return Ok(HirMatch::Failure { missing_case: true });
         }
 
         self.push_tests_against_bare_variables(&mut rows);
@@ -741,7 +842,10 @@ impl Elaborator<'_> {
             let row = rows.remove(0);
 
             return Ok(match row.guard {
-                None => HirMatch::Success(row.body),
+                None => {
+                    self.unreachable_cases.remove(&row.original_body);
+                    HirMatch::Success(row.body)
+                }
                 Some(cond) => {
                     let remaining = self.compile_rows(rows)?;
                     HirMatch::Guard { cond, body: row.body, otherwise: Box::new(remaining) }
@@ -750,9 +854,10 @@ impl Elaborator<'_> {
         }
 
         let branch_var = self.branch_variable(&rows);
-        let location = self.interner.definition(branch_var).location;
+        let location = self.elaborator.interner.definition(branch_var).location;
 
-        match self.interner.definition_type(branch_var).follow_bindings_shallow().into_owned() {
+        let definition_type = self.elaborator.interner.definition_type(branch_var);
+        match definition_type.follow_bindings_shallow().into_owned() {
             Type::FieldElement | Type::Integer(_, _) => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
@@ -843,14 +948,20 @@ impl Elaborator<'_> {
         variable_types: Vec<Type>,
         location: Location,
     ) -> Vec<DefinitionId> {
-        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
+        vecmap(variable_types, |typ| {
+            Self::fresh_match_variable(self.elaborator.interner, typ, location)
+        })
     }
 
-    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
+    fn fresh_match_variable(
+        interner: &mut NodeInterner,
+        variable_type: Type,
+        location: Location,
+    ) -> DefinitionId {
         let name = "internal_match_variable".to_string();
         let kind = DefinitionKind::Local(None);
-        let id = self.interner.push_definition(name, false, false, kind, location);
-        self.interner.push_definition_type(id, variable_type);
+        let id = interner.push_definition(name, false, false, kind, location);
+        interner.push_definition_type(id, variable_type);
         id
     }
 
@@ -946,7 +1057,7 @@ impl Elaborator<'_> {
                         cols.push(Column::new(*var, pat));
                     }
 
-                    cases[idx].2.push(Row::new(cols, row.guard, row.body));
+                    cases[idx].2.push(Row::new(cols, row.guard, row.body, row.location));
                 }
             } else {
                 for (_, _, rows) in &mut cases {
@@ -1045,16 +1156,16 @@ impl Elaborator<'_> {
     /// Creates:
     /// `{ let <variable> = <rhs>; <body> }`
     fn let_binding(&mut self, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -> ExprId {
-        let location = self.interner.definition(rhs).location;
+        let location = self.elaborator.interner.definition(rhs).location;
 
-        let r#type = self.interner.definition_type(variable);
-        let rhs_type = self.interner.definition_type(rhs);
+        let r#type = self.elaborator.interner.definition_type(variable);
+        let rhs_type = self.elaborator.interner.definition_type(rhs);
         let variable = HirIdent::non_trait_method(variable, location);
 
         let rhs = HirExpression::Ident(HirIdent::non_trait_method(rhs, location), None);
-        let rhs = self.interner.push_expr(rhs);
-        self.interner.push_expr_type(rhs, rhs_type);
-        self.interner.push_expr_location(rhs, location);
+        let rhs = self.elaborator.interner.push_expr(rhs);
+        self.elaborator.interner.push_expr_type(rhs, rhs_type);
+        self.elaborator.interner.push_expr_location(rhs, location);
 
         let let_ = HirStatement::Let(HirLetStatement {
             pattern: HirPattern::Identifier(variable),
@@ -1065,77 +1176,31 @@ impl Elaborator<'_> {
             is_global_let: false,
         });
 
-        let body_type = self.interner.id_type(body);
-        let let_ = self.interner.push_stmt(let_);
-        let body = self.interner.push_stmt(HirStatement::Expression(body));
+        let body_type = self.elaborator.interner.id_type(body);
+        let let_ = self.elaborator.interner.push_stmt(let_);
+        let body = self.elaborator.interner.push_stmt(HirStatement::Expression(body));
 
-        self.interner.push_stmt_location(let_, location);
-        self.interner.push_stmt_location(body, location);
+        self.elaborator.interner.push_stmt_location(let_, location);
+        self.elaborator.interner.push_stmt_location(body, location);
 
         let block = HirExpression::Block(HirBlockExpression { statements: vec![let_, body] });
-        let block = self.interner.push_expr(block);
-        self.interner.push_expr_type(block, body_type);
-        self.interner.push_expr_location(block, location);
+        let block = self.elaborator.interner.push_expr(block);
+        self.elaborator.interner.push_expr_type(block, body_type);
+        self.elaborator.interner.push_expr_location(block, location);
         block
     }
-}
 
-/// A Pattern is anything that can appear before the `=>` in a match rule.
-#[derive(Debug, Clone)]
-enum Pattern {
-    /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
-    Constructor(Constructor, Vec<Pattern>),
-    /// An integer literal pattern such as `4`, `12345`, or `-56`
-    Int(SignedField),
-    /// A pattern binding a variable such as `a` or `_`
-    Binding(DefinitionId),
-
-    /// Multiple patterns combined with `|` where we should match this pattern if any
-    /// constituent pattern matches. e.g. `Some(3) | None` or `Some(1) | Some(2) | None`
-    #[allow(unused)]
-    Or(Vec<Pattern>),
-
-    /// An integer range pattern such as `1..20` which will match any integer n such that
-    /// 1 <= n < 20.
-    #[allow(unused)]
-    Range(SignedField, SignedField),
-
-    /// An error occurred while translating this pattern. This Pattern kind always translates
-    /// to a Fail branch in the decision tree, although the compiler is expected to halt
-    /// with errors before execution.
-    Error,
-}
-
-#[derive(Clone)]
-struct Column {
-    variable_to_match: DefinitionId,
-    pattern: Pattern,
-}
-
-impl Column {
-    fn new(variable_to_match: DefinitionId, pattern: Pattern) -> Self {
-        Column { variable_to_match, pattern }
+    /// Traverse the resulting HirMatch to build counter-examples of values which would
+    /// not be covered by the match.
+    fn issue_missing_cases_error(&self, _tree: &HirMatch) {
+        eprintln!("Missing case(s)!");
     }
-}
 
-#[derive(Clone)]
-pub(super) struct Row {
-    columns: Vec<Column>,
-    guard: Option<ExprId>,
-    body: ExprId,
-}
-
-impl Row {
-    fn new(columns: Vec<Column>, guard: Option<ExprId>, body: ExprId) -> Row {
-        Row { columns, guard, body }
-    }
-}
-
-impl Row {
-    fn remove_column(&mut self, variable: DefinitionId) -> Option<Column> {
-        self.columns
-            .iter()
-            .position(|c| c.variable_to_match == variable)
-            .map(|idx| self.columns.remove(idx))
+    /// Any case that isn't branched to when the match is finished must be covered by another
+    /// case and is thus redundant.
+    fn issue_unreachable_cases_warning(&mut self) {
+        for location in self.unreachable_cases.values().copied() {
+            self.elaborator.push_err(TypeCheckError::UnreachableCase { location });
+        }
     }
 }
