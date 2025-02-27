@@ -5,6 +5,7 @@ use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 
 use crate::ssa::{
+    Ssa,
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
@@ -15,7 +16,6 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    Ssa,
 };
 
 use super::flatten_cfg::Context;
@@ -294,7 +294,7 @@ fn flatten_multiple(
     }
 }
 
-impl<'f> Context<'f> {
+impl Context<'_> {
     fn flatten_single_conditional(
         &mut self,
         conditional: &BasicConditional,
@@ -387,7 +387,7 @@ impl<'f> Context<'f> {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
 
     #[test]
     fn basic_jmpif() {
