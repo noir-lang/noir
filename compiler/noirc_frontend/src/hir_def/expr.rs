@@ -1,14 +1,14 @@
-use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -115,7 +115,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -249,11 +249,10 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
-                let span = location.span;
                 let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, span },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
@@ -385,49 +384,6 @@ pub struct Case {
 impl Case {
     pub fn new(constructor: Constructor, arguments: Vec<DefinitionId>, body: HirMatch) -> Self {
         Self { constructor, arguments, body }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct SignedField {
-    pub field: FieldElement,
-    pub is_negative: bool,
-}
-
-impl SignedField {
-    pub fn new(field: FieldElement, is_negative: bool) -> Self {
-        Self { field, is_negative }
-    }
-}
-
-impl std::ops::Neg for SignedField {
-    type Output = Self;
-
-    fn neg(mut self) -> Self::Output {
-        self.is_negative = !self.is_negative;
-        self
-    }
-}
-
-impl std::cmp::PartialOrd for SignedField {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.is_negative != other.is_negative {
-            if self.is_negative {
-                return Some(std::cmp::Ordering::Less);
-            } else {
-                return Some(std::cmp::Ordering::Greater);
-            }
-        }
-        self.field.partial_cmp(&other.field)
-    }
-}
-
-impl std::fmt::Display for SignedField {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_negative {
-            write!(f, "-")?;
-        }
-        write!(f, "{}", self.field)
     }
 }
 

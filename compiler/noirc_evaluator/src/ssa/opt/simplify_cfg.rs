@@ -254,7 +254,9 @@ fn remove_block_parameters(
 
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
-            TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
+            TerminatorInstruction::JmpIf { .. } => unreachable!(
+                "If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"
+            ),
             _ => unreachable!(
                 "Predecessor was already validated to have only a single jmp destination"
             ),
@@ -293,6 +295,7 @@ fn try_inline_into_predecessor(
 #[cfg(test)]
 mod test {
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             instruction::{BinaryOp, TerminatorInstruction},
@@ -300,7 +303,6 @@ mod test {
             types::Type,
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
     use acvm::acir::AcirField;
 

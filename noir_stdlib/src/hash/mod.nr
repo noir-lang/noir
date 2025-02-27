@@ -6,7 +6,6 @@ use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
-use crate::uint128::U128;
 
 #[foreign(sha256_compression)]
 // docs:start:sha256_compression
@@ -304,16 +303,6 @@ impl Hash for () {
     where
         H: Hasher,
     {}
-}
-
-impl Hash for U128 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
-    }
 }
 
 impl<T, let N: u32> Hash for [T; N]

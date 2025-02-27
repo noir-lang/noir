@@ -1,9 +1,9 @@
 use std::{
     collections::{BTreeMap, HashMap},
     fmt::Display,
-    panic::{catch_unwind, UnwindSafe},
+    panic::{UnwindSafe, catch_unwind},
     path::PathBuf,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
     thread,
     time::Duration,
 };
@@ -14,12 +14,12 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
-    PrintOutput,
+    PrintOutput, foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package, workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_driver::{check_crate, CompileOptions};
+use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -229,11 +229,7 @@ impl<'a> TestRunner<'a> {
             };
         }
 
-        if all_passed {
-            Ok(())
-        } else {
-            Err(CliError::Generic(String::new()))
-        }
+        if all_passed { Ok(()) } else { Err(CliError::Generic(String::new())) }
     }
 
     /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
@@ -261,21 +257,22 @@ impl<'a> TestRunner<'a> {
                     // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
                     // (the default is 2MB)
                     .stack_size(STACK_SIZE)
-                    .spawn_scoped(scope, move || loop {
-                        // Get next test to process from the iterator.
-                        let Some(test) = iter.lock().unwrap().next() else {
-                            break;
-                        };
+                    .spawn_scoped(scope, move || {
+                        loop {
+                            // Get next test to process from the iterator.
+                            let Some(test) = iter.lock().unwrap().next() else {
+                                break;
+                            };
 
-                        self.formatter
-                            .test_start_async(&test.name, &test.package_name)
-                            .expect("Could not display test start");
+                            self.formatter
+                                .test_start_async(&test.name, &test.package_name)
+                                .expect("Could not display test start");
 
-                        let time_before_test = std::time::Instant::now();
-                        let (status, output) = match catch_unwind(test.runner) {
-                            Ok((status, output)) => (status, output),
-                            Err(err) => (
-                                TestStatus::Fail {
+                            let time_before_test = std::time::Instant::now();
+                            let (status, output) = match catch_unwind(test.runner) {
+                                Ok((status, output)) => (status, output),
+                                Err(err) => (
+                                    TestStatus::Fail {
                                     message:
                                         // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
                                         if let Some(message) = err.downcast_ref::<&str>() {
@@ -285,31 +282,32 @@ impl<'a> TestRunner<'a> {
                                         },
                                     error_diagnostic: None,
                                 },
-                                String::new(),
-                            ),
-                        };
-                        let time_to_run = time_before_test.elapsed();
+                                    String::new(),
+                                ),
+                            };
+                            let time_to_run = time_before_test.elapsed();
 
-                        let test_result = TestResult {
-                            name: test.name,
-                            package_name: test.package_name,
-                            status,
-                            output,
-                            time_to_run,
-                        };
+                            let test_result = TestResult {
+                                name: test.name,
+                                package_name: test.package_name,
+                                status,
+                                output,
+                                time_to_run,
+                            };
 
-                        self.formatter
-                            .test_end_async(
-                                &test_result,
-                                self.file_manager,
-                                self.args.show_output,
-                                self.args.compile_options.deny_warnings,
-                                self.args.compile_options.silence_warnings,
-                            )
-                            .expect("Could not display test start");
+                            self.formatter
+                                .test_end_async(
+                                    &test_result,
+                                    self.file_manager,
+                                    self.args.show_output,
+                                    self.args.compile_options.deny_warnings,
+                                    self.args.compile_options.silence_warnings,
+                                )
+                                .expect("Could not display test start");
 
-                        if thread_sender.send(test_result).is_err() {
-                            break;
+                            if thread_sender.send(test_result).is_err() {
+                                break;
+                            }
                         }
                     })
                     .unwrap();
@@ -407,19 +405,21 @@ impl<'a> TestRunner<'a> {
                     // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
                     // (the default is 2MB)
                     .stack_size(STACK_SIZE)
-                    .spawn_scoped(scope, move || loop {
-                        // Get next package to process from the iterator.
-                        let Some(package) = iter.lock().unwrap().next() else {
-                            break;
-                        };
-                        let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
-                            package,
-                            self.args.oracle_resolver.as_deref(),
-                            Some(self.workspace.root_dir.clone()),
-                            package.name.to_string(),
-                        );
-                        if thread_sender.send((package, tests)).is_err() {
-                            break;
+                    .spawn_scoped(scope, move || {
+                        loop {
+                            // Get next package to process from the iterator.
+                            let Some(package) = iter.lock().unwrap().next() else {
+                                break;
+                            };
+                            let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                                package,
+                                self.args.oracle_resolver.as_deref(),
+                                Some(self.workspace.root_dir.clone()),
+                                package.name.to_string(),
+                            );
+                            if thread_sender.send((package, tests)).is_err() {
+                                break;
+                            }
                         }
                     })
                     .unwrap();
@@ -440,11 +440,7 @@ impl<'a> TestRunner<'a> {
             }
         });
 
-        if let Some(error) = error {
-            Err(error)
-        } else {
-            Ok(package_tests)
-        }
+        if let Some(error) = error { Err(error) } else { Ok(package_tests) }
     }
 
     /// Compiles a single package and returns all of its tests

@@ -1,7 +1,7 @@
 use acvm::{
+    AcirField,
     acir::brillig::{ForeignCallParam, ForeignCallResult},
     pwg::ForeignCallWaitInfo,
-    AcirField,
 };
 use noirc_abi::{decode_printable_value, decode_string_value};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay};

@@ -11,7 +11,7 @@ use std::{io::prelude::*, num::ParseIntError, str::FromStr};
 
 use base64::Engine;
 use flate2::Compression;
-use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as DeserializationError};
 
 use std::collections::BTreeSet;
 
@@ -252,7 +252,7 @@ impl<F: Serialize> Program<F> {
         program_bytes
     }
 
-    // Serialize and base64 encode program
+    /// Serialize and base64 encode program
     pub fn serialize_program_base64<S>(program: &Self, s: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -277,7 +277,7 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
         Program::read(serialized_circuit)
     }
 
-    // Deserialize and base64 decode program
+    /// Deserialize and base64 decode program
     pub fn deserialize_program_base64<'de, D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -375,8 +375,8 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::{
-        opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
+        opcodes::{BlackBoxFuncCall, FunctionInput},
     };
     use crate::{
         circuit::{ExpressionWidth, Program},

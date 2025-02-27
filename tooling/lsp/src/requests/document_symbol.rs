@@ -8,12 +8,12 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
         NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
-    ParsedModule,
 };
 
 use crate::LspState;
@@ -23,7 +23,7 @@ use super::process_request;
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
-) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
     let Ok(file_path) = params.text_document.uri.to_file_path() else {
         return future::ready(Ok(None));
     };
@@ -143,7 +143,7 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 }
 
-impl<'a> Visitor for DocumentSymbolCollector<'a> {
+impl Visitor for DocumentSymbolCollector<'_> {
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
         if noir_function.def.name.0.contents.is_empty() {
             return false;

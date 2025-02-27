@@ -311,11 +311,7 @@ fn mark_functions_to_retain_recursive(
     let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, callee| {
         let info = &inline_infos[callee];
         // If the callee is not going to be inlined then we can ignore its cost.
-        if info.should_inline {
-            acc.saturating_add(info.weight)
-        } else {
-            acc
-        }
+        if info.should_inline { acc.saturating_add(info.weight) } else { acc }
     });
 
     let this_function_weight = inlined_function_weights

@@ -327,7 +327,7 @@ impl DependencyContext {
         function.dfg[block].instructions().iter().for_each(|instruction| {
             if let Instruction::Call { func, arguments } = &function.dfg[*instruction] {
                 if let Value::Function(callee) = &function.dfg[*func] {
-                    if all_functions[&callee].runtime().is_brillig() {
+                    if all_functions[callee].runtime().is_brillig() {
                         // Skip already visited locations (happens often in unrolled functions)
                         let call_stack = function.dfg.get_instruction_call_stack(*instruction);
                         let location = call_stack.last();
@@ -431,8 +431,10 @@ impl DependencyContext {
                         if let Some(value_id) = self.memory_slots.get(address) {
                             self.update_children(&[*value_id], &results);
                         } else {
-                            panic!("load instruction {} has attempted to access previously unused memory location",
-                                instruction);
+                            panic!(
+                                "load instruction {} has attempted to access previously unused memory location",
+                                instruction
+                            );
                         }
                     }
                     // Record the condition to set as future parent for the following values
@@ -502,7 +504,10 @@ impl DependencyContext {
                                 RuntimeType::Brillig(..) => {}
                             },
                             Value::ForeignFunction(..) => {
-                                panic!("should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
+                                panic!(
+                                    "should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
+                                    function.name()
+                                );
                             }
                             Value::Instruction { .. }
                             | Value::NumericConstant { .. }
@@ -826,13 +831,18 @@ impl Context {
                             }
                         },
                         Value::ForeignFunction(..) => {
-                            panic!("Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}", function.name());
+                            panic!(
+                                "Should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
+                                function.name()
+                            );
                         }
                         Value::Instruction { .. }
                         | Value::NumericConstant { .. }
                         | Value::Param { .. }
                         | Value::Global(_) => {
-                            panic!("At the point we are running disconnect there shouldn't be any other values as arguments")
+                            panic!(
+                                "At the point we are running disconnect there shouldn't be any other values as arguments"
+                            )
                         }
                     }
                 }

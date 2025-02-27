@@ -35,10 +35,10 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
-    BinaryTypeOperator,
 };
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
@@ -492,7 +492,7 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, _)) => match int.try_to_u32() {
+            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_unsigned::<u32>() {
                 Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
                 None => Err(expr),
             },

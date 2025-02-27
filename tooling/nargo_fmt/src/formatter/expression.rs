@@ -19,7 +19,7 @@ struct FormattedLambda {
     first_line_width: usize,
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for an expression could come before a potential non-doc comment
@@ -98,9 +98,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(block_expression, _span) => {
+            ExpressionKind::Unsafe(unsafe_xpression) => {
                 group.group(self.format_unsafe_expression(
-                    block_expression,
+                    unsafe_xpression.block,
                     false, // force multiple lines
                 ));
             }
@@ -1167,7 +1167,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
             ConstrainKind::Constrain => {
-                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+                unreachable!(
+                    "constrain always produces an error, and the formatter doesn't run when there are errors"
+                )
             }
         };
 
@@ -1320,7 +1322,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_empty_block_contents(&mut self) {
         if let Some(chunks) = self.chunk_formatter().empty_block_contents_chunk() {
             self.format_chunk_group(chunks);
@@ -1342,7 +1344,7 @@ fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
+    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
 
     #[test]
     fn format_unit() {

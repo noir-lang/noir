@@ -119,7 +119,7 @@ fn visit_noir_files(
             let path = entry.path();
             if path.is_dir() {
                 visit_noir_files(&path, cb)?;
-            } else if entry.path().extension().map_or(false, |extension| extension == "nr") {
+            } else if entry.path().extension().is_some_and(|extension| extension == "nr") {
                 cb(&entry)?;
             }
         }

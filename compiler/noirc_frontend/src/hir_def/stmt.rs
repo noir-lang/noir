@@ -1,8 +1,8 @@
 use super::expr::HirIdent;
+use crate::Type;
 use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use crate::Type;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on

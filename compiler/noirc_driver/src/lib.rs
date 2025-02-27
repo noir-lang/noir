@@ -17,8 +17,8 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
+use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -352,9 +352,10 @@ pub fn check_crate(
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<FileDiagnostic> = diagnostics
         .into_iter()
-        .map(|(error, file_id)| {
+        .map(|error| {
+            let location = error.location();
             let diagnostic = CustomDiagnostic::from(&error);
-            diagnostic.in_file(file_id)
+            diagnostic.in_file(location.file)
         })
         .filter(|diagnostic| {
             // We filter out any warnings if they're going to be ignored later on to free up memory.
@@ -362,11 +363,7 @@ pub fn check_crate(
         })
         .filter(|error| {
             // Only keep warnings from the crate we are checking
-            if error.diagnostic.is_warning() {
-                crate_files.contains(&error.file_id)
-            } else {
-                true
-            }
+            if error.diagnostic.is_warning() { crate_files.contains(&error.file_id) } else { true }
         })
         .collect();
 
@@ -548,6 +545,7 @@ fn compile_contract_inner(
 
         functions.push(ContractFunction {
             name,
+            hash: function.hash,
             custom_attributes,
             abi: function.abi,
             bytecode: function.program,

@@ -113,11 +113,7 @@ impl Chunk {
 
     /// Returns the current chunk as a Group, if it is one. Otherwise returns None.
     pub(crate) fn group(self) -> Option<ChunkGroup> {
-        if let Chunk::Group(group) = self {
-            Some(group)
-        } else {
-            None
-        }
+        if let Chunk::Group(group) = self { Some(group) } else { None }
     }
 }
 
@@ -546,7 +542,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
 /// Treating a `ChunkFormatter` as a `Formatter` in read-only mode is always fine,
 /// and reduces some boilerplate.
-impl<'a, 'b> Deref for ChunkFormatter<'a, 'b> {
+impl<'b> Deref for ChunkFormatter<'_, 'b> {
     type Target = Formatter<'b>;
 
     fn deref(&self) -> &Self::Target {

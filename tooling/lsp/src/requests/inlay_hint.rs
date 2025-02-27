@@ -8,7 +8,7 @@ use lsp_types::{
 };
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    self,
+    self, Kind, Type, TypeBinding, TypeVariable,
     ast::{
         CallExpression, Expression, ExpressionKind, ForLoopStatement, Ident, Lambda, LetStatement,
         MethodCallExpression, NoirFunction, NoirTraitImpl, Pattern, Statement, TypeImpl,
@@ -17,17 +17,16 @@ use noirc_frontend::{
     hir_def::stmt::HirPattern,
     node_interner::{NodeInterner, ReferenceId},
     parser::{Item, ParsedSubModule},
-    Kind, Type, TypeBinding, TypeVariable,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
-use super::{process_request, to_lsp_location, InlayHintsOptions};
+use super::{InlayHintsOptions, process_request, to_lsp_location};
 
 pub(crate) fn on_inlay_hint_request(
     state: &mut LspState,
     params: InlayHintParams,
-) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<InlayHint>>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
@@ -302,7 +301,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn intersects_span(&self, other_span: Span) -> bool {
-        self.span.map_or(true, |span| span.intersects(&other_span))
+        self.span.is_none_or(|span| span.intersects(&other_span))
     }
 
     fn show_closing_brace_hint<F>(&mut self, span: Span, f: F)
@@ -320,7 +319,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 }
 
-impl<'a> Visitor for InlayHintCollector<'a> {
+impl Visitor for InlayHintCollector<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         self.intersects_span(item.location.span)
     }
@@ -516,18 +515,17 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(binding) => {
-            if let TypeBinding::Unbound(_, kind) = &*binding.borrow() {
-                match kind {
-                    Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
-                    Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
-                    Kind::IntegerOrField => parts.push(string_part("Field")),
-                    Kind::Numeric(ref typ) => push_type_parts(typ, parts, files),
-                }
-            } else {
+        Type::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Unbound(_, kind) => match kind {
+                Kind::Any | Kind::Normal => push_type_variable_parts(binding, parts, files),
+                Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
+                Kind::IntegerOrField => parts.push(string_part("Field")),
+                Kind::Numeric(typ) => push_type_parts(typ, parts, files),
+            },
+            _ => {
                 push_type_variable_parts(binding, parts, files);
             }
-        }
+        },
         Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
         Type::FieldElement
@@ -919,8 +917,8 @@ mod inlay_hints_tests {
     }
 
     #[test]
-    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name(
-    ) {
+    async fn test_do_not_show_parameter_inlay_hints_if_single_param_name_is_suffix_of_function_name()
+     {
         let inlay_hints = get_inlay_hints(64, 67, parameter_hints()).await;
         assert!(inlay_hints.is_empty());
     }
