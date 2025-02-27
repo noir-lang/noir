@@ -6,7 +6,7 @@ use crate::{
     byte_span_to_range,
     modules::module_def_id_relative_path,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 

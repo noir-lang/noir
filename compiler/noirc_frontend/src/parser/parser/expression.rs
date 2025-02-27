@@ -8,16 +8,16 @@ use crate::{
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
         Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
     },
-    parser::{labels::ParsingRuleLabel, parser::parse_many::separated_by_comma, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
 };
 
 use super::{
+    Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
     },
-    Parser,
 };
 
 impl Parser<'_> {
@@ -887,11 +887,11 @@ mod tests {
             StatementKind, UnaryOp, UnresolvedTypeData,
         },
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
         signed_field::SignedField,
         token::Token,

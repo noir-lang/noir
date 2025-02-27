@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    errors::{CliError, FilesystemError},
     Artifact,
+    errors::{CliError, FilesystemError},
 };
 use noirc_artifacts::contract::ContractArtifact;
 use noirc_artifacts::program::ProgramArtifact;

@@ -5,8 +5,8 @@ use proptest::prelude::*;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap,
-    Sign,
+    Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap, Sign,
+    input_parser::InputValue,
 };
 use std::collections::{BTreeMap, HashSet};
 

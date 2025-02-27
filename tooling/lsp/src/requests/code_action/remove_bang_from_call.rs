@@ -1,6 +1,6 @@
 use lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
-use noirc_frontend::{node_interner::ReferenceId, QuotedType, Type};
+use noirc_frontend::{QuotedType, Type, node_interner::ReferenceId};
 
 use crate::byte_span_to_range;
 

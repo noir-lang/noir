@@ -1,12 +1,12 @@
 use crate::compile::{
-    file_manager_with_source_map, JsCompileContractResult, JsCompileProgramResult,
-    PathToFileSourceMap,
+    JsCompileContractResult, JsCompileProgramResult, PathToFileSourceMap,
+    file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
 use acvm::acir::circuit::ExpressionWidth;
 use nargo::parse_all;
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -280,7 +280,7 @@ mod test {
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;
 
-    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
+    use crate::compile::{PathToFileSourceMap, file_manager_with_source_map};
 
     use std::path::Path;
 

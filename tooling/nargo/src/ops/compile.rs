@@ -1,6 +1,6 @@
 use fm::FileManager;
 use noirc_driver::{
-    link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
+    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, link_to_debug_crate,
 };
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
@@ -120,11 +120,7 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
         }
     }
 
-    if errors.is_empty() {
-        Ok((artifacts, warnings))
-    } else {
-        Err(errors)
-    }
+    if errors.is_empty() { Ok((artifacts, warnings)) } else { Err(errors) }
 }
 
 pub fn report_errors<T>(

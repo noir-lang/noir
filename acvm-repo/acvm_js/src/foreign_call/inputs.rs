@@ -1,4 +1,4 @@
-use acvm::{brillig_vm::brillig::ForeignCallParam, FieldElement};
+use acvm::{FieldElement, brillig_vm::brillig::ForeignCallParam};
 
 use crate::js_witness_map::field_element_to_js_string;
 

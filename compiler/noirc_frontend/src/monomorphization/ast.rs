@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
 use noirc_errors::{
-    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
     Location,
+    debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
 use crate::{

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
 
 use crate::ssa::ir::call_stack::CallStackId;
 use crate::ssa::ir::instruction::BlackBoxFunc;
@@ -309,8 +309,8 @@ pub(super) fn simplify_signature(
 #[cfg(feature = "bn254")]
 #[cfg(test)]
 mod test {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
     use crate::ssa::Ssa;
+    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[cfg(feature = "bn254")]
     #[test]

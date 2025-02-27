@@ -1,12 +1,12 @@
 use std::{
-    collections::{btree_map, BTreeMap},
+    collections::{BTreeMap, btree_map},
     io::Read,
     ops::Index,
 };
 
+use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

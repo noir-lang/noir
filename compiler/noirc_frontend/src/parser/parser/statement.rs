@@ -6,7 +6,7 @@ use crate::{
         ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
         StatementKind, WhileStatement,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
@@ -462,11 +462,11 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
     };
 

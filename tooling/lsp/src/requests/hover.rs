@@ -16,7 +16,7 @@ mod from_visitor;
 pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
-) -> impl Future<Output = Result<Option<Hover>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Hover>, ResponseError>> + use<> {
     let uri = params.text_document_position_params.text_document.uri.clone();
     let position = params.text_document_position_params.position;
     let result = process_request(state, params.text_document_position_params, |args| {

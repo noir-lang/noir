@@ -1,11 +1,11 @@
+use acvm::FieldElement;
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::native_types::WitnessMap;
-use acvm::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::workspace::Workspace;
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
@@ -161,7 +161,7 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     server.respond(req.error("Missing launch arguments"))?;
                     continue;
                 };
-                let Some(Value::String(ref project_folder)) = additional_data.get("projectFolder")
+                let Some(Value::String(project_folder)) = additional_data.get("projectFolder")
                 else {
                     server.respond(req.error("Missing project folder argument"))?;
                     continue;

@@ -14,7 +14,7 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{fully_qualified_module_path, Contract, CrateDefMap};
+use def_map::{Contract, CrateDefMap, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -139,11 +139,7 @@ impl Context<'_, '_> {
         let parent =
             def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
 
-        if parent.is_empty() {
-            name.into()
-        } else {
-            format!("{parent}::{name}")
-        }
+        if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }
 
     /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also

@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::ModuleDeclaration, parser::ParsedSubModule, token::Keyword, ParsedModule,
+    ParsedModule, ast::ModuleDeclaration, parser::ParsedSubModule, token::Keyword,
 };
 
 use super::Formatter;
@@ -47,7 +47,7 @@ fn parsed_module_is_empty(parsed_module: &ParsedModule) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, Config};
+    use crate::{Config, assert_format, assert_format_with_config};
 
     #[test]
     fn format_module_declaration() {

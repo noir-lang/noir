@@ -1,9 +1,9 @@
 use acir::{
-    native_types::{Expression, Witness, WitnessMap},
     AcirField,
+    native_types::{Expression, Witness, WitnessMap},
 };
 
-use super::{insert_value, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError};
+use super::{ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 
 /// An Expression solver will take a Circuit's assert-zero opcodes with witness assignments
 /// and create the other witness variables

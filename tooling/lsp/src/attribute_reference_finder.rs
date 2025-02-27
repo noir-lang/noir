@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
     ast::{AttributeTarget, Visitor},
     graph::CrateId,
     hir::{
@@ -19,7 +20,6 @@ use noirc_frontend::{
     parser::ParsedSubModule,
     token::MetaAttribute,
     usage_tracker::UsageTracker,
-    ParsedModule,
 };
 
 use crate::modules::module_def_id_to_reference_id;

@@ -1,12 +1,12 @@
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
-use acvm_blackbox_solver::{sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
+use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError, sha256_compression};
 
-use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
+use crate::pwg::{input_to_value, insert_value};
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.

@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use nargo::{errors::CompileError, NargoError};
+use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
 use noirc_abi::errors::AbiError;

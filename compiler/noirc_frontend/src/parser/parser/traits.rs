@@ -8,12 +8,12 @@ use crate::ast::{
 };
 use crate::{
     ast::{Ident, UnresolvedTypeData},
-    parser::{labels::ParsingRuleLabel, NoirTraitImpl, ParserErrorReason},
+    parser::{NoirTraitImpl, ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, SecondaryAttribute, Token},
 };
 
-use super::parse_many::without_separator;
 use super::Parser;
+use super::parse_many::without_separator;
 
 impl Parser<'_> {
     /// Trait = 'trait' identifier Generics ( ':' TraitBounds )? WhereClause TraitBody
@@ -291,11 +291,11 @@ mod tests {
         ast::{NoirTrait, NoirTraitImpl, TraitItem, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
-            parser::{
-                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
-                ParserErrorReason,
-            },
             ItemKind,
+            parser::{
+                ParserErrorReason,
+                tests::{expect_no_errors, get_single_error, get_source_with_error_span},
+            },
         },
     };
 

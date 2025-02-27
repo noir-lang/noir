@@ -1,8 +1,8 @@
 use crate::{
-    pwg::{input_to_value, ErrorLocation},
     OpcodeResolutionError,
+    pwg::{ErrorLocation, input_to_value},
 };
-use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap, AcirField};
+use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
 
 pub(crate) fn solve_range_opcode<F: AcirField>(
     initial_witness: &WitnessMap<F>,

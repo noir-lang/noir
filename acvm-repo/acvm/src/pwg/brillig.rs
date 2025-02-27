@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::WitnessMap,
-    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM};
+use brillig_vm::{BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus};
 use serde::{Deserialize, Serialize};
 
-use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
+use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
 use super::{get_value, insert_value, memory_op::MemoryOpSolver};
 

@@ -1344,7 +1344,7 @@ fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
+    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
 
     #[test]
     fn format_unit() {

@@ -1,8 +1,8 @@
 use crate::{
-    input_parser::{InputTypecheckingError, InputValue},
     AbiType,
+    input_parser::{InputTypecheckingError, InputValue},
 };
-use acvm::{acir::native_types::Witness, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::native_types::Witness};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

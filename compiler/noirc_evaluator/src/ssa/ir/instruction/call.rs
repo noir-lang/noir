@@ -2,8 +2,8 @@ use fxhash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
-    acir::{AcirField, BlackBoxFunc},
     FieldElement,
+    acir::{AcirField, BlackBoxFunc},
 };
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
@@ -742,7 +742,7 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
