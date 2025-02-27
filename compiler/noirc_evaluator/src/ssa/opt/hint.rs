@@ -6,8 +6,8 @@ mod tests {
         brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
-            opt::assert_normalized_ssa_equals, optimize_all, Ssa, SsaBuilder, SsaEvaluatorOptions,
-            SsaLogging,
+            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, opt::assert_normalized_ssa_equals,
+            optimize_all,
         },
     };
 

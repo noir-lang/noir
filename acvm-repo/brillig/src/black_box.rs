@@ -1,4 +1,4 @@
-use crate::{opcodes::HeapVector, HeapArray, MemoryAddress};
+use crate::{HeapArray, MemoryAddress, opcodes::HeapVector};
 use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.

@@ -3,15 +3,16 @@ use noirc_frontend::{ast::AttributeTarget, token::Keyword};
 use strum::IntoEnumIterator;
 
 use super::{
+    NodeFinder,
     completion_items::{
         completion_item_with_trigger_parameter_hints_command, simple_completion_item,
         snippet_completion_item,
     },
     kinds::FunctionCompletionKind,
-    name_matches, NodeFinder,
+    name_matches,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn builtin_functions_completion(
         &mut self,
         prefix: &str,

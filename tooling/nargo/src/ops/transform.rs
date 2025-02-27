@@ -1,6 +1,6 @@
 use acvm::{
-    acir::circuit::{ExpressionWidth, Program},
     FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
 };
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};

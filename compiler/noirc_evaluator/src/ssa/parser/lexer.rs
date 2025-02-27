@@ -171,7 +171,7 @@ impl<'a> Lexer<'a> {
                 return Err(LexerError::InvalidIntegerLiteral {
                     span: Span::inclusive(start, end),
                     found: integer_str,
-                })
+                });
             }
         };
 

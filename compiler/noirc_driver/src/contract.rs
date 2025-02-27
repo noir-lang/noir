@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use fm::FileId;
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;
@@ -40,6 +40,8 @@ pub struct CompiledContract {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractFunction {
     pub name: String,
+
+    pub hash: u64,
 
     pub is_unconstrained: bool,
 

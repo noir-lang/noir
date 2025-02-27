@@ -1,8 +1,8 @@
 use crate::{
-    input_parser::{InputTypecheckingError, InputValue},
     AbiType,
+    input_parser::{InputTypecheckingError, InputValue},
 };
-use acvm::{acir::native_types::Witness, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::native_types::Witness};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,9 +13,13 @@ pub enum InputParserError {
         "The value passed for parameter `{arg_name}` is invalid:\nExpected witness values to be integers, but `{value}` failed with `{error}`"
     )]
     ParseStr { arg_name: String, value: String, error: String },
-    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}")]
+    #[error(
+        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} is less than minimum allowed value of {min}"
+    )]
     InputUnderflowsMinimum { arg_name: String, value: String, min: String },
-    #[error("The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}")]
+    #[error(
+        "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds maximum allowed value of {max}"
+    )]
     InputOverflowsMaximum { arg_name: String, value: String, max: String },
     #[error(
         "The value passed for parameter `{arg_name}` is invalid:\nValue {value} exceeds field modulus. Values must fall within [0, {})",
@@ -58,9 +62,13 @@ pub enum AbiError {
         "Could not read witness value at index {witness_index:?} (required for parameter \"{name}\")"
     )]
     MissingParamWitnessValue { name: String, witness_index: Witness },
-    #[error("Attempted to write to witness index {0:?} but it is already initialized to a different value")]
+    #[error(
+        "Attempted to write to witness index {0:?} but it is already initialized to a different value"
+    )]
     InconsistentWitnessAssignment(Witness),
-    #[error("The return value is expected to be a {return_type:?} but found incompatible value {value:?}")]
+    #[error(
+        "The return value is expected to be a {return_type:?} but found incompatible value {value:?}"
+    )]
     ReturnTypeMismatch { return_type: AbiType, value: InputValue },
     #[error("No return value is expected but received {0:?}")]
     UnexpectedReturnValue(InputValue),

@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::PrintOutput;
 
 use super::{
+    ForeignCallExecutor,
     layers::{self, Either, Layer, Layering},
     mocker::{DisabledMockForeignCallExecutor, MockForeignCallExecutor},
     print::PrintForeignCallExecutor,
-    ForeignCallExecutor,
 };
 
 #[cfg(feature = "rpc")]
@@ -29,7 +29,7 @@ pub struct DefaultForeignCallBuilder<'a> {
     pub package_name: Option<String>,
 }
 
-impl<'a> Default for DefaultForeignCallBuilder<'a> {
+impl Default for DefaultForeignCallBuilder<'_> {
     fn default() -> Self {
         Self {
             output: PrintOutput::default(),
@@ -80,7 +80,7 @@ impl<'a> DefaultForeignCallBuilder<'a> {
                 use rand::Rng;
 
                 base.add_layer(self.resolver_url.map(|resolver_url| {
-                    let id = rand::thread_rng().gen();
+                    let id = rand::thread_rng().r#gen();
                     RPCForeignCallExecutor::new(
                         &resolver_url,
                         id,
@@ -136,7 +136,7 @@ impl DefaultForeignCallExecutor {
         resolver_url: Option<&str>,
         root_path: Option<std::path::PathBuf>,
         package_name: Option<String>,
-    ) -> impl ForeignCallExecutor<F> + 'a
+    ) -> impl ForeignCallExecutor<F> + 'a + use<'a, F>
     where
         F: AcirField + Serialize + for<'de> Deserialize<'de> + 'a,
     {

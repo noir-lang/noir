@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
         self.skip_comments_and_whitespace();
 

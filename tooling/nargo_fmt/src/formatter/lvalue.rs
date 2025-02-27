@@ -3,7 +3,7 @@ use noirc_frontend::{ast::LValue, token::Token};
 use super::Formatter;
 use crate::chunks::ChunkGroup;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_lvalue(&mut self, lvalue: LValue) {
         // Parenthesized l-values exist but are not represented in the AST
         while let Token::LeftParen = self.token {

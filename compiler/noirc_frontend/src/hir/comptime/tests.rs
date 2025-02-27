@@ -7,9 +7,9 @@ use fm::{FileId, FileManager};
 use noirc_arena::Index;
 use noirc_errors::Location;
 
+use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
-use super::Interpreter;
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
@@ -23,7 +23,7 @@ use crate::parse_program;
 /// The stdlib is not made available as a dependency.
 pub(crate) fn with_interpreter<T>(
     src: &str,
-    f: impl FnOnce(&mut Interpreter, FuncId, &[(CompilationError, FileId)]) -> T,
+    f: impl FnOnce(&mut Interpreter, FuncId, &[CompilationError]) -> T,
 ) -> T {
     let file = FileId::default();
 

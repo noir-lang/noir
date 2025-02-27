@@ -3,10 +3,10 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 
 use crate::{
-    insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
+    PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileId, FileManager, FileMap};
+use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
@@ -14,14 +14,14 @@ use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
 
 use crate::types::{
-    notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializedParams, NargoPackageTests, PublishDiagnosticsParams,
+    Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializedParams, NargoPackageTests, PublishDiagnosticsParams, notification,
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, parse_diff, resolve_workspace_for_source_path,
-    LspState,
+    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    resolve_workspace_for_source_path,
 };
 
 pub(super) fn on_initialized(
@@ -245,7 +245,7 @@ fn file_diagnostic_to_diagnostic(
         return None;
     }
 
-    let span = diagnostic.secondaries.first().unwrap().span;
+    let span = diagnostic.secondaries.first().unwrap().location.span;
     let range = byte_span_to_range(files, file_id, span.into())?;
 
     let severity = match diagnostic.kind {
@@ -266,7 +266,7 @@ fn file_diagnostic_to_diagnostic(
     let secondaries = diagnostic
         .secondaries
         .into_iter()
-        .filter_map(|secondary| secondary_to_related_information(secondary, file_id, files, fm));
+        .filter_map(|secondary| secondary_to_related_information(secondary, files, fm));
     let notes = diagnostic.notes.into_iter().map(|message| DiagnosticRelatedInformation {
         location: lsp_types::Location { uri: uri.clone(), range },
         message,
@@ -293,14 +293,13 @@ fn file_diagnostic_to_diagnostic(
 
 fn secondary_to_related_information(
     secondary: CustomLabel,
-    file_id: FileId,
     files: &FileMap,
     fm: &FileManager,
 ) -> Option<DiagnosticRelatedInformation> {
-    let secondary_file = secondary.file.unwrap_or(file_id);
+    let secondary_file = secondary.location.file;
     let path = fm.path(secondary_file)?;
     let uri = Url::from_file_path(path).ok()?;
-    let range = byte_span_to_range(files, secondary_file, secondary.span.into())?;
+    let range = byte_span_to_range(files, secondary_file, secondary.location.span.into())?;
     let message = secondary.message;
     Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
 }

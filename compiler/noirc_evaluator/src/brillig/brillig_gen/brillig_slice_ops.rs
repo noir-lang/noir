@@ -1,14 +1,14 @@
 use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
+    BrilligBinaryOp,
     brillig_variable::{BrilligVariable, BrilligVector, SingleAddrVariable},
     registers::RegisterAllocator,
-    BrilligBinaryOp,
 };
 
 use super::brillig_block::BrilligBlock;
 
-impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
+impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.store_instruction(write_pointer, variable.extract_register());
@@ -163,6 +163,7 @@ mod tests {
     use fxhash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
 
+    use crate::brillig::ValueId;
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
     use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
@@ -174,8 +175,7 @@ mod tests {
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
-    use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-    use crate::brillig::ValueId;
+    use crate::brillig::brillig_ir::{BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext};
     use crate::ssa::function_builder::FunctionBuilder;
     use crate::ssa::ir::function::RuntimeType;
     use crate::ssa::ir::map::Id;

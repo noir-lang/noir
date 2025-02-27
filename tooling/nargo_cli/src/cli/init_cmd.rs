@@ -1,10 +1,10 @@
 use crate::errors::CliError;
 
-use super::fs::{create_named_dir, write_to_file};
 use super::NargoConfig;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::{CrateName, PackageType};
+use noir_artifact_cli::fs::artifact::write_to_file;
 use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
@@ -58,7 +58,6 @@ pub(crate) fn initialize_project(
     package_type: PackageType,
 ) {
     let src_dir = package_dir.join(SRC_DIR);
-    create_named_dir(&src_dir, "src");
 
     let toml_contents = format!(
         r#"[package]
@@ -69,14 +68,18 @@ authors = [""]
 [dependencies]"#
     );
 
-    write_to_file(toml_contents.as_bytes(), &package_dir.join(PKG_FILE));
+    write_to_file(toml_contents.as_bytes(), &package_dir.join(PKG_FILE)).unwrap();
     // This uses the `match` syntax instead of `if` so we get a compile error when we add new package types (which likely need new template files)
     match package_type {
-        PackageType::Binary => write_to_file(BIN_EXAMPLE.as_bytes(), &src_dir.join("main.nr")),
-        PackageType::Contract => {
-            write_to_file(CONTRACT_EXAMPLE.as_bytes(), &src_dir.join("main.nr"))
+        PackageType::Binary => {
+            write_to_file(BIN_EXAMPLE.as_bytes(), &src_dir.join("main.nr")).unwrap();
         }
-        PackageType::Library => write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")),
+        PackageType::Contract => {
+            write_to_file(CONTRACT_EXAMPLE.as_bytes(), &src_dir.join("main.nr")).unwrap();
+        }
+        PackageType::Library => {
+            write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")).unwrap();
+        }
     };
     println!("Project successfully created! It is located at {}", package_dir.display());
 }

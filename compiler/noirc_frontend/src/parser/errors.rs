@@ -62,7 +62,9 @@ pub enum ParserErrorReason {
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    #[error(
+        "Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context."
+    )]
     InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
@@ -247,7 +249,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let mut diagnostic = Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
-                        error.span(),
+                        error.location(),
                     );
                     diagnostic.deprecated = true;
                     diagnostic
@@ -256,7 +258,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let mut diagnostic = Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.span(),
+                        error.location(),
                     ) ;
                     diagnostic.deprecated = true;
                     diagnostic
@@ -271,49 +273,51 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
-                    error.span(),
+                    error.location(),
                 ),
                 ParserErrorReason::ExperimentalFeature(feature) => {
                     let secondary = format!(
                         "Pass -Z{feature} to nargo to enable this feature at your own risk."
                     );
-                    Diagnostic::simple_error(reason.to_string(), secondary, error.span())
+                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
                 }
                 ParserErrorReason::TraitVisibilityIgnored => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span())
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
                 ParserErrorReason::TraitImplVisibilityIgnored => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span())
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
                 ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
                     format!("Expected a pattern but found a type - {ty}"),
                     format!("{ty} is a type and cannot be used as a variable name"),
-                    error.span(),
+                    error.location(),
                 ),
                 ParserErrorReason::Lexer(error) => error.into(),
                 ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
                     format!("Expected `mut` after `&`, found `{found}`"),
                     "Noir doesn't have immutable references, only mutable references".to_string(),
-                    error.span(),
+                    error.location(),
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
                     "Unsafe block must have a safety comment above it".into(),
                     "The comment must start with the \"Safety: \" word".into(),
-                    error.span(),
+                    error.location(),
                 ),
                 ParserErrorReason::MissingParametersForFunctionDefinition => {
                     Diagnostic::simple_error(
                         "Missing parameters for function definition".into(),
                         "Add a parameter list: `()`".into(),
-                        error.span(),
+                        error.location(),
                     )
                 }
                 ParserErrorReason::DocCommentDoesNotDocumentAnything => {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_warning(primary, secondary, error.span())
+                    Diagnostic::simple_warning(primary, secondary, error.location())
                 }
-                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span()),
+                other => {
+                    Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
+                }
             },
             None => {
                 if matches!(
@@ -322,10 +326,10 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ) {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_warning(primary, secondary, error.span())
+                    Diagnostic::simple_warning(primary, secondary, error.location())
                 } else {
                     let primary = error.to_string();
-                    Diagnostic::simple_error(primary, String::new(), error.span())
+                    Diagnostic::simple_error(primary, String::new(), error.location())
                 }
             }
         }
