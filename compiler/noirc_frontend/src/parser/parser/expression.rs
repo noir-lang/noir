@@ -393,15 +393,17 @@ impl Parser<'_> {
             return None;
         }
 
-        if self.current_token_comments.is_empty() {
-            if let Some(statement_comments) = &mut self.statement_comments {
-                if !statement_comments.trim().to_lowercase().starts_with("safety:") {
-                    self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
-                }
+        let comments: &str = if self.current_token_comments.is_empty() {
+            if let Some(statement_comments) = &self.statement_comments {
+                statement_comments
             } else {
-                self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
+                &""
             }
-        } else if !self.current_token_comments.trim().to_lowercase().starts_with("safety:") {
+        } else {
+            &self.current_token_comments
+        };
+
+        if !comments.lines().any(|line| line.trim().to_lowercase().starts_with("safety:")) {
             self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
         }
 
