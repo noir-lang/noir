@@ -53,3 +53,6 @@ tooling/noir_js/lib
 /docs/docs/noir_js/reference/
 
 codegen
+
+**/cspell.json
+!./cspell.json

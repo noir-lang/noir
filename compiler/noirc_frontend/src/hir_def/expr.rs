@@ -1,14 +1,14 @@
-use acvm::FieldElement;
 use fm::FileId;
 use noirc_errors::Location;
 
+use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
 };
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::Shared;
 
 use super::stmt::HirPattern;
 use super::traits::{ResolvedTraitBound, TraitConstraint};
@@ -37,6 +37,7 @@ pub enum HirExpression {
     Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
+    Match(HirMatch),
     Tuple(Vec<ExprId>),
     Lambda(HirLambda),
     Quote(Tokens),
@@ -114,7 +115,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Slice(HirArrayLiteral),
     Bool(bool),
-    Integer(FieldElement, bool), //true for negative integer and false for positive
+    Integer(SignedField),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -248,13 +249,10 @@ impl HirMethodReference {
             }
             HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
                 let id = interner.trait_method_id(method_id);
+                let trait_id = method_id.trait_id;
                 let constraint = TraitConstraint {
                     typ: object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id: method_id.trait_id,
-                        trait_generics,
-                        span: location.span,
-                    },
+                    trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
                 (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
@@ -262,7 +260,7 @@ impl HirMethodReference {
         };
         let func_var = HirIdent { location, id, impl_kind };
         let func = interner.push_expr(HirExpression::Ident(func_var.clone(), generics));
-        interner.push_expr_location(func, location.span, location.file);
+        interner.push_expr_location(func, location);
         (func, func_var)
     }
 }
@@ -353,4 +351,118 @@ pub struct HirLambda {
     pub return_type: Type,
     pub body: ExprId,
     pub captures: Vec<HirCapturedVar>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HirMatch {
+    /// Jump directly to ExprId
+    Success(ExprId),
+
+    Failure,
+
+    /// Run `body` if the given expression is true.
+    /// Otherwise continue with the given decision tree.
+    Guard {
+        cond: ExprId,
+        body: ExprId,
+        otherwise: Box<HirMatch>,
+    },
+
+    /// Switch on the given variable with the given cases to test.
+    /// The final argument is an optional match-all case to take if
+    /// none of the cases matched.
+    Switch(DefinitionId, Vec<Case>, Option<Box<HirMatch>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Case {
+    pub constructor: Constructor,
+    pub arguments: Vec<DefinitionId>,
+    pub body: HirMatch,
+}
+
+impl Case {
+    pub fn new(constructor: Constructor, arguments: Vec<DefinitionId>, body: HirMatch) -> Self {
+        Self { constructor, arguments, body }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum Constructor {
+    True,
+    False,
+    Unit,
+    Int(SignedField),
+    Tuple(Vec<Type>),
+    Variant(Type, usize),
+    Range(SignedField, SignedField),
+}
+
+impl Constructor {
+    pub fn variant_index(&self) -> usize {
+        match self {
+            Constructor::False
+            | Constructor::Int(_)
+            | Constructor::Unit
+            | Constructor::Tuple(_)
+            | Constructor::Range(_, _) => 0,
+            Constructor::True => 1,
+            Constructor::Variant(_, index) => *index,
+        }
+    }
+
+    /// True if this constructor constructs an enum value.
+    /// Enums contain a tag value and often have values to
+    /// unpack for each different variant index.
+    pub fn is_enum(&self) -> bool {
+        match self {
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_enum(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// True if this constructor constructs a tuple or struct value.
+    /// Tuples or structs will still have values to unpack but do not
+    /// store a tag value internally.
+    pub fn is_tuple_or_struct(&self) -> bool {
+        match self {
+            Constructor::Tuple(_) => true,
+            Constructor::Variant(typ, _) => match typ.follow_bindings_shallow().as_ref() {
+                Type::DataType(def, _) => def.borrow().is_struct(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Display for Constructor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Constructor::True => write!(f, "true"),
+            Constructor::False => write!(f, "false"),
+            Constructor::Unit => write!(f, "()"),
+            Constructor::Int(x) => write!(f, "{x}"),
+            // We already print the arguments of a constructor after this in the format of `(x, y)`.
+            // In that case it is already in the format of a tuple so there's nothing more we need
+            // to do here. This is implicitly assuming we never display a constructor without also
+            // displaying its arguments though.
+            Constructor::Tuple(_) => Ok(()),
+            Constructor::Variant(typ, variant_index) => {
+                if let Type::DataType(def, _) = typ {
+                    let def = def.borrow();
+                    if let Some(variant) = def.get_variant_as_written(*variant_index) {
+                        write!(f, "{}", variant.name)?;
+                    } else if def.is_struct() {
+                        write!(f, "{}", def.name)?;
+                    }
+                }
+                Ok(())
+            }
+            Constructor::Range(start, end) => write!(f, "{start} .. {end}"),
+        }
+    }
 }

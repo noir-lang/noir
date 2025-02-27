@@ -171,7 +171,7 @@ impl Function {
                             | Value::Instruction { .. }
                             | Value::Param { .. }
                             | Value::NumericConstant { .. } => {
-                                return (Purity::Impure, BTreeSet::new())
+                                return (Purity::Impure, BTreeSet::new());
                             }
                         }
                     }

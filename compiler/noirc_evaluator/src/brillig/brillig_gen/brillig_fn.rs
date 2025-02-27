@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use crate::{
     brillig::brillig_ir::{
         artifact::BrilligParameter,
-        brillig_variable::{get_bit_size_from_ssa_type, BrilligVariable},
+        brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
     },
     ssa::ir::{
         basic_block::BasicBlockId,

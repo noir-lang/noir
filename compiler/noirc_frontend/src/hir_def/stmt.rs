@@ -1,8 +1,8 @@
 use super::expr::HirIdent;
+use crate::Type;
 use crate::ast::Ident;
 use crate::node_interner::{ExprId, StmtId};
 use crate::token::SecondaryAttribute;
-use crate::Type;
 use noirc_errors::{Location, Span};
 
 /// A HirStatement is the result of performing name resolution on
@@ -15,6 +15,7 @@ pub enum HirStatement {
     Assign(HirAssignStatement),
     For(HirForStatement),
     Loop(ExprId),
+    While(ExprId, ExprId),
     Break,
     Continue,
     Expression(ExprId),
@@ -43,6 +44,11 @@ impl HirLetStatement {
         is_global_let: bool,
     ) -> HirLetStatement {
         Self { pattern, r#type, expression, attributes, comptime, is_global_let }
+    }
+
+    /// Creates a new 'basic' let statement with no attributes and is not comptime nor global.
+    pub fn basic(pattern: HirPattern, r#type: Type, expression: ExprId) -> HirLetStatement {
+        Self::new(pattern, r#type, expression, Vec::new(), false, false)
     }
 
     pub fn ident(&self) -> HirIdent {

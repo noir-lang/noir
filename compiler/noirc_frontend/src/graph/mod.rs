@@ -87,7 +87,7 @@ impl FromStr for CrateName {
 
 #[cfg(test)]
 mod crate_name {
-    use super::{CrateName, CHARACTER_BLACK_LIST};
+    use super::{CHARACTER_BLACK_LIST, CrateName};
 
     #[test]
     fn it_rejects_empty_string() {
@@ -379,7 +379,7 @@ mod tests {
     use super::{CrateGraph, FileId};
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
-        use fm::{FileMap, FILE_EXTENSION};
+        use fm::{FILE_EXTENSION, FileMap};
         let mut fm = FileMap::default();
 
         let mut vec_ids = Vec::with_capacity(n);

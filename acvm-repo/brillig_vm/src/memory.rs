@@ -1,6 +1,6 @@
 use acir::{
-    brillig::{BitSize, IntegerBitSize, MemoryAddress},
     AcirField,
+    brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
@@ -18,7 +18,9 @@ pub enum MemoryValue<F> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryTypeError {
-    #[error("Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}")]
+    #[error(
+        "Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
+    )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
 }
 
@@ -37,14 +39,6 @@ impl<F> MemoryValue<F> {
             IntegerBitSize::U32 => MemoryValue::U32(value as u32),
             IntegerBitSize::U64 => MemoryValue::U64(value as u64),
             IntegerBitSize::U128 => MemoryValue::U128(value),
-        }
-    }
-
-    /// Extracts the field element from the memory value, if it is typed as field element.
-    pub fn extract_field(&self) -> Option<&F> {
-        match self {
-            MemoryValue::Field(value) => Some(value),
-            _ => None,
         }
     }
 
@@ -102,7 +96,8 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub fn expect_field(&self) -> Result<&F, MemoryTypeError> {
+    /// Extracts the field element from the memory value, if it is typed as field element.
+    pub fn expect_field(self) -> Result<F, MemoryTypeError> {
         if let MemoryValue::Field(field) = self {
             Ok(field)
         } else {
@@ -112,10 +107,9 @@ impl<F: AcirField> MemoryValue<F> {
             })
         }
     }
-
-    pub(crate) fn expect_u1(&self) -> Result<bool, MemoryTypeError> {
+    pub(crate) fn expect_u1(self) -> Result<bool, MemoryTypeError> {
         if let MemoryValue::U1(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),
@@ -124,9 +118,9 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub(crate) fn expect_u8(&self) -> Result<u8, MemoryTypeError> {
+    pub(crate) fn expect_u8(self) -> Result<u8, MemoryTypeError> {
         if let MemoryValue::U8(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),
@@ -135,9 +129,9 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub(crate) fn expect_u16(&self) -> Result<u16, MemoryTypeError> {
+    pub(crate) fn expect_u16(self) -> Result<u16, MemoryTypeError> {
         if let MemoryValue::U16(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),
@@ -146,9 +140,9 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub(crate) fn expect_u32(&self) -> Result<u32, MemoryTypeError> {
+    pub(crate) fn expect_u32(self) -> Result<u32, MemoryTypeError> {
         if let MemoryValue::U32(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),
@@ -157,9 +151,9 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub(crate) fn expect_u64(&self) -> Result<u64, MemoryTypeError> {
+    pub(crate) fn expect_u64(self) -> Result<u64, MemoryTypeError> {
         if let MemoryValue::U64(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),
@@ -168,9 +162,9 @@ impl<F: AcirField> MemoryValue<F> {
         }
     }
 
-    pub(crate) fn expect_u128(&self) -> Result<u128, MemoryTypeError> {
+    pub(crate) fn expect_u128(self) -> Result<u128, MemoryTypeError> {
         if let MemoryValue::U128(value) = self {
-            Ok(*value)
+            Ok(value)
         } else {
             Err(MemoryTypeError::MismatchedBitSize {
                 value_bit_size: self.bit_size().to_u32::<F>(),

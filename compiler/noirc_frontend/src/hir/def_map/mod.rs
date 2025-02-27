@@ -1,6 +1,7 @@
+use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::Context;
+use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::{ParsedModule, ParserError};
 use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
@@ -76,15 +77,14 @@ impl CrateDefMap {
     pub fn collect_defs(
         crate_id: CrateId,
         context: &mut Context,
-        debug_comptime_in_file: Option<&str>,
-        pedantic_solving: bool,
-    ) -> Vec<(CompilationError, FileId)> {
+        options: FrontendOptions,
+    ) -> Vec<CompilationError> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
-        let mut errors: Vec<(CompilationError, FileId)> = vec![];
+        let mut errors: Vec<CompilationError> = vec![];
         if context.def_map(&crate_id).is_some() {
             return errors;
         }
@@ -119,13 +119,10 @@ impl CrateDefMap {
             context,
             ast,
             root_file_id,
-            debug_comptime_in_file,
-            pedantic_solving,
+            options,
         ));
 
-        errors.extend(
-            parsing_errors.iter().map(|e| (e.clone().into(), root_file_id)).collect::<Vec<_>>(),
-        );
+        errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
 
         errors
     }
@@ -367,6 +364,12 @@ pub struct Contract {
     pub location: Location,
     pub functions: Vec<ContractFunctionMeta>,
     pub outputs: ContractOutputs,
+}
+
+/// Given a FileId, fetch the File, from the FileManager and parse it's content
+pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
+    let file_source = fm.fetch_file(file_id).expect("File does not exist");
+    parse_program(file_source, file_id)
 }
 
 impl std::ops::Index<LocalModuleId> for CrateDefMap {

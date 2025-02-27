@@ -10,7 +10,7 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
-) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> + use<> {
     let include_declaration = params.context.include_declaration;
     let result = process_request(state, params.text_document_position, |args| {
         find_all_references_in_workspace(
@@ -99,7 +99,7 @@ mod references_tests {
     // See https://github.com/noir-lang/noir/issues/5460
     #[ignore]
     #[test]
-    async fn test_on_references_request_works_accross_workspace_packages() {
+    async fn test_on_references_request_works_across_workspace_packages() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace").await;
 
         // noir_text_document is always `src/main.nr` in the workspace directory, so let's go to the workspace dir

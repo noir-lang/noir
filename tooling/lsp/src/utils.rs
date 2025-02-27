@@ -51,9 +51,5 @@ pub(crate) fn character_to_line_offset(line: &str, character: u32) -> Option<usi
     }
 
     // Handle positions after the last character on the line
-    if character_offset == character {
-        Some(line_len)
-    } else {
-        None
-    }
+    if character_offset == character { Some(line_len) } else { None }
 }

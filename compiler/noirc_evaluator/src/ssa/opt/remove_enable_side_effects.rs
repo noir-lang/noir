@@ -10,7 +10,7 @@
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 use std::collections::HashSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
@@ -92,7 +92,7 @@ impl Context {
                 let condition_is_one = function
                     .dfg
                     .get_numeric_constant(*condition)
-                    .map_or(false, |condition| condition.is_one());
+                    .is_some_and(|condition| condition.is_one());
                 if condition_is_one {
                     new_instructions.push(instruction_id);
                     last_side_effects_enabled_instruction = None;

@@ -1,11 +1,11 @@
 use iter_extended::vecmap;
 
 use crate::{
-    parser::{labels::ParsingRuleLabel, Item, ItemKind, ParserErrorReason},
+    parser::{Item, ItemKind, ParserErrorReason, labels::ParsingRuleLabel},
     token::{Keyword, Token},
 };
 
-use super::{impls::Impl, parse_many::without_separator, Parser};
+use super::{Parser, impls::Impl, parse_many::without_separator};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_top_level_items(&mut self) -> Vec<Item> {
@@ -89,16 +89,16 @@ impl<'a> Parser<'a> {
 
     /// Item = OuterDocComments ItemKind
     fn parse_item(&mut self) -> Vec<Item> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let doc_comments = self.parse_outer_doc_comments();
         let kinds = self.parse_item_kind();
-        let span = self.span_since(start_span);
+        let location = self.location_since(start_location);
 
         if kinds.is_empty() && !doc_comments.is_empty() {
-            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_span);
+            self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
-        vecmap(kinds, |(kind, cfg_feature_disabled)| Item { kind, span, doc_comments: doc_comments.clone(), cfg_feature_disabled })
+        vecmap(kinds, |(kind, cfg_feature_disabled)| Item { kind, location, doc_comments: doc_comments.clone(), cfg_feature_disabled })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
             return vec![(ItemKind::InnerAttribute(kind), false)];
         }
 
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let attributes = self.parse_attributes();
         let cfg_feature_disabled = attributes.iter().any(|attribute| attribute.0.is_disabled_cfg());
 
@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
             let parsed_struct = self.parse_struct(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             );
             return vec![(ItemKind::Struct(parsed_struct), cfg_feature_disabled)];
         }
@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
             let parsed_enum = self.parse_enum(
                 attributes,
                 modifiers.visibility,
-                start_span,
+                start_location,
             );
             return vec![(ItemKind::Enum(parsed_enum), cfg_feature_disabled)];
         }
@@ -181,7 +181,7 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let (noir_trait, noir_impl) =
-                self.parse_trait(attributes, modifiers.visibility, start_span);
+                self.parse_trait(attributes, modifiers.visibility, start_location);
             let mut output = vec![(ItemKind::Trait(noir_trait), cfg_feature_disabled)];
             if let Some(noir_impl) = noir_impl {
                 output.push((ItemKind::TraitImpl(noir_impl), cfg_feature_disabled));
@@ -207,7 +207,7 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Type) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            let parsed_type_alias = self.parse_type_alias(modifiers.visibility, start_span);
+            let parsed_type_alias = self.parse_type_alias(modifiers.visibility, start_location);
             return vec![(ItemKind::TypeAlias(
                 parsed_type_alias
             ), cfg_feature_disabled)];
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parse_program,
+        parse_program_with_dummy_file,
         parser::parser::tests::{get_single_error, get_source_with_error_span},
     };
 
@@ -254,7 +254,7 @@ mod tests {
                     ^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected an item but found 'hello'");
@@ -263,11 +263,11 @@ mod tests {
     #[test]
     fn errors_on_eof_in_nested_mod() {
         let src = "
-        mod foo { fn foo() {} 
-                             ^
+        mod foo { fn foo() {}
+                            ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_eq!(error.to_string(), "Expected a '}' but found end of input");
@@ -281,10 +281,10 @@ mod tests {
         ^^^^^^^^^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert!(error.to_string().contains("Documentation comment does not document anything"));
+        assert!(error.to_string().contains("This doc comment doesn't document anything"));
     }
 
     // TODO: rename and consider relocating to more specific test location

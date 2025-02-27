@@ -11,7 +11,7 @@ use crate::{byte_span_to_range, trait_impl_method_stub_generator::TraitImplMetho
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn implement_missing_members(
         &mut self,
         noir_trait_impl: &NoirTraitImpl,
@@ -21,7 +21,11 @@ impl<'a> CodeActionFinder<'a> {
             return;
         }
 
-        let location = Location::new(noir_trait_impl.trait_name.span(), self.file);
+        let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ else {
+            return;
+        };
+
+        let location = Location::new(trait_name.span(), self.file);
         let Some(ReferenceId::Trait(trait_id)) = self.interner.find_referenced(location) else {
             return;
         };

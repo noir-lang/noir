@@ -22,9 +22,9 @@
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
 use acvm::{
-    acir::AcirField,
-    brillig_vm::{MemoryValue, VMStatus, VM},
     FieldElement,
+    acir::AcirField,
+    brillig_vm::{MemoryValue, VM, VMStatus},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use im::Vector;
@@ -32,9 +32,9 @@ use iter_extended::vecmap;
 
 use crate::{
     brillig::{
+        Brillig, BrilligOptions,
         brillig_gen::gen_brillig_for,
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
-        Brillig, BrilligOptions,
     },
     ssa::{
         ir::{
@@ -95,6 +95,11 @@ impl Ssa {
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
+            // We have already performed our final Brillig generation, so constant folding
+            // Brillig functions is unnecessary work.
+            if function.dfg.runtime().is_brillig() {
+                continue;
+            }
             function.constant_fold(false, brillig_info);
         }
 
@@ -808,6 +813,7 @@ mod test {
     use crate::{
         brillig::BrilligOptions,
         ssa::{
+            Ssa,
             function_builder::FunctionBuilder,
             ir::{
                 function::RuntimeType,
@@ -815,7 +821,6 @@ mod test {
                 types::{NumericType, Type},
             },
             opt::assert_normalized_ssa_equals,
-            Ssa,
         },
     };
 
@@ -1446,6 +1451,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
+        // Need to run SSA pass that sets up Brillig array gets
+        let ssa = ssa.brillig_array_gets();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let expected = "
@@ -1784,5 +1791,56 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_deduplicate_unsigned_division_by_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 0
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, u32 0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_duplicate_unsigned_division_by_non_zero_constant() {
+        // Regression test for https://github.com/noir-lang/noir/issues/7283
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 2
+            v5 = not v2
+            enable_side_effects v5
+            v6 = div v1, u32 2
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u1):
+            enable_side_effects v2
+            v4 = div v1, u32 2
+            v5 = not v2
+            enable_side_effects v5
+            return
+        }
+        ";
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }

@@ -1,5 +1,62 @@
 # Changelog
 
+## [1.0.0-beta.3](https://github.com/noir-lang/noir/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2025-02-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* make `ResolverError::OracleMarkedAsConstrained` into a full error ([#7426](https://github.com/noir-lang/noir/issues/7426))
+* remove bigint from stdlib ([#7411](https://github.com/noir-lang/noir/issues/7411))
+* Only decrement the counter of an array if its address has not changed ([#7297](https://github.com/noir-lang/noir/issues/7297))
+
+### Features
+
+* `FunctionDefinition::as_typed_expr` ([#7358](https://github.com/noir-lang/noir/issues/7358)) ([97afa52](https://github.com/noir-lang/noir/commit/97afa52f5212be2d05af26b9e8dde9c3ea7a1d2e))
+* **acir_field:** Add little-endian byte serialization for FieldElement ([#7258](https://github.com/noir-lang/noir/issues/7258)) ([f37eedc](https://github.com/noir-lang/noir/commit/f37eedca7f286187c71587797e08da189c4eee70))
+* Add native `u128` type ([#7301](https://github.com/noir-lang/noir/issues/7301)) ([8783e48](https://github.com/noir-lang/noir/commit/8783e480a39efb47c7783c68b0e09c1c65b1f33a))
+* Allow unquoting TraitConstraint in trait impl position ([#7395](https://github.com/noir-lang/noir/issues/7395)) ([40d2763](https://github.com/noir-lang/noir/commit/40d276328e568712fcb742c1c2ecdd975e5123b6))
+* **brillig:** Hoist shared constants across functions to the global space ([#7216](https://github.com/noir-lang/noir/issues/7216)) ([8652072](https://github.com/noir-lang/noir/commit/8652072920b3abc5990be5d57db27a7e66221252))
+* **ci:** Publish binaries for noir-profiler ([#7443](https://github.com/noir-lang/noir/issues/7443)) ([af5e4cd](https://github.com/noir-lang/noir/commit/af5e4cd1f200da6f21c543616dea9c188190d833))
+* **ci:** Release noir-inspector in binaries ([#7464](https://github.com/noir-lang/noir/issues/7464)) ([7a9c8c1](https://github.com/noir-lang/noir/commit/7a9c8c13f626575f23d25f9cb8689e44dc1c6116))
+* **cli:** Add `--target-dir` option ([#7350](https://github.com/noir-lang/noir/issues/7350)) ([1b6ba5d](https://github.com/noir-lang/noir/commit/1b6ba5d960239f8fa934d9543699eb86edd3c43b))
+* **cli:** Add noir-execute binary ([#7384](https://github.com/noir-lang/noir/issues/7384)) ([fdfe2bf](https://github.com/noir-lang/noir/commit/fdfe2bf752771b9611dc71953d50423b4ae7ec44))
+* **experimental:** Compile match expressions ([#7312](https://github.com/noir-lang/noir/issues/7312)) ([4c3dee1](https://github.com/noir-lang/noir/commit/4c3dee165f400124ba727a884455d83948f2006e))
+* **experimental:** Show macro errors where they happen ([#7333](https://github.com/noir-lang/noir/issues/7333)) ([04dd6d9](https://github.com/noir-lang/noir/commit/04dd6d9cdc906210e77cf755c711d45d04cb29aa))
+* LSP hover for integer literals ([#7368](https://github.com/noir-lang/noir/issues/7368)) ([967ab5f](https://github.com/noir-lang/noir/commit/967ab5f6e23b7e9f4503fe01d05b8a7a94ca70f6))
+* **LSP:** Auto-import via visible reexport ([#7409](https://github.com/noir-lang/noir/issues/7409)) ([9b03217](https://github.com/noir-lang/noir/commit/9b03217ff4b7f8eb13a43466bf9b2d761944c6f7))
+* Optimize FieldElement::num_bits ([#7147](https://github.com/noir-lang/noir/issues/7147)) ([44c35dc](https://github.com/noir-lang/noir/commit/44c35dc3ed5cceb34131bcb90622b0e3e0156b9c))
+* **performance:** Check sub operations against induction variables ([#7356](https://github.com/noir-lang/noir/issues/7356)) ([7cdce1f](https://github.com/noir-lang/noir/commit/7cdce1fef7e0fd63355fe6dc0993415bbb210ebf))
+* **performance:** Use unchecked ops based upon known induction variables ([#7344](https://github.com/noir-lang/noir/issues/7344)) ([10b377f](https://github.com/noir-lang/noir/commit/10b377fb4eb9284df66f5c0bd830f6d20ab2c003))
+* Remove bigint from stdlib ([#7411](https://github.com/noir-lang/noir/issues/7411)) ([31cc6a1](https://github.com/noir-lang/noir/commit/31cc6a1cf9ea0a02931ef60c71d4d41524f8b84c))
+* Require safety comments instead of safety doc comments ([#7295](https://github.com/noir-lang/noir/issues/7295)) ([e895feb](https://github.com/noir-lang/noir/commit/e895feb4e7b25530a22668bca597dfc78be92584))
+* Simplify assertions that squared values are equal to zero ([#7432](https://github.com/noir-lang/noir/issues/7432)) ([5d19109](https://github.com/noir-lang/noir/commit/5d19109b6a5738a97b745c6117cf0a1e9f1552bb))
+* While statement ([#7280](https://github.com/noir-lang/noir/issues/7280)) ([582f56e](https://github.com/noir-lang/noir/commit/582f56e6b6ea43ab79b08aacfe7f1ba67a097f26))
+
+
+### Bug Fixes
+
+* **brillig:** Brillig entry point analysis and function specialization through duplication ([#7277](https://github.com/noir-lang/noir/issues/7277)) ([119bf62](https://github.com/noir-lang/noir/commit/119bf620005b52362e3aca9321b69e96e8a42fc0))
+* **cli:** Only lock the packages selected in the workspace ([#7345](https://github.com/noir-lang/noir/issues/7345)) ([f0ce5c5](https://github.com/noir-lang/noir/commit/f0ce5c5a57bc4cd8b3b482a3b682e8d5c2605d5c))
+* Do not discard negative sign from field literals in comptime interpreter ([#7439](https://github.com/noir-lang/noir/issues/7439)) ([1d04f8b](https://github.com/noir-lang/noir/commit/1d04f8ba0292e493e4e64cf8caf6df15c51b3346))
+* Don't let nargo fmt produce multiple trailing newlines ([#7444](https://github.com/noir-lang/noir/issues/7444)) ([093a8ec](https://github.com/noir-lang/noir/commit/093a8ec60eaacd1b307447545e166a40e037436d))
+* Field zero division in brillig ([#7386](https://github.com/noir-lang/noir/issues/7386)) ([e73f8cd](https://github.com/noir-lang/noir/commit/e73f8cd669c13cdb792313b46dd4aa012c40a0ad))
+* Format global attributes ([#7401](https://github.com/noir-lang/noir/issues/7401)) ([b7ace68](https://github.com/noir-lang/noir/commit/b7ace682af1ab8a43308457302f08b151af342db))
+* Give "correct" error when trying to use AsTraitPath ([#7360](https://github.com/noir-lang/noir/issues/7360)) ([8f20392](https://github.com/noir-lang/noir/commit/8f20392cab7cca4abf0f1811204ce1a4229f827a))
+* Incorrect secondary file in LSP errors ([#7347](https://github.com/noir-lang/noir/issues/7347)) ([5d782f0](https://github.com/noir-lang/noir/commit/5d782f020f6aec6aaa8a445c3a6a5fb9b275e3c6))
+* Let LSP read `noirfmt.toml` for formatting files ([#7355](https://github.com/noir-lang/noir/issues/7355)) ([81b86e2](https://github.com/noir-lang/noir/commit/81b86e2a9bfe991bc0385118094656648a125587))
+* Only decrement the counter of an array if its address has not changed ([#7297](https://github.com/noir-lang/noir/issues/7297)) ([93d1740](https://github.com/noir-lang/noir/commit/93d17407f7170abbab7a6e9c8df6b39fb478ec18))
+* **performance:** Remove redundant slice access check from brillig ([#7434](https://github.com/noir-lang/noir/issues/7434)) ([49a095d](https://github.com/noir-lang/noir/commit/49a095ded5cd33795bcdac60cbd98ce7c5ab9198))
+* Prevent incorrect ACIRgen caused by noop truncations ([#7456](https://github.com/noir-lang/noir/issues/7456)) ([1fa9b33](https://github.com/noir-lang/noir/commit/1fa9b33aab796dbc2a61f3062bf80e120831b462))
+* Require loop/for/while body to be unit ([#7437](https://github.com/noir-lang/noir/issues/7437)) ([13a7309](https://github.com/noir-lang/noir/commit/13a7309e6e2aec58cce3e12d4dc5f9ce8eb08a67))
+* **ssa:** Accurately mark binary ops for hoisting and check Div/Mod against induction variable lower bound ([#7396](https://github.com/noir-lang/noir/issues/7396)) ([64890c0](https://github.com/noir-lang/noir/commit/64890c0d7420adb32d3867e51dd194e48b87bb32))
+* **ssa:** Do not deduplicate division by a zero constant ([#7393](https://github.com/noir-lang/noir/issues/7393)) ([38eeee3](https://github.com/noir-lang/noir/commit/38eeee39a98a62747dcca3b31b409151761d4ef1))
+* **ssa:** Make the lookback feature opt-in ([#7190](https://github.com/noir-lang/noir/issues/7190)) ([31becc6](https://github.com/noir-lang/noir/commit/31becc6863688dc9cadf15d2e9726aab9f2a0150))
+
+
+### Miscellaneous Chores
+
+* Make `ResolverError::OracleMarkedAsConstrained` into a full error ([#7426](https://github.com/noir-lang/noir/issues/7426)) ([40184eb](https://github.com/noir-lang/noir/commit/40184eb75d69153fb7849700ad10c53bf19cacf3))
+
 ## [1.0.0-beta.2](https://github.com/noir-lang/noir/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2025-02-10)
 
 

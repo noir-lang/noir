@@ -3,29 +3,29 @@ use lsp_types::{
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
+    QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
-    QuotedType, Type,
 };
 
 use crate::{
     modules::{relative_module_full_path, relative_module_id_path},
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::{
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
     sort_text::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,
@@ -44,7 +44,7 @@ impl<'a> NodeFinder<'a> {
             },
             RequestedItems::OnlyTraits => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
-                    return Vec::new()
+                    return Vec::new();
                 }
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)
@@ -395,15 +395,15 @@ impl<'a> NodeFinder<'a> {
         let (trait_id, trait_reexport) = trait_info?;
 
         let trait_name = if let Some(trait_reexport) = trait_reexport {
-            trait_reexport.name
+            trait_reexport.name.clone()
         } else {
             let trait_ = self.interner.get_trait(trait_id);
-            &trait_.name
+            trait_.name.clone()
         };
 
         let module_data =
             &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-        if !module_data.scope().find_name(trait_name).is_none() {
+        if !module_data.scope().find_name(&trait_name).is_none() {
             return None;
         }
 
@@ -411,8 +411,8 @@ impl<'a> NodeFinder<'a> {
         let current_module_parent_id = self.module_id.parent(self.def_maps);
         let module_full_path = if let Some(reexport_data) = trait_reexport {
             relative_module_id_path(
-                *reexport_data.module_id,
-                &self.module_id,
+                reexport_data.module_id,
+                self.module_id,
                 current_module_parent_id,
                 self.interner,
             )

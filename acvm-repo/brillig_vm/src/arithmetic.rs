@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use acir::AcirField;
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use num_bigint::BigUint;
 use num_traits::{CheckedDiv, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
@@ -23,14 +23,14 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     lhs: MemoryValue<F>,
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
-    let a = *lhs.expect_field().map_err(|err| {
+    let a = lhs.expect_field().map_err(|err| {
         let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
         BrilligArithmeticError::MismatchedLhsBitSize {
             lhs_bit_size: value_bit_size,
             op_bit_size: expected_bit_size,
         }
     })?;
-    let b = *rhs.expect_field().map_err(|err| {
+    let b = rhs.expect_field().map_err(|err| {
         let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
         BrilligArithmeticError::MismatchedRhsBitSize {
             rhs_bit_size: value_bit_size,
@@ -43,7 +43,13 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
         BinaryFieldOp::Add => MemoryValue::new_field(a + b),
         BinaryFieldOp::Sub => MemoryValue::new_field(a - b),
         BinaryFieldOp::Mul => MemoryValue::new_field(a * b),
-        BinaryFieldOp::Div => MemoryValue::new_field(a / b),
+        BinaryFieldOp::Div => {
+            if b.is_zero() {
+                return Err(BrilligArithmeticError::DivisionByZero);
+            } else {
+                MemoryValue::new_field(a / b)
+            }
+        }
         BinaryFieldOp::IntegerDiv => {
             if b.is_zero() {
                 return Err(BrilligArithmeticError::DivisionByZero);
@@ -225,21 +231,11 @@ fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Outp
     match op {
         BinaryIntOp::Shl => {
             let rhs_usize: usize = rhs as usize;
-            #[allow(unused_qualifications)]
-            if rhs_usize >= 8 * std::mem::size_of::<T>() {
-                T::zero()
-            } else {
-                lhs << rhs.into()
-            }
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs << rhs.into() }
         }
         BinaryIntOp::Shr => {
             let rhs_usize: usize = rhs as usize;
-            #[allow(unused_qualifications)]
-            if rhs_usize >= 8 * std::mem::size_of::<T>() {
-                T::zero()
-            } else {
-                lhs >> rhs.into()
-            }
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs >> rhs.into() }
         }
         _ => unreachable!("Operator not handled by this function: {op:?}"),
     }

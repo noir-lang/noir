@@ -1,31 +1,31 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
-use crate::parser::labels::ParsingRuleLabel;
 use crate::parser::ParserErrorReason;
+use crate::parser::labels::ParsingRuleLabel;
 use crate::token::{Attribute, CfgAttribute, FunctionAttribute, MetaAttribute, TestScope, Token};
 use crate::token::{CustomAttribute, SecondaryAttribute};
 
-use super::parse_many::without_separator;
 use super::Parser;
+use super::parse_many::without_separator;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// InnerAttribute = '#![' SecondaryAttribute ']'
     pub(super) fn parse_inner_attribute(&mut self) -> Option<SecondaryAttribute> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
         let is_tag = self.eat_inner_attribute_start()?;
         let attribute = if is_tag {
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         } else {
-            self.parse_non_tag_attribute(start_span)
+            self.parse_non_tag_attribute(start_location)
         };
 
         match attribute {
             Attribute::Function(function_attribute) => {
                 self.errors.push(
                     LexerErrorKind::InvalidInnerAttribute {
-                        span: self.span_since(start_span),
+                        location: self.location_since(start_location),
                         found: function_attribute.to_string(),
                     }
                     .into(),
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Attributes = Attribute*
-    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Span)> {
+    pub(super) fn parse_attributes(&mut self) -> Vec<(Attribute, Location)> {
         self.parse_many("attributes", without_separator(), Self::parse_attribute)
     }
 
@@ -77,26 +77,26 @@ impl<'a> Parser<'a> {
     /// AttributeValue
     ///     = Path
     ///     | integer
-    pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Span)> {
-        let start_span = self.current_token_span;
+    pub(crate) fn parse_attribute(&mut self) -> Option<(Attribute, Location)> {
+        let start_location = self.current_token_location;
         let is_tag = self.eat_attribute_start()?;
         let attribute = if is_tag {
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         } else {
-            self.parse_non_tag_attribute(start_span)
+            self.parse_non_tag_attribute(start_location)
         };
-        Some((attribute, self.span_since(start_span)))
+        Some((attribute, self.location_since(start_location)))
     }
 
     pub(super) fn validate_secondary_attributes(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
     ) -> Vec<SecondaryAttribute> {
         attributes
             .into_iter()
-            .filter_map(|(attribute, span)| match attribute {
+            .filter_map(|(attribute, location)| match attribute {
                 Attribute::Function(..) => {
-                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnType, span);
+                    self.push_error(ParserErrorReason::NoFunctionAttributesAllowedOnType, location);
                     None
                 }
                 Attribute::Secondary(attr) => Some(attr),
@@ -104,9 +104,9 @@ impl<'a> Parser<'a> {
             .collect()
     }
 
-    fn parse_tag_attribute(&mut self, start_span: Span) -> Attribute {
-        let contents_start_span = self.current_token_span;
-        let mut contents_span = contents_start_span;
+    fn parse_tag_attribute(&mut self, start_location: Location) -> Attribute {
+        let contents_start_location = self.current_token_location;
+        let mut contents_location = contents_start_location;
         let mut contents = String::new();
 
         let mut brackets_count = 1; // 1 because of the starting `#[`
@@ -117,7 +117,7 @@ impl<'a> Parser<'a> {
             } else if self.at(Token::RightBracket) {
                 brackets_count -= 1;
                 if brackets_count == 0 {
-                    contents_span = self.span_since(contents_start_span);
+                    contents_location = self.location_since(contents_start_location);
                     self.bump();
                     break;
                 }
@@ -129,19 +129,19 @@ impl<'a> Parser<'a> {
 
         Attribute::Secondary(SecondaryAttribute::Tag(CustomAttribute {
             contents,
-            span: self.span_since(start_span),
-            contents_span,
+            span: self.location_since(start_location).span,
+            contents_span: contents_location.span,
         }))
     }
 
-    fn parse_non_tag_attribute(&mut self, start_span: Span) -> Attribute {
+    fn parse_non_tag_attribute(&mut self, start_location: Location) -> Attribute {
         if matches!(&self.token.token(), Token::Keyword(..))
             && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
         {
             // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_span);
+            let path = Path::from_single(self.token.to_string(), self.current_token_location);
             self.bump();
-            self.parse_meta_attribute(path, start_span)
+            self.parse_meta_attribute(path, start_location)
         } else if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.0.contents == "test" {
@@ -152,19 +152,19 @@ impl<'a> Parser<'a> {
                     self.parse_cfg_attribute(start_span)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
-                    self.parse_ident_attribute_other_than_test(ident, start_span)
+                    self.parse_ident_attribute_other_than_test(ident, start_location)
                 }
             } else {
                 // This is a Meta attribute with the syntax `path(arg1, arg2, .., argN)`
-                self.parse_meta_attribute(path, start_span)
+                self.parse_meta_attribute(path, start_location)
             }
         } else {
             self.expected_label(ParsingRuleLabel::Path);
-            self.parse_tag_attribute(start_span)
+            self.parse_tag_attribute(start_location)
         }
     }
 
-    fn parse_cfg_attribute(&mut self, start_span: Span) -> Attribute {
+    fn parse_cfg_attribute(&mut self, start_location: Location) -> Attribute {
         // `[cfg` <- already parsed
         // `(feature = "{str}"`
         self.eat_or_error(Token::LeftParen);
@@ -190,7 +190,8 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: 0,
                 },
-                self.span_since(start_span),
+                // TODO: include location in WrongNumberOfAttributeArguments
+                // self.span_since(start_span),
             );
             String::new()
         });
@@ -204,37 +205,39 @@ impl<'a> Parser<'a> {
 
         Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
             name,
-            span: self.span_since(start_span),
+            span: self.location_since(start_location),
         }))
     }
 
-    fn parse_meta_attribute(&mut self, name: Path, start_span: Span) -> Attribute {
+    fn parse_meta_attribute(&mut self, name: Path, start_location: Location) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
             name,
             arguments,
-            span: self.span_since(start_span),
+            location: self.location_since(start_location),
         }))
     }
 
     fn parse_ident_attribute_other_than_test(
         &mut self,
         ident: &Ident,
-        start_span: Span,
+        start_location: Location,
     ) -> Attribute {
         let arguments = self.parse_arguments().unwrap_or_default();
         self.skip_until_right_bracket();
         match ident.0.contents.as_str() {
-            "abi" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "abi" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Abi(name))
             }),
-            "allow" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "allow" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Allow(name))
             }),
-            "builtin" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Builtin(name))
-            }),
+            "builtin" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Builtin(name))
+                })
+            }
             "deprecated" => self.parse_deprecated_attribute(ident, arguments),
             "contract_library_method" => {
                 let attr = Attribute::Secondary(SecondaryAttribute::ContractLibraryMethod);
@@ -244,16 +247,18 @@ impl<'a> Parser<'a> {
                 let attr = Attribute::Secondary(SecondaryAttribute::Export);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "field" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
+            "field" => self.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Field(name))
             }),
             "fold" => {
                 let attr = Attribute::Function(FunctionAttribute::Fold);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "foreign" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Foreign(name))
-            }),
+            "foreign" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Foreign(name))
+                })
+            }
             "inline_always" => {
                 let attr = Attribute::Function(FunctionAttribute::InlineAlways);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -262,9 +267,11 @@ impl<'a> Parser<'a> {
                 let attr = Attribute::Function(FunctionAttribute::NoPredicates);
                 self.parse_no_args_attribute(ident, arguments, attr)
             }
-            "oracle" => self.parse_single_name_attribute(ident, arguments, start_span, |name| {
-                Attribute::Function(FunctionAttribute::Oracle(name))
-            }),
+            "oracle" => {
+                self.parse_single_name_attribute(ident, arguments, start_location, |name| {
+                    Attribute::Function(FunctionAttribute::Oracle(name))
+                })
+            }
             "use_callers_scope" => {
                 let attr = Attribute::Secondary(SecondaryAttribute::UseCallersScope);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -276,7 +283,7 @@ impl<'a> Parser<'a> {
             _ => Attribute::Secondary(SecondaryAttribute::Meta(MetaAttribute {
                 name: Path::from_ident(ident.clone()),
                 arguments,
-                span: self.span_since(start_span),
+                location: self.location_since(start_location),
             })),
         }
     }
@@ -298,7 +305,7 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: arguments.len(),
                 },
-                ident.span(),
+                ident.location(),
             );
             return Attribute::Secondary(SecondaryAttribute::Deprecated(None));
         }
@@ -307,7 +314,7 @@ impl<'a> Parser<'a> {
         let ExpressionKind::Literal(Literal::Str(message)) = argument.kind else {
             self.push_error(
                 ParserErrorReason::DeprecatedAttributeExpectsAStringArgument,
-                argument.span,
+                argument.location,
             );
             return Attribute::Secondary(SecondaryAttribute::Deprecated(None));
         };
@@ -315,7 +322,7 @@ impl<'a> Parser<'a> {
         Attribute::Secondary(SecondaryAttribute::Deprecated(Some(message)))
     }
 
-    fn parse_test_attribute(&mut self, start_span: Span) -> Attribute {
+    fn parse_test_attribute(&mut self, start_location: Location) -> Attribute {
         let scope = if self.eat_left_paren() {
             let scope = if let Some(ident) = self.eat_ident() {
                 match ident.0.contents.as_str() {
@@ -345,7 +352,10 @@ impl<'a> Parser<'a> {
             scope
         } else {
             self.errors.push(
-                LexerErrorKind::MalformedTestAttribute { span: self.span_since(start_span) }.into(),
+                LexerErrorKind::MalformedTestAttribute {
+                    location: self.location_since(start_location),
+                }
+                .into(),
             );
             TestScope::None
         };
@@ -357,7 +367,7 @@ impl<'a> Parser<'a> {
         &mut self,
         ident: &Ident,
         mut arguments: Vec<Expression>,
-        start_span: Span,
+        start_location: Location,
         f: F,
     ) -> Attribute
     where
@@ -371,7 +381,7 @@ impl<'a> Parser<'a> {
                     max: 1,
                     found: arguments.len(),
                 },
-                self.current_token_span,
+                self.current_token_location,
             );
             return f(String::new());
         }
@@ -382,10 +392,13 @@ impl<'a> Parser<'a> {
                 f(argument.to_string())
             }
             _ => {
-                let span = self.span_since(start_span);
+                let location = self.location_since(start_location);
                 self.errors.push(
-                    LexerErrorKind::MalformedFuncAttribute { span, found: argument.to_string() }
-                        .into(),
+                    LexerErrorKind::MalformedFuncAttribute {
+                        location,
+                        found: argument.to_string(),
+                    }
+                    .into(),
                 );
                 f(String::new())
             }
@@ -406,7 +419,7 @@ impl<'a> Parser<'a> {
                     max: 0,
                     found: arguments.len(),
                 },
-                ident.span(),
+                ident.location(),
             );
         }
 
@@ -438,19 +451,19 @@ mod tests {
     use noirc_errors::Span;
 
     use crate::{
-        parser::{parser::tests::expect_no_errors, Parser},
+        parser::{Parser, parser::tests::expect_no_errors},
         token::{Attribute, CfgAttribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 
     fn parse_inner_secondary_attribute_no_errors(src: &str, expected: SecondaryAttribute) {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let attribute = parser.parse_inner_attribute();
         expect_no_errors(&parser.errors);
         assert_eq!(attribute.unwrap(), expected);
     }
 
     fn parse_attribute_no_errors(src: &str, expected: Attribute) {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         assert_eq!(attribute, expected);
@@ -459,7 +472,7 @@ mod tests {
     #[test]
     fn parses_inner_attribute_as_tag() {
         let src = "#!['hello]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let Some(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner tag attribute");
         };
@@ -472,7 +485,7 @@ mod tests {
     #[test]
     fn parses_inner_attribute_as_tag_with_nested_brackets() {
         let src = "#!['hello[1]]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let Some(SecondaryAttribute::Tag(custom)) = parser.parse_inner_attribute() else {
             panic!("Expected inner tag attribute");
         };
@@ -620,7 +633,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_no_arguments() {
         let src = "#[foo]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -633,7 +646,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_as_keyword() {
         let src = "#[dep]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -646,7 +659,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_single_identifier_with_arguments() {
         let src = "#[foo(1, 2, 3)]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -660,7 +673,7 @@ mod tests {
     #[test]
     fn parses_meta_attribute_path_with_arguments() {
         let src = "#[foo::bar(1, 2, 3)]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _span) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
@@ -699,7 +712,7 @@ mod tests {
     #[test]
     fn parses_attributes() {
         let src = "#[test] #[deprecated]";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let mut attributes = parser.parse_attributes();
         expect_no_errors(&parser.errors);
         assert_eq!(attributes.len(), 2);

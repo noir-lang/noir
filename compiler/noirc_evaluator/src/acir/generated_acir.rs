@@ -3,21 +3,21 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::{
+    AcirField, BlackBoxFunc,
     circuit::{
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
-        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
     },
     native_types::{Expression, Witness},
-    AcirField, BlackBoxFunc,
 };
 
 use super::brillig_directive;
 use crate::{
+    ErrorType,
     brillig::brillig_ir::artifact::GeneratedBrillig,
     errors::{InternalError, RuntimeError, SsaReport},
     ssa::ir::call_stack::CallStack,
-    ErrorType,
 };
 
 use iter_extended::vecmap;
@@ -356,13 +356,13 @@ impl<F: AcirField> GeneratedAcir<F> {
         limb_count: u32,
         bit_size: u32,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        let radix_big = BigUint::from(radix);
-        let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
+        let radix_range = 2..=256;
         assert!(
-            radix_range.contains(&radix_big),
+            radix_range.contains(&radix),
             "ICE: Radix must be in the range 2..=256, but found: {:?}",
             radix
         );
+        let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
             radix_big,
@@ -788,7 +788,10 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_inputs,input_count,"Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    assert_eq!(
+        expected_num_inputs, input_count,
+        "Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs"
+    );
 }
 
 /// Checks that the number of outputs being used to call the blackbox function
@@ -818,5 +821,8 @@ fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
         None => return,
     };
 
-    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs");
+    assert_eq!(
+        expected_num_outputs, output_count,
+        "Tried to call black box function {name} with {output_count} outputs, but this function's definition requires {expected_num_outputs} outputs"
+    );
 }
