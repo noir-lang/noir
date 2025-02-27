@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::HashSet};
 
 use acir::{
-    native_types::{Expression, Witness},
     AcirField,
+    native_types::{Expression, Witness},
 };
 use indexmap::IndexMap;
 
@@ -201,7 +201,7 @@ impl CSatTransformer {
 
                     // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates, how many more we can add
                     let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
-                                                                  // Keep adding terms until we have no more left, or we reach the width
+                    // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
                         Vec::with_capacity(opcode.linear_combinations.len());
                     while remaining_space > 0 {

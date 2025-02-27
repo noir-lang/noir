@@ -3,8 +3,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::{
-    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 /// Trait for converting values into debug-friendly strings.

@@ -133,7 +133,7 @@
 //!   store v12 at v5         (new store)
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use acvm::{acir::AcirField, acir::BlackBoxFunc, FieldElement};
+use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;
 
 use crate::ssa::{
@@ -273,6 +273,7 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 }
 
 impl<'f> Context<'f> {
+    //impl Context<'_> {
     pub(crate) fn new(
         function: &'f mut Function,
         cfg: ControlFlowGraph,
@@ -852,13 +853,13 @@ mod test {
     use acvm::acir::AcirField;
 
     use crate::ssa::{
+        Ssa,
         ir::{
             dfg::DataFlowGraph,
             instruction::{Instruction, TerminatorInstruction},
             value::{Value, ValueId},
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]

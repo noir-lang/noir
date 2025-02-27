@@ -23,7 +23,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
-pub(super) use inline_info::{compute_inline_infos, InlineInfo, InlineInfos};
+pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
 /// frames at any point in time.
@@ -278,7 +278,9 @@ impl InlineContext {
 
         if self.recursion_level > RECURSION_LIMIT {
             panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}", source_function.name(), source_function
+                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}",
+                source_function.name(),
+                source_function
             );
         }
 
@@ -349,10 +351,14 @@ impl<'function> PerFunctionContext<'function> {
                         return id;
                     }
                 }
-                unreachable!("All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
+                )
             }
             value @ Value::Param { .. } => {
-                unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
+                unreachable!(
+                    "All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}"
+                )
             }
             Value::NumericConstant { constant, typ } => {
                 // The dfg indexes a global's inner value directly, so we need to check here
@@ -778,10 +784,11 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use std::cmp::max;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
@@ -791,7 +798,6 @@ mod test {
             types::{NumericType, Type},
         },
         opt::{assert_normalized_ssa_equals, inlining::inline_info::compute_bottom_up_order},
-        Ssa,
     };
 
     #[test]

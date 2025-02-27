@@ -12,7 +12,7 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{generics::TraitGenerics, TypeCheckError},
+    hir::type_check::{TypeCheckError, generics::TraitGenerics},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
 use iter_extended::vecmap;
@@ -249,11 +249,7 @@ impl Kind {
     }
 
     pub(crate) fn unify(&self, other: &Kind) -> Result<(), UnificationError> {
-        if self.unifies(other) {
-            Ok(())
-        } else {
-            Err(UnificationError)
-        }
+        if self.unifies(other) { Ok(()) } else { Err(UnificationError) }
     }
 
     /// Returns the default type this type variable should be bound to if it is still unbound
@@ -1058,11 +1054,7 @@ impl std::fmt::Display for Type {
                 let this = self.canonicalize_checked();
 
                 // Prevent infinite recursion
-                if this != *self {
-                    write!(f, "{this}")
-                } else {
-                    write!(f, "({lhs} {op} {rhs})")
-                }
+                if this != *self { write!(f, "{this}") } else { write!(f, "({lhs} {op} {rhs})") }
             }
         }
     }
@@ -1462,8 +1454,8 @@ impl Type {
             Type::NamedGeneric(var, _) => var.kind(),
             Type::Constant(_, kind) => kind.clone(),
             Type::TypeVariable(var) => match &*var.borrow() {
-                TypeBinding::Bound(ref typ) => typ.kind(),
-                TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
+                TypeBinding::Bound(typ) => typ.kind(),
+                TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
             },
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs),
             Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
@@ -1491,11 +1483,7 @@ impl Type {
     fn infix_kind(&self, other: &Self) -> Kind {
         let self_kind = self.kind();
         let other_kind = other.kind();
-        if self_kind.unifies(&other_kind) {
-            self_kind
-        } else {
-            Kind::numeric(Type::Error)
-        }
+        if self_kind.unifies(&other_kind) { self_kind } else { Kind::numeric(Type::Error) }
     }
 
     /// Creates an `InfixExpr`.
@@ -1663,8 +1651,8 @@ impl Type {
                         typ.try_bind_to_polymorphic_int(var, bindings, only_integer)
                     }
                     // Avoid infinitely recursive bindings
-                    TypeBinding::Unbound(ref id, _) if *id == target_id => Ok(()),
-                    TypeBinding::Unbound(ref new_target_id, Kind::IntegerOrField) => {
+                    TypeBinding::Unbound(id, _) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(new_target_id, Kind::IntegerOrField) => {
                         let type_var_kind = Kind::IntegerOrField;
                         if only_integer {
                             let var_clone = var.clone();
@@ -1687,7 +1675,7 @@ impl Type {
                         bindings.insert(target_id, (var.clone(), Kind::Integer, this.clone()));
                         Ok(())
                     }
-                    TypeBinding::Unbound(new_target_id, ref type_var_kind) => {
+                    TypeBinding::Unbound(new_target_id, type_var_kind) => {
                         let var_clone = var.clone();
                         // Bind to the most specific type variable kind
                         let clone_kind =
@@ -2294,7 +2282,11 @@ impl Type {
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                assert_eq!(types.len() + implicit_generic_count, typevars.len(), "Turbofish operator used with incorrect generic count which was not caught by name resolution");
+                assert_eq!(
+                    types.len() + implicit_generic_count,
+                    typevars.len(),
+                    "Turbofish operator used with incorrect generic count which was not caught by name resolution"
+                );
 
                 let bindings =
                     (0..implicit_generic_count).map(|_| interner.next_type_variable()).chain(types);
@@ -2921,7 +2913,7 @@ impl From<&Type> for PrintableType {
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
-            Type::DataType(def, ref args) => {
+            Type::DataType(def, args) => {
                 let data_type = def.borrow();
                 let name = data_type.name.to_string();
 

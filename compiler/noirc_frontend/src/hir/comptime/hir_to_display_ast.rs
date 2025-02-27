@@ -542,7 +542,9 @@ impl HirArrayLiteral {
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }
-                    other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
+                    other => panic!(
+                        "Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"
+                    ),
                 };
                 ArrayLiteral::Repeated { repeated_element, length }
             }

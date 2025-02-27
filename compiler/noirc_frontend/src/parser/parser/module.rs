@@ -8,7 +8,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ModOrContract
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::{
         parse_program_with_dummy_file,
-        parser::{parser::tests::expect_no_errors, ItemKind},
+        parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
     #[test]

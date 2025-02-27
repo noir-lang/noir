@@ -1,22 +1,22 @@
 use std::{future::Future, pin::Pin};
 
-use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::ResolvedAssertionPayload;
+use acvm::acir::circuit::brillig::BrilligBytecode;
+use acvm::{BlackBoxFunctionSolver, FieldElement};
 use acvm::{
     acir::circuit::{Circuit, Program},
     acir::native_types::{WitnessMap, WitnessStack},
-    pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM},
+    pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError},
 };
-use acvm::{BlackBoxFunctionSolver, FieldElement};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
 use js_sys::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
-    foreign_call::{resolve_brillig, ForeignCallHandler},
-    public_witness::extract_indices,
     JsExecutionError, JsSolvedAndReturnWitness, JsWitnessMap, JsWitnessStack,
+    foreign_call::{ForeignCallHandler, resolve_brillig},
+    public_witness::extract_indices,
 };
 
 /// Executes an ACIR circuit to generate the solved witness from the initial witness.

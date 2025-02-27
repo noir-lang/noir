@@ -1,23 +1,23 @@
 use acvm::{
+    FieldElement,
     acir::{
+        AcirField,
         brillig::{
             BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, HeapVector,
             MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
-        AcirField,
     },
-    FieldElement,
 };
 
 use crate::ssa::ir::function::FunctionId;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     artifact::{Label, UnresolvedJumpLocation},
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     procedures::ProcedureId,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 /// Low level instructions of the brillig IR, used by the brillig ir codegens and brillig_gen

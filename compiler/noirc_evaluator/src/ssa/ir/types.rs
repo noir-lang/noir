@@ -2,7 +2,7 @@ use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
@@ -66,11 +66,7 @@ impl NumericType {
                 if value.is_negative {
                     return Some(format!("0..={}", max));
                 }
-                if value.field <= max.into() {
-                    None
-                } else {
-                    Some(format!("0..={}", max))
-                }
+                if value.field <= max.into() { None } else { Some(format!("0..={}", max)) }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);

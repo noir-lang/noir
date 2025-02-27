@@ -35,10 +35,10 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::{
+    BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
     parser::{ParserError, ParserErrorReason},
     token::IntType,
-    BinaryTypeOperator,
 };
 use acvm::acir::AcirField;
 use iter_extended::vecmap;

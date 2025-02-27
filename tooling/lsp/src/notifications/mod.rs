@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 
 use crate::{
-    insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
+    PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
@@ -14,14 +14,14 @@ use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
 
 use crate::types::{
-    notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializedParams, NargoPackageTests, PublishDiagnosticsParams,
+    Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializedParams, NargoPackageTests, PublishDiagnosticsParams, notification,
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, parse_diff, resolve_workspace_for_source_path,
-    LspState,
+    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    resolve_workspace_for_source_path,
 };
 
 pub(super) fn on_initialized(

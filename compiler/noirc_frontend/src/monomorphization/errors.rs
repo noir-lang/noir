@@ -1,8 +1,8 @@
 use noirc_errors::{CustomDiagnostic, FileDiagnostic, Location};
 
 use crate::{
-    hir::{comptime::InterpreterError, type_check::TypeCheckError},
     Type,
+    hir::{comptime::InterpreterError, type_check::TypeCheckError},
 };
 
 #[derive(Debug)]

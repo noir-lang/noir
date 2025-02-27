@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::vec;
 
 use acvm::{AcirField, FieldElement};
-use fm::{FileId, FileManager, FILE_EXTENSION};
+use fm::{FILE_EXTENSION, FileId, FileManager};
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -20,13 +20,13 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::{UnusedItem, UsageTracker};
+use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{FunctionModifiers, TraitId, TypeAliasId},
     parser::{SortedModule, SortedSubModule},
 };
-use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 
 use super::dc_crate::ModuleAttribute;
 use super::dc_crate::{CollectedItems, UnresolvedEnum};
@@ -37,9 +37,9 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION};
-use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
+use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
+use crate::hir::resolution::import::ImportDirective;
 
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
@@ -116,7 +116,7 @@ pub fn collect_defs(
     errors
 }
 
-impl<'a> ModCollector<'a> {
+impl ModCollector<'_> {
     fn collect_attributes(
         &mut self,
         attributes: Vec<SecondaryAttribute>,
@@ -1324,11 +1324,7 @@ fn is_native_field(str: &str) -> bool {
     } else {
         BigUint::from_str_radix(str, 10)
     };
-    if let Ok(big_num) = big_num {
-        big_num == FieldElement::modulus()
-    } else {
-        CHOSEN_FIELD == str
-    }
+    if let Ok(big_num) = big_num { big_num == FieldElement::modulus() } else { CHOSEN_FIELD == str }
 }
 
 type AssociatedTypes = Vec<(Ident, UnresolvedType)>;

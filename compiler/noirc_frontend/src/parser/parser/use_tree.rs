@@ -6,9 +6,9 @@ use crate::{
     token::{Keyword, Token},
 };
 
-use super::{parse_many::separated_by_comma_until_right_brace, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Use = 'use' PathKind PathNoTurbofish UseTree
     ///
     /// UseTree = PathNoTurbofish ( '::' '{' UseTreeList? '}' )?
@@ -147,7 +147,7 @@ mod tests {
     use crate::{
         ast::{ItemVisibility, PathKind, UseTree, UseTreeKind},
         parse_program_with_dummy_file,
-        parser::{parser::tests::expect_no_errors, ItemKind},
+        parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
     fn parse_use_tree_no_errors(src: &str) -> (UseTree, ItemVisibility) {

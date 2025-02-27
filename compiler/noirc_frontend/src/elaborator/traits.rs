@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
         ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
@@ -15,12 +16,11 @@ use crate::{
         traits::{ResolvedTraitBound, TraitFunction},
     },
     node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
-    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.local_module = unresolved_trait.module_id;

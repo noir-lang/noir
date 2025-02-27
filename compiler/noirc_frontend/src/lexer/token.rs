@@ -255,18 +255,18 @@ pub enum Token {
 
 pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     match token {
-        Token::Ident(ref s) => BorrowedToken::Ident(s),
+        Token::Ident(s) => BorrowedToken::Ident(s),
         Token::Int(n) => BorrowedToken::Int(*n),
         Token::Bool(b) => BorrowedToken::Bool(*b),
-        Token::Str(ref b) => BorrowedToken::Str(b),
-        Token::FmtStr(ref b, length) => BorrowedToken::FmtStr(b, *length),
-        Token::RawStr(ref b, hashes) => BorrowedToken::RawStr(b, *hashes),
+        Token::Str(b) => BorrowedToken::Str(b),
+        Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
+        Token::RawStr(b, hashes) => BorrowedToken::RawStr(b, *hashes),
         Token::Keyword(k) => BorrowedToken::Keyword(*k),
         Token::AttributeStart { is_inner, is_tag } => {
             BorrowedToken::AttributeStart { is_inner: *is_inner, is_tag: *is_tag }
         }
-        Token::LineComment(ref s, _style) => BorrowedToken::LineComment(s, *_style),
-        Token::BlockComment(ref s, _style) => BorrowedToken::BlockComment(s, *_style),
+        Token::LineComment(s, _style) => BorrowedToken::LineComment(s, *_style),
+        Token::BlockComment(s, _style) => BorrowedToken::BlockComment(s, *_style),
         Token::Quote(stream) => BorrowedToken::Quote(stream),
         Token::QuotedType(id) => BorrowedToken::QuotedType(*id),
         Token::InternedExpr(id) => BorrowedToken::InternedExpression(*id),
@@ -274,7 +274,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
-        Token::IntType(ref i) => BorrowedToken::IntType(i.clone()),
+        Token::IntType(i) => BorrowedToken::IntType(i.clone()),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
         Token::Greater => BorrowedToken::Greater,
@@ -312,7 +312,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::DollarSign => BorrowedToken::DollarSign,
         Token::EOF => BorrowedToken::EOF,
         Token::Invalid(c) => BorrowedToken::Invalid(*c),
-        Token::Whitespace(ref s) => BorrowedToken::Whitespace(s),
+        Token::Whitespace(s) => BorrowedToken::Whitespace(s),
         Token::UnquoteMarker(id) => BorrowedToken::UnquoteMarker(*id),
     }
 }
@@ -578,7 +578,7 @@ pub enum TokenKind {
 impl fmt::Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenKind::Token(ref tok) => write!(f, "{tok}"),
+            TokenKind::Token(tok) => write!(f, "{tok}"),
             TokenKind::Ident => write!(f, "identifier"),
             TokenKind::Literal => write!(f, "literal"),
             TokenKind::Keyword => write!(f, "keyword"),
@@ -800,11 +800,11 @@ impl Attributes {
     }
 
     pub fn is_foldable(&self) -> bool {
-        self.function().map_or(false, |func_attribute| func_attribute.is_foldable())
+        self.function().is_some_and(|func_attribute| func_attribute.is_foldable())
     }
 
     pub fn is_no_predicates(&self) -> bool {
-        self.function().map_or(false, |func_attribute| func_attribute.is_no_predicates())
+        self.function().is_some_and(|func_attribute| func_attribute.is_no_predicates())
     }
 
     pub fn has_varargs(&self) -> bool {
@@ -926,9 +926,9 @@ impl fmt::Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FunctionAttribute::Test(scope) => write!(f, "#[test{scope}]"),
-            FunctionAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
-            FunctionAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
-            FunctionAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
+            FunctionAttribute::Foreign(k) => write!(f, "#[foreign({k})]"),
+            FunctionAttribute::Builtin(k) => write!(f, "#[builtin({k})]"),
+            FunctionAttribute::Oracle(k) => write!(f, "#[oracle({k})]"),
             FunctionAttribute::Fold => write!(f, "#[fold]"),
             FunctionAttribute::NoPredicates => write!(f, "#[no_predicates]"),
             FunctionAttribute::InlineAlways => write!(f, "#[inline_always]"),
@@ -1001,18 +1001,18 @@ impl SecondaryAttribute {
     pub(crate) fn contents(&self) -> String {
         match self {
             SecondaryAttribute::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttribute::Deprecated(Some(ref note)) => {
+            SecondaryAttribute::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttribute::Tag(ref attribute) => format!("'{}", attribute.contents),
-            SecondaryAttribute::Meta(ref meta) => meta.to_string(),
+            SecondaryAttribute::Tag(attribute) => format!("'{}", attribute.contents),
+            SecondaryAttribute::Meta(meta) => meta.to_string(),
             SecondaryAttribute::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttribute::Export => "export".to_string(),
-            SecondaryAttribute::Field(ref k) => format!("field({k})"),
-            SecondaryAttribute::Abi(ref k) => format!("abi({k})"),
+            SecondaryAttribute::Field(k) => format!("field({k})"),
+            SecondaryAttribute::Abi(k) => format!("abi({k})"),
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
-            SecondaryAttribute::Allow(ref k) => format!("allow({k})"),
+            SecondaryAttribute::Allow(k) => format!("allow({k})"),
         }
     }
 }
@@ -1055,11 +1055,7 @@ impl CustomAttribute {
     fn name(&self) -> Option<String> {
         let mut lexer = Lexer::new_with_dummy_file(&self.contents);
         let token = lexer.next()?.ok()?;
-        if let Token::Ident(ident) = token.into_token() {
-            Some(ident)
-        } else {
-            None
-        }
+        if let Token::Ident(ident) = token.into_token() { Some(ident) } else { None }
     }
 }
 

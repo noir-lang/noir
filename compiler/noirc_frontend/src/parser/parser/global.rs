@@ -11,7 +11,7 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Global = 'global' identifier OptionalTypeAnnotation '=' Expression ';'
     pub(crate) fn parse_global(
         &mut self,
@@ -79,11 +79,11 @@ mod tests {
         },
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 

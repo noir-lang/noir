@@ -1,4 +1,5 @@
 use crate::{
+    ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -6,20 +7,19 @@ use crate::{
         errors::DefCollectorErrorKind,
     },
     node_interner::TraitImplId,
-    ResolvedGeneric,
 };
 use crate::{
+    Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
     node_interner::{FuncId, TraitId},
-    Type,
 };
 
 use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn collect_trait_impl_methods(
         &mut self,
         trait_id: TraitId,

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;

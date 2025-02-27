@@ -443,7 +443,7 @@ impl<'a> Lexer<'a> {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     location: self.location(Span::inclusive(start, end)),
                     found: integer_str,
-                })
+                });
             }
         };
 
@@ -665,11 +665,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('"') {
-            self.eat_fmt_string()
-        } else {
-            self.eat_alpha_numeric('f')
-        }
+        if self.peek_char_is('"') { self.eat_fmt_string() } else { self.eat_alpha_numeric('f') }
     }
 
     fn eat_raw_string(&mut self) -> SpannedTokenResult {
@@ -879,15 +875,11 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl Iterator for Lexer<'_> {
     type Item = LocatedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else {
-            Some(self.next_token())
-        }
+        if self.done { None } else { Some(self.next_token()) }
     }
 }
 
@@ -1604,7 +1596,9 @@ mod tests {
             tokens.pop();
             match tokens.pop().unwrap() {
                 Token::Quote(stream) => assert_eq!(stream.0.len(), expected_stream_length),
-                other => panic!("test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`")
+                other => panic!(
+                    "test_quote test failure! Expected a single TokenStream token, got {other} for input `{source}`"
+                ),
             }
         }
     }

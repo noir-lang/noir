@@ -1,20 +1,20 @@
 use acvm::{
+    AcirField, BlackBoxFunctionSolver, FieldElement,
     acir::{
         brillig::ForeignCallResult,
         native_types::{WitnessMap, WitnessStack},
     },
     pwg::ForeignCallWaitInfo,
-    AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
-use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
-use noirc_frontend::hir::{def_map::TestFunction, Context};
+use noirc_driver::{CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH, compile_no_check};
+use noirc_errors::{FileDiagnostic, debug_info::DebugInfo};
+use noirc_frontend::hir::{Context, def_map::TestFunction};
 
 use crate::{
-    errors::try_to_diagnose_runtime_error,
-    foreign_calls::{layers, print::PrintOutput, ForeignCallError, ForeignCallExecutor},
     NargoError,
+    errors::try_to_diagnose_runtime_error,
+    foreign_calls::{ForeignCallError, ForeignCallExecutor, layers, print::PrintOutput},
 };
 
 use super::execute_program;

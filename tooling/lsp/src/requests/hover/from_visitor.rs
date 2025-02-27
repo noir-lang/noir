@@ -4,12 +4,12 @@ use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField, Type,
+    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
 };
 use num_bigint::BigInt;
 
 use crate::{
-    requests::{to_lsp_location, ProcessRequestCallbackArgs},
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -51,7 +51,7 @@ impl<'a> HoverFinder<'a> {
     }
 }
 
-impl<'a> Visitor for HoverFinder<'a> {
+impl Visitor for HoverFinder<'_> {
     fn visit_literal_integer(&mut self, value: SignedField, span: Span) {
         if !self.intersects_span(span) {
             return;
@@ -78,15 +78,17 @@ fn format_integer(typ: Type, value: SignedField) -> String {
     let value_big_int = BigInt::from_str(&value_base_10).unwrap();
     let negative = if value.is_negative { "-" } else { "" };
 
-    format!("    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`")
+    format!(
+        "    {typ}\n---\nvalue of literal: `{negative}{value_base_10} ({negative}0x{value_big_int:02x})`"
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use noirc_frontend::{
+        Type,
         ast::{IntegerBitSize, Signedness},
         signed_field::SignedField,
-        Type,
     };
 
     use super::format_integer;

@@ -4,6 +4,15 @@ use std::{
 };
 
 use crate::{
+    DataType, StructField, TypeBindings,
+    ast::{ItemVisibility, UnresolvedType},
+    graph::CrateGraph,
+    hir_def::traits::ResolvedTraitBound,
+    node_interner::GlobalValue,
+    usage_tracker::UsageTracker,
+};
+use crate::{
+    EnumVariant, Shared, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
@@ -11,20 +20,20 @@ use crate::{
     },
     graph::CrateId,
     hir::{
+        Context,
         comptime::ComptimeError,
         def_collector::{
             dc_crate::{
-                filter_literal_globals, CollectedItems, CompilationError, ImplMap, UnresolvedEnum,
-                UnresolvedFunctions, UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl,
-                UnresolvedTypeAlias,
+                CollectedItems, CompilationError, ImplMap, UnresolvedEnum, UnresolvedFunctions,
+                UnresolvedGlobal, UnresolvedStruct, UnresolvedTraitImpl, UnresolvedTypeAlias,
+                filter_literal_globals,
             },
             errors::DefCollectorErrorKind,
         },
-        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId, MAIN_FUNCTION},
+        def_map::{DefMaps, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
-        type_check::{generics::TraitGenerics, TypeCheckError},
-        Context,
+        type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
@@ -38,15 +47,6 @@ use crate::{
     },
     parser::{ParserError, ParserErrorReason},
     token::SecondaryAttribute,
-    EnumVariant, Shared, Type, TypeVariable,
-};
-use crate::{
-    ast::{ItemVisibility, UnresolvedType},
-    graph::CrateGraph,
-    hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
-    usage_tracker::UsageTracker,
-    DataType, StructField, TypeBindings,
 };
 
 mod comptime;
@@ -750,11 +750,7 @@ impl<'context> Elaborator<'context> {
     pub fn resolve_module_by_path(&mut self, path: Path) -> Option<ModuleId> {
         match self.resolve_path(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
-                if errors.is_empty() {
-                    Some(module_id)
-                } else {
-                    None
-                }
+                if errors.is_empty() { Some(module_id) } else { None }
             }
             _ => None,
         }
@@ -2151,7 +2147,7 @@ impl<'context> Elaborator<'context> {
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
         !self.in_comptime_context()
-            && self.current_item.map_or(true, |id| match id {
+            && self.current_item.is_none_or(|id| match id {
                 DependencyId::Function(id) => {
                     !self.interner.function_modifiers(&id).is_unconstrained
                 }

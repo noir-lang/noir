@@ -5,11 +5,11 @@ use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
-    lexer::{lexer::LocatedTokenResult, Lexer},
+    lexer::{Lexer, lexer::LocatedTokenResult},
     token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
-use super::{labels::ParsingRuleLabel, ParsedModule, ParserError, ParserErrorReason};
+use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
 
 mod arguments;
 mod attributes;
@@ -65,7 +65,7 @@ enum TokenStream<'a> {
     Tokens(Tokens),
 }
 
-impl<'a> TokenStream<'a> {
+impl TokenStream<'_> {
     fn next(&mut self) -> Option<LocatedTokenResult> {
         match self {
             TokenStream::Lexer(lexer) => lexer.next(),
@@ -172,11 +172,7 @@ impl<'a> Parser<'a> {
         }
 
         let all_warnings = self.errors.iter().all(|error| error.is_warning());
-        if all_warnings {
-            Ok((item, self.errors))
-        } else {
-            Err(self.errors)
-        }
+        if all_warnings { Ok((item, self.errors)) } else { Err(self.errors) }
     }
 
     /// Bumps this parser by one token. Returns the token that was previously the "current" token.
@@ -226,11 +222,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_kind(&mut self, kind: TokenKind) -> Option<LocatedToken> {
-        if self.token.kind() == kind {
-            Some(self.bump())
-        } else {
-            None
-        }
+        if self.token.kind() == kind { Some(self.bump()) } else { None }
     }
 
     fn eat_keyword(&mut self, keyword: Keyword) -> bool {

@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    Type,
     ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -9,7 +10,6 @@ use crate::{
     },
     parser::ParserError,
     signed_field::SignedField,
-    Type,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -462,7 +462,9 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonIntegerArrayLength { typ, err, location } => {
                 let msg = format!("Non-integer array length: `{typ}`");
                 let secondary = if let Some(err) = err {
-                    format!("Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`")
+                    format!(
+                        "Array lengths must be integers, but evaluating `{typ}` resulted in `{err}`"
+                    )
                 } else {
                     "Array lengths must be integers".to_string()
                 };

@@ -6,13 +6,13 @@ use crate::{
         ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
         StatementKind, WhileStatement,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement_or_error(&mut self) -> Statement {
         if let Some((statement, (_token, _span))) = self.parse_statement() {
             statement
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
         if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
-                    return Some(StatementKind::Interned(statement))
+                    return Some(StatementKind::Interned(statement));
                 }
                 _ => unreachable!(),
             }
@@ -462,11 +462,11 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
     };
 
