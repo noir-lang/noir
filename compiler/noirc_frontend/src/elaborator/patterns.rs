@@ -791,7 +791,7 @@ impl Elaborator<'_> {
         typ
     }
 
-    pub(super) fn instantiate(
+    fn instantiate(
         &mut self,
         typ: Type,
         bindings: TypeBindings,

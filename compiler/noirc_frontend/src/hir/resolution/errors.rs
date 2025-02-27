@@ -132,8 +132,6 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
-    #[error("\"as trait path\" not yet implemented")]
-    AsTraitPathNotYetImplemented { location: Location },
     #[error("Invalid syntax in macro call")]
     InvalidSyntaxInMacroCall { location: Location },
     #[error("Macros must be comptime functions")]
@@ -249,7 +247,6 @@ impl ResolverError {
             | ResolverError::SelfReferentialType { location }
             | ResolverError::NumericGenericUsedForType { location, .. }
             | ResolverError::UnquoteUsedOutsideQuote { location }
-            | ResolverError::AsTraitPathNotYetImplemented { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
             | ResolverError::NonFunctionInAnnotation { location }
@@ -659,13 +656,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnquoteUsedOutsideQuote { location } => {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
-                    "".into(),
-                    *location,
-                )
-            },
-            ResolverError::AsTraitPathNotYetImplemented { location } => {
-                Diagnostic::simple_error(
-                    "\"as trait path\" not yet implemented".into(),
                     "".into(),
                     *location,
                 )
