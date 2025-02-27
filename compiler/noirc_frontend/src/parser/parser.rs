@@ -6,7 +6,9 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    token::{
+        CfgAttribute, FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens,
+    },
 };
 
 use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
@@ -616,6 +618,11 @@ impl<'a> Parser<'a> {
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
         self.errors.push(ParserError::with_reason(reason, location));
+    }
+
+    pub(crate) fn is_enabled_cfg(&self, _opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+        // TODO
+        true
     }
 }
 

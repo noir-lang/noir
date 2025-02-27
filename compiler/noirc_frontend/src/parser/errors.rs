@@ -1,6 +1,6 @@
 use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
-use crate::lexer::token::Token;
+use crate::lexer::token::{CfgAttribute, Token};
 use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
@@ -78,6 +78,10 @@ pub enum ParserErrorReason {
     TraitImplVisibilityIgnored,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
+    #[error(
+        "Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}"
+    )]
+    MultipleCfgAttributesFound { cfg_attribute: CfgAttribute, second_cfg_attribute: CfgAttribute },
     #[error("This requires the unstable feature '{0}' which is not enabled")]
     ExperimentalFeature(UnstableFeature),
     #[error(
