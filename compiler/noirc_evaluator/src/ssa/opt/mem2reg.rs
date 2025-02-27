@@ -201,7 +201,7 @@ impl<'f> PerFunctionContext<'f> {
                 let is_dereference = block
                     .expressions
                     .get(store_address)
-                    .map_or(false, |expression| matches!(expression, Expression::Dereference(_)));
+                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
                 if !self.last_loads.contains_key(store_address)
                     && !store_alias_used
@@ -668,10 +668,11 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
     use im::vector;
 
     use crate::ssa::{
+        Ssa,
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
@@ -681,7 +682,6 @@ mod tests {
             types::Type,
         },
         opt::assert_normalized_ssa_equals,
-        Ssa,
     };
 
     #[test]

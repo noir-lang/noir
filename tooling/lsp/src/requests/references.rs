@@ -10,7 +10,7 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_references_request(
     state: &mut LspState,
     params: ReferenceParams,
-) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<Location>>, ResponseError>> + use<> {
     let include_declaration = params.context.include_declaration;
     let result = process_request(state, params.text_document_position, |args| {
         find_all_references_in_workspace(

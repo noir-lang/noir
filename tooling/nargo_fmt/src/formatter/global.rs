@@ -6,7 +6,7 @@ use noirc_frontend::{
 use super::Formatter;
 use crate::chunks::{ChunkFormatter, ChunkGroup};
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_global(
         &mut self,
         let_statement: LetStatement,
@@ -20,7 +20,7 @@ impl<'a> Formatter<'a> {
     }
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_global(
         &mut self,
         let_statement: LetStatement,

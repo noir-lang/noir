@@ -13,7 +13,7 @@ pub(crate) struct Modifiers {
     pub(crate) mutable: Option<Location>,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Modifiers = ItemVisibility 'unconstrained'? 'comptime'? 'mut'?
     ///
     /// NOTE: we also allow `unconstrained` before the visibility for backwards compatibility.

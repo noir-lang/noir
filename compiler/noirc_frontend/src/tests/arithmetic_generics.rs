@@ -2,11 +2,10 @@
 
 use acvm::{AcirField, FieldElement};
 
-use super::get_program_errors;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::tests::get_monomorphization_error;
+use crate::tests::{assert_no_errors, get_monomorphization_error};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -23,8 +22,7 @@ fn arithmetic_generics_canonicalization_deduplication_regression() {
             };
         }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -52,9 +50,7 @@ fn checked_casts_do_not_prevent_canonicalization() {
         }
     }
     "#;
-    let errors = get_program_errors(source);
-    println!("{:?}", errors);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -76,9 +72,7 @@ fn arithmetic_generics_checked_cast_zeros() {
             bar(w)
         }
     "#;
-
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 
     let monomorphization_error = get_monomorphization_error(source);
     assert!(monomorphization_error.is_some());
@@ -123,9 +117,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
             let _ = bar(w);
         }
     "#;
-
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 
     let monomorphization_error = get_monomorphization_error(source);
     assert!(monomorphization_error.is_some());
@@ -166,8 +158,7 @@ fn global_numeric_generic_larger_than_u32() {
         let _ = foo::<A>();
     }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 }
 
 #[test]
@@ -196,6 +187,5 @@ fn global_arithmetic_generic_larger_than_u32() {
         let _ = foo::<A>().size();
     }
     "#;
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(source);
 }

@@ -1,6 +1,6 @@
 use crate::errors::CliError;
 
-use super::{init_cmd::initialize_project, NargoConfig};
+use super::{NargoConfig, init_cmd::initialize_project};
 use clap::Args;
 use nargo::package::{CrateName, PackageType};
 use std::path::PathBuf;

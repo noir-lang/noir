@@ -220,8 +220,8 @@ impl BigIntSolverWithId {
 
 #[test]
 fn all_allowed_bigint_moduli_are_prime() {
-    use num_prime::nt_funcs::is_prime;
     use num_prime::Primality;
+    use num_prime::nt_funcs::is_prime;
 
     for modulus in BigIntSolver::allowed_bigint_moduli() {
         let modulus = BigUint::from_bytes_le(&modulus);
@@ -231,7 +231,10 @@ fn all_allowed_bigint_moduli_are_prime() {
             Primality::No => panic!("not all allowed_bigint_moduli are prime: {modulus}"),
             Primality::Probable(probability) => {
                 if probability < 0.90 {
-                    panic!("not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90", probability);
+                    panic!(
+                        "not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90",
+                        probability
+                    );
                 }
             }
         }

@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
-use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::circuit::Circuit;
+use acvm::acir::circuit::brillig::BrilligBytecode;
 use acvm::acir::native_types::WitnessMap;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use nargo::PrintOutput;
@@ -466,14 +466,14 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
     }
 
     fn map_source_breakpoints(&mut self, args: &SetBreakpointsArguments) -> Vec<Breakpoint> {
-        let Some(ref source) = &args.source.path else {
+        let Some(source) = &args.source.path else {
             return vec![];
         };
         let Some(file_id) = self.find_file_id(source) else {
             eprintln!("WARN: file ID for source {source} not found");
             return vec![];
         };
-        let Some(ref breakpoints) = &args.breakpoints else {
+        let Some(breakpoints) = &args.breakpoints else {
             return vec![];
         };
         let mut breakpoints_to_set: Vec<(DebugLocation, i64)> = vec![];

@@ -1,8 +1,8 @@
-use super::{namespace::PerNs, ModuleDefId, ModuleId};
+use super::{ModuleDefId, ModuleId, namespace::PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, TraitId};
 
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
 type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
@@ -50,11 +50,7 @@ impl ItemScope {
                     let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
                     let old_ident = o.key();
 
-                    if is_prelude {
-                        Ok(())
-                    } else {
-                        Err((old_ident.clone(), name))
-                    }
+                    if is_prelude { Ok(()) } else { Err((old_ident.clone(), name)) }
                 } else {
                     trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                     Ok(())

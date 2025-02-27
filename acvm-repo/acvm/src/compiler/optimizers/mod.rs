@@ -1,6 +1,6 @@
 use acir::{
-    circuit::{Circuit, Opcode},
     AcirField,
+    circuit::{Circuit, Opcode},
 };
 
 // mod constant_backpropagation;
@@ -17,7 +17,7 @@ use tracing::info;
 // use self::constant_backpropagation::ConstantBackpropagationOptimizer;
 use self::unused_memory::UnusedMemoryOptimizer;
 
-use super::{transform_assert_messages, AcirTransformationMap};
+use super::{AcirTransformationMap, transform_assert_messages};
 
 /// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
 pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformationMap) {

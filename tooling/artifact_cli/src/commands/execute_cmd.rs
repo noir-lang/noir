@@ -1,17 +1,17 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
-use acir::{circuit::Program, native_types::WitnessStack, FieldElement};
+use acir::{FieldElement, circuit::Program, native_types::WitnessStack};
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre::{self, bail};
 
 use crate::{
+    Artifact,
     errors::CliError,
     fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
-    Artifact,
 };
-use nargo::{foreign_calls::DefaultForeignCallBuilder, NargoError, PrintOutput};
-use noirc_abi::{input_parser::InputValue, Abi};
+use nargo::{NargoError, PrintOutput, foreign_calls::DefaultForeignCallBuilder};
+use noirc_abi::{Abi, input_parser::InputValue};
 use noirc_artifacts::debug::DebugArtifact;
 
 use super::parse_and_normalize_path;

@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Program, FieldElement};
+use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,8 @@ use noirc_errors::debug_info::ProgramDebugInfo;
 use std::collections::{BTreeMap, HashMap};
 
 use fm::FileId;
+
+use super::{deserialize_hash, serialize_hash};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
@@ -55,6 +57,12 @@ impl From<CompiledContract> for ContractArtifact {
 pub struct ContractFunctionArtifact {
     pub name: String,
 
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which the [`ContractFunction`]
+    /// was compiled.
+    #[serde(default)] // For backwards compatibility (it was missing).
+    #[serde(serialize_with = "serialize_hash", deserialize_with = "deserialize_hash")]
+    pub hash: u64,
+
     pub is_unconstrained: bool,
 
     pub custom_attributes: Vec<String>,
@@ -72,7 +80,8 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-
+    #[serde(default)] // For backwards compatibility (it was missing).
+    pub names: Vec<String>,
     pub brillig_names: Vec<String>,
 }
 
@@ -80,10 +89,12 @@ impl From<ContractFunction> for ContractFunctionArtifact {
     fn from(func: ContractFunction) -> Self {
         ContractFunctionArtifact {
             name: func.name,
+            hash: func.hash,
             is_unconstrained: func.is_unconstrained,
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
+            names: func.names,
             brillig_names: func.brillig_names,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
         }
