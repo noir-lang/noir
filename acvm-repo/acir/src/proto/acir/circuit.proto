@@ -98,12 +98,12 @@ message BlackBoxFuncCall {
     EmbeddedCurveAdd embedded_curve_add = 10;
     Keccakf1600 keccak_f1600 = 11;
     RecursiveAggregation recursive_aggregation = 12;
-    BigIntAdd bigint_add = 13;
-    BigIntSub bigint_sub = 14;
-    BigIntMul bigint_mul = 15;
-    BigIntDiv bigint_div = 16;
-    BigIntFromLeBytes bigint_from_le_bytes = 17;
-    BigIntToLeBytes bigint_to_le_bytes = 18;
+    BigIntAdd big_int_add = 13;
+    BigIntSub big_int_sub = 14;
+    BigIntMul big_int_mul = 15;
+    BigIntDiv big_int_div = 16;
+    BigIntFromLeBytes big_int_from_le_bytes = 17;
+    BigIntToLeBytes big_int_to_le_bytes = 18;
     Poseidon2Permutation poseidon2_permutation = 19;
     Sha256Compression sha256_compression = 20;
   }
@@ -152,12 +152,12 @@ message BlackBoxFuncCall {
     repeated native.Witness outputs = 3;
   }
   message EmbeddedCurveAdd {
-    repeated FunctionInput points = 1;
-    repeated FunctionInput scalars = 2;
+    repeated FunctionInput input1 = 1;
+    repeated FunctionInput input2 = 2;
     repeated native.Witness outputs = 3;
   }
   message Keccakf1600 {
-    repeated FunctionInput points = 1;
+    repeated FunctionInput inputs = 1;
     repeated native.Witness outputs = 2;
   }
   message RecursiveAggregation {

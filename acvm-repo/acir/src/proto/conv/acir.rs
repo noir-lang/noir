@@ -1,8 +1,9 @@
 use crate::{
-    circuit,
+    circuit::{self, opcodes},
     proto::acir::circuit::{
-        AssertMessage, AssertionPayload, BlackBoxFuncCall, Circuit, ExpressionOrMemory,
-        ExpressionWidth, MemOp, Opcode, OpcodeLocation,
+        AssertMessage, AssertionPayload, BlackBoxFuncCall, BlockType, BrilligInputs,
+        BrilligOutputs, Circuit, ConstantOrWitnessEnum, ExpressionOrMemory, ExpressionWidth,
+        FunctionInput, MemOp, Opcode, OpcodeLocation,
     },
 };
 use acir_field::AcirField;
@@ -27,8 +28,8 @@ where
         }
     }
 
-    fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
-        todo!()
+    fn decode(_value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
+        todo!("decode")
     }
 }
 
@@ -44,8 +45,8 @@ impl<F> ProtoCodec<circuit::ExpressionWidth, ExpressionWidth> for ProtoSchema<F>
         ExpressionWidth { value: Some(value) }
     }
 
-    fn decode(value: &ExpressionWidth) -> eyre::Result<circuit::ExpressionWidth> {
-        todo!()
+    fn decode(_value: &ExpressionWidth) -> eyre::Result<circuit::ExpressionWidth> {
+        todo!("decode")
     }
 }
 
@@ -62,9 +63,9 @@ where
     }
 
     fn decode(
-        value: &AssertMessage,
+        _value: &AssertMessage,
     ) -> eyre::Result<(circuit::OpcodeLocation, circuit::AssertionPayload<F>)> {
-        todo!()
+        todo!("decode")
     }
 }
 
@@ -83,8 +84,8 @@ impl<F> ProtoCodec<circuit::OpcodeLocation, OpcodeLocation> for ProtoSchema<F> {
         OpcodeLocation { value: Some(value) }
     }
 
-    fn decode(value: &OpcodeLocation) -> eyre::Result<circuit::OpcodeLocation> {
-        todo!()
+    fn decode(_value: &OpcodeLocation) -> eyre::Result<circuit::OpcodeLocation> {
+        todo!("decode")
     }
 }
 
@@ -99,8 +100,8 @@ where
         }
     }
 
-    fn decode(value: &AssertionPayload) -> eyre::Result<circuit::AssertionPayload<F>> {
-        todo!()
+    fn decode(_value: &AssertionPayload) -> eyre::Result<circuit::AssertionPayload<F>> {
+        todo!("decode")
     }
 }
 
@@ -119,8 +120,8 @@ where
         ExpressionOrMemory { value: Some(value) }
     }
 
-    fn decode(value: &ExpressionOrMemory) -> eyre::Result<circuit::ExpressionOrMemory<F>> {
-        todo!()
+    fn decode(_value: &ExpressionOrMemory) -> eyre::Result<circuit::ExpressionOrMemory<F>> {
+        todo!("decode")
     }
 }
 
@@ -140,23 +141,41 @@ where
                 op: Self::encode_some(op),
                 predicate: predicate.as_ref().map(Self::encode),
             }),
-            circuit::Opcode::MemoryInit { block_id, init, block_type } => todo!(),
-            circuit::Opcode::BrilligCall { id, inputs, outputs, predicate } => todo!(),
-            circuit::Opcode::Call { id, inputs, outputs, predicate } => todo!(),
+            circuit::Opcode::MemoryInit { block_id, init, block_type } => {
+                Value::MemoryInit(MemoryInit {
+                    block_id: block_id.0,
+                    init: Self::encode_vec(init),
+                    block_type: Self::encode_some(block_type),
+                })
+            }
+            circuit::Opcode::BrilligCall { id, inputs, outputs, predicate } => {
+                Value::BrilligCall(BrilligCall {
+                    id: id.0,
+                    inputs: Self::encode_vec(inputs),
+                    outputs: Self::encode_vec(outputs),
+                    predicate: predicate.as_ref().map(Self::encode),
+                })
+            }
+            circuit::Opcode::Call { id, inputs, outputs, predicate } => Value::Call(Call {
+                id: id.0,
+                inputs: Self::encode_vec(inputs),
+                outputs: Self::encode_vec(outputs),
+                predicate: predicate.as_ref().map(Self::encode),
+            }),
         };
         Opcode { value: Some(value) }
     }
 
-    fn decode(value: &Opcode) -> eyre::Result<circuit::Opcode<F>> {
-        todo!()
+    fn decode(_value: &Opcode) -> eyre::Result<circuit::Opcode<F>> {
+        todo!("decode")
     }
 }
 
-impl<F> ProtoCodec<circuit::opcodes::MemOp<F>, MemOp> for ProtoSchema<F>
+impl<F> ProtoCodec<opcodes::MemOp<F>, MemOp> for ProtoSchema<F>
 where
     F: AcirField,
 {
-    fn encode(value: &circuit::opcodes::MemOp<F>) -> MemOp {
+    fn encode(value: &opcodes::MemOp<F>) -> MemOp {
         MemOp {
             operation: Self::encode_some(&value.operation),
             index: Self::encode_some(&value.index),
@@ -164,17 +183,245 @@ where
         }
     }
 
-    fn decode(value: &MemOp) -> eyre::Result<circuit::opcodes::MemOp<F>> {
-        todo!()
+    fn decode(_value: &MemOp) -> eyre::Result<opcodes::MemOp<F>> {
+        todo!("decode")
     }
 }
 
-impl<F> ProtoCodec<circuit::opcodes::BlackBoxFuncCall<F>, BlackBoxFuncCall> for ProtoSchema<F> {
-    fn encode(value: &circuit::opcodes::BlackBoxFuncCall<F>) -> BlackBoxFuncCall {
-        todo!()
+impl<F> ProtoCodec<opcodes::BlackBoxFuncCall<F>, BlackBoxFuncCall> for ProtoSchema<F>
+where
+    F: AcirField,
+{
+    fn encode(value: &opcodes::BlackBoxFuncCall<F>) -> BlackBoxFuncCall {
+        use crate::proto::acir::circuit::black_box_func_call::*;
+        let value = match value {
+            opcodes::BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
+                Value::Aes128Encrypt(Aes128Encrypt {
+                    inputs: Self::encode_vec(inputs),
+                    iv: Self::encode_vec(iv.as_ref()),
+                    key: Self::encode_vec(key.as_ref()),
+                    outputs: Self::encode_vec(outputs),
+                })
+            }
+            opcodes::BlackBoxFuncCall::AND { lhs, rhs, output } => Value::And(And {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, output } => Value::Xor(Xor {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            opcodes::BlackBoxFuncCall::RANGE { input } => {
+                Value::Range(Range { input: Self::encode_some(input) })
+            }
+            opcodes::BlackBoxFuncCall::Blake2s { inputs, outputs } => Value::Blake2s(Blake2s {
+                inputs: Self::encode_vec(inputs),
+                outputs: Self::encode_vec(outputs.as_ref()),
+            }),
+            opcodes::BlackBoxFuncCall::Blake3 { inputs, outputs } => Value::Blake3(Blake3 {
+                inputs: Self::encode_vec(inputs),
+                outputs: Self::encode_vec(outputs.as_ref()),
+            }),
+            opcodes::BlackBoxFuncCall::EcdsaSecp256k1 {
+                public_key_x,
+                public_key_y,
+                signature,
+                hashed_message,
+                output,
+            } => Value::EcdsaSecp256k1(EcdsaSecp256k1 {
+                public_key_x: Self::encode_vec(public_key_x.as_ref()),
+                public_key_y: Self::encode_vec(public_key_y.as_ref()),
+                signature: Self::encode_vec(signature.as_ref()),
+                hashed_message: Self::encode_vec(hashed_message.as_ref()),
+                output: Self::encode_some(output),
+            }),
+            opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
+                public_key_x,
+                public_key_y,
+                signature,
+                hashed_message,
+                output,
+            } => Value::EcdsaSecp256r1(EcdsaSecp256r1 {
+                public_key_x: Self::encode_vec(public_key_x.as_ref()),
+                public_key_y: Self::encode_vec(public_key_y.as_ref()),
+                signature: Self::encode_vec(signature.as_ref()),
+                hashed_message: Self::encode_vec(hashed_message.as_ref()),
+                output: Self::encode_some(output),
+            }),
+            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+                let (o0, o1, o2) = outputs;
+                Value::MultiScalarMul(MultiScalarMul {
+                    points: Self::encode_vec(points),
+                    scalars: Self::encode_vec(scalars),
+                    outputs: Self::encode_vec([o0, o1, o2]),
+                })
+            }
+            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+                let (o0, o1, o2) = outputs;
+                Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
+                    input1: Self::encode_vec(input1.as_ref()),
+                    input2: Self::encode_vec(input2.as_ref()),
+                    outputs: Self::encode_vec([o0, o1, o2]),
+                })
+            }
+            opcodes::BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
+                Value::KeccakF1600(Keccakf1600 {
+                    inputs: Self::encode_vec(inputs.as_ref()),
+                    outputs: Self::encode_vec(outputs.as_ref()),
+                })
+            }
+            opcodes::BlackBoxFuncCall::RecursiveAggregation {
+                verification_key,
+                proof,
+                public_inputs,
+                key_hash,
+                proof_type,
+            } => Value::RecursiveAggregation(RecursiveAggregation {
+                verification_key: Self::encode_vec(verification_key),
+                proof: Self::encode_vec(proof),
+                public_inputs: Self::encode_vec(public_inputs),
+                key_hash: Self::encode_some(key_hash),
+                proof_type: *proof_type,
+            }),
+            opcodes::BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } => {
+                Value::BigIntAdd(BigIntAdd { lhs: *lhs, rhs: *rhs, output: *output })
+            }
+            opcodes::BlackBoxFuncCall::BigIntSub { lhs, rhs, output } => {
+                Value::BigIntSub(BigIntSub { lhs: *lhs, rhs: *rhs, output: *output })
+            }
+            opcodes::BlackBoxFuncCall::BigIntMul { lhs, rhs, output } => {
+                Value::BigIntMul(BigIntMul { lhs: *lhs, rhs: *rhs, output: *output })
+            }
+            opcodes::BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
+                Value::BigIntDiv(BigIntDiv { lhs: *lhs, rhs: *rhs, output: *output })
+            }
+            opcodes::BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
+                Value::BigIntFromLeBytes(BigIntFromLeBytes {
+                    inputs: Self::encode_vec(inputs),
+                    modulus: modulus.clone(),
+                    output: *output,
+                })
+            }
+            opcodes::BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
+                Value::BigIntToLeBytes(BigIntToLeBytes {
+                    input: *input,
+                    outputs: Self::encode_vec(outputs),
+                })
+            }
+            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
+                Value::Poseidon2Permutation(Poseidon2Permutation {
+                    inputs: Self::encode_vec(inputs),
+                    outputs: Self::encode_vec(outputs),
+                    len: *len,
+                })
+            }
+            opcodes::BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
+                Value::Sha256Compression(Sha256Compression {
+                    inputs: Self::encode_vec(inputs.as_ref()),
+                    hash_values: Self::encode_vec(hash_values.as_ref()),
+                    outputs: Self::encode_vec(outputs.as_ref()),
+                })
+            }
+        };
+        BlackBoxFuncCall { value: Some(value) }
     }
 
-    fn decode(value: &BlackBoxFuncCall) -> eyre::Result<circuit::opcodes::BlackBoxFuncCall<F>> {
-        todo!()
+    fn decode(_value: &BlackBoxFuncCall) -> eyre::Result<opcodes::BlackBoxFuncCall<F>> {
+        todo!("decode")
+    }
+}
+
+impl<F> ProtoCodec<opcodes::FunctionInput<F>, FunctionInput> for ProtoSchema<F>
+where
+    F: AcirField,
+{
+    fn encode(value: &opcodes::FunctionInput<F>) -> FunctionInput {
+        FunctionInput { input: Self::encode_some(value.input_ref()), num_bits: value.num_bits() }
+    }
+
+    fn decode(_value: &FunctionInput) -> eyre::Result<opcodes::FunctionInput<F>> {
+        todo!("decode")
+    }
+}
+
+impl<F> ProtoCodec<opcodes::ConstantOrWitnessEnum<F>, ConstantOrWitnessEnum> for ProtoSchema<F>
+where
+    F: AcirField,
+{
+    fn encode(value: &opcodes::ConstantOrWitnessEnum<F>) -> ConstantOrWitnessEnum {
+        use crate::proto::acir::circuit::constant_or_witness_enum::*;
+        let value = match value {
+            opcodes::ConstantOrWitnessEnum::Constant(field) => Value::Constant(Self::encode(field)),
+            opcodes::ConstantOrWitnessEnum::Witness(witness) => {
+                Value::Witness(Self::encode(witness))
+            }
+        };
+        ConstantOrWitnessEnum { value: Some(value) }
+    }
+
+    fn decode(_value: &ConstantOrWitnessEnum) -> eyre::Result<opcodes::ConstantOrWitnessEnum<F>> {
+        todo!("decode")
+    }
+}
+
+impl<F> ProtoCodec<opcodes::BlockType, BlockType> for ProtoSchema<F> {
+    fn encode(value: &opcodes::BlockType) -> BlockType {
+        use crate::proto::acir::circuit::block_type::*;
+        let value = match value {
+            opcodes::BlockType::Memory => Value::Memory(Memory {}),
+            opcodes::BlockType::CallData(value) => Value::CallData(CallData { value: *value }),
+            opcodes::BlockType::ReturnData => Value::ReturnData(ReturnData {}),
+        };
+        BlockType { value: Some(value) }
+    }
+
+    fn decode(_value: &BlockType) -> eyre::Result<opcodes::BlockType> {
+        todo!("decode")
+    }
+}
+
+impl<F> ProtoCodec<circuit::brillig::BrilligInputs<F>, BrilligInputs> for ProtoSchema<F>
+where
+    F: AcirField,
+{
+    fn encode(value: &circuit::brillig::BrilligInputs<F>) -> BrilligInputs {
+        use crate::proto::acir::circuit::brillig_inputs::*;
+        let value = match value {
+            circuit::brillig::BrilligInputs::Single(expression) => {
+                Value::Single(Self::encode(expression))
+            }
+            circuit::brillig::BrilligInputs::Array(expressions) => {
+                Value::Array(Array { values: Self::encode_vec(expressions) })
+            }
+            circuit::brillig::BrilligInputs::MemoryArray(block_id) => {
+                Value::MemoryArray(block_id.0)
+            }
+        };
+        BrilligInputs { value: Some(value) }
+    }
+
+    fn decode(_value: &BrilligInputs) -> eyre::Result<circuit::brillig::BrilligInputs<F>> {
+        todo!("decode")
+    }
+}
+
+impl<F> ProtoCodec<circuit::brillig::BrilligOutputs, BrilligOutputs> for ProtoSchema<F> {
+    fn encode(value: &circuit::brillig::BrilligOutputs) -> BrilligOutputs {
+        use crate::proto::acir::circuit::brillig_outputs::*;
+        let value = match value {
+            circuit::brillig::BrilligOutputs::Simple(witness) => {
+                Value::Simple(Self::encode(witness))
+            }
+            circuit::brillig::BrilligOutputs::Array(witnesses) => {
+                Value::Array(Array { values: Self::encode_vec(witnesses) })
+            }
+        };
+        BrilligOutputs { value: Some(value) }
+    }
+
+    fn decode(_value: &BrilligOutputs) -> eyre::Result<circuit::brillig::BrilligOutputs> {
+        todo!("decode")
     }
 }
