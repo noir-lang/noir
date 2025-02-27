@@ -6,12 +6,12 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, QuotedType, Shared, Type,
     ast::{
-        ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
+        ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
         MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
-        PrefixExpression, StatementKind, UnaryOp, UnresolvedTypeData, UnresolvedTypeExpression,
-        UnsafeExpression,
+        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -26,7 +26,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind, TraitMethod,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -94,11 +94,8 @@ impl Elaborator<'_> {
                 self.push_err(ResolverError::UnquoteUsedOutsideQuote { location: expr.location });
                 (HirExpression::Error, Type::Error)
             }
-            ExpressionKind::AsTraitPath(_) => {
-                self.push_err(ResolverError::AsTraitPathNotYetImplemented {
-                    location: expr.location,
-                });
-                (HirExpression::Error, Type::Error)
+            ExpressionKind::AsTraitPath(path) => {
+                return self.elaborate_as_trait_path(path);
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
         };
@@ -1318,5 +1315,56 @@ impl Elaborator<'_> {
 
         let (expr_id, typ) = self.inline_comptime_value(result, location);
         Some((self.interner.expression(&expr_id), typ))
+    }
+
+    fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
+        let location = path.typ.location.merge(path.trait_path.location);
+
+        let constraint = UnresolvedTraitConstraint {
+            typ: path.typ,
+            trait_bound: TraitBound {
+                trait_path: path.trait_path,
+                trait_id: None,
+                trait_generics: path.trait_generics,
+            },
+        };
+
+        let typ = self.resolve_type(constraint.typ.clone());
+        let Some(trait_bound) = self.resolve_trait_bound(&constraint.trait_bound) else {
+            // resolve_trait_bound only returns None if it has already issued an error, so don't
+            // issue another here.
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
+
+        let constraint = TraitConstraint { typ, trait_bound };
+
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let Some(method) = the_trait.find_method(&path.impl_item.0.contents) else {
+            let trait_name = the_trait.name.to_string();
+            let method_name = path.impl_item.to_string();
+            let location = path.impl_item.location();
+            self.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
+            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
+            return (error, Type::Error);
+        };
+
+        let trait_method =
+            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
+
+        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+
+        let ident = HirIdent {
+            location: path.impl_item.location(),
+            id: definition_id,
+            impl_kind: ImplKind::TraitMethod(trait_method),
+        };
+
+        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
+        self.interner.push_expr_location(id, location);
+
+        let typ = self.type_check_variable(ident, id, None);
+        self.interner.push_expr_type(id, typ.clone());
+        (id, typ)
     }
 }
