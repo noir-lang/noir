@@ -21,8 +21,8 @@ where
         BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
     }
 
-    fn decode(value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
-        todo!()
+    fn decode(_value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
+        todo!("decode")
     }
 }
 
@@ -141,8 +141,8 @@ where
         BrilligOpcode { value: Some(value) }
     }
 
-    fn decode(value: &BrilligOpcode) -> eyre::Result<brillig::Opcode<F>> {
-        todo!()
+    fn decode(_value: &BrilligOpcode) -> eyre::Result<brillig::Opcode<F>> {
+        todo!("decode")
     }
 }
 
@@ -156,8 +156,8 @@ impl<F> ProtoCodec<brillig::MemoryAddress, MemoryAddress> for ProtoSchema<F> {
         MemoryAddress { value: Some(value) }
     }
 
-    fn decode(value: &MemoryAddress) -> eyre::Result<brillig::MemoryAddress> {
-        todo!()
+    fn decode(_value: &MemoryAddress) -> eyre::Result<brillig::MemoryAddress> {
+        todo!("decode")
     }
 }
 
@@ -175,8 +175,8 @@ impl<F> ProtoCodec<brillig::BinaryFieldOp, BinaryFieldOpKind> for ProtoSchema<F>
         }
     }
 
-    fn decode(value: &BinaryFieldOpKind) -> eyre::Result<brillig::BinaryFieldOp> {
-        todo!()
+    fn decode(_value: &BinaryFieldOpKind) -> eyre::Result<brillig::BinaryFieldOp> {
+        todo!("decode")
     }
 }
 
@@ -198,8 +198,8 @@ impl<F> ProtoCodec<brillig::BinaryIntOp, BinaryIntOpKind> for ProtoSchema<F> {
         }
     }
 
-    fn decode(value: &BinaryIntOpKind) -> eyre::Result<brillig::BinaryIntOp> {
-        todo!()
+    fn decode(_value: &BinaryIntOpKind) -> eyre::Result<brillig::BinaryIntOp> {
+        todo!("decode")
     }
 }
 
@@ -215,8 +215,8 @@ impl<F> ProtoCodec<brillig::IntegerBitSize, IntegerBitSize> for ProtoSchema<F> {
         }
     }
 
-    fn decode(value: &IntegerBitSize) -> eyre::Result<brillig::IntegerBitSize> {
-        todo!()
+    fn decode(_value: &IntegerBitSize) -> eyre::Result<brillig::IntegerBitSize> {
+        todo!("decode")
     }
 }
 
@@ -232,8 +232,8 @@ impl<F> ProtoCodec<brillig::BitSize, BitSize> for ProtoSchema<F> {
         BitSize { value: Some(value) }
     }
 
-    fn decode(value: &BitSize) -> eyre::Result<brillig::BitSize> {
-        todo!()
+    fn decode(_value: &BitSize) -> eyre::Result<brillig::BitSize> {
+        todo!("decode")
     }
 }
 
@@ -254,8 +254,8 @@ impl<F> ProtoCodec<brillig::ValueOrArray, ValueOrArray> for ProtoSchema<F> {
         ValueOrArray { value: Some(value) }
     }
 
-    fn decode(value: &ValueOrArray) -> eyre::Result<brillig::ValueOrArray> {
-        todo!()
+    fn decode(_value: &ValueOrArray) -> eyre::Result<brillig::ValueOrArray> {
+        todo!("decode")
     }
 }
 
@@ -275,8 +275,8 @@ impl<F> ProtoCodec<brillig::HeapValueType, HeapValueType> for ProtoSchema<F> {
         HeapValueType { value: Some(value) }
     }
 
-    fn decode(value: &HeapValueType) -> eyre::Result<brillig::HeapValueType> {
-        todo!()
+    fn decode(_value: &HeapValueType) -> eyre::Result<brillig::HeapValueType> {
+        todo!("decode")
     }
 }
 
@@ -285,8 +285,8 @@ impl<F> ProtoCodec<brillig::HeapArray, HeapArray> for ProtoSchema<F> {
         HeapArray { pointer: Self::encode_some(&value.pointer), size: Self::encode(&value.size) }
     }
 
-    fn decode(value: &HeapArray) -> eyre::Result<brillig::HeapArray> {
-        todo!()
+    fn decode(_value: &HeapArray) -> eyre::Result<brillig::HeapArray> {
+        todo!("decode")
     }
 }
 
@@ -298,17 +298,150 @@ impl<F> ProtoCodec<brillig::HeapVector, HeapVector> for ProtoSchema<F> {
         }
     }
 
-    fn decode(value: &HeapVector) -> eyre::Result<brillig::HeapVector> {
-        todo!()
+    fn decode(_value: &HeapVector) -> eyre::Result<brillig::HeapVector> {
+        todo!("decode")
     }
 }
 
 impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
     fn encode(value: &brillig::BlackBoxOp) -> BlackBoxOp {
-        todo!()
+        use crate::proto::brillig::black_box_op::*;
+        let value = match value {
+            brillig::BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
+                Value::Aes128Encrypt(Aes128Encrypt {
+                    inputs: Self::encode_some(inputs),
+                    iv: Self::encode_some(iv),
+                    key: Self::encode_some(key),
+                    outputs: Self::encode_some(outputs),
+                })
+            }
+            brillig::BlackBoxOp::Blake2s { message, output } => Value::Blake2s(Blake2s {
+                message: Self::encode_some(message),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::Blake3 { message, output } => Value::Blake3(Blake3 {
+                message: Self::encode_some(message),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::Keccakf1600 { input, output } => Value::KeccakF1600(Keccakf1600 {
+                input: Self::encode_some(input),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::EcdsaSecp256k1 {
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result,
+            } => Value::EcdsaSecp256k1(EcdsaSecp256k1 {
+                hashed_msg: Self::encode_some(hashed_msg),
+                public_key_x: Self::encode_some(public_key_x),
+                public_key_y: Self::encode_some(public_key_y),
+                signature: Self::encode_some(signature),
+                result: Self::encode_some(result),
+            }),
+            brillig::BlackBoxOp::EcdsaSecp256r1 {
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result,
+            } => Value::EcdsaSecp256r1(EcdsaSecp256r1 {
+                hashed_msg: Self::encode_some(hashed_msg),
+                public_key_x: Self::encode_some(public_key_x),
+                public_key_y: Self::encode_some(public_key_y),
+                signature: Self::encode_some(signature),
+                result: Self::encode_some(result),
+            }),
+            brillig::BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
+                Value::MultiScalarMul(MultiScalarMul {
+                    points: Self::encode_some(points),
+                    scalars: Self::encode_some(scalars),
+                    outputs: Self::encode_some(outputs),
+                })
+            }
+            brillig::BlackBoxOp::EmbeddedCurveAdd {
+                input1_x,
+                input1_y,
+                input1_infinite,
+                input2_x,
+                input2_y,
+                input2_infinite,
+                result,
+            } => Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
+                input1_x: Self::encode_some(input1_x),
+                input1_y: Self::encode_some(input1_y),
+                input1_infinite: Self::encode_some(input1_infinite),
+                input2_x: Self::encode_some(input2_x),
+                input2_y: Self::encode_some(input2_y),
+                input2_infinite: Self::encode_some(input2_infinite),
+                result: Self::encode_some(result),
+            }),
+            brillig::BlackBoxOp::BigIntAdd { lhs, rhs, output } => Value::BigIntAdd(BigIntAdd {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::BigIntSub { lhs, rhs, output } => Value::BigIntSub(BigIntSub {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::BigIntMul { lhs, rhs, output } => Value::BigIntMul(BigIntMul {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::BigIntDiv { lhs, rhs, output } => Value::BigIntDiv(BigIntDiv {
+                lhs: Self::encode_some(lhs),
+                rhs: Self::encode_some(rhs),
+                output: Self::encode_some(output),
+            }),
+            brillig::BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
+                Value::BigIntFromLeBytes(BigIntFromLeBytes {
+                    inputs: Self::encode_some(inputs),
+                    modulus: Self::encode_some(modulus),
+                    output: Self::encode_some(output),
+                })
+            }
+            brillig::BlackBoxOp::BigIntToLeBytes { input, output } => {
+                Value::BigIntToLeBytes(BigIntToLeBytes {
+                    input: Self::encode_some(input),
+                    output: Self::encode_some(output),
+                })
+            }
+            brillig::BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+                Value::Poseidon2Permutation(Poseidon2Permutation {
+                    message: Self::encode_some(message),
+                    output: Self::encode_some(output),
+                    len: Self::encode_some(len),
+                })
+            }
+            brillig::BlackBoxOp::Sha256Compression { input, hash_values, output } => {
+                Value::Sha256Compression(Sha256Compression {
+                    input: Self::encode_some(input),
+                    hash_values: Self::encode_some(hash_values),
+                    output: Self::encode_some(output),
+                })
+            }
+            brillig::BlackBoxOp::ToRadix {
+                input,
+                radix,
+                output_pointer,
+                num_limbs,
+                output_bits,
+            } => Value::ToRadix(ToRadix {
+                input: Self::encode_some(input),
+                radix: Self::encode_some(radix),
+                output_pointer: Self::encode_some(output_pointer),
+                num_limbs: Self::encode_some(num_limbs),
+                output_bits: Self::encode_some(output_bits),
+            }),
+        };
+        BlackBoxOp { value: Some(value) }
     }
 
-    fn decode(value: &BlackBoxOp) -> eyre::Result<brillig::BlackBoxOp> {
-        todo!()
+    fn decode(_value: &BlackBoxOp) -> eyre::Result<brillig::BlackBoxOp> {
+        todo!("decode")
     }
 }
