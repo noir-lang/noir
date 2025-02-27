@@ -20,8 +20,12 @@ pub trait ProtoCodec<T, R> {
         Self::decode(value).wrap_err(msg)
     }
     /// Encode multiple values as a vector.
-    fn encode_vec(values: &[T]) -> Vec<R> {
-        values.iter().map(Self::encode).collect()
+    fn encode_vec<'a, I>(values: I) -> Vec<R>
+    where
+        I: IntoIterator<Item = &'a T>,
+        T: 'a,
+    {
+        values.into_iter().map(Self::encode).collect()
     }
     /// Decode multiple values into a vector.
     fn decode_vec(values: &[R]) -> eyre::Result<Vec<T>> {

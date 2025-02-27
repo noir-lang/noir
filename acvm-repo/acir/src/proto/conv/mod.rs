@@ -5,11 +5,11 @@ use color_eyre::eyre::{self, Context};
 use noir_protobuf::ProtoCodec;
 
 use crate::circuit;
-use crate::proto::acir::native::Field;
 use crate::proto::program::Program;
 
 mod acir;
 mod brillig;
+mod native;
 
 pub(crate) struct ProtoSchema<F> {
     field: PhantomData<F>,
@@ -34,16 +34,6 @@ where
                 "unconstrained_functions",
             )?,
         })
-    }
-}
-
-impl<F: AcirField> ProtoCodec<F, Field> for ProtoSchema<F> {
-    fn encode(value: &F) -> Field {
-        Field { value: value.to_le_bytes() }
-    }
-
-    fn decode(value: &Field) -> eyre::Result<F> {
-        Ok(F::from_le_bytes_reduce(&value.value))
     }
 }
 
