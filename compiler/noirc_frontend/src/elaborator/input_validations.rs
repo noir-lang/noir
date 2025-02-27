@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::ast::{
     BlockExpression, CallExpression, Expression, ExpressionKind, Ident, IfExpression, Param, Path,
-    PathKind, PathSegment, Pattern, Statement, StatementKind, UnaryOp,
+    PathSegment, Pattern, Statement, StatementKind, UnaryOp,
 };
 
 use super::Elaborator;
@@ -97,7 +97,7 @@ fn path(segments: &[&str], location: Location) -> Path {
         generics: None,
         location,
     });
-    Path { segments: segments.collect(), kind: PathKind::Plain, location }
+    Path::plain(segments.collect(), location)
 }
 
 fn var(path: Path) -> Expression {
