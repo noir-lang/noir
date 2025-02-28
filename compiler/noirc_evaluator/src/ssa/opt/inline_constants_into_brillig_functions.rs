@@ -236,6 +236,21 @@ fn inline_constants_into_function(
     let entry_block = &mut function.dfg[entry_block_id];
     entry_block.set_parameters(new_parameters);
 
+    // Next, optimize the function a bit...
+
+    // Help unrolling determine bounds.
+    function.as_slice_optimization();
+    // Prepare for unrolling
+    function.loop_invariant_code_motion();
+    // We might not be able to unroll all loops without fully inlining them, so ignore errors.
+    let _ = function.unroll_loops_iteratively();
+    // Reduce the number of redundant stores/loads after unrolling
+    function.mem2reg();
+    // Try to reduce the number of blocks.
+    function.simplify_function();
+    // Remove leftover instructions.
+    function.dead_instruction_elimination(true, false, false);
+
     function
 }
 
@@ -337,10 +352,8 @@ mod tests {
         }
         brillig(inline) fn foo f2 {
           b0(v0: Field):
-            v3 = make_array [Field 1, Field 2] : [Field; 2]
-            v5 = array_get v3, index u32 0 -> Field
-            v6 = add v5, v0
-            return v6
+            v2 = add Field 1, v0
+            return v2
         }
         ";
         let ssa = ssa.inline_constants_into_brillig_functions();
