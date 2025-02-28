@@ -2579,7 +2579,7 @@ fn uses_self_type_in_trait_where_clause() {
     }
 
     pub trait Foo where Self: Trait {
-                              ~~~~~ required by this bound in `Foo
+                              ~~~~~ required by this bound in `Foo`
         fn foo(self) -> bool {
             self.trait_func()
             ^^^^^^^^^^^^^^^^^ No method named 'trait_func' found for type 'Bar'
@@ -2590,7 +2590,7 @@ fn uses_self_type_in_trait_where_clause() {
 
     impl Foo for Bar {
                  ^^^ The trait bound `_: Trait` is not satisfied
-                 ~~~ The trait `Trait` is not implemented for `_
+                 ~~~ The trait `Trait` is not implemented for `_`
 
     }
 

@@ -114,18 +114,17 @@ fn trait_inheritance_dependency_cycle() {
 
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
-    // TODO: the secondary errors are missing a closing backtick
     let src = r#"
         pub trait Foo {}
 
         pub trait Bar: Foo {}
-                       ~~~ required by this bound in `Bar
+                       ~~~ required by this bound in `Bar`
 
         pub struct Struct {}
 
         impl Bar for Struct {}
                      ^^^^^^ The trait bound `Struct: Foo` is not satisfied
-                     ~~~~~~ The trait `Foo` is not implemented for `Struct
+                     ~~~~~~ The trait `Foo` is not implemented for `Struct`
 
         fn main() {
             let _ = Struct {}; // silence Struct never constructed warning
@@ -213,7 +212,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         pub trait Foo<T>
         where
             T: Greeter,
-               ~~~~~~~ required by this bound in `Foo
+               ~~~~~~~ required by this bound in `Foo`
         {
             fn greet<U>(object: U)
             where
@@ -229,7 +228,7 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
 
         impl Foo<SomeGreeter> for Bar {}
                                   ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
-                                  ~~~ The trait `Greeter` is not implemented for `SomeGreeter
+                                  ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
 
         fn main() {}
     "#;

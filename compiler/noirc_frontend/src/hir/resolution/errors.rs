@@ -168,7 +168,7 @@ pub enum ResolverError {
     AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, location: Location },
-    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}`")]
     TraitNotImplemented {
         impl_trait: String,
         missing_trait: String,
@@ -763,9 +763,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} => {
                 let mut diagnostic = Diagnostic::simple_error(
                     format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
-                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    format!("The trait `{the_trait}` is not implemented for `{typ}`")
                     , *location);
-                diagnostic.add_secondary(format!("required by this bound in `{impl_trait}"), *missing_trait_location);
+                diagnostic.add_secondary(format!("required by this bound in `{impl_trait}`"), *missing_trait_location);
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { location  } => {
