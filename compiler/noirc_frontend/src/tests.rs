@@ -3898,15 +3898,14 @@ fn errors_if_while_body_type_is_not_unit() {
 
 #[test]
 fn check_impl_duplicate_method_without_self() {
-    // TODO: the primary error location should be n the second `foo`
     let src = "
     pub struct Foo {}
 
     impl Foo {
         fn foo() {}
-           ^^^ duplicate definitions of foo found
            ~~~ first definition found here
         fn foo() {}
+           ^^^ duplicate definitions of foo found
            ~~~ second definition found here
     }
 

@@ -296,10 +296,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::DuplicateDefinition { name, first_location, second_location} => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {name} found"),
-                    "first definition found here".to_string(),
-                    *first_location,
+                    "second definition found here".to_string(),
+                    *second_location,
                 );
-                diag.add_secondary("second definition found here".to_string(), *second_location);
+                diag.add_secondary("first definition found here".to_string(), *first_location);
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
