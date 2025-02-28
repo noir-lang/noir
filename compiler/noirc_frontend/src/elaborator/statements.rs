@@ -202,7 +202,6 @@ impl Elaborator<'_> {
         );
 
         // Check that start range and end range have the same types
-        let range_location = start_location.merge(end_location);
         self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
             expected_typ: start_range_type.to_string(),
             expr_typ: end_range_type.to_string(),
@@ -214,7 +213,7 @@ impl Elaborator<'_> {
         self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
             place: "for loop",
-            location: range_location,
+            location: start_location,
         });
 
         self.interner.push_definition_type(identifier.id, start_range_type);

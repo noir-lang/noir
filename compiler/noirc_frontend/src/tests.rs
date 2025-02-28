@@ -1538,6 +1538,19 @@ fn bool_generic_as_loop_bound() {
 }
 
 #[test]
+fn wrong_type_in_for_range() {
+    let src = r#"
+    pub fn foo() {
+        for _ in true..false { 
+                 ^^^^ The type bool cannot be used in a for loop
+                 
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn numeric_generic_in_function_signature() {
     let src = r#"
     pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
