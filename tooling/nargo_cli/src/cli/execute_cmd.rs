@@ -61,10 +61,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
                 args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),
             ),
             contract_fn: None,
-            oracle_file: None,
             oracle_resolver: args.oracle_resolver.clone(),
-            oracle_root_dir: Some(workspace.root_dir.clone()),
-            oracle_package_name: Some(package.name.to_string()),
             pedantic_solving: args.compile_options.pedantic_solving,
         };
 

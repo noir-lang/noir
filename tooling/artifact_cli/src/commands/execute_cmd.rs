@@ -40,25 +40,9 @@ pub struct ExecuteCommand {
     #[clap(long)]
     pub contract_fn: Option<String>,
 
-    /// Part to the Oracle.toml file which contains the Oracle transcript,
-    /// which is a list of responses captured during an earlier execution.
-    ///
-    /// Note that a transcript might be invalid if the inputs change and
-    /// the circuit takes a different path during execution.
-    #[clap(long, conflicts_with = "oracle_resolver")]
-    pub oracle_file: Option<String>,
-
     /// JSON RPC url to solve oracle calls.
-    #[clap(long, conflicts_with = "oracle_file")]
-    pub oracle_resolver: Option<String>,
-
-    /// Root directory for the RPC oracle resolver.
-    #[clap(long, value_parser = parse_and_normalize_path)]
-    pub oracle_root_dir: Option<PathBuf>,
-
-    /// Package name for the RPC oracle resolver
     #[clap(long)]
-    pub oracle_package_name: Option<String>,
+    pub oracle_resolver: Option<String>,
 
     /// Use pedantic ACVM solving, i.e. double-check some black-box function assumptions when solving.
     #[clap(long, default_value_t = false)]
