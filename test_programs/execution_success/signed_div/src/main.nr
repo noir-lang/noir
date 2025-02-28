@@ -1,3 +1,6 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct SignedDivOp {
     lhs: i8,
     rhs: i8,

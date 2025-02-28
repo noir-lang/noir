@@ -1,7 +1,11 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct Bar {
     inner: [Field; 3],
 }
 
+#[derive(AssertsIsValidInput)]
 struct Foo {
     a: Field,
     b: [Field; 3],

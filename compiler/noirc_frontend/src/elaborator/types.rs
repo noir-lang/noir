@@ -1749,17 +1749,7 @@ impl Elaborator<'_> {
         });
 
         let is_current_func_constrained = self.in_constrained_function();
-
-        let func_type_is_unconstrained =
-            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
-                *unconstrained
-            } else {
-                false
-            };
-
-        let is_unconstrained_call =
-            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
-        let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
+        let crossing_runtime_boundary = self.is_crossing_runtime_boundary(&func_type, call.func);
         if crossing_runtime_boundary {
             match self.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
@@ -1798,6 +1788,21 @@ impl Elaborator<'_> {
         }
 
         return_type
+    }
+
+    pub(super) fn is_crossing_runtime_boundary(&self, func_type: &Type, func: ExprId) -> bool {
+        if !self.in_constrained_function() {
+            return false;
+        }
+
+        let func_type_is_unconstrained =
+            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
+                *unconstrained
+            } else {
+                false
+            };
+
+        func_type_is_unconstrained || self.is_unconstrained_call(func)
     }
 
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {

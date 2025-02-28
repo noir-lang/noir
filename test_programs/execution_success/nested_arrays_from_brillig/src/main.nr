@@ -1,7 +1,11 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct Header {
     params: [Field; 3],
 }
 
+#[derive(AssertsIsValidInput)]
 struct MyNote {
     plain: Field,
     array: [Field; 2],

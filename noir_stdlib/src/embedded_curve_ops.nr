@@ -1,5 +1,6 @@
 use crate::cmp::Eq;
 use crate::ops::arith::{Add, Neg, Sub};
+use super::validation::AssertsIsValidInput;
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
@@ -50,6 +51,14 @@ impl Eq for EmbeddedCurvePoint {
     fn eq(self: Self, b: EmbeddedCurvePoint) -> bool {
         (self.is_infinite & b.is_infinite)
             | ((self.is_infinite == b.is_infinite) & (self.x == b.x) & (self.y == b.y))
+    }
+}
+
+impl AssertsIsValidInput for EmbeddedCurvePoint {
+    fn assert_is_valid_input(self) {
+        self.x.assert_is_valid_input();
+        self.y.assert_is_valid_input();
+        self.is_infinite.assert_is_valid_input();
     }
 }
 

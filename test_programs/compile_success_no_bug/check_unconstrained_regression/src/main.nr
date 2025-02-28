@@ -1,8 +1,13 @@
+use std::validation::AssertsIsValidInput;
+
+#[derive(AssertsIsValidInput)]
 struct Trigger {
     x: u32,
     y: Field,
     z: [Field; 3],
 }
+
+#[derive(AssertsIsValidInput)]
 struct ResultType {
     a: u32,
     b: Field,

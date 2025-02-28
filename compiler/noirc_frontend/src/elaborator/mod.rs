@@ -52,6 +52,7 @@ use crate::{
 mod comptime;
 mod enums;
 mod expressions;
+mod input_validations;
 mod lints;
 mod options;
 mod path_resolution;
@@ -1002,7 +1003,12 @@ impl<'context> Elaborator<'context> {
             .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
             .collect();
 
-        let statements = std::mem::take(&mut func.def.body.statements);
+        let mut statements = std::mem::take(&mut func.def.body.statements);
+
+        if is_entry_point && self.crate_graph.try_stdlib_crate_id().is_some() {
+            self.add_entry_point_parameters_validation(func.parameters(), &mut statements);
+        }
+
         let body = BlockExpression { statements };
 
         let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.self_type {
@@ -1044,7 +1050,6 @@ impl<'context> Elaborator<'context> {
         self.scopes.end_function();
         self.current_item = None;
     }
-
     fn mark_type_as_used(&mut self, typ: &Type) {
         match typ {
             Type::Array(_n, typ) => self.mark_type_as_used(typ),

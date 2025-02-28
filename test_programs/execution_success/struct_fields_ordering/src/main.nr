@@ -1,5 +1,8 @@
+use std::validation::AssertsIsValidInput;
+
 // Note that fields are not in alphabetical order.
 // We want to check that this ordering is maintained
+#[derive(AssertsIsValidInput)]
 struct myStruct {
     foo: u32,
     bar: Field,

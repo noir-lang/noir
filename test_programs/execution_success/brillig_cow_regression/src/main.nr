@@ -1,3 +1,5 @@
+use std::validation::AssertsIsValidInput;
+
 // Tests a performance regression found in aztec-packages with brillig cow optimization
 global MAX_NOTE_HASHES_PER_TX: u32 = 64;
 global MAX_NULLIFIERS_PER_TX: u32 = 64;
@@ -11,12 +13,14 @@ global TX_EFFECT_HASH_INPUT_SIZE: u32 = 169;
 global TX_EFFECT_HASH_LOG_FIELDS: u32 = 4;
 global TX_EFFECT_HASH_FULL_FIELDS: u32 = 165;
 
+#[derive(AssertsIsValidInput)]
 struct PublicDataUpdateRequest {
     leaf_slot: Field,
     old_value: Field,
     new_value: Field,
 }
 
+#[derive(AssertsIsValidInput)]
 struct NewContractData {
     contract_address: Field,
     portal_contract_address: Field,
@@ -28,6 +32,7 @@ impl NewContractData {
     }
 }
 
+#[derive(AssertsIsValidInput)]
 struct DataToHash {
     new_note_hashes: [Field; MAX_NOTE_HASHES_PER_TX],
     new_nullifiers: [Field; MAX_NULLIFIERS_PER_TX],

@@ -1,11 +1,13 @@
 use std::collections::umap::UHashMap;
 use std::hash::BuildHasherDefault;
 use std::hash::poseidon2::Poseidon2Hasher;
+use std::validation::AssertsIsValidInput;
 
 type K = Field;
 type V = Field;
 
 // It is more convenient and readable to use structs as input.
+#[derive(AssertsIsValidInput)]
 struct Entry {
     key: Field,
     value: Field,
