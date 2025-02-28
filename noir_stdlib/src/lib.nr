@@ -19,7 +19,6 @@ pub mod cmp;
 pub mod ops;
 pub mod default;
 pub mod prelude;
-pub mod uint128;
 pub mod runtime;
 pub mod meta;
 pub mod append;
@@ -121,8 +120,46 @@ where
 pub fn as_witness(x: Field) {}
 
 mod tests {
+    use super::wrapping_mul;
+
     #[test(should_fail_with = "custom message")]
     fn test_static_assert_custom_message() {
         super::static_assert(1 == 2, "custom message");
+    }
+
+    #[test(should_fail)]
+    fn test_wrapping_mul() {
+        // This currently fails.
+        // See: https://github.com/noir-lang/noir/issues/7528
+        let zero: u128 = 0;
+        let one: u128 = 1;
+        let two_pow_64: u128 = 0x10000000000000000;
+        let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;
+
+        // 1*0==0
+        assert_eq(zero, wrapping_mul(zero, one));
+
+        // 0*1==0
+        assert_eq(zero, wrapping_mul(one, zero));
+
+        // 1*1==1
+        assert_eq(one, wrapping_mul(one, one));
+
+        // 0 * ( 1 << 64 ) ==  0
+        assert_eq(zero, wrapping_mul(zero, two_pow_64));
+
+        // ( 1 << 64 ) * 0 == 0
+        assert_eq(zero, wrapping_mul(two_pow_64, zero));
+
+        // 1 * ( 1 << 64 ) == 1 << 64
+        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));
+
+        // ( 1 << 64 ) * 1 == 1 << 64
+        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));
+
+        // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64
+        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));
+        // -1 * -1 == 1
+        assert_eq(one, wrapping_mul(u128_max, u128_max));
     }
 }

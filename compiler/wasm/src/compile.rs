@@ -176,7 +176,7 @@ pub fn compile_program(
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
             .map_err(|errs| {
-                CompileError::with_file_diagnostics(
+                CompileError::with_custom_diagnostics(
                     "Failed to compile program",
                     errs,
                     &context.file_manager,
@@ -186,7 +186,7 @@ pub fn compile_program(
 
     let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
     nargo::ops::check_program(&optimized_program).map_err(|errs| {
-        CompileError::with_file_diagnostics(
+        CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
             &context.file_manager,
@@ -212,8 +212,8 @@ pub fn compile_contract(
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
-            .map_err(|errs: Vec<noirc_errors::FileDiagnostic>| {
-                CompileError::with_file_diagnostics(
+            .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
+                CompileError::with_custom_diagnostics(
                     "Failed to compile contract",
                     errs,
                     &context.file_manager,

@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
@@ -130,8 +130,6 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
-    #[error("\"as trait path\" not yet implemented")]
-    AsTraitPathNotYetImplemented { location: Location },
     #[error("Invalid syntax in macro call")]
     InvalidSyntaxInMacroCall { location: Location },
     #[error("Macros must be comptime functions")]
@@ -192,13 +190,11 @@ pub enum ResolverError {
     TypeUnsupportedInMatch { typ: Type, location: Location },
     #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
     UnexpectedItemInPattern { location: Location, item: &'static str },
+    #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
+    NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
 }
 
 impl ResolverError {
-    pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
-        Diagnostic::from(self).in_file(file)
-    }
-
     pub fn location(&self) -> Location {
         match self {
             ResolverError::DuplicateDefinition { first_location: location, .. }
@@ -245,7 +241,6 @@ impl ResolverError {
             | ResolverError::SelfReferentialType { location }
             | ResolverError::NumericGenericUsedForType { location, .. }
             | ResolverError::UnquoteUsedOutsideQuote { location }
-            | ResolverError::AsTraitPathNotYetImplemented { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
             | ResolverError::NonFunctionInAnnotation { location }
@@ -261,6 +256,7 @@ impl ResolverError {
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
+            | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
                 *location
             }
@@ -658,13 +654,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::AsTraitPathNotYetImplemented { location } => {
-                Diagnostic::simple_error(
-                    "\"as trait path\" not yet implemented".into(),
-                    "".into(),
-                    *location,
-                )
-            },
             ResolverError::InvalidSyntaxInMacroCall { location } => {
                 Diagnostic::simple_error(
                     "Invalid syntax in macro call".into(),
@@ -818,6 +807,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
+                Diagnostic::simple_error(
+                    format!("Trait `{trait_name}` has no method named `{method_name}`"), 
                     String::new(),
                     *location,
                 )
