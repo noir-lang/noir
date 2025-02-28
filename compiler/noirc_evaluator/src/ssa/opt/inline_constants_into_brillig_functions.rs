@@ -5,6 +5,8 @@ use iter_extended::vecmap;
 
 use crate::ssa::{
     ir::{
+        basic_block::BasicBlockId,
+        call_stack::CallStackId,
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::Instruction,
@@ -201,14 +203,27 @@ fn inline_constants_into_function(
     id: FunctionId,
 ) -> Function {
     let mut function = Function::clone_with_id(id, function);
+    let entry_block_id = function.entry_block();
+
+    // Take the entry block instructions as we first might need to insert a few MakeArray instructions
+    // and they must appear before everything else.
+    let entry_block_instructions = function.dfg[entry_block_id].take_instructions();
+
     let parameters = function.parameters().to_vec();
 
     // First replace all constant parameters
     for (parameter, constant) in parameters.iter().zip(constants) {
         if let Some(constant) = constant {
-            let constant = make_constant(&mut function.dfg, constant);
+            let constant = make_constant(&mut function.dfg, constant, entry_block_id);
             function.dfg.set_value_from_id(*parameter, constant);
         }
+    }
+
+    let mut new_entry_block_instructions = function.dfg[entry_block_id].take_instructions();
+    new_entry_block_instructions.extend(entry_block_instructions);
+
+    for instruction_id in new_entry_block_instructions {
+        function.dfg[entry_block_id].insert_instruction(instruction_id);
     }
 
     // Then keep only those parameters for which the argument is not a constant
@@ -218,17 +233,23 @@ fn inline_constants_into_function(
             new_parameters.push(parameters[index]);
         }
     }
-    let entry_block_id = function.entry_block();
     let entry_block = &mut function.dfg[entry_block_id];
     entry_block.set_parameters(new_parameters);
 
     function
 }
 
-fn make_constant(dfg: &mut DataFlowGraph, constant: &Constant) -> ValueId {
+fn make_constant(dfg: &mut DataFlowGraph, constant: &Constant, block: BasicBlockId) -> ValueId {
     match constant {
         Constant::Number(value, typ) => dfg.make_constant(*value, *typ),
-        Constant::Array(_, _) => todo!("Handle arrays"),
+        Constant::Array(constants, typ) => {
+            let elements =
+                constants.iter().map(|constant| make_constant(dfg, constant, block)).collect();
+            let instruction = Instruction::MakeArray { elements, typ: typ.clone() };
+            // TODO: call stack
+            dfg.insert_instruction_and_results(instruction, block, None, CallStackId::root())
+                .first()
+        }
     }
 }
 
@@ -271,6 +292,55 @@ mod tests {
           b0(v0: Field):
             v2 = add Field 1, v0
             return v2
+        }
+        ";
+        let ssa = ssa.inline_constants_into_brillig_functions();
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn inlines_if_same_array_is_always_used() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = make_array [Field 1, Field 2]: [Field; 2]
+            v3 = call f1(v2, v0) -> Field
+            v4 = make_array [Field 1, Field 2]: [Field; 2]
+            v5 = call f1(v4, v0) -> Field
+            v6 = add v3, v5
+            return v6
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 2], v1: Field):
+            v2 = array_get v0, index u32 0 -> Field
+            v3 = add v2, v1
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let expected = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = call f2(v0) -> Field
+            v6 = make_array [Field 1, Field 2] : [Field; 2]
+            v7 = call f2(v0) -> Field
+            v8 = add v5, v7
+            return v8
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [Field; 2], v1: Field):
+            v3 = array_get v0, index u32 0 -> Field
+            v4 = add v3, v1
+            return v4
+        }
+        brillig(inline) fn foo f2 {
+          b0(v0: Field):
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = array_get v3, index u32 0 -> Field
+            v6 = add v5, v0
+            return v6
         }
         ";
         let ssa = ssa.inline_constants_into_brillig_functions();
