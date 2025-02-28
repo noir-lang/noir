@@ -1,4 +1,4 @@
-use color_eyre::eyre::{self, Context};
+use color_eyre::eyre::{self, eyre, Context};
 
 /// A protobuf codec to convert between a domain type `T`
 /// and its protobuf representation `R`.
@@ -35,7 +35,14 @@ pub trait ProtoCodec<T, R> {
     fn decode_vec_msg(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
         Self::decode_vec(values).wrap_err(msg)
     }
-    /// Encode an optional `message` field as `Some`.
+    /// Decode an optional field as a required one; fails if it's `None`.
+    fn decode_some_msg(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
+        match value {
+            Some(value) => Self::decode_msg(value, msg),
+            None => Err(eyre!("missing field").wrap_err(msg)),
+        }
+    }
+    /// Encode a field as `Some`.
     fn encode_some(value: &T) -> Option<R> {
         Some(Self::encode(value))
     }
@@ -61,4 +68,12 @@ pub trait ProtoCodec<T, R> {
         let repr = R::decode(buf).wrap_err("failed to decode into protobuf")?;
         Self::decode(&repr).wrap_err("failed to decode protobuf into domain")
     }
+}
+
+/// Decode repeated items by mapping a function over them, attaching an error message if it fails.
+pub fn decode_vec_msg_map<R, T, F>(rs: &[R], msg: &'static str, f: F) -> eyre::Result<Vec<T>>
+where
+    F: Fn(&R) -> eyre::Result<T>,
+{
+    rs.iter().map(f).collect::<eyre::Result<Vec<_>>>().wrap_err(msg)
 }

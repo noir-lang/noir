@@ -1,6 +1,6 @@
 use acir_field::AcirField;
 use color_eyre::eyre;
-use noir_protobuf::ProtoCodec;
+use noir_protobuf::{decode_vec_msg_map, ProtoCodec};
 
 use crate::{
     native_types,
@@ -57,7 +57,24 @@ where
         }
     }
 
-    fn decode(_value: &Expression) -> eyre::Result<native_types::Expression<F>> {
-        todo!("decode")
+    fn decode(value: &Expression) -> eyre::Result<native_types::Expression<F>> {
+        Ok(native_types::Expression {
+            mul_terms: decode_vec_msg_map(&value.mul_terms, "mul_terms", |mt| {
+                let q_m = Self::decode_some_msg(&mt.q_m, "q_m")?;
+                let wl = Self::decode_some_msg(&mt.witness_left, "witness_left")?;
+                let wr = Self::decode_some_msg(&mt.witness_right, "witness_right")?;
+                Ok((q_m, wl, wr))
+            })?,
+            linear_combinations: decode_vec_msg_map(
+                &value.linear_combinations,
+                "linear_combinations",
+                |lc| {
+                    let q_l = Self::decode_some_msg(&lc.q_l, "q_l")?;
+                    let w = Self::decode_some_msg(&lc.witness, "witness")?;
+                    Ok((q_l, w))
+                },
+            )?,
+            q_c: Self::decode_some_msg(&value.q_c, "q_c")?,
+        })
     }
 }
