@@ -31,6 +31,10 @@ impl Ssa {
         let mut total_calls = HashMap::new();
 
         for function in self.functions.values() {
+            if !function.runtime().is_acir() {
+                continue;
+            }
+
             function.gather_calls_to_brillig_functions_with_constants(
                 &self,
                 &mut calls,
@@ -66,6 +70,10 @@ impl Ssa {
 
         // Finally, redirect calls to use the new functions
         for function in self.functions.values_mut() {
+            if !function.runtime().is_acir() {
+                continue;
+            }
+
             function.replace_brillig_calls_with_constants(&new_functions);
         }
 
@@ -358,5 +366,27 @@ mod tests {
         ";
         let ssa = ssa.inline_constants_into_brillig_functions();
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn does_not_inline_brillig_call_into_brillig_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = call f1(Field 1, v0) -> Field
+            v4 = call f1(Field 1, v0) -> Field
+            v5 = add v3, v4
+            return v5
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_constants_into_brillig_functions();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
