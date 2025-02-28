@@ -1578,7 +1578,8 @@ fn normal_generic_as_array_length() {
     pub struct Foo<N> {
         a: Field,
         b: [Field; N],
-           ^^^^^^^^^^ Expected kind numeric u32, found kind normal
+           ^^^^^^^^^^ Type provided when a constant was expected
+           ~~~~~~~~~~ the constant is not of type `u32`
     }
     "#;
     check_errors(src);
@@ -1671,7 +1672,8 @@ fn normal_generic_used_in_nested_array_length_fail() {
     pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
-               ^ Expected kind numeric u32, found kind normal
+               ^ Type provided when a constant was expected
+               ~ the constant is not of type `u32`
     }
     pub struct Bar<let N: u32> {
         inner: [Field; N]
@@ -1901,7 +1903,8 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Expected kind numeric u32, found kind normal
+                                                  ^ Type provided when a constant was expected
+                                                  ~ the constant is not of type `u32`
         T::deserialize([0, 1])
     }
     "#;
@@ -1914,10 +1917,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Expected kind numeric u32, found kind normal
+                                                  ^ Type provided when a constant was expected
+                                                  ~ the constant is not of type `u32`
         let mut fields: [Field; N] = [0; N];
-                                         ^ Expected kind numeric u32, found kind normal
-                        ^^^^^^^^^^ Expected kind numeric u32, found kind normal
+                                         ^ Type provided when a constant was expected
+                                         ~ the constant is not of type `u32`
+                        ^^^^^^^^^^ Type provided when a constant was expected
+                        ~~~~~~~~~~ the constant is not of type `u32`
         for i in 0..N {
                     ^ cannot find `N` in this scope
                     ~ not found in this scope
