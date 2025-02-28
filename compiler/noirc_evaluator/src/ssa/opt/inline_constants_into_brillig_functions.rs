@@ -227,12 +227,7 @@ fn inline_constants_into_function(
         }
     }
 
-    let mut new_entry_block_instructions = function.dfg[entry_block_id].take_instructions();
-    new_entry_block_instructions.extend(entry_block_instructions);
-
-    for instruction_id in new_entry_block_instructions {
-        function.dfg[entry_block_id].insert_instruction(instruction_id);
-    }
+    function.dfg[entry_block_id].instructions_mut().extend(entry_block_instructions);
 
     // Then keep only those parameters for which the argument is not a constant
     let mut new_parameters = Vec::new();
