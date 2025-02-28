@@ -30,7 +30,7 @@ pub(crate) fn trim_leading_whitespace_from_lines(src: &str) -> String {
         result.push('\n');
         // Try to remove just `difference` spaces to preserve indents
         if line.len() - line.trim_start().len() >= difference {
-            result.push_str(&line.chars().skip(difference).collect::<String>())
+            result.push_str(&line.chars().skip(difference).collect::<String>());
         } else {
             result.push_str(line.trim_start());
         }
