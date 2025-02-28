@@ -1,4 +1,4 @@
-pub(crate) mod conv;
+pub(crate) mod convert;
 
 pub(crate) mod acir {
 
@@ -18,7 +18,7 @@ pub(crate) mod acir {
     }
 }
 
-#[allow(unreachable_pub)]
+#[allow(unreachable_pub, clippy::enum_variant_names)]
 pub(crate) mod brillig {
     include!(concat!(env!("OUT_DIR"), "/acvm.brillig.rs"));
 }

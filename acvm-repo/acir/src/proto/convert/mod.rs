@@ -15,8 +15,6 @@ pub(crate) struct ProtoSchema<F> {
     field: PhantomData<F>,
 }
 
-impl<F> ProtoSchema<F>
-
 impl<F> ProtoCodec<circuit::Program<F>, Program> for ProtoSchema<F>
 where
     F: AcirField,

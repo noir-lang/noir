@@ -46,4 +46,19 @@ pub trait ProtoCodec<T, R> {
     {
         Self::encode(value).into()
     }
+    /// Encode a domain type to protobuf and serialize it to bytes.
+    fn serialize_to_vec(value: &T) -> Vec<u8>
+    where
+        R: prost::Message,
+    {
+        Self::encode(value).encode_to_vec()
+    }
+    /// Deserialize a buffer into protobuf and then decode into the domain type.
+    fn deserialize_from_vec(buf: &[u8]) -> eyre::Result<T>
+    where
+        R: prost::Message + Default,
+    {
+        let repr = R::decode(buf).wrap_err("failed to decode into protobuf")?;
+        Self::decode(&repr).wrap_err("failed to decode protobuf into domain")
+    }
 }

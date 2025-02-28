@@ -8,9 +8,12 @@ fn main() {
 
     prost_build::compile_protos(
         &[
+            // DTOs for a `Program`, which work with the types in `acir.cpp`
             "./src/proto/program.proto",
+            // DTOs for the `WitnessStack`, which work with the types in `witness.cpp`
+            "./src/proto/acir/witness.proto",
+            // A pared down DTO for `Program`, so Barretenberg can ignore the Brillig part.
             // This is only included to make sure it compiles.
-            // A separate compilation is needed to turn it into C++ code.
             "./src/proto/acir/program.proto",
         ],
         &[Path::new("./src/proto"), include_dir.as_path()],

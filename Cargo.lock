@@ -13,7 +13,6 @@ dependencies = [
  "color-eyre",
  "criterion",
  "flate2",
- "flexbuffers",
  "fxhash",
  "noir_protobuf",
  "pprof",
@@ -1749,19 +1748,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "flexbuffers"
-version = "25.2.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "935627e7bc8f083035d9faad09ffaed9128f73fb1f74a8798f115749c43378e8"
-dependencies = [
- "bitflags 1.3.2",
- "byteorder",
- "num_enum",
- "serde",
- "serde_derive",
-]
-
-[[package]]
 name = "float-cmp"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2702,7 +2688,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fcae0c6c159e11541080f1f829873d8f374f81eda0abc67695a13fc8dc1a580"
 dependencies = [
  "heck 0.5.0",
- "proc-macro-crate 3.2.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.98",
@@ -3658,27 +3644,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_enum"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f646caf906c20226733ed5b1374287eb97e3c2a5c227ce668c1f2ce20ae57c9"
-dependencies = [
- "num_enum_derive",
-]
-
-[[package]]
-name = "num_enum_derive"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcbff9bc912032c62bf65ef1d5aea88983b420f4f839db1e9b0c281a25c9c799"
-dependencies = [
- "proc-macro-crate 1.3.1",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "numtoa"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4039,16 +4004,6 @@ dependencies = [
  "lazy_static",
  "term",
  "unicode-width",
-]
-
-[[package]]
-name = "proc-macro-crate"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f4c021e1093a56626774e81216a4ce732a735e5bad4868a03f3ed65ca0c3919"
-dependencies = [
- "once_cell",
- "toml_edit 0.19.15",
 ]
 
 [[package]]

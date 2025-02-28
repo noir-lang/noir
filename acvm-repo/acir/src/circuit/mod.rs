@@ -2,8 +2,12 @@ pub mod black_box_functions;
 pub mod brillig;
 pub mod opcodes;
 
-use crate::native_types::{Expression, Witness};
+use crate::{
+    native_types::{Expression, Witness},
+    proto::convert::ProtoSchema,
+};
 use acir_field::AcirField;
+use noir_protobuf::ProtoCodec as _;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -254,7 +258,7 @@ impl<F: Serialize + AcirField> Program<F> {
             // s.take_buffer()
 
             // # Protobuf
-            let s = crate::proto::conv::ProtoSchema::<F>;
+            ProtoSchema::<F>::serialize_to_vec(self)
         };
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
@@ -279,7 +283,7 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
@@ -292,8 +296,11 @@ impl<F: for<'a> Deserialize<'a>> Program<F> {
             // ciborium::from_reader(buf.as_slice())
 
             // # FlexBuffers
-            let r = flexbuffers::Reader::get_root(buf.as_slice()).map_err(std::io::Error::other)?;
-            Self::deserialize(r)
+            // let r = flexbuffers::Reader::get_root(buf.as_slice()).map_err(std::io::Error::other)?;
+            // Self::deserialize(r)
+
+            // # Protobuf
+            ProtoSchema::<F>::deserialize_from_vec(&buf)
         };
         result.map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
