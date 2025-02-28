@@ -215,11 +215,7 @@ impl Context<'_> {
         typ: NumericType,
     ) -> ValueId {
         let max = if typ.is_unsigned() {
-            if bit_size == 128 {
-                u128::MAX
-            } else {
-                (1_u128 << bit_size) - 1
-            }
+            if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 }
         } else {
             1_u128 << (bit_size - 1)
         };
