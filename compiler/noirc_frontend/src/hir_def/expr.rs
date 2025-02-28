@@ -455,7 +455,7 @@ impl Constructor {
                 };
 
                 let def_ref = def.borrow();
-                if let Some(variants) = def_ref.get_variants(&generics) {
+                if let Some(variants) = def_ref.get_variants(generics) {
                     vecmap(variants.into_iter().enumerate(), |(i, (_, fields))| {
                         (Constructor::Variant(typ.clone(), i), fields.len())
                     })

@@ -1203,9 +1203,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
     }
 
-    fn find_missing_values<'tree>(
+    fn find_missing_values(
         &self,
-        tree: &'tree HirMatch,
+        tree: &HirMatch,
         env: &mut HashMap<DefinitionId, Case>,
         missing_cases: &mut BTreeSet<String>,
         starting_id: Option<DefinitionId>,
@@ -1213,10 +1213,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         match tree {
             HirMatch::Success(_) | HirMatch::Failure { missing_case: false } => (),
             HirMatch::Guard { otherwise, .. } => {
-                self.find_missing_values(&otherwise, env, missing_cases, starting_id);
+                self.find_missing_values(otherwise, env, missing_cases, starting_id);
             }
             HirMatch::Failure { missing_case: true } => {
-                let case = self.construct_missing_case(starting_id, env);
+                let case = Self::construct_missing_case(starting_id, env);
                 missing_cases.insert(case);
             }
             HirMatch::Switch(definition_id, cases, else_case) => {
@@ -1225,7 +1225,6 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     self.find_missing_values(&case.body, env, missing_cases, starting_id);
                 }
 
-                // Want to specify each missing case here instead of defaulting to `_`
                 if let Some(else_case) = else_case {
                     for case in self.missing_cases(cases) {
                         env.insert(*definition_id, case);
@@ -1260,7 +1259,6 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     }
 
     fn construct_missing_case(
-        &self,
         starting_id: Option<DefinitionId>,
         env: &HashMap<DefinitionId, Case>,
     ) -> String {
@@ -1276,7 +1274,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         let no_arguments = case.arguments.is_empty();
 
         let args =
-            vecmap(&case.arguments, |arg| self.construct_missing_case(Some(*arg), env)).join(", ");
+            vecmap(&case.arguments, |arg| Self::construct_missing_case(Some(*arg), env)).join(", ");
 
         if no_arguments { constructor } else { format!("{constructor}({args})") }
     }
