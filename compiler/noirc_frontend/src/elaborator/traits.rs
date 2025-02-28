@@ -349,6 +349,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             definition_type,
             method_name,
             &meta.parameters,
+            &meta.return_type,
             meta.name.location,
             &trait_info.name.0.contents,
             &mut errors,
@@ -363,6 +364,7 @@ fn check_function_type_matches_expected_type(
     actual: &Type,
     method_name: &str,
     actual_parameters: &Parameters,
+    actual_return_type: &FunctionReturnType,
     location: Location,
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
@@ -395,7 +397,7 @@ fn check_function_type_matches_expected_type(
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),
-                    expr_location: location,
+                    expr_location: actual_return_type.location(),
                 });
             }
         } else {

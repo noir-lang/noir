@@ -930,6 +930,13 @@ impl FunctionReturnType {
             FunctionReturnType::Ty(typ) => Cow::Borrowed(typ),
         }
     }
+
+    pub fn location(&self) -> Location {
+        match self {
+            FunctionReturnType::Default(location) => *location,
+            FunctionReturnType::Ty(typ) => typ.location,
+        }
+    }
 }
 
 impl Display for FunctionReturnType {

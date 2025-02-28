@@ -381,7 +381,6 @@ fn check_trait_implementation_duplicate_method() {
 
 #[test]
 fn check_trait_wrong_method_return_type() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default() -> Self;
@@ -392,7 +391,7 @@ fn check_trait_wrong_method_return_type() {
 
     impl Default for Foo {
         fn default() -> Field {
-           ^^^^^^^ Expected type Foo, found type Field
+                        ^^^^^ Expected type Foo, found type Field
             0
         }
     }
@@ -406,7 +405,6 @@ fn check_trait_wrong_method_return_type() {
 
 #[test]
 fn check_trait_wrong_method_return_type2() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field, y: Field) -> Self;
@@ -419,7 +417,7 @@ fn check_trait_wrong_method_return_type2() {
 
     impl Default for Foo {
         fn default(x: Field, _y: Field) -> Field {
-           ^^^^^^^ Expected type Foo, found type Field
+                                           ^^^^^ Expected type Foo, found type Field
             x
         }
     }
@@ -427,6 +425,31 @@ fn check_trait_wrong_method_return_type2() {
     fn main() {
         let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
     }";
+    check_errors(src);
+}
+
+#[test]
+fn check_trait_wrong_method_return_type3() {
+    let src = "
+    trait Default {
+        fn default(x: Field, y: Field) -> Self;
+    }
+
+    struct Foo {
+        bar: Field,
+        array: [Field; 2],
+    }
+
+    impl Default for Foo {
+        fn default(_x: Field, _y: Field) {
+                                       ^^^ Expected type Foo, found type ()
+        }
+    }
+
+    fn main() {
+        let _ = Foo { bar: 1, array: [2, 3] }; // silence Foo never constructed warning
+    }
+    ";
     check_errors(src);
 }
 

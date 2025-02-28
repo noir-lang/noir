@@ -109,10 +109,8 @@ impl Parser<'_> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (
-                FunctionReturnType::Default(self.location_at_previous_token_end()),
-                Visibility::Private,
-            )
+            let location = self.previous_token_location.merge(self.current_token_location);
+            (FunctionReturnType::Default(location), Visibility::Private)
         };
 
         let where_clause = self.parse_where_clause();
