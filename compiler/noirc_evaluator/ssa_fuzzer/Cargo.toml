@@ -51,3 +51,11 @@ test-case.workspace = true
 [features]
 bn254 = ["noirc_frontend/bn254"]
 bls12_381 = []
+
+[[bin]]
+name = "optimization_bug_1"
+path = "src/optimization_bug_1.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"

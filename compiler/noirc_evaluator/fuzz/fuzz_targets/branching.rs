@@ -22,7 +22,7 @@ use noirc_driver::{CompiledProgram, CompileError};
 
 // so small to make more eq variables, just to add more booleans
 #[derive(Arbitrary, Debug, Clone, Hash)]
-enum Instructions {
+enum Instruction {
     Eq {
         lhs: u32,
         rhs: u32,
@@ -38,7 +38,7 @@ enum Instructions {
 }
 
 #[derive(Arbitrary, Debug, Clone, Hash)]
-enum Terminators {
+enum Terminator {
     Return {
         return_value_index: u32,
     },
@@ -55,7 +55,7 @@ enum Terminators {
 
 // used for boolean logic
 #[derive(Arbitrary, Debug, Clone, Hash)]
-enum LogicalInstructions {
+enum LogicalInstruction {
     And {
         lhs: u32,
         rhs: u32,
@@ -80,7 +80,7 @@ enum LogicalInstructions {
         lhs: u32,
     },
     TerminateWith {
-        terminator: Terminators,
+        terminator: Terminator,
         block_index: u32,
     }
 }
@@ -146,8 +146,8 @@ struct FuzzerContext {
     brillig_builder: FuzzerBuilder,
     acir_variables_indices: Vec<u32>,
     brillig_variables_indices: Vec<u32>,
-    acir_boolean_variables_indices: Vec<u32>,
-    brillig_boolean_variables_indices: Vec<u32>,
+    block_acir_boolean_variables_indices: Vec<u32>,
+    block_brillig_boolean_variables_indices: Vec<u32>,
     acir_blocks_indices: Vec<u32>,
     brillig_blocks_indices: Vec<u32>,
     acir_entry_block_index: u32,
@@ -155,6 +155,8 @@ struct FuzzerContext {
     acir_terminated_blocks_indices: Vec<u32>,
     brillig_terminated_blocks_indices: Vec<u32>,
     // if we are in block, it has other context, we cannot use variable from other blocks
+    acir_blocks_local_variables: Vec<Vec<u32>>,
+    brillig_blocks_local_variables: Vec<Vec<u32>>,
     acir_current_block_variables_indices: Vec<u32>,
     brillig_current_block_variables_indices: Vec<u32>,
 }
@@ -169,19 +171,22 @@ impl FuzzerContext {
         let brillig_entry_block = brillig_builder.get_entry_block_index();
         let acir_variables_indices: Vec<u32> = (0..config::NUMBER_OF_VARIABLES_INITIAL).collect();
         let brillig_variables_indices: Vec<u32> = (0..config::NUMBER_OF_VARIABLES_INITIAL).collect();
-        
+        let acir_blocks_local_variables: Vec<Vec<u32>> = vec![];
+        let brillig_blocks_local_variables: Vec<Vec<u32>> = vec![];
+
         Self {
             acir_variables_indices: acir_variables_indices.clone(),
             brillig_variables_indices: brillig_variables_indices.clone(),
-            acir_boolean_variables_indices: vec![],
-            brillig_boolean_variables_indices: vec![],
+            block_acir_boolean_variables_indices: vec![],
+            block_brillig_boolean_variables_indices: vec![],
             acir_blocks_indices: vec![],
             brillig_blocks_indices: vec![],
             acir_entry_block_index: acir_entry_block,
             brillig_entry_block_index: brillig_entry_block,
-            acir_terminated_blocks_indices: vec![],
-            brillig_terminated_blocks_indices: vec![],
-            // TODO FIRST BLOCK ADD TO GLOBAL VARIABLES
+            acir_terminated_blocks_indices: vec![acir_entry_block],
+            brillig_terminated_blocks_indices: vec![brillig_entry_block],
+            acir_blocks_local_variables,
+            brillig_blocks_local_variables,
             acir_current_block_variables_indices: acir_variables_indices.clone(),
             brillig_current_block_variables_indices: brillig_variables_indices.clone(),
             acir_builder,
@@ -189,9 +194,12 @@ impl FuzzerContext {
         }
     }
 
-    fn insert_arithmetic_instruction(&mut self, instruction: Instructions) {
+    fn insert_arithmetic_instruction(&mut self, instruction: Instruction) {
         match instruction {
-            Instructions::Add { lhs, rhs } => {
+            Instruction::Add { lhs, rhs } => {
+                if !both_indices_presented(lhs, rhs, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
+                    return;
+                }
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
@@ -202,7 +210,10 @@ impl FuzzerContext {
                     &mut self.brillig_current_block_variables_indices
                 );
             }
-            Instructions::Sub { lhs, rhs } => {
+            Instruction::Sub { lhs, rhs } => {
+                if !both_indices_presented(lhs, rhs, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
+                    return;
+                }
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
@@ -213,7 +224,7 @@ impl FuzzerContext {
                     &mut self.brillig_current_block_variables_indices
                 );
             }
-            Instructions::Eq { lhs, rhs } => {
+            Instruction::Eq { lhs, rhs } => {
                 if !both_indices_presented(lhs, rhs, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
                     return;
                 }
@@ -221,8 +232,8 @@ impl FuzzerContext {
                 let rhs = u32_to_id_value(rhs);
                 let acir_result = self.acir_builder.insert_eq_instruction(lhs, rhs);
                 let brillig_result = self.brillig_builder.insert_eq_instruction(lhs, rhs);
-                self.acir_boolean_variables_indices.push(id_to_int(acir_result));
-                self.brillig_boolean_variables_indices.push(id_to_int(brillig_result));
+                self.block_acir_boolean_variables_indices.push(id_to_int(acir_result));
+                self.block_brillig_boolean_variables_indices.push(id_to_int(brillig_result));
             }
             _ => {
                 return;
@@ -230,86 +241,99 @@ impl FuzzerContext {
         }
     }
 
-    fn insert_logical_instruction(&mut self, instruction: LogicalInstructions) {
+    fn insert_logical_instruction(&mut self, instruction: LogicalInstruction) {
         match instruction {
-            LogicalInstructions::And { lhs, rhs } => {
+            LogicalInstruction::And { lhs, rhs } => {
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs,
                     rhs,
                     |builder, lhs, rhs| builder.insert_and_instruction(lhs, rhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::Or { lhs, rhs } => {
+            LogicalInstruction::Or { lhs, rhs } => {
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs,
                     rhs,
                     |builder, lhs, rhs| builder.insert_or_instruction(lhs, rhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::Xor { lhs, rhs } => {
+            LogicalInstruction::Xor { lhs, rhs } => {
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs,
                     rhs,
                     |builder, lhs, rhs| builder.insert_xor_instruction(lhs, rhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::Eq { lhs, rhs } => {
+            LogicalInstruction::Eq { lhs, rhs } => {
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs,
                     rhs,
                     |builder, lhs, rhs| builder.insert_eq_instruction(lhs, rhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::Lt { lhs, rhs } => {
+            LogicalInstruction::Lt { lhs, rhs } => {
                 insert_instruction_with_double_args(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs,
                     rhs,
                     |builder, lhs, rhs| builder.insert_lt_instruction(lhs, rhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::Not { lhs } => {
+            LogicalInstruction::Not { lhs } => {
+                if !index_presented(lhs, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
+                    return;
+                }
                 insert_instruction_with_single_arg(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     lhs, 
                     |builder, lhs| builder.insert_not_instruction(lhs),
-                    &mut self.acir_boolean_variables_indices,
-                    &mut self.brillig_boolean_variables_indices
+                    &mut self.block_acir_boolean_variables_indices,
+                    &mut self.block_brillig_boolean_variables_indices
                 );
             }
-            LogicalInstructions::TerminateWith { terminator, block_index } => {
+            LogicalInstruction::TerminateWith { terminator, block_index } => {
                 self.insert_terminator(terminator, block_index);
             }
         }
     }
 
-    fn insert_terminator(&mut self, terminator: Terminators, block_index: u32) {
+    fn insert_terminator(&mut self, terminator: Terminator, block_index: u32) {
         // if we already terminated block
         if index_presented(block_index, &mut self.acir_terminated_blocks_indices, &mut self.brillig_terminated_blocks_indices) {
             return;
         }
+
+        // if block is not created
+        if !index_presented(block_index, &mut self.acir_blocks_indices, &mut self.brillig_blocks_indices) {
+            return;
+        }
+
+        // switch to block and insert terminator
+        self.acir_builder.switch_to_block(u32_to_id_basic_block(block_index));
+        self.brillig_builder.switch_to_block(u32_to_id_basic_block(block_index));
+
         match terminator {
-            Terminators::Return { return_value_index } => {
+            Terminator::Return { return_value_index } => {
                 if !index_presented(return_value_index, &mut self.acir_variables_indices, &mut self.brillig_variables_indices) {
                     return;
                 }
@@ -317,17 +341,12 @@ impl FuzzerContext {
                 self.acir_builder.insert_return_instruction(return_value);
                 self.brillig_builder.insert_return_instruction(return_value);
             }
-            Terminators::Jmp { destination_block_index } => {
-                if !index_presented(destination_block_index, &mut self.acir_blocks_indices, &mut self.brillig_blocks_indices) {
-                    return;
-                }
-                let destination_block = u32_to_id_basic_block(destination_block_index);
-                self.acir_builder.insert_jmp_instruction(destination_block);
-                self.brillig_builder.insert_jmp_instruction(destination_block);
-            }
-            Terminators::JmpIf { condition_index, then_destination_block_index, else_destination_block_index } => {
-                if !index_presented(condition_index, &mut self.acir_boolean_variables_indices, &mut self.brillig_boolean_variables_indices) {
-                    return;
+            Terminator::JmpIf { condition_index, then_destination_block_index, else_destination_block_index } => {
+                // logic if or field if
+                if !index_presented(condition_index, &mut self.block_acir_boolean_variables_indices, &mut self.block_brillig_boolean_variables_indices) {
+                    if !index_presented(condition_index, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
+                        return;
+                    }
                 }
                 if !both_indices_presented(then_destination_block_index, else_destination_block_index, &mut self.acir_blocks_indices, &mut self.brillig_blocks_indices) {
                     return;
@@ -339,52 +358,81 @@ impl FuzzerContext {
                 self.acir_builder.insert_jmpif_instruction(condition, then_destination_block, else_destination_block);
                 self.brillig_builder.insert_jmpif_instruction(condition, then_destination_block, else_destination_block);
             }
+            _ => {
+                return;
+            }
         }
     }
 
+    fn store_current_block_variables(&mut self) {
+        self.acir_blocks_local_variables.push(self.acir_current_block_variables_indices.clone());
+        self.brillig_blocks_local_variables.push(self.brillig_current_block_variables_indices.clone());
+    }
+
     fn create_new_block_and_switch(&mut self) {
+        // replace all local for block variables with new local variables
+        self.store_current_block_variables();
+
         let new_acir_block_index = self.acir_builder.insert_block();
         let new_brillig_block_index = self.brillig_builder.insert_block();
         self.acir_blocks_indices.push(new_acir_block_index);
         self.brillig_blocks_indices.push(new_brillig_block_index);
+        // and set current block variables to block local variables
         self.acir_current_block_variables_indices = self.acir_variables_indices.clone();
         self.brillig_current_block_variables_indices = self.brillig_variables_indices.clone();
+
         self.acir_builder.switch_to_block(u32_to_id_basic_block(new_acir_block_index));
         self.brillig_builder.switch_to_block(u32_to_id_basic_block(new_brillig_block_index));
+        self.block_acir_boolean_variables_indices = vec![];
+        self.block_brillig_boolean_variables_indices = vec![];
     }
 
     fn finalize_block(&mut self, block_index: u32) {
         if index_presented(block_index, &mut self.acir_terminated_blocks_indices, &mut self.brillig_terminated_blocks_indices) {
             return;
         }
-        let acir_result_index = *self.acir_variables_indices.last().unwrap();
-        let brillig_result_index = *self.brillig_variables_indices.last().unwrap();
+        // finalize block with last local variable
+        let acir_block_variables = self.acir_blocks_local_variables.get(block_index as usize).unwrap();
+        let brillig_block_variables = self.brillig_blocks_local_variables.get(block_index as usize).unwrap();
+        let acir_result_index = *acir_block_variables.last().unwrap();
+        let brillig_result_index = *brillig_block_variables.last().unwrap();
         self.acir_builder.switch_to_block(u32_to_id_basic_block(block_index));
         self.brillig_builder.switch_to_block(u32_to_id_basic_block(block_index));
-        self.acir_builder.finalize_function(u32_to_id_value(acir_result_index));
-        self.brillig_builder.finalize_function(u32_to_id_value(brillig_result_index));
+      
+        self.acir_builder.insert_return_instruction(u32_to_id_value(acir_result_index));
+        self.brillig_builder.insert_return_instruction(u32_to_id_value(brillig_result_index));
+
+        self.acir_terminated_blocks_indices.push(block_index);
+        self.brillig_terminated_blocks_indices.push(block_index);
     }
 
     fn finalize_all_blocks(&mut self) {
+        // last block not stored
+        self.store_current_block_variables();
         let block_indices: Vec<_> = self.acir_blocks_indices.clone();
-        for block_index in block_indices {
-            self.finalize_block(block_index);
+        for block_index in 0..block_indices.len() {
+            self.finalize_block(block_indices[block_index]);
         }
 
         self.acir_builder.switch_to_block(u32_to_id_basic_block(self.acir_entry_block_index));
         self.brillig_builder.switch_to_block(u32_to_id_basic_block(self.brillig_entry_block_index));
-        let acir_result_index = *self.acir_variables_indices.last().unwrap();
-        let brillig_result_index = *self.brillig_variables_indices.last().unwrap();
         //jmp to first block and let it crash
-        self.acir_builder.insert_jmp_instruction(u32_to_id_basic_block(self.acir_blocks_indices[0]));
-        self.brillig_builder.insert_jmp_instruction(u32_to_id_basic_block(self.brillig_blocks_indices[0]));
+
+        // I HATE THIS
+
+        let acir_true_val = self.acir_builder.numeric_constant(FieldElement::from(1_u32));
+        let brillig_true_val = self.brillig_builder.numeric_constant(FieldElement::from(1_u32));
+        let first_acir_block = u32_to_id_basic_block(self.acir_blocks_indices[1]);
+        let first_brillig_block = u32_to_id_basic_block(self.brillig_blocks_indices[1]);
+        self.acir_builder.insert_jmpif_instruction(acir_true_val, first_acir_block, first_acir_block);
+        self.brillig_builder.insert_jmpif_instruction(brillig_true_val, first_brillig_block, first_brillig_block);
     }
 
     fn get_return_witnesses(&mut self) -> (Witness, Witness) {
         let acir_result_index = *self.acir_variables_indices.last().unwrap();
         let brillig_result_index = *self.brillig_variables_indices.last().unwrap();
-        let mut acir_result_witness = Witness(acir_result_index);
-        let mut brillig_result_witness = Witness(brillig_result_index);
+        let mut acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
+        let mut brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
 
         if self.acir_variables_indices.len() as u32 != config::NUMBER_OF_VARIABLES_INITIAL {
             acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
@@ -400,12 +448,12 @@ impl FuzzerContext {
 
 #[derive(Arbitrary, Debug, Clone, Hash)]
 struct Block {
-    instructions: [Option<Instructions>; config::MAX_NUMBER_OF_INSTRUCTIONS as usize],
+    instructions: [Option<Instruction>; config::MAX_NUMBER_OF_INSTRUCTIONS as usize],
+    logical_instructions: [Option<LogicalInstruction>; config::MAX_NUMBER_OF_INSTRUCTIONS as usize],
 }
 #[derive(Arbitrary, Debug, Clone, Hash)]
 struct FuzzerData {
     blocks: [Block; config::NUMBER_OF_BLOCKS_INITIAL as usize],
-    logical_instructions: [Option<LogicalInstructions>; config::MAX_NUMBER_OF_INSTRUCTIONS as usize],
     initial_witness: [String; config::NUMBER_OF_VARIABLES_INITIAL as usize],
 }
 
@@ -429,7 +477,6 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
 
     let initial_witness = witness_map;
     log::debug!("instructions: {:?}", data.blocks.clone());
-    log::debug!("logical_instructions: {:?}", data.logical_instructions.clone());
     log::debug!("initial_witness: {:?}", initial_witness);
 
     let mut fuzzer_context = FuzzerContext::new(type_.clone());
@@ -438,6 +485,16 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         match instruction {
             Some(instruction) => {
                 fuzzer_context.insert_arithmetic_instruction(instruction);
+            }
+            None => {
+                continue;
+            }
+        }
+    }
+    for logical_instruction in data.blocks[0].logical_instructions.clone() {
+        match logical_instruction {
+            Some(instruction) => {
+                fuzzer_context.insert_logical_instruction(instruction);
             }
             None => {
                 continue;
@@ -456,14 +513,14 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                 }
             }
         }
-    }
-    for logical_instruction in data.logical_instructions {
-        match logical_instruction {
-            Some(instruction) => {
-                fuzzer_context.insert_logical_instruction(instruction);
+        for logical_instruction in block.logical_instructions {
+            match logical_instruction {
+                Some(instruction) => {
+                    fuzzer_context.insert_logical_instruction(instruction);
             }
             None => {
                 continue;
+                }
             }
         }
     }

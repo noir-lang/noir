@@ -25,6 +25,25 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug executable 'fuzz_targets/branching'",
+            "cargo": {
+                "args": [
+                    "fuzz",
+                    "run",
+                    "branching",
+                    "/home/defkit/noir/compiler/noirc_evaluator/fuzz/corpus/branching/a5071ae051778c447d77106bb60b5add875f41f7",
+                ],
+                "filter": {
+                    "name": "branching",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in executable 'ssa_verification'",
             "cargo": {
                 "args": [

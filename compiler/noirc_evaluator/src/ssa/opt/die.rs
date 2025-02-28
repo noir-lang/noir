@@ -26,7 +26,7 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_inner(true)
+        self.dead_instruction_elimination_inner(true, false)
     }
 
     /// Post the Brillig generation we do not need to run this pass on Brillig functions.

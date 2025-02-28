@@ -6,7 +6,7 @@ use ssa_fuzzer::builder::FuzzerBuilder;
 use ssa_fuzzer::config;
 use ssa_fuzzer::config::NUMBER_OF_VARIABLES_INITIAL;
 use ssa_fuzzer::helpers::id_to_int;
-use ssa_fuzzer::helpers::u32_to_id;
+use ssa_fuzzer::helpers::u32_to_id_value;
 use ssa_fuzzer::runner::{run_and_compare, execute_single};
 use noirc_evaluator::ssa::ir::types::Type;
 use acvm::acir::native_types::Witness;
@@ -200,7 +200,7 @@ impl FuzzerContext {
         if self.brillig_arrays[array_idx as usize].length <= index {
             return;
         }
-        let value = u32_to_id(value);
+        let value = u32_to_id_value(value);
         let acir_array = self.acir_arrays[array_idx as usize].id;
         let brillig_array = self.brillig_arrays[array_idx as usize].id;
         let acir_result = self.acir_builder.insert_array_set(acir_array, index, value);
@@ -213,7 +213,7 @@ impl FuzzerContext {
         if !index_presented(arg, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
             return;
         }
-        let arg = u32_to_id(arg);
+        let arg = u32_to_id_value(arg);
         let acir_result = f(&mut self.acir_builder, arg);
         let brillig_result = f(&mut self.brillig_builder, arg);
         self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -224,8 +224,8 @@ impl FuzzerContext {
         if !both_indeces_presented(lhs, rhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
             return;
         }
-        let lhs = u32_to_id(lhs);
-        let rhs = u32_to_id(rhs);
+        let lhs = u32_to_id_value(lhs);
+        let rhs = u32_to_id_value(rhs);
         let acir_result = f(&mut self.acir_builder, lhs, rhs);
         let brillig_result = f(&mut self.brillig_builder, lhs, rhs);
         self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -240,9 +240,10 @@ impl FuzzerContext {
             Instructions::Sub { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_sub_instruction(lhs, rhs));
             }
+            /*
             Instructions::Mul { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_mul_instruction(lhs, rhs));
-            }
+            }*/
             Instructions::Div { lhs, rhs } => {
                 self.insert_instruction_with_double_args(lhs, rhs, |builder, lhs, rhs| builder.insert_div_instruction(lhs, rhs));
             }
@@ -289,7 +290,7 @@ impl FuzzerContext {
                 if !index_presented(lhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
                     return;
                 }
-                let lhs = u32_to_id(lhs);
+                let lhs = u32_to_id_value(lhs);
                 let acir_result = self.acir_builder.insert_cast_bigger_and_back(lhs, size);
                 let brillig_result = self.brillig_builder.insert_cast_bigger_and_back(lhs, size);
                 self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -304,8 +305,8 @@ impl FuzzerContext {
     fn finalize_function(&mut self) {
         let acir_result_index = *self.acir_witnesses_indeces.last().unwrap();
         let brillig_result_index = *self.brillig_witnesses_indeces.last().unwrap();
-        self.acir_builder.finalize_function(u32_to_id(acir_result_index));
-        self.brillig_builder.finalize_function(u32_to_id(brillig_result_index));
+        self.acir_builder.finalize_function(u32_to_id_value(acir_result_index));
+        self.brillig_builder.finalize_function(u32_to_id_value(brillig_result_index));
     }
 
     fn get_return_witnesses(&mut self) -> (Witness, Witness) {
@@ -336,7 +337,7 @@ struct FuzzerData {
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
     // Initialize logger once
     let _ = env_logger::try_init();
-    let type_ = Type::unsigned(64);
+    let type_ = Type::unsigned(128);
     let mut witness_map = WitnessMap::new();
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);

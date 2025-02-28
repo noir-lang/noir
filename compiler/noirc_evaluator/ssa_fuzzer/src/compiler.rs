@@ -43,8 +43,8 @@ fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) ->
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
-    /*let formatted_ssa = format!("{}", ssa);
-    println!("formatted_ssa: {:?}", formatted_ssa);*/
+    //let formatted_ssa = format!("{}", ssa);
+    //println!("formatted_ssa: {:?}", formatted_ssa);
     match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
         Ok(artifacts) => {
             Ok(ArtifactsAndWarnings(artifacts, vec![]))

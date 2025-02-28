@@ -11,6 +11,7 @@ use noirc_driver::{CompileOptions, CompiledProgram, CompileError};
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use acvm::FieldElement;
 
 pub struct FuzzerBuilder {
     builder: FunctionBuilder,
@@ -214,19 +215,24 @@ impl FuzzerBuilder {
     }
 
     pub fn insert_block(&mut self) -> u32 {
-        return helpers::id_to_int(self.builder.insert_block());
+        let id = self.builder.insert_block();
+        return helpers::id_to_int(id);
     }
 
     pub fn insert_return_instruction(&mut self, return_value: Id<Value>) {
         self.builder.terminate_with_return(vec![return_value]);
     }
 
-    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId) {
+    pub fn insert_jmp_instruction(&mut self, destination: BasicBlockId, params: Vec<Id<Value>>) {
         // we have no arguments to jump to the destination block, we work in single function
-        self.builder.terminate_with_jmp(destination, vec![]);
+        self.builder.terminate_with_jmp(destination, params);
     }
 
     pub fn insert_jmpif_instruction(&mut self, condition: Id<Value>, then_destination: BasicBlockId, else_destination: BasicBlockId) {
         self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+    }
+
+    pub fn numeric_constant(&mut self, value: impl Into<FieldElement>) -> Id<Value> {
+        self.builder.numeric_constant(value.into(), self.numeric_type.clone())
     }
 }
