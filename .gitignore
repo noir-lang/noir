@@ -56,3 +56,6 @@ codegen
 
 **/cspell.json
 !./cspell.json
+
+mutants.out
+mutants.out.old

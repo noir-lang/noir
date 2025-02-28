@@ -1,8 +1,8 @@
 //! These witness functions are only used by the ACVM CLI and we'll most likely deprecate them.
 use std::{collections::BTreeMap, path::Path};
 
-use acir::{native_types::Witness, FieldElement};
-use acvm::acir::{native_types::WitnessMap, AcirField};
+use acir::{FieldElement, native_types::Witness};
+use acvm::acir::{AcirField, native_types::WitnessMap};
 
 use noir_artifact_cli::errors::{CliError, FilesystemError};
 

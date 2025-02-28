@@ -5,11 +5,11 @@ use std::{
 };
 
 use super::{
+    Ssa,
     ir::{
         instruction::BinaryOp,
         types::{NumericType, Type},
     },
-    Ssa,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -675,11 +675,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value_or_error(&mut self) -> ParseResult<ParsedValue> {
-        if let Some(value) = self.parse_value()? {
-            Ok(value)
-        } else {
-            self.expected_value()
-        }
+        if let Some(value) = self.parse_value()? { Ok(value) } else { self.expected_value() }
     }
 
     fn parse_value(&mut self) -> ParseResult<Option<ParsedValue>> {
@@ -852,11 +848,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
-        if let Some(ident) = self.eat_ident()? {
-            Ok(ident)
-        } else {
-            self.expected_identifier()
-        }
+        if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
     fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
@@ -879,11 +871,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
-        if let Some(int) = self.eat_int()? {
-            Ok(int)
-        } else {
-            self.expected_int()
-        }
+        if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
     fn eat_int_type(&mut self) -> ParseResult<Option<IntType>> {
@@ -933,11 +921,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? {
-            Ok(())
-        } else {
-            self.expected_token(token)
-        }
+        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
     }
 
     fn at(&self, token: Token) -> bool {

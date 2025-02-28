@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use fm::FileId;
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
     ast::{AttributeTarget, Visitor},
     graph::CrateId,
     hir::{
@@ -19,7 +20,6 @@ use noirc_frontend::{
     parser::ParsedSubModule,
     token::MetaAttribute,
     usage_tracker::UsageTracker,
-    ParsedModule,
 };
 
 use crate::modules::module_def_id_to_reference_id;
@@ -65,7 +65,7 @@ impl<'a> AttributeReferenceFinder<'a> {
     }
 }
 
-impl<'a> Visitor for AttributeReferenceFinder<'a> {
+impl Visitor for AttributeReferenceFinder<'_> {
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, _span: Span) -> bool {
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;

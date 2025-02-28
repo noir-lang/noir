@@ -10,8 +10,8 @@ use gloo_utils::format::JsValueSerdeExt;
 
 use noirc_driver::{GIT_COMMIT, GIT_DIRTY, NOIRC_VERSION};
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 use tracing_web::MakeWebConsoleWriter;
 
 mod compile;
@@ -21,8 +21,8 @@ mod errors;
 pub use compile::{compile_contract, compile_program};
 
 // Expose the new Context-Centric API
-pub use compile_new::{compile_contract_, compile_program_, CompilerContext, CrateIDWrapper};
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+pub use compile_new::{CompilerContext, CrateIDWrapper, compile_contract_, compile_program_};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildInfo {

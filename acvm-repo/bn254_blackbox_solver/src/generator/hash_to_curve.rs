@@ -62,11 +62,7 @@ pub(crate) fn hash_to_curve(seed: &[u8], attempt_count: u8) -> Affine {
     if let Some(point) = Affine::get_point_from_x_unchecked(x, false) {
         let parity_bit = hash_hi[0] > 127;
         let y_bit_set = point.y().unwrap().into_bigint().get_bit(0);
-        if (parity_bit && !y_bit_set) || (!parity_bit && y_bit_set) {
-            -point
-        } else {
-            point
-        }
+        if (parity_bit && !y_bit_set) || (!parity_bit && y_bit_set) { -point } else { point }
     } else {
         hash_to_curve(seed, attempt_count + 1)
     }

@@ -1,10 +1,10 @@
 #![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand, command};
 use color_eyre::eyre;
 use const_format::formatcp;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 use noir_artifact_cli::commands::execute_cmd;
 

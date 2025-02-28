@@ -1,12 +1,12 @@
 use crate::compile::{
-    file_manager_with_source_map, JsCompileContractResult, JsCompileProgramResult,
-    PathToFileSourceMap,
+    JsCompileContractResult, JsCompileProgramResult, PathToFileSourceMap,
+    file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
 use acvm::acir::circuit::ExpressionWidth;
 use nargo::parse_all;
 use noirc_driver::{
-    add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency, CompileOptions,
+    CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -109,7 +109,7 @@ impl CompilerContext {
         let compiled_program =
             compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
-                    CompileError::with_file_diagnostics(
+                    CompileError::with_custom_diagnostics(
                         "Failed to compile program",
                         errs,
                         &self.context.file_manager,
@@ -119,7 +119,7 @@ impl CompilerContext {
 
         let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
         nargo::ops::check_program(&optimized_program).map_err(|errs| {
-            CompileError::with_file_diagnostics(
+            CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
                 &self.context.file_manager,
@@ -148,7 +148,7 @@ impl CompilerContext {
         let compiled_contract =
             compile_contract(&mut self.context, root_crate_id, &compile_options)
                 .map_err(|errs| {
-                    CompileError::with_file_diagnostics(
+                    CompileError::with_custom_diagnostics(
                         "Failed to compile contract",
                         errs,
                         &self.context.file_manager,
@@ -280,7 +280,7 @@ mod test {
     use noirc_driver::prepare_crate;
     use noirc_frontend::hir::Context;
 
-    use crate::compile::{file_manager_with_source_map, PathToFileSourceMap};
+    use crate::compile::{PathToFileSourceMap, file_manager_with_source_map};
 
     use std::path::Path;
 

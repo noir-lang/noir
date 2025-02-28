@@ -4,14 +4,14 @@ use acvm::acir::circuit::{
 };
 use acvm::acir::native_types::WitnessStack;
 use acvm::pwg::{
-    ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples, ACVM,
+    ACVM, ACVMStatus, ErrorLocation, OpcodeNotSolvable, OpcodeResolutionError, ProfilingSamples,
 };
-use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 use acvm::{AcirField, BlackBoxFunctionSolver};
+use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
+use crate::NargoError;
 use crate::errors::ExecutionError;
 use crate::foreign_calls::ForeignCallExecutor;
-use crate::NargoError;
 
 struct ProgramExecutor<'a, F, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>> {
     functions: &'a [Circuit<F>],
