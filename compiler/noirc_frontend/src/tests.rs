@@ -442,7 +442,7 @@ fn check_trait_wrong_method_return_type3() {
 
     impl Default for Foo {
         fn default(_x: Field, _y: Field) {
-                                       ^^^ Expected type Foo, found type ()
+                                        ^ Expected type Foo, found type ()
         }
     }
 
