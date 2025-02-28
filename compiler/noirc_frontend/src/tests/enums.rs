@@ -250,3 +250,41 @@ fn match_reachability_errors_ignored_when_there_is_a_type_error() {
     ",
     );
 }
+
+#[test]
+fn missing_single_case() {
+    check_errors(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                  ^^^^^^^^^^^^ Missing case: `Some(_)`
+                Opt::None => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_many_cases() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {
+                  ^^^^^^ Missing cases: `C`, `D`, `E`, and 21 more not shown
+                Abc::A => (),
+                Abc::B => (),
+            }
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}

@@ -1055,6 +1055,7 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         self.use_unstable_feature(super::UnstableFeature::Enums, location);
 
+        let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 
@@ -1065,7 +1066,7 @@ impl Elaborator<'_> {
         // the match rows - it'll just lead to extra errors like `unreachable pattern`
         // warnings on branches which previously had type errors.
         let tree = HirExpression::Match(if !errored {
-            self.elaborate_match_rows(rows)
+            self.elaborate_match_rows(rows, expr_location)
         } else {
             HirMatch::Failure { missing_case: false }
         });

@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::FxHashMap as HashMap;
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 
 use crate::{
@@ -793,13 +793,17 @@ impl Elaborator<'_> {
     ///
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
-    pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>) -> HirMatch {
-        MatchCompiler::run(self, rows)
+    pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>, location: Location) -> HirMatch {
+        MatchCompiler::run(self, rows, location)
     }
 }
 
 impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
-    fn run(elaborator: &'elab mut Elaborator<'ctx>, rows: Vec<Row>) -> HirMatch {
+    fn run(
+        elaborator: &'elab mut Elaborator<'ctx>,
+        rows: Vec<Row>,
+        location: Location,
+    ) -> HirMatch {
         let mut compiler = Self {
             elaborator,
             has_missing_cases: false,
@@ -812,7 +816,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         });
 
         if compiler.has_missing_cases {
-            compiler.issue_missing_cases_error(&hir_match);
+            compiler.issue_missing_cases_error(&hir_match, location);
         }
 
         if !compiler.unreachable_cases.is_empty() {
@@ -1177,17 +1181,103 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         block
     }
 
-    /// Traverse the resulting HirMatch to build counter-examples of values which would
-    /// not be covered by the match.
-    fn issue_missing_cases_error(&self, _tree: &HirMatch) {
-        eprintln!("Missing case(s)!");
-    }
-
     /// Any case that isn't branched to when the match is finished must be covered by another
     /// case and is thus redundant.
     fn issue_unreachable_cases_warning(&mut self) {
         for location in self.unreachable_cases.values().copied() {
             self.elaborator.push_err(TypeCheckError::UnreachableCase { location });
         }
+    }
+
+    /// Traverse the resulting HirMatch to build counter-examples of values which would
+    /// not be covered by the match.
+    fn issue_missing_cases_error(&mut self, tree: &HirMatch, location: Location) {
+        let starting_id = match tree {
+            HirMatch::Switch(id, ..) => Some(*id),
+            _ => None,
+        };
+
+        let mut cases = BTreeSet::new();
+        self.find_missing_values(tree, &mut Default::default(), &mut cases, starting_id);
+
+        self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+    }
+
+    fn find_missing_values<'tree>(
+        &self,
+        tree: &'tree HirMatch,
+        env: &mut HashMap<DefinitionId, Case>,
+        missing_cases: &mut BTreeSet<String>,
+        starting_id: Option<DefinitionId>,
+    ) {
+        match tree {
+            HirMatch::Success(_) | HirMatch::Failure { missing_case: false } => (),
+            HirMatch::Guard { otherwise, .. } => {
+                self.find_missing_values(&otherwise, env, missing_cases, starting_id);
+            }
+            HirMatch::Failure { missing_case: true } => {
+                let case = self.construct_missing_case(starting_id, env);
+                missing_cases.insert(case);
+            }
+            HirMatch::Switch(definition_id, cases, else_case) => {
+                for case in cases {
+                    env.insert(*definition_id, case.clone());
+                    self.find_missing_values(&case.body, env, missing_cases, starting_id);
+                }
+
+                // Want to specify each missing case here instead of defaulting to `_`
+                if let Some(else_case) = else_case {
+                    for case in self.missing_cases(cases) {
+                        env.insert(*definition_id, case);
+                        self.find_missing_values(else_case, env, missing_cases, starting_id);
+                    }
+                }
+
+                env.remove(definition_id);
+            }
+        }
+    }
+
+    fn missing_cases(&self, cases: &[Case]) -> Vec<Case> {
+        // We expect `cases` to come from a `Switch` which should always have
+        // at least 2 cases, otherwise it should be a Success or Failure node.
+        let first = &cases[0];
+
+        let all_constructors = first.constructor.all_constructors();
+        let mut all_constructors =
+            btree_map(all_constructors, |(constructor, arg_count)| (constructor, arg_count));
+
+        for case in cases {
+            all_constructors.remove(&case.constructor);
+        }
+
+        vecmap(all_constructors, |(constructor, arg_count)| {
+            // Safety: this id should only be used in `env` of `find_missing_values` which
+            //         only uses it for display and defaults to "_" on unknown ids.
+            let args = vecmap(0..arg_count, |_| DefinitionId::dummy_id());
+            Case::new(constructor, args, HirMatch::Failure { missing_case: true })
+        })
+    }
+
+    fn construct_missing_case(
+        &self,
+        starting_id: Option<DefinitionId>,
+        env: &HashMap<DefinitionId, Case>,
+    ) -> String {
+        let Some(id) = starting_id else {
+            return "_".to_string();
+        };
+
+        let Some(case) = env.get(&id) else {
+            return "_".to_string();
+        };
+
+        let constructor = case.constructor.to_string();
+        let no_arguments = case.arguments.is_empty();
+
+        let args =
+            vecmap(&case.arguments, |arg| self.construct_missing_case(Some(*arg), env)).join(", ");
+
+        if no_arguments { constructor } else { format!("{constructor}({args})") }
     }
 }
