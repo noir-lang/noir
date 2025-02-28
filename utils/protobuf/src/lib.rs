@@ -13,35 +13,6 @@ use color_eyre::eyre::{self, eyre, Context};
 pub trait ProtoCodec<T, R> {
     /// Convert domain type `T` to protobuf representation `R`.
     fn encode(value: &T) -> R;
-    /// Try to convert protobuf representation `R` to domain type `T`.
-    fn decode(value: &R) -> eyre::Result<T>;
-    /// Decode a field and attach the name of the field if it fails.
-    fn decode_msg(value: &R, msg: &'static str) -> eyre::Result<T> {
-        Self::decode(value).wrap_err(msg)
-    }
-    /// Encode multiple values as a vector.
-    fn encode_vec<'a, I>(values: I) -> Vec<R>
-    where
-        I: IntoIterator<Item = &'a T>,
-        T: 'a,
-    {
-        values.into_iter().map(Self::encode).collect()
-    }
-    /// Decode multiple values into a vector.
-    fn decode_vec(values: &[R]) -> eyre::Result<Vec<T>> {
-        values.iter().map(Self::decode).collect()
-    }
-    /// Decode multiple values into a vector, attaching a field name to any errors.
-    fn decode_vec_msg(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
-        Self::decode_vec(values).wrap_err(msg)
-    }
-    /// Decode an optional field as a required one; fails if it's `None`.
-    fn decode_some_msg(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
-        match value {
-            Some(value) => Self::decode_msg(value, msg),
-            None => Err(eyre!("missing field").wrap_err(msg)),
-        }
-    }
     /// Encode a field as `Some`.
     fn encode_some(value: &T) -> Option<R> {
         Some(Self::encode(value))
@@ -53,6 +24,57 @@ pub trait ProtoCodec<T, R> {
     {
         Self::encode(value).into()
     }
+    /// Encode multiple values as a vector.
+    fn encode_vec<'a, I>(values: I) -> Vec<R>
+    where
+        I: IntoIterator<Item = &'a T>,
+        T: 'a,
+    {
+        values.into_iter().map(Self::encode).collect()
+    }
+
+    /// Try to convert protobuf representation `R` to domain type `T`.
+    fn decode(value: &R) -> eyre::Result<T>;
+    /// Decode a field and attach the name of the field if it fails.
+    fn decode_msg(value: &R, msg: &'static str) -> eyre::Result<T> {
+        Self::decode(value).wrap_err(msg)
+    }
+    /// Decode multiple values into a vector.
+    fn decode_vec(values: &[R]) -> eyre::Result<Vec<T>> {
+        values.iter().map(Self::decode).collect()
+    }
+    /// Decode multiple values into a vector, attaching a field name to any errors.
+    fn decode_vec_msg(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
+        Self::decode_vec(values).wrap_err(msg)
+    }
+    /// Decode an optional field as a required one; fails if it's `None`.
+    fn decode_some(value: &Option<R>) -> eyre::Result<T> {
+        match value {
+            Some(value) => Self::decode(value),
+            None => Err(eyre!("missing field")),
+        }
+    }
+    /// Decode an optional field as a required one, attaching a field name to any errors.
+    fn decode_some_msg(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
+        Self::decode_some(value).wrap_err(msg)
+    }
+    /// Decode the numeric representation of an enum into the domain type.
+    /// Return an error if the value cannot be recognized.
+    fn decode_enum(value: i32) -> eyre::Result<T>
+    where
+        R: TryFrom<i32, Error = prost::UnknownEnumValue>,
+    {
+        let r = R::try_from(value)?;
+        Self::decode(&r)
+    }
+    /// Decode the numeric representation of an enum, attaching the field name to any errors.
+    fn decode_enum_msg(value: i32, msg: &'static str) -> eyre::Result<T>
+    where
+        R: TryFrom<i32, Error = prost::UnknownEnumValue>,
+    {
+        Self::decode_enum(value).wrap_err(msg)
+    }
+
     /// Encode a domain type to protobuf and serialize it to bytes.
     fn serialize_to_vec(value: &T) -> Vec<u8>
     where
@@ -76,4 +98,31 @@ where
     F: Fn(&R) -> eyre::Result<T>,
 {
     rs.iter().map(f).collect::<eyre::Result<Vec<_>>>().wrap_err(msg)
+}
+
+/// Decode an optional item, returning an error if it's `None`.
+pub fn decode_some_map<R, T, F>(r: &Option<R>, f: F) -> eyre::Result<T>
+where
+    F: Fn(&R) -> eyre::Result<T>,
+{
+    match r {
+        Some(r) => f(r),
+        None => Err(eyre!("missing field")),
+    }
+}
+
+/// Decode an optional item, attaching a field name to any errors.
+pub fn decode_some_msg_map<R, T, F>(r: &Option<R>, msg: &'static str, f: F) -> eyre::Result<T>
+where
+    F: Fn(&R) -> eyre::Result<T>,
+{
+    decode_some_map(r, f).wrap_err(msg)
+}
+
+/// Decode a `oneof` field, returning an error if it's missing.
+pub fn decode_oneof_map<R, T, F>(r: &Option<R>, f: F) -> eyre::Result<T>
+where
+    F: Fn(&R) -> eyre::Result<T>,
+{
+    decode_some_msg_map(r, "oneof value", f)
 }

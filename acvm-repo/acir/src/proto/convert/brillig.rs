@@ -3,8 +3,8 @@ use crate::{
     proto::brillig::{BitSize, BlackBoxOp, HeapArray, HeapValueType, HeapVector, ValueOrArray},
 };
 use acir_field::AcirField;
-use color_eyre::eyre;
-use noir_protobuf::ProtoCodec;
+use color_eyre::eyre::{self, bail};
+use noir_protobuf::{decode_oneof_map, ProtoCodec};
 
 use crate::proto::brillig::{
     brillig_opcode, BinaryFieldOpKind, BinaryIntOpKind, BrilligBytecode, BrilligOpcode,
@@ -21,8 +21,10 @@ where
         BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
     }
 
-    fn decode(_value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
-        todo!("decode")
+    fn decode(value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
+        Ok(circuit::brillig::BrilligBytecode {
+            bytecode: Self::decode_vec_msg(&value.bytecode, "bytecode")?,
+        })
     }
 }
 
@@ -156,8 +158,14 @@ impl<F> ProtoCodec<brillig::MemoryAddress, MemoryAddress> for ProtoSchema<F> {
         MemoryAddress { value: Some(value) }
     }
 
-    fn decode(_value: &MemoryAddress) -> eyre::Result<brillig::MemoryAddress> {
-        todo!("decode")
+    fn decode(value: &MemoryAddress) -> eyre::Result<brillig::MemoryAddress> {
+        use crate::proto::brillig::memory_address::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Direct(v) => Self::decode_msg(v, "direct").map(brillig::MemoryAddress::Direct),
+            Value::Relative(v) => {
+                Self::decode_msg(v, "relative").map(brillig::MemoryAddress::Relative)
+            }
+        })
     }
 }
 
@@ -175,8 +183,18 @@ impl<F> ProtoCodec<brillig::BinaryFieldOp, BinaryFieldOpKind> for ProtoSchema<F>
         }
     }
 
-    fn decode(_value: &BinaryFieldOpKind) -> eyre::Result<brillig::BinaryFieldOp> {
-        todo!("decode")
+    fn decode(value: &BinaryFieldOpKind) -> eyre::Result<brillig::BinaryFieldOp> {
+        match value {
+            BinaryFieldOpKind::BfoUnspecified => bail!("unspecified BinaryFieldOp"),
+            BinaryFieldOpKind::BfoAdd => Ok(brillig::BinaryFieldOp::Add),
+            BinaryFieldOpKind::BfoSub => Ok(brillig::BinaryFieldOp::Sub),
+            BinaryFieldOpKind::BfoMul => Ok(brillig::BinaryFieldOp::Mul),
+            BinaryFieldOpKind::BfoDiv => Ok(brillig::BinaryFieldOp::Div),
+            BinaryFieldOpKind::BfoIntegerDiv => Ok(brillig::BinaryFieldOp::IntegerDiv),
+            BinaryFieldOpKind::BfoEquals => Ok(brillig::BinaryFieldOp::Equals),
+            BinaryFieldOpKind::BfoLessThan => Ok(brillig::BinaryFieldOp::LessThan),
+            BinaryFieldOpKind::BfoLessThanEquals => Ok(brillig::BinaryFieldOp::LessThanEquals),
+        }
     }
 }
 
@@ -198,8 +216,22 @@ impl<F> ProtoCodec<brillig::BinaryIntOp, BinaryIntOpKind> for ProtoSchema<F> {
         }
     }
 
-    fn decode(_value: &BinaryIntOpKind) -> eyre::Result<brillig::BinaryIntOp> {
-        todo!("decode")
+    fn decode(value: &BinaryIntOpKind) -> eyre::Result<brillig::BinaryIntOp> {
+        match value {
+            BinaryIntOpKind::BioUnspecified => bail!("unspecified BinaryIntOp"),
+            BinaryIntOpKind::BioAdd => Ok(brillig::BinaryIntOp::Add),
+            BinaryIntOpKind::BioSub => Ok(brillig::BinaryIntOp::Sub),
+            BinaryIntOpKind::BioMul => Ok(brillig::BinaryIntOp::Mul),
+            BinaryIntOpKind::BioDiv => Ok(brillig::BinaryIntOp::Div),
+            BinaryIntOpKind::BioEquals => Ok(brillig::BinaryIntOp::Equals),
+            BinaryIntOpKind::BioLessThan => Ok(brillig::BinaryIntOp::LessThan),
+            BinaryIntOpKind::BioLessThanEquals => Ok(brillig::BinaryIntOp::LessThanEquals),
+            BinaryIntOpKind::BioAnd => Ok(brillig::BinaryIntOp::And),
+            BinaryIntOpKind::BioOr => Ok(brillig::BinaryIntOp::Or),
+            BinaryIntOpKind::BioXor => Ok(brillig::BinaryIntOp::Xor),
+            BinaryIntOpKind::BioShl => Ok(brillig::BinaryIntOp::Shl),
+            BinaryIntOpKind::BioShr => Ok(brillig::BinaryIntOp::Shr),
+        }
     }
 }
 
@@ -215,8 +247,16 @@ impl<F> ProtoCodec<brillig::IntegerBitSize, IntegerBitSize> for ProtoSchema<F> {
         }
     }
 
-    fn decode(_value: &IntegerBitSize) -> eyre::Result<brillig::IntegerBitSize> {
-        todo!("decode")
+    fn decode(value: &IntegerBitSize) -> eyre::Result<brillig::IntegerBitSize> {
+        match value {
+            IntegerBitSize::IbsUnspecified => bail!("unspecified IntegerBitSize"),
+            IntegerBitSize::IbsU1 => Ok(brillig::IntegerBitSize::U1),
+            IntegerBitSize::IbsU8 => Ok(brillig::IntegerBitSize::U8),
+            IntegerBitSize::IbsU16 => Ok(brillig::IntegerBitSize::U16),
+            IntegerBitSize::IbsU32 => Ok(brillig::IntegerBitSize::U32),
+            IntegerBitSize::IbsU64 => Ok(brillig::IntegerBitSize::U64),
+            IntegerBitSize::IbsU128 => Ok(brillig::IntegerBitSize::U128),
+        }
     }
 }
 
@@ -232,8 +272,14 @@ impl<F> ProtoCodec<brillig::BitSize, BitSize> for ProtoSchema<F> {
         BitSize { value: Some(value) }
     }
 
-    fn decode(_value: &BitSize) -> eyre::Result<brillig::BitSize> {
-        todo!("decode")
+    fn decode(value: &BitSize) -> eyre::Result<brillig::BitSize> {
+        use crate::proto::brillig::bit_size::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Field(_) => Ok(brillig::BitSize::Field),
+            Value::Integer(size) => {
+                Ok(brillig::BitSize::Integer(Self::decode_enum_msg(*size, "size")?))
+            }
+        })
     }
 }
 
@@ -254,8 +300,19 @@ impl<F> ProtoCodec<brillig::ValueOrArray, ValueOrArray> for ProtoSchema<F> {
         ValueOrArray { value: Some(value) }
     }
 
-    fn decode(_value: &ValueOrArray) -> eyre::Result<brillig::ValueOrArray> {
-        todo!("decode")
+    fn decode(value: &ValueOrArray) -> eyre::Result<brillig::ValueOrArray> {
+        use crate::proto::brillig::value_or_array::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::MemoryAddress(memory_address) => Ok(brillig::ValueOrArray::MemoryAddress(
+                Self::decode_msg(memory_address, "memory_address")?,
+            )),
+            Value::HeapArray(heap_array) => {
+                Ok(brillig::ValueOrArray::HeapArray(Self::decode_msg(heap_array, "heap_array")?))
+            }
+            Value::HeapVector(heap_vector) => {
+                Ok(brillig::ValueOrArray::HeapVector(Self::decode_msg(heap_vector, "heap_vector")?))
+            }
+        })
     }
 }
 
@@ -275,8 +332,20 @@ impl<F> ProtoCodec<brillig::HeapValueType, HeapValueType> for ProtoSchema<F> {
         HeapValueType { value: Some(value) }
     }
 
-    fn decode(_value: &HeapValueType) -> eyre::Result<brillig::HeapValueType> {
-        todo!("decode")
+    fn decode(value: &HeapValueType) -> eyre::Result<brillig::HeapValueType> {
+        use crate::proto::brillig::heap_value_type::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Simple(bit_size) => {
+                Ok(brillig::HeapValueType::Simple(Self::decode_msg(bit_size, "simple")?))
+            }
+            Value::Array(array) => Ok(brillig::HeapValueType::Array {
+                value_types: Self::decode_vec_msg(&array.value_types, "value_types")?,
+                size: Self::decode_msg(&array.size, "size")?,
+            }),
+            Value::Vector(vector) => Ok(brillig::HeapValueType::Vector {
+                value_types: Self::decode_vec_msg(&vector.value_types, "value_types")?,
+            }),
+        })
     }
 }
 
@@ -285,8 +354,11 @@ impl<F> ProtoCodec<brillig::HeapArray, HeapArray> for ProtoSchema<F> {
         HeapArray { pointer: Self::encode_some(&value.pointer), size: Self::encode(&value.size) }
     }
 
-    fn decode(_value: &HeapArray) -> eyre::Result<brillig::HeapArray> {
-        todo!("decode")
+    fn decode(value: &HeapArray) -> eyre::Result<brillig::HeapArray> {
+        Ok(brillig::HeapArray {
+            pointer: Self::decode_some_msg(&value.pointer, "pointer")?,
+            size: Self::decode_msg(&value.size, "size")?,
+        })
     }
 }
 
@@ -298,8 +370,11 @@ impl<F> ProtoCodec<brillig::HeapVector, HeapVector> for ProtoSchema<F> {
         }
     }
 
-    fn decode(_value: &HeapVector) -> eyre::Result<brillig::HeapVector> {
-        todo!("decode")
+    fn decode(value: &HeapVector) -> eyre::Result<brillig::HeapVector> {
+        Ok(brillig::HeapVector {
+            pointer: Self::decode_some_msg(&value.pointer, "pointer")?,
+            size: Self::decode_some_msg(&value.size, "size")?,
+        })
     }
 }
 

@@ -164,15 +164,14 @@ enum BinaryIntOpKind {
   BIO_SUB = 2;
   BIO_MUL = 3;
   BIO_DIV = 4;
-  BIO_INTEGER_DIV = 5;
-  BIO_EQUALS = 6;
-  BIO_LESS_THAN = 7;
-  BIO_LESS_THAN_EQUALS = 8;
-  BIO_AND = 9;
-  BIO_OR = 10;
-  BIO_XOR = 11;
-  BIO_SHL = 12;
-  BIO_SHR = 13;
+  BIO_EQUALS = 5;
+  BIO_LESS_THAN = 6;
+  BIO_LESS_THAN_EQUALS = 7;
+  BIO_AND = 8;
+  BIO_OR = 9;
+  BIO_XOR = 10;
+  BIO_SHL = 11;
+  BIO_SHR = 12;
 }
 
 enum IntegerBitSize {
