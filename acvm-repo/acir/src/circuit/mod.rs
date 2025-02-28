@@ -2,12 +2,8 @@ pub mod black_box_functions;
 pub mod brillig;
 pub mod opcodes;
 
-use crate::{
-    native_types::{Expression, Witness},
-    proto::convert::ProtoSchema,
-};
+use crate::native_types::{Expression, Witness};
 use acir_field::AcirField;
-use noir_protobuf::ProtoCodec as _;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -258,6 +254,8 @@ impl<F: Serialize + AcirField> Program<F> {
             // s.take_buffer()
 
             // # Protobuf
+            use crate::proto::convert::ProtoSchema;
+            use noir_protobuf::ProtoCodec;
             ProtoSchema::<F>::serialize_to_vec(self)
         };
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
@@ -290,7 +288,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
         gz_decoder.read_to_end(&mut buf)?;
         let result = {
             // # Bincode
-            //bincode::deserialize(&buf)
+            // bincode::deserialize(&buf)
 
             // # CBOR
             // ciborium::from_reader(buf.as_slice())
@@ -300,6 +298,8 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
             // Self::deserialize(r)
 
             // # Protobuf
+            use crate::proto::convert::ProtoSchema;
+            use noir_protobuf::ProtoCodec;
             ProtoSchema::<F>::deserialize_from_vec(&buf)
         };
         result.map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
