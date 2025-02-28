@@ -102,11 +102,10 @@ fn trait_inheritance_with_generics_4() {
 
 #[test]
 fn trait_inheritance_dependency_cycle() {
-    // TODO: maybe the error location should be just on Foo
     let src = r#"
         trait Foo: Bar {}
-        ^^^^^^^^^^^^^^^^^ Dependency cycle found
-        ~~~~~~~~~~~~~~~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
+              ^^^ Dependency cycle found
+              ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
         fn main() {}
     "#;
