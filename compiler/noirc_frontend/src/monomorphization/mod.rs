@@ -1995,7 +1995,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         match match_expr {
             HirMatch::Success(id) => self.expr(id),
-            HirMatch::Failure => {
+            HirMatch::Failure { .. } => {
                 let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
                 let msg = "match failure";
                 let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));

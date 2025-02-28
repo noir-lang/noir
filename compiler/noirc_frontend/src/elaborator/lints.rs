@@ -338,7 +338,7 @@ fn can_return_without_recursing_match(
 
     match match_expr {
         HirMatch::Success(expr) => check(*expr),
-        HirMatch::Failure => true,
+        HirMatch::Failure { .. } => true,
         HirMatch::Guard { cond: _, body, otherwise } => check(*body) && check_match(otherwise),
         HirMatch::Switch(_, cases, otherwise) => {
             cases.iter().all(|case| check_match(&case.body))

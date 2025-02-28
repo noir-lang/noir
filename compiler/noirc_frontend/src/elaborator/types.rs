@@ -766,8 +766,7 @@ impl Elaborator<'_> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
-            let error: CompilationError = make_error().into();
-            self.push_err(error);
+            self.push_err(make_error());
         }
     }
 
