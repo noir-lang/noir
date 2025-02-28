@@ -1526,7 +1526,7 @@ fn bool_generic_as_loop_bound() {
                     ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
                     ~ Unsupported numeric generic type
         let mut fields = [0; N];
-                             ^ The constant is not of type `u32`
+                             ^ The numeric generic is not of type `u32`
                              ~ expected `u32`, found `bool`
         for i in 0..N { 
                     ^ Expected type Field, found type bool
@@ -1565,7 +1565,7 @@ fn numeric_generic_as_struct_field_type_fails() {
     pub struct Foo<let N: u32> {
         a: Field,
         b: N,
-           ^ Expected type, found let parameter
+           ^ Expected type, found numeric generic
            ~ not a type
     }
     "#;
@@ -1579,8 +1579,8 @@ fn normal_generic_as_array_length() {
     pub struct Foo<N> {
         a: Field,
         b: [Field; N],
-           ^^^^^^^^^^ Type provided when a constant was expected
-           ~~~~~~~~~~ the constant is not of type `u32`
+           ^^^^^^^^^^ Type provided when a numeric generic was expected
+           ~~~~~~~~~~ the numeric generic is not of type `u32`
     }
     "#;
     check_errors(src);
@@ -1590,14 +1590,14 @@ fn normal_generic_as_array_length() {
 fn numeric_generic_as_param_type() {
     let src = r#"
     pub fn foo<let I: u32>(x: I) -> I {
-                                    ^ Expected type, found let parameter
+                                    ^ Expected type, found numeric generic
                                     ~ not a type
-                              ^ Expected type, found let parameter
+                              ^ Expected type, found numeric generic
                               ~ not a type
                                     
 
         let _q: I = 5;
-                ^ Expected type, found let parameter
+                ^ Expected type, found numeric generic
                 ~ not a type
         x
     }
@@ -1609,7 +1609,7 @@ fn numeric_generic_as_param_type() {
 fn numeric_generic_as_unused_param_type() {
     let src = r#"
     pub fn foo<let I: u32>(_x: I) { }
-                               ^ Expected type, found let parameter
+                               ^ Expected type, found numeric generic
                                ~ not a type
     "#;
     check_errors(src);
@@ -1622,7 +1622,7 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
           ^^^ unused trait Foo
           ~~~ unused trait
         fn foo<let I: u32>(_x: I) { }
-                               ^ Expected type, found let parameter
+                               ^ Expected type, found numeric generic
                                ~ not a type
     }
     "#;
@@ -1638,7 +1638,7 @@ fn numeric_generic_as_return_type() {
     }
 
     fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
-                                     ^ Expected type, found let parameter
+                                     ^ Expected type, found numeric generic
                                      ~ not a type
        ^^^ unused function foo
        ~~~ unused function
@@ -1659,7 +1659,7 @@ fn numeric_generic_used_in_nested_type_fails() {
     }
     pub struct Bar<let N: u32> {
         inner: N
-               ^ Expected type, found let parameter
+               ^ Expected type, found numeric generic
                ~ not a type
     }
     "#;
@@ -1672,8 +1672,8 @@ fn normal_generic_used_in_nested_array_length_fail() {
     pub struct Foo<N> {
         a: Field,
         b: Bar<N>,
-               ^ Type provided when a constant was expected
-               ~ the constant is not of type `u32`
+               ^ Type provided when a numeric generic was expected
+               ~ the numeric generic is not of type `u32`
     }
     pub struct Bar<let N: u32> {
         inner: [Field; N]
@@ -1802,9 +1802,9 @@ fn numeric_generic_u16_array_size() {
 
     pub fn foo<let N: u16>() -> u32 {
         let fields: [Field; N] = [0; N];
-                                     ^ The constant is not of type `u32`
+                                     ^ The numeric generic is not of type `u32`
                                      ~ expected `u32`, found `u16`
-                    ^^^^^^^^^^ The constant is not of type `u32`
+                    ^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~ expected `u32`, found `u16`
         len(fields)
     }
@@ -1905,8 +1905,8 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Type provided when a constant was expected
-                                                  ~ the constant is not of type `u32`
+                                                  ^ Type provided when a numeric generic was expected
+                                                  ~ the numeric generic is not of type `u32`
         T::deserialize([0, 1])
     }
     "#;
@@ -1919,13 +1919,13 @@ fn normal_generic_used_when_numeric_expected_in_where_clause() {
     }
 
     pub fn read<T, N>() -> T where T: Deserialize<N> {
-                                                  ^ Type provided when a constant was expected
-                                                  ~ the constant is not of type `u32`
+                                                  ^ Type provided when a numeric generic was expected
+                                                  ~ the numeric generic is not of type `u32`
         let mut fields: [Field; N] = [0; N];
-                                         ^ Type provided when a constant was expected
-                                         ~ the constant is not of type `u32`
-                        ^^^^^^^^^^ Type provided when a constant was expected
-                        ~~~~~~~~~~ the constant is not of type `u32`
+                                         ^ Type provided when a numeric generic was expected
+                                         ~ the numeric generic is not of type `u32`
+                        ^^^^^^^^^^ Type provided when a numeric generic was expected
+                        ~~~~~~~~~~ the numeric generic is not of type `u32`
         for i in 0..N {
                     ^ cannot find `N` in this scope
                     ~ not found in this scope
@@ -1948,7 +1948,7 @@ fn numeric_generics_type_kind_mismatch() {
 
     fn bar<let N: u16>() -> u16 {
         foo::<J>()
-              ^ The constant is not of type `u32` 
+              ^ The numeric generic is not of type `u32` 
               ~ expected `u32`, found `u16`
     }
 
@@ -2793,13 +2793,13 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ The constant is not of type `u32`
+                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
@@ -2886,7 +2886,7 @@ fn non_u32_as_array_length() {
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `u8`
         }
     "#;

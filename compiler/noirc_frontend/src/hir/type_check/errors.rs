@@ -373,21 +373,21 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 match (expected_kind, expr_kind) {
                     (Kind::Normal, Kind::Numeric(_)) => {
                         Diagnostic::simple_error(
-                            "Expected type, found let parameter".into(),
+                            "Expected type, found numeric generic".into(),
                             "not a type".into(),
                             *expr_location,
                         )
                     }
                     (Kind::Numeric(typ), Kind::Normal) => {
                         Diagnostic::simple_error(
-                            "Type provided when a constant was expected".into(),
-                            format!("the constant is not of type `{typ}`"),
+                            "Type provided when a numeric generic was expected".into(),
+                            format!("the numeric generic is not of type `{typ}`"),
                             *expr_location,
                         )
                     }
                     (Kind::Numeric(expected_type), Kind::Numeric(found_type)) => {
                         Diagnostic::simple_error(
-                            format!("The constant is not of type `{expected_type}`"),
+                            format!("The numeric generic is not of type `{expected_type}`"),
                             format!("expected `{expected_type}`, found `{found_type}`"),
                             *expr_location,
                         )
