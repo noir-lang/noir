@@ -387,12 +387,10 @@ fn check_function_type_matches_expected_type(
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
-                    let parameter_location = noir_function
-                        .def
-                        .parameters
-                        .get(i)
-                        .map(|param| param.typ.location)
-                        .unwrap_or_else(|| actual_parameters.0[i].0.location());
+                    let parameter_location = noir_function.def.parameters.get(i);
+                    let parameter_location = parameter_location.map(|param| param.typ.location);
+                    let parameter_location =
+                        parameter_location.unwrap_or_else(|| actual_parameters.0[i].0.location());
 
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
