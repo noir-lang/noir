@@ -20,9 +20,7 @@ use crate::{
         function::{FuncMeta, FunctionBody, HirFunction, Parameters},
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, NodeInterner, TypeId,
-    },
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     signed_field::SignedField,
     token::Attributes,
 };
@@ -599,12 +597,7 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         self.push_err(error);
-                        let id = MatchCompiler::fresh_match_variable(
-                            self.interner,
-                            expected_type.clone(),
-                            location,
-                        );
-                        Pattern::Binding(id)
+                        Pattern::Error
                     }
                 }
             }
@@ -948,20 +941,14 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         variable_types: Vec<Type>,
         location: Location,
     ) -> Vec<DefinitionId> {
-        vecmap(variable_types, |typ| {
-            Self::fresh_match_variable(self.elaborator.interner, typ, location)
-        })
+        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
     }
 
-    fn fresh_match_variable(
-        interner: &mut NodeInterner,
-        variable_type: Type,
-        location: Location,
-    ) -> DefinitionId {
+    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
         let name = "internal_match_variable".to_string();
         let kind = DefinitionKind::Local(None);
-        let id = interner.push_definition(name, false, false, kind, location);
-        interner.push_definition_type(id, variable_type);
+        let id = self.elaborator.interner.push_definition(name, false, false, kind, location);
+        self.elaborator.interner.push_definition_type(id, variable_type);
         id
     }
 
