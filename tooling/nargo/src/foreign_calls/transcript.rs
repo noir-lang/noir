@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, AcirField};
+use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
