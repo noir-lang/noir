@@ -1560,13 +1560,12 @@ fn numeric_generic_in_function_signature() {
 
 #[test]
 fn numeric_generic_as_struct_field_type_fails() {
-    // TODO: improve error message, in Rust it says "expected type, found const parameter `N`"
-    // which might be more understandable
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
         b: N,
-           ^ Expected kind normal, found kind numeric u32
+           ^ Expected type, found let parameter
+           ~ not a type
     }
     "#;
     check_errors(src);
@@ -1587,13 +1586,17 @@ fn normal_generic_as_array_length() {
 
 #[test]
 fn numeric_generic_as_param_type() {
-    // TODO: improve the error message, see what Rust does
     let src = r#"
     pub fn foo<let I: u32>(x: I) -> I {
-                              ^ Expected kind normal, found kind numeric u32
-                                    ^ Expected kind normal, found kind numeric u32
+                                    ^ Expected type, found let parameter
+                                    ~ not a type
+                              ^ Expected type, found let parameter
+                              ~ not a type
+                                    
+
         let _q: I = 5;
-                ^ Expected kind normal, found kind numeric u32
+                ^ Expected type, found let parameter
+                ~ not a type
         x
     }
     "#;
@@ -1602,23 +1605,23 @@ fn numeric_generic_as_param_type() {
 
 #[test]
 fn numeric_generic_as_unused_param_type() {
-    // TODO: improve the error message
     let src = r#"
     pub fn foo<let I: u32>(_x: I) { }
-                               ^ Expected kind normal, found kind numeric u32
+                               ^ Expected type, found let parameter
+                               ~ not a type
     "#;
     check_errors(src);
 }
 
 #[test]
 fn numeric_generic_as_unused_trait_fn_param_type() {
-    // TODO: improve the error message
     let src = r#"
     trait Foo {
           ^^^ unused trait Foo
           ~~~ unused trait
         fn foo<let I: u32>(_x: I) { }
-                               ^ Expected kind normal, found kind numeric u32
+                               ^ Expected type, found let parameter
+                               ~ not a type
     }
     "#;
     check_errors(src);
@@ -1626,7 +1629,6 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
 
 #[test]
 fn numeric_generic_as_return_type() {
-    // TODO: improve the error message
     let src = r#"
     // std::mem::zeroed() without stdlib
     trait Zeroed {
@@ -1634,7 +1636,8 @@ fn numeric_generic_as_return_type() {
     }
 
     fn foo<T, let I: Field>(x: T) -> I where T: Zeroed {
-                                     ^ Expected kind normal, found kind numeric Field
+                                     ^ Expected type, found let parameter
+                                     ~ not a type
        ^^^ unused function foo
        ~~~ unused function
         x.zeroed()
@@ -1647,7 +1650,6 @@ fn numeric_generic_as_return_type() {
 
 #[test]
 fn numeric_generic_used_in_nested_type_fails() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
@@ -1655,7 +1657,8 @@ fn numeric_generic_used_in_nested_type_fails() {
     }
     pub struct Bar<let N: u32> {
         inner: N
-               ^ Expected kind normal, found kind numeric u32
+               ^ Expected type, found let parameter
+               ~ not a type
     }
     "#;
     check_errors(src);

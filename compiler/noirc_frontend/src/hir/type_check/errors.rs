@@ -63,7 +63,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
-    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_location: Location },
+    TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
     TypeCanonicalizationMismatch {
         to: Type,
@@ -369,11 +369,23 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 )
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
-                Diagnostic::simple_error(
-                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
-                    String::new(),
-                    *expr_location,
-                )
+                // Try to improve the error message for some kind combinations
+                match (expected_kind, expr_kind) {
+                    (Kind::Normal, Kind::Numeric(_)) => {
+                        Diagnostic::simple_error(
+                            "Expected type, found let parameter".into(),
+                            "not a type".into(),
+                            *expr_location,
+                        )
+                    }
+                    _ => {
+                        Diagnostic::simple_error(
+                            format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                            String::new(),
+                            *expr_location,
+                        )
+                    }
+                }
             }
             TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, location } => {
                 Diagnostic::simple_error(
