@@ -1274,29 +1274,29 @@ mod test {
     fn inline_simple_functions_with_zero_instructions() {
         let src = "
         acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = call f1(v0) -> Field
-          v3 = call f1(v0) -> Field
-          v4 = add v2, v3
-          return v4
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
         }
 
         acir(inline) fn foo f1 {
-        b0(v0: Field):
-          return v0
+          b0(v0: Field):
+            return v0
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
         let expected = "
         acir(inline) fn main f0 {
-        b0(v0: Field):
-          v1 = add v0, v0
-          return v1
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
         }
         acir(inline) fn foo f1 {
-        b0(v0: Field):
-          return v0
+          b0(v0: Field):
+            return v0
         }
         ";
 
@@ -1308,33 +1308,33 @@ mod test {
     fn inline_simple_functions_with_one_instruction() {
         let src = "
         acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = call f1(v0) -> Field
-          v3 = call f1(v0) -> Field
-          v4 = add v2, v3
-          return v4
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
         }
 
         acir(inline) fn foo f1 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          return v2
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
         let expected = "
         acir(inline) fn main f0 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          v3 = add v0, Field 1
-          v4 = add v2, v3
-          return v4
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
         }
         acir(inline) fn foo f1 {
-        b0(v0: Field):
-          v2 = add v0, Field 1
-          return v2
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
         }
         ";
 
