@@ -237,7 +237,7 @@ impl<F> Circuit<F> {
     }
 }
 
-impl<F: Serialize> Program<F> {
+impl<F: Serialize + AcirField> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
         let buf = {
             // # Bincode
@@ -249,9 +249,12 @@ impl<F: Serialize> Program<F> {
             // buf
 
             // # FlexBuffers
-            let mut s = flexbuffers::FlexbufferSerializer::new();
-            self.serialize(&mut s).map_err(std::io::Error::other)?;
-            s.take_buffer()
+            // let mut s = flexbuffers::FlexbufferSerializer::new();
+            // self.serialize(&mut s).map_err(std::io::Error::other)?;
+            // s.take_buffer()
+
+            // # Protobuf
+            let s = crate::proto::conv::ProtoSchema::<F>;
         };
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;

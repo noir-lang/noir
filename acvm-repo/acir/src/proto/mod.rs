@@ -1,4 +1,4 @@
-mod conv;
+pub(crate) mod conv;
 
 pub(crate) mod acir {
 
