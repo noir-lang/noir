@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740754447421,
+  "lastUpdate": 1740754647180,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea",
-          "message": "chore(ci): Missing dash in profiler command argument (#7467)",
-          "timestamp": "2025-02-20T19:55:20Z",
-          "tree_id": "3a94bba8d6b99f43544655e1087ba9c01eb5f729",
-          "url": "https://github.com/noir-lang/noir/commit/4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea"
-        },
-        "date": 1740083329913,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 285.61,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 596.91,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 963.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 828.63,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 338.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 6870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 6880,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 337.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 384.75,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 411.26,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ca21820724f13b59834eb4a348c73069c5bbb70d",
+          "message": "fix: shift right overflow in ACIR with unknown var now returns zero (#7509)",
+          "timestamp": "2025-02-28T14:34:51Z",
+          "tree_id": "500c9b90a820494e2f8ad5c96e4dd3666868e061",
+          "url": "https://github.com/noir-lang/noir/commit/ca21820724f13b59834eb4a348c73069c5bbb70d"
+        },
+        "date": 1740754644957,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 304.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 614.45,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 228.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 978.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 855.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 365.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 363.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 411.25,
             "unit": "MB"
           }
         ]
