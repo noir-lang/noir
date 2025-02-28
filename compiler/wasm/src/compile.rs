@@ -130,7 +130,7 @@ pub(crate) struct DependencyGraph {
     pub(crate) root_dependencies: Vec<CrateName>,
     pub(crate) library_dependencies: BTreeMap<CrateName, Vec<CrateName>>,
 }
-/// This is map contains the paths of all of the files in the entry-point crate and
+/// This map contains the paths of all of the files in the entry-point crate and
 /// the transitive dependencies of the entry-point crate.
 ///
 /// This is for all intents and purposes the file system that the compiler will use to resolve/compile

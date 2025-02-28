@@ -1,6 +1,6 @@
 use acvm::{FieldElement, acir::circuit::Program};
 use noirc_abi::{Abi, AbiType, AbiValue};
-use noirc_driver::{CompiledContract, CompiledContractOutputs, ContractFunction};
+use noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 use serde::{Deserialize, Serialize};
 
 use noirc_driver::DebugFile;
@@ -49,6 +49,14 @@ impl From<CompiledContract> for ContractArtifact {
     }
 }
 
+impl ContractArtifact {
+    pub fn function_as_compiled_program(&self, function_name: &str) -> Option<CompiledProgram> {
+        self.functions.iter().find(|f| f.name == function_name).map(|f| {
+            f.clone().into_compiled_program(self.noir_version.clone(), self.file_map.clone())
+        })
+    }
+}
+
 /// Each function in the contract will be compiled as a separate noir program.
 ///
 /// A contract function unlike a regular Noir program however can have additional properties.
@@ -83,6 +91,26 @@ pub struct ContractFunctionArtifact {
     #[serde(default)] // For backwards compatibility (it was missing).
     pub names: Vec<String>,
     pub brillig_names: Vec<String>,
+}
+
+impl ContractFunctionArtifact {
+    pub fn into_compiled_program(
+        self,
+        noir_version: String,
+        file_map: BTreeMap<FileId, DebugFile>,
+    ) -> CompiledProgram {
+        CompiledProgram {
+            noir_version,
+            hash: self.hash,
+            program: self.bytecode,
+            abi: self.abi,
+            debug: self.debug_symbols.debug_infos,
+            file_map,
+            warnings: Vec::new(),
+            names: self.names,
+            brillig_names: self.brillig_names,
+        }
+    }
 }
 
 impl From<ContractFunction> for ContractFunctionArtifact {
