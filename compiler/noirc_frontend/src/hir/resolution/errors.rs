@@ -201,7 +201,7 @@ pub enum ResolverError {
 impl ResolverError {
     pub fn location(&self) -> Location {
         match self {
-            ResolverError::DuplicateDefinition { first_location: location, .. }
+            ResolverError::DuplicateDefinition { second_location: location, .. }
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::PathIsNotIdent { location }
             | ResolverError::Expected { location, .. }
