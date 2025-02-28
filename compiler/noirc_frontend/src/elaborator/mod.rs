@@ -1264,9 +1264,13 @@ impl<'context> Elaborator<'context> {
         self.check_parent_traits_are_implemented(&trait_impl);
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        for (module, function, _) in &trait_impl.methods.functions {
+        for (module, function, noir_function) in &trait_impl.methods.functions {
             self.local_module = *module;
-            let errors = check_trait_impl_method_matches_declaration(self.interner, *function);
+            let errors = check_trait_impl_method_matches_declaration(
+                self.interner,
+                *function,
+                noir_function,
+            );
             self.push_errors(errors.into_iter().map(|error| error.into()));
         }
 
