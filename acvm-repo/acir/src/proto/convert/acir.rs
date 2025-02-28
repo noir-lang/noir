@@ -1,5 +1,8 @@
 use crate::{
-    circuit::{self, opcodes},
+    circuit::{
+        self,
+        opcodes::{self, BlockId},
+    },
     proto::acir::circuit::{
         AssertMessage, AssertionPayload, BlackBoxFuncCall, BlockType, BrilligInputs,
         BrilligOutputs, Circuit, ConstantOrWitnessEnum, ExpressionOrMemory, ExpressionWidth,
@@ -7,8 +10,8 @@ use crate::{
     },
 };
 use acir_field::AcirField;
-use color_eyre::eyre;
-use noir_protobuf::ProtoCodec;
+use color_eyre::eyre::{self, Context};
+use noir_protobuf::{decode_oneof_map, ProtoCodec};
 
 use super::ProtoSchema;
 
@@ -28,8 +31,27 @@ where
         }
     }
 
-    fn decode(_value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
-        todo!("decode")
+    fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
+        Ok(circuit::Circuit {
+            current_witness_index: value.current_witness_index,
+            opcodes: Self::decode_vec_msg(&value.opcodes, "opcodes")?,
+            expression_width: Self::decode_some_msg(&value.expression_width, "expression_width")?,
+            private_parameters: Self::decode_vec_msg(
+                &value.private_parameters,
+                "private_parameters",
+            )?
+            .into_iter()
+            .collect(),
+            public_parameters: circuit::PublicInputs(
+                Self::decode_vec_msg(&value.public_parameters, "public_parameters")?
+                    .into_iter()
+                    .collect(),
+            ),
+            return_values: circuit::PublicInputs(
+                Self::decode_vec_msg(&value.return_values, "return_values")?.into_iter().collect(),
+            ),
+            assert_messages: Self::decode_vec_msg(&value.assert_messages, "assert_messages")?,
+        })
     }
 }
 
@@ -45,8 +67,14 @@ impl<F> ProtoCodec<circuit::ExpressionWidth, ExpressionWidth> for ProtoSchema<F>
         ExpressionWidth { value: Some(value) }
     }
 
-    fn decode(_value: &ExpressionWidth) -> eyre::Result<circuit::ExpressionWidth> {
-        todo!("decode")
+    fn decode(value: &ExpressionWidth) -> eyre::Result<circuit::ExpressionWidth> {
+        use crate::proto::acir::circuit::expression_width::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Unbounded(_) => Ok(circuit::ExpressionWidth::Unbounded),
+            Value::Bounded(bounded) => Ok(circuit::ExpressionWidth::Bounded {
+                width: Self::decode_msg(&bounded.width, "width")?,
+            }),
+        })
     }
 }
 
@@ -63,9 +91,11 @@ where
     }
 
     fn decode(
-        _value: &AssertMessage,
+        value: &AssertMessage,
     ) -> eyre::Result<(circuit::OpcodeLocation, circuit::AssertionPayload<F>)> {
-        todo!("decode")
+        let location = Self::decode_some_msg(&value.location, "location")?;
+        let payload = Self::decode_some_msg(&value.payload, "payload")?;
+        Ok((location, payload))
     }
 }
 
@@ -84,8 +114,17 @@ impl<F> ProtoCodec<circuit::OpcodeLocation, OpcodeLocation> for ProtoSchema<F> {
         OpcodeLocation { value: Some(value) }
     }
 
-    fn decode(_value: &OpcodeLocation) -> eyre::Result<circuit::OpcodeLocation> {
-        todo!("decode")
+    fn decode(value: &OpcodeLocation) -> eyre::Result<circuit::OpcodeLocation> {
+        use crate::proto::acir::circuit::opcode_location::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Acir(location) => {
+                Ok(circuit::OpcodeLocation::Acir(Self::decode_msg(location, "location")?))
+            }
+            Value::Brillig(brillig_location) => Ok(circuit::OpcodeLocation::Brillig {
+                acir_index: Self::decode_msg(&brillig_location.acir_index, "acir_index")?,
+                brillig_index: Self::decode_msg(&brillig_location.brillig_index, "brillig_index")?,
+            }),
+        })
     }
 }
 
@@ -100,8 +139,11 @@ where
         }
     }
 
-    fn decode(_value: &AssertionPayload) -> eyre::Result<circuit::AssertionPayload<F>> {
-        todo!("decode")
+    fn decode(value: &AssertionPayload) -> eyre::Result<circuit::AssertionPayload<F>> {
+        Ok(circuit::AssertionPayload {
+            error_selector: value.error_selector,
+            payload: Self::decode_vec_msg(&value.payload, "payload")?,
+        })
     }
 }
 
@@ -120,8 +162,14 @@ where
         ExpressionOrMemory { value: Some(value) }
     }
 
-    fn decode(_value: &ExpressionOrMemory) -> eyre::Result<circuit::ExpressionOrMemory<F>> {
-        todo!("decode")
+    fn decode(value: &ExpressionOrMemory) -> eyre::Result<circuit::ExpressionOrMemory<F>> {
+        use crate::proto::acir::circuit::expression_or_memory::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Expression(expression) => Ok(circuit::ExpressionOrMemory::Expression(
+                Self::decode_msg(expression, "expression")?,
+            )),
+            Value::Memory(id) => Ok(circuit::ExpressionOrMemory::Memory(BlockId(*id))),
+        })
     }
 }
 
@@ -183,8 +231,12 @@ where
         }
     }
 
-    fn decode(_value: &MemOp) -> eyre::Result<opcodes::MemOp<F>> {
-        todo!("decode")
+    fn decode(value: &MemOp) -> eyre::Result<opcodes::MemOp<F>> {
+        Ok(opcodes::MemOp {
+            operation: Self::decode_some_msg(&value.operation, "operation")?,
+            index: Self::decode_some_msg(&value.index, "index")?,
+            value: Self::decode_some_msg(&value.value, "value")?,
+        })
     }
 }
 
@@ -341,8 +393,17 @@ where
         FunctionInput { input: Self::encode_some(value.input_ref()), num_bits: value.num_bits() }
     }
 
-    fn decode(_value: &FunctionInput) -> eyre::Result<opcodes::FunctionInput<F>> {
-        todo!("decode")
+    fn decode(value: &FunctionInput) -> eyre::Result<opcodes::FunctionInput<F>> {
+        let input = Self::decode_some_msg(&value.input, "input")?;
+
+        match input {
+            opcodes::ConstantOrWitnessEnum::Constant(c) => {
+                opcodes::FunctionInput::constant(c, value.num_bits).wrap_err("constant")
+            }
+            opcodes::ConstantOrWitnessEnum::Witness(w) => {
+                Ok(opcodes::FunctionInput::witness(w, value.num_bits))
+            }
+        }
     }
 }
 
@@ -361,8 +422,16 @@ where
         ConstantOrWitnessEnum { value: Some(value) }
     }
 
-    fn decode(_value: &ConstantOrWitnessEnum) -> eyre::Result<opcodes::ConstantOrWitnessEnum<F>> {
-        todo!("decode")
+    fn decode(value: &ConstantOrWitnessEnum) -> eyre::Result<opcodes::ConstantOrWitnessEnum<F>> {
+        use crate::proto::acir::circuit::constant_or_witness_enum::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Constant(field) => {
+                Ok(opcodes::ConstantOrWitnessEnum::Constant(Self::decode_msg(field, "constant")?))
+            }
+            Value::Witness(witness) => {
+                Ok(opcodes::ConstantOrWitnessEnum::Witness(Self::decode_msg(witness, "witness")?))
+            }
+        })
     }
 }
 
@@ -402,8 +471,19 @@ where
         BrilligInputs { value: Some(value) }
     }
 
-    fn decode(_value: &BrilligInputs) -> eyre::Result<circuit::brillig::BrilligInputs<F>> {
-        todo!("decode")
+    fn decode(value: &BrilligInputs) -> eyre::Result<circuit::brillig::BrilligInputs<F>> {
+        use crate::proto::acir::circuit::brillig_inputs::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Single(expression) => {
+                Ok(circuit::brillig::BrilligInputs::Single(Self::decode_msg(expression, "single")?))
+            }
+            Value::Array(array) => Ok(circuit::brillig::BrilligInputs::Array(
+                Self::decode_vec_msg(&array.values, "array")?,
+            )),
+            Value::MemoryArray(id) => {
+                Ok(circuit::brillig::BrilligInputs::MemoryArray(BlockId(*id)))
+            }
+        })
     }
 }
 
