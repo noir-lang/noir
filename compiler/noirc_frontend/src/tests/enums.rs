@@ -8,13 +8,12 @@ use super::{check_errors, check_errors_using_features};
 
 #[test]
 fn error_with_duplicate_enum_variant() {
-    // TODO: the primary error should be on the second `Bar`
     let src = r#"
     pub enum Foo {
         Bar(i32),
-        ^^^ Duplicate definitions of enum variant with name Bar found
         ~~~ First enum variant found here
         Bar(u8),
+        ^^^ Duplicate definitions of enum variant with name Bar found
         ~~~ Second enum variant found here
     }
 

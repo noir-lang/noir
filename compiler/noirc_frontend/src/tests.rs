@@ -362,12 +362,12 @@ fn check_trait_implementation_duplicate_method() {
     impl Default for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ^^^^^^^ Duplicate definitions of trait associated function with name default found
            ~~~~~~~ First trait associated function found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
+           ^^^^^^^ Duplicate definitions of trait associated function with name default found
            ~~~~~~~ Second trait associated function found here
             x + 2 * y
         }
@@ -666,7 +666,6 @@ fn check_impl_struct_not_trait() {
 fn check_trait_duplicate_declaration() {
     let src = "
     trait Default {
-          ^^^^^^^ Duplicate definitions of trait definition with name Default found
           ~~~~~~~ First trait definition found here
         fn default(x: Field, y: Field) -> Self;
     }
@@ -683,6 +682,7 @@ fn check_trait_duplicate_declaration() {
     }
 
     trait Default {
+          ^^^^^^^ Duplicate definitions of trait definition with name Default found
           ~~~~~~~ Second trait definition found here
         fn default(x: Field) -> Self;
     }
@@ -2455,13 +2455,12 @@ fn bit_not_on_untyped_integer() {
 
 #[test]
 fn duplicate_struct_field() {
-    // TODO: the primary error location should be on the second field
     let src = r#"
     pub struct Foo {
         x: i32,
-        ^ Duplicate definitions of struct field with name x found
         ~ First struct field found here
         x: i32,
+        ^ Duplicate definitions of struct field with name x found
         ~ Second struct field found here
     }
 
