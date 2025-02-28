@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1740743945201,
+  "lastUpdate": 1740754330846,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8410,70 +8410,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea",
-          "message": "chore(ci): Missing dash in profiler command argument (#7467)",
-          "timestamp": "2025-02-20T19:55:20Z",
-          "tree_id": "3a94bba8d6b99f43544655e1087ba9c01eb5f729",
-          "url": "https://github.com/noir-lang/noir/commit/4e2cd6057a8eda65ee9c127ec315e1bbcffcd2ea"
-        },
-        "date": 1740083013730,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.298,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.462,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 34.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.039,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -11598,6 +11534,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ca21820724f13b59834eb4a348c73069c5bbb70d",
+          "message": "fix: shift right overflow in ACIR with unknown var now returns zero (#7509)",
+          "timestamp": "2025-02-28T14:34:51Z",
+          "tree_id": "500c9b90a820494e2f8ad5c96e4dd3666868e061",
+          "url": "https://github.com/noir-lang/noir/commit/ca21820724f13b59834eb4a348c73069c5bbb70d"
+        },
+        "date": 1740754328551,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.289,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.426,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.181,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
             "unit": "s"
           },
           {
