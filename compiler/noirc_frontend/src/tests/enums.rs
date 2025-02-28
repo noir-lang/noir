@@ -222,3 +222,31 @@ fn unreachable_match_case() {
     "#,
     );
 }
+
+#[test]
+fn match_reachability_errors_ignored_when_there_is_a_type_error() {
+    // No comment on the second `None` case.
+    // Type errors in general mess up reachability errors in match cases.
+    // If we naively change to catch this case (which is easy) we also end up
+    // erroring that the `3 => ()` case is unreachable as well, which is true
+    // but we don't want to annoy users with an extra obvious error. This
+    // behavior matches Rust as well.
+    check_errors(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                Opt::None => (),
+                Opt::Some(_) => {},
+                Opt::None => (),
+                3 => (),
+                ^ Expected type Opt<Field>, found type Field
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}

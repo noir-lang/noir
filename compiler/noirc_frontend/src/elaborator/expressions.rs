@@ -26,7 +26,7 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
+            HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -1060,8 +1060,18 @@ impl Elaborator<'_> {
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
         let (let_, variable) = self.wrap_in_let(expression, typ);
 
-        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
-        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let (errored, (rows, result_type)) =
+            self.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
+
+        // Avoid calling `elaborate_match_rows` if there were errors while constructing
+        // the match rows - it'll just lead to extra errors like `unreachable pattern`
+        // warnings on branches which previously had type errors.
+        let tree = HirExpression::Match(if !errored {
+            self.elaborate_match_rows(rows)
+        } else {
+            HirMatch::Failure { missing_case: false }
+        });
+
         let tree = self.interner.push_expr(tree);
         self.interner.push_expr_type(tree, result_type.clone());
         self.interner.push_expr_location(tree, location);
