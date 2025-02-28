@@ -1521,7 +1521,6 @@ fn numeric_generic_binary_operation_type_mismatch() {
 
 #[test]
 fn bool_generic_as_loop_bound() {
-    // TODO: improve the error location of the last error (should be just on N)
     let src = r#"
     pub fn read<let N: bool>() {
                     ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
@@ -1529,7 +1528,7 @@ fn bool_generic_as_loop_bound() {
         let mut fields = [0; N];
                              ^ Expected kind numeric u32, found kind numeric bool
         for i in 0..N { 
-                 ^^^^ Expected type Field, found type bool
+                    ^ Expected type Field, found type bool
             fields[i] = i + 1;
         }
         assert(fields[0] == 1);

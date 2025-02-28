@@ -206,7 +206,7 @@ impl Elaborator<'_> {
         self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
             expected_typ: start_range_type.to_string(),
             expr_typ: end_range_type.to_string(),
-            expr_location: range_location,
+            expr_location: end_location,
         });
 
         let expected_type = self.polymorphic_integer();
