@@ -91,6 +91,7 @@ impl Elaborator<'_> {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
+        let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
         let (expression, expr_type) =
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
@@ -98,8 +99,11 @@ impl Elaborator<'_> {
         // Require the top-level of a global's type to be fully-specified
         if type_contains_unspecified && global_id.is_some() {
             let expected_type = annotated_type.clone();
-            let error =
-                ResolverError::UnspecifiedGlobalType { location: expr_location, expected_type };
+            let error = ResolverError::UnspecifiedGlobalType {
+                pattern_location,
+                expr_location,
+                expected_type,
+            };
             self.push_err(error);
         }
 

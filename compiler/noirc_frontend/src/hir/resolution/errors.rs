@@ -109,7 +109,11 @@ pub enum ResolverError {
     #[error("Only `comptime` globals can be mutable")]
     MutableGlobal { location: Location },
     #[error("Globals must have a specified type")]
-    UnspecifiedGlobalType { location: Location, expected_type: Type },
+    UnspecifiedGlobalType {
+        pattern_location: Location,
+        expr_location: Location,
+        expected_type: Type,
+    },
     #[error("Global failed to evaluate")]
     UnevaluatedGlobalType { location: Location },
     #[error("Globals used in a type position must be non-negative")]
@@ -233,7 +237,7 @@ impl ResolverError {
             | ResolverError::WhileInConstrainedFn { location }
             | ResolverError::JumpOutsideLoop { location, .. }
             | ResolverError::MutableGlobal { location }
-            | ResolverError::UnspecifiedGlobalType { location, .. }
+            | ResolverError::UnspecifiedGlobalType { pattern_location: location, .. }
             | ResolverError::UnevaluatedGlobalType { location }
             | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
@@ -573,12 +577,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::UnspecifiedGlobalType { location, expected_type } => {
-                Diagnostic::simple_error(
+            ResolverError::UnspecifiedGlobalType { pattern_location, expr_location, expected_type } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     "Globals must have a specified type".to_string(),
-                    format!("Inferred type is `{expected_type}`"),
-                    *location,
-                )
+                    String::new(),
+                    *pattern_location,
+                );
+                diagnostic.add_secondary(format!("Inferred type is `{expected_type}`"), *expr_location);
+                diagnostic
             },
             ResolverError::UnevaluatedGlobalType { location } => {
                 Diagnostic::simple_error(
