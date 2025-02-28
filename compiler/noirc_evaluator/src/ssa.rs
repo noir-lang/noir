@@ -215,6 +215,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
             Ssa::inline_constants_into_brillig_functions,
             "Inline constants into brillig functions",
         )
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
         .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
@@ -227,7 +228,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
         .run_pass(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
         // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (3rd)")
+        .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (4th)")
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
