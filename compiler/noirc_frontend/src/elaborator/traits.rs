@@ -361,6 +361,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     errors
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_function_type_matches_expected_type(
     expected: &Type,
     actual: &Type,
