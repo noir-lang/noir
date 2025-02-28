@@ -273,6 +273,7 @@ impl Elaborator<'_> {
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
     function: FuncId,
+    noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
     let modifiers = interner.function_modifiers(&function);
@@ -350,6 +351,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             method_name,
             &meta.parameters,
             &meta.return_type,
+            noir_function,
             meta.name.location,
             &trait_info.name.0.contents,
             &mut errors,
@@ -365,6 +367,7 @@ fn check_function_type_matches_expected_type(
     method_name: &str,
     actual_parameters: &Parameters,
     actual_return_type: &FunctionReturnType,
+    noir_function: &NoirFunction,
     location: Location,
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
@@ -383,11 +386,18 @@ fn check_function_type_matches_expected_type(
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
+                    let parameter_location = noir_function
+                        .def
+                        .parameters
+                        .get(i)
+                        .map(|param| param.typ.location)
+                        .unwrap_or_else(|| actual_parameters.0[i].0.location());
+
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
                         actual_typ: b.to_string(),
-                        parameter_location: actual_parameters.0[i].0.location(),
+                        parameter_location,
                         parameter_index: i + 1,
                     });
                 }

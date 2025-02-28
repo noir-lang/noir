@@ -529,7 +529,6 @@ fn check_trait_wrong_method_name() {
 
 #[test]
 fn check_trait_wrong_parameter() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field) -> Self;
@@ -541,7 +540,7 @@ fn check_trait_wrong_parameter() {
 
     impl Default for Foo {
         fn default(x: u32) -> Self {
-                   ^ Parameter #1 of method `default` must be of type Field, not u32
+                      ^^^ Parameter #1 of method `default` must be of type Field, not u32
             Foo {bar: x}
         }
     }
@@ -566,7 +565,7 @@ fn check_trait_wrong_parameter2() {
 
     impl Default for Foo {
         fn default(x: Field, y: Foo) -> Self {
-                             ^ Parameter #2 of method `default` must be of type Field, not Foo
+                                ^^^ Parameter #2 of method `default` must be of type Field, not Foo
             Self { bar: x, array: [x, y.bar] }
         }
     }
