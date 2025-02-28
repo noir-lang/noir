@@ -2,7 +2,7 @@ use acvm::FieldElement;
 use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
-use noirc_abi::{AbiReturnType, errors::AbiError, input_parser::InputValue};
+use noirc_abi::errors::AbiError;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -42,10 +42,4 @@ pub(crate) enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
-
-    #[error("Unexpected return value: expected {expected:?}; got {actual:?}")]
-    UnexpectedReturn { expected: InputValue, actual: Option<InputValue> },
-
-    #[error("Missing return witnesses; expected {expected:?}")]
-    MissingReturn { expected: AbiReturnType },
 }

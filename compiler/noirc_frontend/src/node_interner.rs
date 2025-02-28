@@ -725,6 +725,15 @@ impl NodeInterner {
         ExprId(self.nodes.insert(Node::Expression(expr)))
     }
 
+    /// Intern an expression with everything needed for it (location & Type)
+    /// instead of requiring they be pushed later.
+    pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
+        let id = self.push_expr(expr);
+        self.push_expr_location(id, location);
+        self.push_expr_type(id, typ);
+        id
+    }
+
     /// Stores the span for an interned expression.
     pub fn push_expr_location(&mut self, expr_id: ExprId, location: Location) {
         self.id_to_location.insert(expr_id.into(), location);

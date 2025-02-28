@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use clap::Args;
 use color_eyre::eyre;
 use noir_artifact_cli::Artifact;
-use noirc_artifacts::program::ProgramArtifact;
 use noirc_artifacts_info::{InfoReport, count_opcodes_and_gates_in_program, show_info_report};
 
 #[derive(Debug, Clone, Args)]
@@ -39,19 +38,12 @@ pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
             .into_iter()
             .filter(|f| args.contract_fn.as_ref().map(|n| *n == f.name).unwrap_or(true))
             .map(|f| {
-                // We have to cheat to be able to call `count_opcodes_and_gates_in_program`.
                 let package_name = format!("{}::{}", contract.name, f.name);
-                let program = ProgramArtifact {
-                    noir_version: contract.noir_version.clone(),
-                    hash: f.hash,
-                    abi: f.abi,
-                    bytecode: f.bytecode,
-                    debug_symbols: f.debug_symbols,
-                    file_map: contract.file_map.clone(),
-                    names: f.names,
-                    brillig_names: f.brillig_names,
-                };
-                count_opcodes_and_gates_in_program(program, package_name, None)
+                let program = f.into_compiled_program(
+                    contract.noir_version.clone(),
+                    contract.file_map.clone(),
+                );
+                count_opcodes_and_gates_in_program(program.into(), package_name, None)
             })
             .collect::<Vec<_>>(),
     };
