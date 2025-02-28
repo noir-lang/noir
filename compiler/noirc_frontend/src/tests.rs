@@ -1526,7 +1526,8 @@ fn bool_generic_as_loop_bound() {
                     ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
                     ~ Unsupported numeric generic type
         let mut fields = [0; N];
-                             ^ Expected kind numeric u32, found kind numeric bool
+                             ^ The constant is not of type `u32`
+                             ~ expected `u32`, found `bool`
         for i in 0..N { 
                     ^ Expected type Field, found type bool
             fields[i] = i + 1;
@@ -1667,7 +1668,6 @@ fn numeric_generic_used_in_nested_type_fails() {
 
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<N> {
         a: Field,
@@ -1794,7 +1794,7 @@ fn numeric_generic_used_in_turbofish() {
 // allow u16 to be used as an array size
 #[test]
 fn numeric_generic_u16_array_size() {
-    // TODO: improve the error location (and maybe the message)
+    // TODO: improve the error location
     let src = r#"
     fn len<let N: u32>(_arr: [Field; N]) -> u32 {
         N
@@ -1802,8 +1802,10 @@ fn numeric_generic_u16_array_size() {
 
     pub fn foo<let N: u16>() -> u32 {
         let fields: [Field; N] = [0; N];
-                    ^^^^^^^^^^ Expected kind numeric u32, found kind numeric u16
-                                     ^ Expected kind numeric u32, found kind numeric u16
+                                     ^ The constant is not of type `u32`
+                                     ~ expected `u32`, found `u16`
+                    ^^^^^^^^^^ The constant is not of type `u32`
+                    ~~~~~~~~~~ expected `u32`, found `u16`
         len(fields)
     }
     "#;
@@ -1946,7 +1948,8 @@ fn numeric_generics_type_kind_mismatch() {
 
     fn bar<let N: u16>() -> u16 {
         foo::<J>()
-              ^ Expected kind numeric u32, found kind numeric u16
+              ^ The constant is not of type `u32` 
+              ~ expected `u32`, found `u16`
     }
 
     global M: u16 = 3;
@@ -2791,11 +2794,14 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^ The constant is not of type `u32`
+                    ~~~~~~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric Field
+                    ^^^^^^^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors(src);
@@ -2881,7 +2887,8 @@ fn non_u32_as_array_length() {
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
-                    ^^^^^^^^^^^^^^^^ Expected kind numeric u32, found kind numeric u8
+                    ^^^^^^^^^^^^^^^^ The constant is not of type `u32`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `u8`
         }
     "#;
     check_errors(src);

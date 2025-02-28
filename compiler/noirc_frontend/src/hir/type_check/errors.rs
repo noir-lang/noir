@@ -384,7 +384,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                             format!("the constant is not of type `{typ}`"),
                             *expr_location,
                         )
-
+                    }
+                    (Kind::Numeric(expected_type), Kind::Numeric(found_type)) => {
+                        Diagnostic::simple_error(
+                            format!("The constant is not of type `{expected_type}`"),
+                            format!("expected `{expected_type}`, found `{found_type}`"),
+                            *expr_location,
+                        )
                     }
                     _ => {
                         Diagnostic::simple_error(
