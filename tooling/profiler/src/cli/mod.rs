@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use color_eyre::eyre::{self};
+use color_eyre::eyre;
 use const_format::formatcp;
 
 mod execution_flamegraph_cmd;
