@@ -1,10 +1,10 @@
 use acvm::{
-    acir::native_types::{Witness, WitnessMap},
-    acir::AcirField,
     FieldElement,
+    acir::AcirField,
+    acir::native_types::{Witness, WitnessMap},
 };
 use js_sys::{JsString, Map, Object};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 #[wasm_bindgen(typescript_custom_section)]
 const WITNESS_MAP: &'static str = r#"
@@ -113,8 +113,8 @@ mod test {
     use std::collections::BTreeMap;
 
     use acvm::{
-        acir::native_types::{Witness, WitnessMap},
         AcirField, FieldElement,
+        acir::native_types::{Witness, WitnessMap},
     };
     use wasm_bindgen::JsValue;
 

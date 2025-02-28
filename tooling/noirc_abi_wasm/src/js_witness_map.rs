@@ -1,11 +1,11 @@
 //! This can most likely be imported from acvm_js to avoid redefining it here.
 
 use acvm::{
-    acir::native_types::{Witness, WitnessMap},
     AcirField, FieldElement,
+    acir::native_types::{Witness, WitnessMap},
 };
 use js_sys::{JsString, Map};
-use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 // WitnessMap
 #[wasm_bindgen]
@@ -72,8 +72,8 @@ mod test {
     use std::collections::BTreeMap;
 
     use acvm::{
-        acir::native_types::{Witness, WitnessMap},
         AcirField, FieldElement,
+        acir::native_types::{Witness, WitnessMap},
     };
     use wasm_bindgen::JsValue;
 

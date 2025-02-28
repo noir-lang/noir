@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::{
+    Type,
     ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -9,7 +10,6 @@ use crate::{
     },
     parser::ParserError,
     signed_field::SignedField,
-    Type,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};

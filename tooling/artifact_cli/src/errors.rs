@@ -1,9 +1,9 @@
 use acir::FieldElement;
-use nargo::{foreign_calls::transcript::TranscriptError, NargoError};
+use nargo::{NargoError, foreign_calls::transcript::TranscriptError};
 use noirc_abi::{
+    AbiReturnType,
     errors::{AbiError, InputParserError},
     input_parser::InputValue,
-    AbiReturnType,
 };
 use std::path::PathBuf;
 use thiserror::Error;

@@ -4,13 +4,13 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
 use crate::{
+    Artifact,
     errors::CliError,
     execution::{self, ExecutionResults},
-    Artifact,
 };
 use nargo::{
-    foreign_calls::{layers, transcript::ReplayForeignCallExecutor, DefaultForeignCallBuilder},
     PrintOutput,
+    foreign_calls::{DefaultForeignCallBuilder, layers, transcript::ReplayForeignCallExecutor},
 };
 use noirc_driver::CompiledProgram;
 

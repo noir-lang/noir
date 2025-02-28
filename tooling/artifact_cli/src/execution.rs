@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use acir::{native_types::WitnessStack, FieldElement};
+use acir::{FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
-use nargo::{foreign_calls::ForeignCallExecutor, NargoError};
+use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::input_parser::InputValue;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;

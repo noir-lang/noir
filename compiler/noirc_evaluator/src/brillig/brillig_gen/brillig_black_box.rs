@@ -1,14 +1,14 @@
 use acvm::{
-    acir::{
-        brillig::{BlackBoxOp, HeapVector, ValueOrArray},
-        BlackBoxFunc,
-    },
     AcirField,
+    acir::{
+        BlackBoxFunc,
+        brillig::{BlackBoxOp, HeapVector, ValueOrArray},
+    },
 };
 
 use crate::brillig::brillig_ir::{
-    brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
-    BrilligContext,
+    BrilligContext, brillig_variable::BrilligVariable, debug_show::DebugToString,
+    registers::RegisterAllocator,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
@@ -83,7 +83,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
-                [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [
+                    BrilligVariable::BrilligArray(public_key_x),
+                    BrilligVariable::BrilligArray(public_key_y),
+                    BrilligVariable::BrilligArray(signature),
+                    message,
+                ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
@@ -114,7 +119,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EcdsaSecp256r1 => {
             if let (
-                [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [
+                    BrilligVariable::BrilligArray(public_key_x),
+                    BrilligVariable::BrilligArray(public_key_y),
+                    BrilligVariable::BrilligArray(signature),
+                    message,
+                ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
@@ -168,7 +178,14 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
-                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input1_infinite), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y), BrilligVariable::SingleAddr(input2_infinite)],
+                [
+                    BrilligVariable::SingleAddr(input1_x),
+                    BrilligVariable::SingleAddr(input1_y),
+                    BrilligVariable::SingleAddr(input1_infinite),
+                    BrilligVariable::SingleAddr(input2_x),
+                    BrilligVariable::SingleAddr(input2_y),
+                    BrilligVariable::SingleAddr(input2_infinite),
+                ],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -202,7 +219,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         BlackBoxFunc::RecursiveAggregation => {}
         BlackBoxFunc::BigIntAdd => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -219,7 +241,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntSub => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -236,7 +263,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntMul => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -253,7 +285,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntDiv => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -333,7 +370,10 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::Sha256Compression => {
             if let (
-                [BrilligVariable::BrilligArray(input_array), BrilligVariable::BrilligArray(hash_values)],
+                [
+                    BrilligVariable::BrilligArray(input_array),
+                    BrilligVariable::BrilligArray(hash_values),
+                ],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {

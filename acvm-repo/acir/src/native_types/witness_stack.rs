@@ -1,8 +1,8 @@
 use std::io::Read;
 
+use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

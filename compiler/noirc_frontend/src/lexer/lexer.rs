@@ -665,11 +665,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('"') {
-            self.eat_fmt_string()
-        } else {
-            self.eat_alpha_numeric('f')
-        }
+        if self.peek_char_is('"') { self.eat_fmt_string() } else { self.eat_alpha_numeric('f') }
     }
 
     fn eat_raw_string(&mut self) -> SpannedTokenResult {
@@ -883,11 +879,7 @@ impl Iterator for Lexer<'_> {
     type Item = LocatedTokenResult;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else {
-            Some(self.next_token())
-        }
+        if self.done { None } else { Some(self.next_token()) }
     }
 }
 

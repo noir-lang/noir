@@ -197,11 +197,7 @@ impl Display for TraitItem {
                     "{unconstrained}{visibility}{is_comptime}fn {name}<{generics}>({parameters}) -> {return_type} where {where_clause}"
                 )?;
 
-                if let Some(body) = body {
-                    write!(f, "{body}")
-                } else {
-                    write!(f, ";")
-                }
+                if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
             TraitItem::Constant { name, typ, default_value } => {
                 write!(f, "let {name}: {typ}")?;

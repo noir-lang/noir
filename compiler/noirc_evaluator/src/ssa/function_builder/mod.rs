@@ -2,7 +2,7 @@ pub(crate) mod data_bus;
 
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
-use acvm::{acir::circuit::ErrorSelector, FieldElement};
+use acvm::{FieldElement, acir::circuit::ErrorSelector};
 use noirc_errors::Location;
 use noirc_frontend::hir_def::types::Type as HirType;
 use noirc_frontend::monomorphization::ast::InlineType;
@@ -588,7 +588,7 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 mod tests {
     use std::sync::Arc;
 
-    use acvm::{acir::AcirField, FieldElement};
+    use acvm::{FieldElement, acir::AcirField};
 
     use crate::ssa::ir::{
         instruction::{Endian, Intrinsic},

@@ -15,7 +15,7 @@ use std::env;
 use color_eyre::config::HookBuilder;
 
 use tracing_appender::rolling;
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 // TODO: Currently only used by benches.
 use noir_artifact_cli as _;

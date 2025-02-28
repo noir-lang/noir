@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use acvm::{
-    acir::AcirField,
-    acir::{circuit::ErrorSelector, BlackBoxFunc},
     FieldElement,
+    acir::AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
@@ -1003,11 +1003,7 @@ impl Instruction {
                             //
                             // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
                             let max_quotient_bits = max_numerator_bits - divisor_bits;
-                            if max_quotient_bits < *bit_size {
-                                SimplifiedTo(*value)
-                            } else {
-                                None
-                            }
+                            if max_quotient_bits < *bit_size { SimplifiedTo(*value) } else { None }
                         }
 
                         _ => None,
@@ -1036,11 +1032,7 @@ impl Instruction {
             Instruction::DecrementRc { .. } => None,
             Instruction::RangeCheck { value, max_bit_size, .. } => {
                 let max_potential_bits = dfg.get_value_max_num_bits(*value);
-                if max_potential_bits <= *max_bit_size {
-                    Remove
-                } else {
-                    None
-                }
+                if max_potential_bits <= *max_bit_size { Remove } else { None }
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 let then_condition = dfg.resolve(*then_condition);

@@ -191,7 +191,7 @@ fn make_mutable(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
 
     #[test]
     fn array_set_in_loop_with_conditional_clone() {

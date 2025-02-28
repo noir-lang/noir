@@ -10,7 +10,7 @@ use nargo::{
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{check_crate, compute_function_abi, CompileOptions, CrateId};
+use noirc_driver::{CompileOptions, CrateId, check_crate, compute_function_abi};
 use noirc_frontend::{
     hir::{Context, ParsedFiles},
     monomorphization::monomorphize,

@@ -1,9 +1,9 @@
 use std::io::{self, Write};
 use std::path::PathBuf;
 
+use acir::FieldElement;
 use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
-use acir::FieldElement;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use nargo::PrintOutput;

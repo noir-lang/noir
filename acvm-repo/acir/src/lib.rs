@@ -41,10 +41,10 @@ mod reflection {
 
     use crate::{
         circuit::{
-            brillig::{BrilligInputs, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
             AssertionPayload, Circuit, ExpressionOrMemory, ExpressionWidth, Opcode, OpcodeLocation,
             Program,
+            brillig::{BrilligInputs, BrilligOutputs},
+            opcodes::{BlackBoxFuncCall, BlockType, ConstantOrWitnessEnum, FunctionInput},
         },
         native_types::{Witness, WitnessMap, WitnessStack},
     };

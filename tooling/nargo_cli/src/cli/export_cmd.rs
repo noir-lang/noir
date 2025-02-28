@@ -1,7 +1,7 @@
 use nargo::errors::CompileError;
 use nargo::ops::report_errors;
 use noir_artifact_cli::fs::artifact::save_program_to_file;
-use noirc_errors::FileDiagnostic;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
 
@@ -12,7 +12,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{compile_no_check, CompileOptions, CompiledProgram};
+use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
 
 use clap::Args;
 
@@ -82,7 +82,7 @@ fn compile_exported_functions(
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
             let program = compile_no_check(&mut context, compile_options, function_id, None, false)
-                .map_err(|error| vec![FileDiagnostic::from(error)]);
+                .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),

@@ -1,7 +1,7 @@
 //! Select representative tests to bench with criterion
-use acvm::{acir::native_types::WitnessMap, FieldElement};
+use acvm::{FieldElement, acir::native_types::WitnessMap};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_driver::CompiledProgram;

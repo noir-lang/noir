@@ -1,8 +1,8 @@
 //! Pre-process functions before inlining them into others.
 
 use crate::ssa::{
-    ir::function::{Function, RuntimeType},
     Ssa,
+    ir::function::{Function, RuntimeType},
 };
 
 use super::inlining::{self, InlineInfo};

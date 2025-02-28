@@ -13,6 +13,7 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::QuotedType;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
 };
@@ -26,8 +27,9 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
 use crate::hir_def::traits::ResolvedTraitBound;
 use crate::locations::AutoImportEntry;
-use crate::QuotedType;
 
+use crate::GenericTypeVars;
+use crate::Generics;
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirIdent;
@@ -42,8 +44,6 @@ use crate::hir_def::{
 };
 use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
-use crate::GenericTypeVars;
-use crate::Generics;
 use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId};
 
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
@@ -723,6 +723,15 @@ impl NodeInterner {
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
+    }
+
+    /// Intern an expression with everything needed for it (location & Type)
+    /// instead of requiring they be pushed later.
+    pub fn push_expr_full(&mut self, expr: HirExpression, location: Location, typ: Type) -> ExprId {
+        let id = self.push_expr(expr);
+        self.push_expr_location(id, location);
+        self.push_expr_type(id, typ);
+        id
     }
 
     /// Stores the span for an interned expression.

@@ -6,6 +6,7 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, Path, PathKind,
         Signedness, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
@@ -13,11 +14,11 @@ use crate::{
     },
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::{fully_qualified_module_path, ModuleDefId},
+        def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
-            generics::{Generic, TraitGenerics},
             NoMatchingImplFoundError, Source, TypeCheckError,
+            generics::{Generic, TraitGenerics},
         },
     },
     hir_def::{
@@ -35,10 +36,9 @@ use crate::{
     },
     signed_field::SignedField,
     token::SecondaryAttribute,
-    Generics, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
 };
 
-use super::{lints, path_resolution::PathResolutionItem, Elaborator, UnsafeBlockStatus};
+use super::{Elaborator, UnsafeBlockStatus, lints, path_resolution::PathResolutionItem};
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
@@ -1052,7 +1052,7 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first to follow any type
             // bindings.
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(ref binding) = &*var.borrow() {
+                if let TypeBinding::Bound(binding) = &*var.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
 
@@ -1179,7 +1179,7 @@ impl Elaborator<'_> {
                     };
                     return Ok((lhs_type.clone(), use_impl));
                 }
-                if let TypeBinding::Bound(ref binding) = &*int.borrow() {
+                if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
@@ -1265,7 +1265,7 @@ impl Elaborator<'_> {
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
                     TypeVariable(int) => {
-                        if let TypeBinding::Bound(ref binding) = &*int.borrow() {
+                        if let TypeBinding::Bound(binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, location);
                         }
 

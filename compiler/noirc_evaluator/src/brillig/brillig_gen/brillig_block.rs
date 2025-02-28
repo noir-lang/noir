@@ -1,11 +1,11 @@
 use crate::brillig::brillig_ir::artifact::Label;
 use crate::brillig::brillig_ir::brillig_variable::{
-    type_to_heap_value_type, BrilligArray, BrilligVariable, SingleAddrVariable,
+    BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
 
 use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
 use crate::ssa::ir::call_stack::CallStack;
 use crate::ssa::ir::instruction::{ConstrainError, Hint};
@@ -21,7 +21,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::brillig_vm::MEMORY_ADDRESSING_BIT_SIZE;
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -29,7 +29,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use super::brillig_black_box::convert_black_box_call;
-use super::brillig_block_variables::{allocate_value_with_type, BlockVariables};
+use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
@@ -935,8 +935,64 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             Instruction::EnableSideEffectsIf { .. } => {
                 unreachable!("enable_side_effects not supported by brillig")
             }
-            Instruction::IfElse { .. } => {
-                unreachable!("IfElse instructions should not be possible in brillig")
+            Instruction::IfElse { then_condition, then_value, else_condition: _, else_value } => {
+                let then_condition = self.convert_ssa_single_addr_value(*then_condition, dfg);
+                let then_value = self.convert_ssa_value(*then_value, dfg);
+                let else_value = self.convert_ssa_value(*else_value, dfg);
+                let result = self.variables.define_variable(
+                    self.function_context,
+                    self.brillig_context,
+                    dfg.instruction_results(instruction_id)[0],
+                    dfg,
+                );
+                match (then_value, else_value) {
+                    (
+                        BrilligVariable::SingleAddr(then_address),
+                        BrilligVariable::SingleAddr(else_address),
+                    ) => {
+                        self.brillig_context.conditional_move_instruction(
+                            then_condition,
+                            then_address,
+                            else_address,
+                            result.extract_single_addr(),
+                        );
+                    }
+                    (
+                        BrilligVariable::BrilligArray(then_array),
+                        BrilligVariable::BrilligArray(else_array),
+                    ) => {
+                        // Pointer to the array which result from the if-else
+                        let pointer = self.brillig_context.allocate_register();
+                        self.brillig_context.conditional_move_instruction(
+                            then_condition,
+                            SingleAddrVariable::new_usize(then_array.pointer),
+                            SingleAddrVariable::new_usize(else_array.pointer),
+                            SingleAddrVariable::new_usize(pointer),
+                        );
+                        let if_else_array = BrilligArray { pointer, size: then_array.size };
+                        // Copy the if-else array to the result
+                        self.brillig_context
+                            .call_array_copy_procedure(if_else_array, result.extract_array());
+                    }
+                    (
+                        BrilligVariable::BrilligVector(then_vector),
+                        BrilligVariable::BrilligVector(else_vector),
+                    ) => {
+                        // Pointer to the vector which result from the if-else
+                        let pointer = self.brillig_context.allocate_register();
+                        self.brillig_context.conditional_move_instruction(
+                            then_condition,
+                            SingleAddrVariable::new_usize(then_vector.pointer),
+                            SingleAddrVariable::new_usize(else_vector.pointer),
+                            SingleAddrVariable::new_usize(pointer),
+                        );
+                        let if_else_vector = BrilligVector { pointer };
+                        // Copy the if-else vector to the result
+                        self.brillig_context
+                            .call_vector_copy_procedure(if_else_vector, result.extract_vector());
+                    }
+                    _ => unreachable!("ICE - then and else values must have the same type"),
+                }
             }
             Instruction::MakeArray { elements: array, typ } => {
                 let value_id = dfg.instruction_results(instruction_id)[0];

@@ -15,12 +15,12 @@ use fxhash::FxHashMap as HashMap;
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
+        Ssa,
         ir::{
             function::Function,
             instruction::Instruction,
             types::{NumericType, Type},
         },
-        Ssa,
     },
 };
 

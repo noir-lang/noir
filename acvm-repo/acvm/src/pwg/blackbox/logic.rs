@@ -1,9 +1,9 @@
-use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
+use crate::pwg::{input_to_value, insert_value};
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::{bit_and, bit_xor};
 
