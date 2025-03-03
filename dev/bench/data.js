@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741029851449,
+  "lastUpdate": 1741029855889,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "50733708b0a7312c74229601a76f68afe1737b1d",
-          "message": "fix: don't panic when shifting too much (#7429)",
-          "timestamp": "2025-02-20T22:32:39Z",
-          "tree_id": "78138d258a6e3fc2445a7a17debdc0d2cf9380f2",
-          "url": "https://github.com/noir-lang/noir/commit/50733708b0a7312c74229601a76f68afe1737b1d"
-        },
-        "date": 1740092374618,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 443.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.9,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -14770,6 +14706,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 244.73,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 278.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 214.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 579.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 487.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 348.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.84,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c2022f4fbab4ed5d9cd62b3ff5b9bba9bd36627e",
+          "message": "feat: perform constant sha256 compressions at compile-time (#7566)",
+          "timestamp": "2025-03-03T19:01:04Z",
+          "tree_id": "b3d23d752473f52cab17c2269eb9a588324f60f7",
+          "url": "https://github.com/noir-lang/noir/commit/c2022f4fbab4ed5d9cd62b3ff5b9bba9bd36627e"
+        },
+        "date": 1741029852959,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 244.72,
             "unit": "MB"
           },
           {
