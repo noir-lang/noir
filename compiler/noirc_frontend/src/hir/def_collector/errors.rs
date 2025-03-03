@@ -77,7 +77,7 @@ pub enum DefCollectorErrorKind {
 impl DefCollectorErrorKind {
     pub fn location(&self) -> Location {
         match self {
-            DefCollectorErrorKind::Duplicate { first_def: ident, .. }
+            DefCollectorErrorKind::Duplicate { second_def: ident, .. }
             | DefCollectorErrorKind::UnresolvedModuleDecl { mod_name: ident, .. }
             | DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
                 item_name: ident,
@@ -160,10 +160,10 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     let second_location = second_def.0.location();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("First {} found here", &typ),
-                        first_location,
+                        format!("Second {} found here", &typ),
+                        second_location,
                     );
-                    diag.add_secondary(format!("Second {} found here", &typ), second_location);
+                    diag.add_secondary(format!("First {} found here", &typ), first_location);
                     diag
                 }
             }

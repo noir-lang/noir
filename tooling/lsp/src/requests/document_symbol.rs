@@ -660,7 +660,7 @@ mod document_symbol_tests {
                             deprecated: None,
                             range: Range {
                                 start: Position { line: 15, character: 7 },
-                                end: Position { line: 15, character: 24 },
+                                end: Position { line: 15, character: 25 },
                             },
                             selection_range: Range {
                                 start: Position { line: 15, character: 7 },
