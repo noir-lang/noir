@@ -35,12 +35,12 @@ pub enum Opcode<F> {
     /// `w=(w_1,..w_n)` is a tuple of `n` witnesses, and `P` is a multi-variate
     /// polynomial of total degree at most `2`.
     ///
-    /// The coefficients `{q_M}_{i,j}, q_i,q_c` of the polynomial are known
+    /// The coefficients `{q_M}_{i,j}, q_i, constant` of the polynomial are known
     /// values which define the opcode.
     ///
     /// A general expression of assert-zero opcode is the following:
     /// ```text
-    /// \sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i +q_c = 0
+    /// \sum_{i,j} {q_M}_{i,j}w_iw_j + \sum_i q_iw_i + constant = 0
     /// ```
     ///
     /// An assert-zero opcode can be used to:
@@ -140,7 +140,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 for i in &expr.linear_combinations {
                     write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
                 }
-                write!(f, "{}", expr.q_c)?;
+                write!(f, "{}", expr.constant)?;
 
                 write!(f, " ]")
             }
