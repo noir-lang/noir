@@ -610,7 +610,9 @@ fn simplify_black_box_func(
                 "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
             )
         }
-        BlackBoxFunc::Sha256Compression => SimplifyResult::None, //TODO(Guillaume)
+        BlackBoxFunc::Sha256Compression => {
+            blackbox::simplify_sha256_compression(dfg, arguments, block, call_stack)
+        }
         BlackBoxFunc::AES128Encrypt => SimplifyResult::None,
     }
 }
