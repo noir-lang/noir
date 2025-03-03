@@ -16,6 +16,7 @@ pub enum PrintOutput<'a> {
     String(&'a mut String),
 }
 
+/// Handle `println` calls.
 #[derive(Debug, Default)]
 pub struct PrintForeignCallExecutor<'a> {
     output: PrintOutput<'a>,
