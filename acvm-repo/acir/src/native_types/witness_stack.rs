@@ -1,10 +1,14 @@
 use std::io::Read;
 
+use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
+use noir_protobuf::ProtoCodec as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use crate::proto::convert::ProtoSchema;
 
 use super::WitnessMap;
 
@@ -15,6 +19,9 @@ enum SerializationError {
 
     #[error(transparent)]
     BincodeError(#[from] bincode::Error),
+
+    #[error("error deserializing witness stack: {0}")]
+    Deserialize(String),
 }
 
 #[derive(Debug, Error)]
@@ -60,11 +67,15 @@ impl<F> From<WitnessMap<F>> for WitnessStack<F> {
     }
 }
 
-impl<F: Serialize> TryFrom<&WitnessStack<F>> for Vec<u8> {
+impl<F: Serialize + AcirField> TryFrom<&WitnessStack<F>> for Vec<u8> {
     type Error = WitnessStackError;
 
     fn try_from(val: &WitnessStack<F>) -> Result<Self, Self::Error> {
-        let buf = bincode::serialize(val).map_err(|e| WitnessStackError(e.into()))?;
+        let buf = {
+            // bincode::serialize(val).map_err(|e| WitnessStackError(e.into()))?;
+
+            ProtoSchema::<F>::serialize_to_vec(val)
+        };
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf_c = Vec::new();
         deflater.read_to_end(&mut buf_c).map_err(|err| WitnessStackError(err.into()))?;
@@ -72,7 +83,7 @@ impl<F: Serialize> TryFrom<&WitnessStack<F>> for Vec<u8> {
     }
 }
 
-impl<F: Serialize> TryFrom<WitnessStack<F>> for Vec<u8> {
+impl<F: Serialize + AcirField> TryFrom<WitnessStack<F>> for Vec<u8> {
     type Error = WitnessStackError;
 
     fn try_from(val: WitnessStack<F>) -> Result<Self, Self::Error> {
@@ -80,15 +91,19 @@ impl<F: Serialize> TryFrom<WitnessStack<F>> for Vec<u8> {
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessStack<F> {
     type Error = WitnessStackError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let mut deflater = GzDecoder::new(bytes);
-        let mut buf_d = Vec::new();
-        deflater.read_to_end(&mut buf_d).map_err(|err| WitnessStackError(err.into()))?;
-        let witness_stack =
-            bincode::deserialize(&buf_d).map_err(|e| WitnessStackError(e.into()))?;
+        let mut buf = Vec::new();
+        deflater.read_to_end(&mut buf).map_err(|err| WitnessStackError(err.into()))?;
+        let witness_stack = {
+            // bincode::deserialize(&buf).map_err(|e| WitnessStackError(e.into()))?;
+
+            ProtoSchema::<F>::deserialize_from_vec(&buf)
+                .map_err(|e| SerializationError::Deserialize(e.to_string()))?
+        };
         Ok(witness_stack)
     }
 }

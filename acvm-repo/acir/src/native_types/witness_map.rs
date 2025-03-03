@@ -4,18 +4,23 @@ use std::{
     ops::Index,
 };
 
+use acir_field::AcirField;
 use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
+use noir_protobuf::ProtoCodec as _;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::native_types::Witness;
+use crate::{native_types::Witness, proto::convert::ProtoSchema};
 
 #[derive(Debug, Error)]
 enum SerializationError {
     #[error(transparent)]
     Deflate(#[from] std::io::Error),
+
+    #[error("error deserializing witness map: {0}")]
+    Deserialize(String),
 }
 
 #[derive(Debug, Error)]
@@ -77,11 +82,14 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
-impl<F: Serialize> TryFrom<WitnessMap<F>> for Vec<u8> {
+impl<F: Serialize + AcirField> TryFrom<WitnessMap<F>> for Vec<u8> {
     type Error = WitnessMapError;
 
     fn try_from(val: WitnessMap<F>) -> Result<Self, Self::Error> {
-        let buf = bincode::serialize(&val).unwrap();
+        let buf = {
+            // bincode::serialize(&val).unwrap()
+            ProtoSchema::<F>::serialize_to_vec(&val)
+        };
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf_c = Vec::new();
         deflater.read_to_end(&mut buf_c).map_err(|err| WitnessMapError(err.into()))?;
@@ -89,14 +97,21 @@ impl<F: Serialize> TryFrom<WitnessMap<F>> for Vec<u8> {
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
     type Error = WitnessMapError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let mut deflater = GzDecoder::new(bytes);
-        let mut buf_d = Vec::new();
-        deflater.read_to_end(&mut buf_d).map_err(|err| WitnessMapError(err.into()))?;
-        let witness_map = bincode::deserialize(&buf_d).unwrap();
-        Ok(Self(witness_map))
+        let mut buf = Vec::new();
+        deflater.read_to_end(&mut buf).map_err(|err| WitnessMapError(err.into()))?;
+
+        let witness_map = {
+            // Self(bincode::deserialize(&buf).unwrap())
+
+            ProtoSchema::<F>::deserialize_from_vec(&buf)
+                .map_err(|e| SerializationError::Deserialize(e.to_string()))?
+        };
+
+        Ok(witness_map)
     }
 }

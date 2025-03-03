@@ -2,8 +2,12 @@ pub mod black_box_functions;
 pub mod brillig;
 pub mod opcodes;
 
-use crate::native_types::{Expression, Witness};
+use crate::{
+    native_types::{Expression, Witness},
+    proto::convert::ProtoSchema,
+};
 use acir_field::AcirField;
+use noir_protobuf::ProtoCodec as _;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -237,9 +241,13 @@ impl<F> Circuit<F> {
     }
 }
 
-impl<F: Serialize> Program<F> {
+impl<F: Serialize + AcirField> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = bincode::serialize(self).unwrap();
+        let buf = {
+            // bincode::serialize(self).unwrap()
+
+            ProtoSchema::<F>::serialize_to_vec(self)
+        };
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -263,13 +271,17 @@ impl<F: Serialize> Program<F> {
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> Program<F> {
+impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
-        let mut buf_d = Vec::new();
-        gz_decoder.read_to_end(&mut buf_d)?;
-        bincode::deserialize(&buf_d)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+        let mut buf = Vec::new();
+        gz_decoder.read_to_end(&mut buf)?;
+        let result = {
+            // bincode::deserialize(&buf)
+
+            ProtoSchema::<F>::deserialize_from_vec(&buf)
+        };
+        result.map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
     }
 
     /// Deserialize bytecode.
