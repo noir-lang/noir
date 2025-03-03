@@ -4,6 +4,20 @@ package acvm.acir.witness;
 
 import "acir/native.proto";
 
+message WitnessMap {
+  repeated WitnessValue values = 1;
+
+  message WitnessValue {
+    native.Witness witness = 1;
+    native.Field field = 2;
+  }
+}
+
 message WitnessStack {
-  // TODO
+  repeated StackItem stack = 1;
+
+  message StackItem {
+    uint32 index = 1;
+    WitnessMap witness = 2;
+  }
 }

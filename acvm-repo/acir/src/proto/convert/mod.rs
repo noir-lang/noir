@@ -10,6 +10,7 @@ use crate::proto::program::Program;
 mod acir;
 mod brillig;
 mod native;
+mod witness;
 
 pub(crate) struct ProtoSchema<F> {
     field: PhantomData<F>,
