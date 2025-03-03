@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, future::Future};
 
-use crate::{insert_all_files_for_workspace_into_file_manager, parse_diff, PackageCacheData};
+use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
-use fm::{codespan_files::Error, FileMap, PathString};
+use fm::{FileMap, PathString, codespan_files::Error};
 use lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
@@ -25,8 +25,8 @@ use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
     LspState,
+    types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
 };
 
 // Handlers
@@ -191,7 +191,7 @@ impl Default for LspInitializationOptions {
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
-) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
     let initialization_options: LspInitializationOptions = params
         .initialization_options
@@ -293,7 +293,7 @@ pub(crate) fn on_initialize(
 pub(crate) fn on_formatting(
     state: &mut LspState,
     params: lsp_types::DocumentFormattingParams,
-) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> {
+) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
     std::future::ready(on_formatting_inner(state, params))
 }
 
@@ -441,7 +441,7 @@ where
 pub(crate) fn on_shutdown(
     _state: &mut LspState,
     _params: (),
-) -> impl Future<Output = Result<(), ResponseError>> {
+) -> impl Future<Output = Result<(), ResponseError>> + use<> {
     async { Ok(()) }
 }
 
@@ -628,11 +628,7 @@ pub(crate) fn find_all_references_in_workspace(
         });
         locations.dedup();
 
-        if locations.is_empty() {
-            None
-        } else {
-            Some(locations)
-        }
+        if locations.is_empty() { None } else { Some(locations) }
     } else {
         None
     }
@@ -671,7 +667,7 @@ mod initialization {
     };
     use tokio::test;
 
-    use crate::{requests::on_initialize, types::ServerCapabilities, LspState};
+    use crate::{LspState, requests::on_initialize, types::ServerCapabilities};
 
     #[test]
     async fn test_on_initialize() {

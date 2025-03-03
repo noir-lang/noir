@@ -1,7 +1,8 @@
+use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 
 use crate::ssa::ssa_gen::SSA_WORD_SIZE;
@@ -58,28 +59,20 @@ impl NumericType {
     /// Returns None if the given Field value is within the numeric limits
     /// for the current NumericType. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(
-        self,
-        field: FieldElement,
-        negative: bool,
-    ) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if negative {
+                if value.is_negative {
                     return Some(format!("0..={}", max));
                 }
-                if field <= max.into() {
-                    None
-                } else {
-                    Some(format!("0..={}", max))
-                }
+                if value.field <= max.into() { None } else { Some(format!("0..={}", max)) }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                let target_max = if negative { min } else { max };
-                if field <= target_max.into() {
+                let target_max = if value.is_negative { min } else { max };
+                if value.field <= target_max.into() {
                     None
                 } else {
                     Some(format!("-{}..={}", min, max))
@@ -307,19 +300,19 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(FieldElement::from(1_i128), true).is_some());
-        assert!(u8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
-        assert!(u8.value_is_outside_limits(FieldElement::from(255_i128), false).is_none());
-        assert!(u8.value_is_outside_limits(FieldElement::from(256_i128), false).is_some());
+        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(FieldElement::from(129_i128), true).is_some());
-        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), true).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(0_i128), false).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(127_i128), false).is_none());
-        assert!(i8.value_is_outside_limits(FieldElement::from(128_i128), false).is_some());
+        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
     }
 }

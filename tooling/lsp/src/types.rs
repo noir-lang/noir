@@ -15,7 +15,7 @@ pub(crate) use lsp_types::{
 };
 
 pub(crate) mod request {
-    use lsp_types::{request::Request, InitializeParams};
+    use lsp_types::{InitializeParams, request::Request};
 
     use super::{
         InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,

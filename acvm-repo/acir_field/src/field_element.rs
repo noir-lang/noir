@@ -112,11 +112,7 @@ impl<F: PrimeField> From<u32> for FieldElement<F> {
 
 impl<F: PrimeField> From<bool> for FieldElement<F> {
     fn from(boolean: bool) -> FieldElement<F> {
-        if boolean {
-            FieldElement::one()
-        } else {
-            FieldElement::zero()
-        }
+        if boolean { FieldElement::one() } else { FieldElement::zero() }
     }
 }
 
@@ -183,11 +179,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// For example, a max bit size of 254 would give a max byte size of 32.
     fn max_num_bytes() -> u32 {
         let num_bytes = Self::max_num_bits() / 8;
-        if Self::max_num_bits() % 8 == 0 {
-            num_bytes
-        } else {
-            num_bytes + 1
-        }
+        if Self::max_num_bits() % 8 == 0 { num_bytes } else { num_bytes + 1 }
     }
 
     fn modulus() -> BigUint {

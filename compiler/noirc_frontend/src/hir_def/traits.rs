@@ -1,13 +1,13 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::ResolvedGeneric;
 use crate::{
+    Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId, TraitMethodId},
-    Generics, Type, TypeBindings, TypeVariable,
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -121,7 +121,7 @@ impl TraitConstraint {
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
     pub trait_generics: TraitGenerics,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl ResolvedTraitBound {
@@ -198,11 +198,10 @@ impl Trait {
     /// Returns a TraitConstraint for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
-        let span = location.span;
         let trait_generics = self.get_trait_generics(location);
         TraitConstraint {
             typ: Type::TypeVariable(self.self_type_typevar.clone()),
-            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, span },
+            trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, location },
         }
     }
 }

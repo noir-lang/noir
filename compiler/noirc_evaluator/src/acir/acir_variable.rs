@@ -1,13 +1,13 @@
 use acvm::{
+    BlackBoxFunctionSolver,
     acir::{
+        AcirField, BlackBoxFunc,
         circuit::{
-            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
             AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
+            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
         },
         native_types::{Expression, Witness},
-        AcirField, BlackBoxFunc,
     },
-    BlackBoxFunctionSolver,
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
@@ -22,7 +22,7 @@ use crate::ssa::ir::{
 
 use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
-use super::{brillig_directive, AcirDynamicArray, AcirValue};
+use super::{AcirDynamicArray, AcirValue, brillig_directive};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.
@@ -80,7 +80,7 @@ impl From<SsaType> for AcirType {
     }
 }
 
-impl<'a> From<&'a SsaType> for AcirType {
+impl From<&SsaType> for AcirType {
     fn from(value: &SsaType) -> Self {
         match value {
             SsaType::Numeric(numeric_type) => AcirType::NumericType(*numeric_type),
@@ -278,7 +278,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
             None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() })
+                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
             }
         };
         Ok(var_data.to_expression().into_owned())

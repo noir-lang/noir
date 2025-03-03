@@ -3,29 +3,29 @@ use lsp_types::{
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use noirc_frontend::{
+    QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
-    QuotedType, Type,
 };
 
 use crate::{
     modules::{relative_module_full_path, relative_module_id_path},
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::{
+    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
     sort_text::{
         crate_or_module_sort_text, default_sort_text, new_sort_text, operator_sort_text,
         self_mismatch_sort_text,
     },
-    FunctionCompletionKind, FunctionKind, NodeFinder, RequestedItems, TraitReexport,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn module_def_id_completion_items(
         &self,
         module_def_id: ModuleDefId,
@@ -44,7 +44,7 @@ impl<'a> NodeFinder<'a> {
             },
             RequestedItems::OnlyTraits => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
-                    return Vec::new()
+                    return Vec::new();
                 }
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)

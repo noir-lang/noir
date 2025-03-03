@@ -3,20 +3,20 @@ use std::sync::Arc;
 
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
 use acir::{
+    AcirField, FieldElement,
     acir_field::GenericFieldElement,
     brillig::{BinaryFieldOp, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray},
     circuit::{
+        Opcode, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
-        Opcode, OpcodeLocation,
     },
     native_types::{Expression, Witness, WitnessMap},
-    AcirField, FieldElement,
 };
 
-use acvm::pwg::{ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError, ACVM};
+use acvm::pwg::{ACVM, ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError};
 use acvm_blackbox_solver::{BigIntSolver, StubbedBlackBoxSolver};
-use bn254_blackbox_solver::{field_from_hex, Bn254BlackBoxSolver, POSEIDON2_CONFIG};
+use bn254_blackbox_solver::{Bn254BlackBoxSolver, POSEIDON2_CONFIG, field_from_hex};
 use brillig_vm::brillig::HeapValueType;
 
 use num_bigint::BigUint;

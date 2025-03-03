@@ -6,8 +6,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, MethodCallExpression, Path, PathKind, PathSegment, Pattern,
-    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WhileStatement,
+    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
+    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -16,6 +16,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
+use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -98,8 +99,8 @@ impl HirExpression {
             HirExpression::Literal(HirLiteral::Bool(value)) => {
                 ExpressionKind::Literal(Literal::Bool(*value))
             }
-            HirExpression::Literal(HirLiteral::Integer(value, sign)) => {
-                ExpressionKind::Literal(Literal::Integer(*value, *sign))
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
+                ExpressionKind::Literal(Literal::Integer(*value))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -129,12 +130,10 @@ impl HirExpression {
                 let fields = vecmap(constructor.fields.clone(), |(name, expr): (Ident, ExprId)| {
                     (name, expr.to_display_ast(interner))
                 });
-                let struct_type = None;
 
                 ExpressionKind::Constructor(Box::new(ConstructorExpression {
                     typ: UnresolvedType::from_path(type_name),
                     fields,
-                    struct_type,
                 }))
             }
             HirExpression::MemberAccess(access) => {
@@ -202,9 +201,10 @@ impl HirExpression {
             HirExpression::Comptime(block) => {
                 ExpressionKind::Comptime(block.to_display_ast(interner), location)
             }
-            HirExpression::Unsafe(block) => {
-                ExpressionKind::Unsafe(block.to_display_ast(interner), location)
-            }
+            HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
+                block: block.to_display_ast(interner),
+                unsafe_keyword_location: location,
+            }),
             HirExpression::Quote(block) => ExpressionKind::Quote(block.clone()),
 
             // A macro was evaluated here: return the quoted result
@@ -217,8 +217,7 @@ impl HirExpression {
                 let segment1 = PathSegment { ident: typ.name.clone(), location, generics: None };
                 let segment2 =
                     PathSegment { ident: variant.name.clone(), location, generics: None };
-                let path =
-                    Path { segments: vec![segment1, segment2], kind: PathKind::Plain, location };
+                let path = Path::plain(vec![segment1, segment2], location);
                 let func = Box::new(Expression::new(ExpressionKind::Variable(path), location));
                 let arguments = vecmap(&constructor.arguments, |arg| arg.to_display_ast(interner));
                 let call = CallExpression { func, arguments, is_macro_call: false };
@@ -286,9 +285,7 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => {
-                ExpressionKind::Literal(Literal::Integer(value.field, value.is_negative))
-            }
+            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value)),
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -384,7 +381,7 @@ impl HirIdent {
             location,
         };
 
-        let path = Path { segments: vec![segment], kind: crate::ast::PathKind::Plain, location };
+        let path = Path::plain(vec![segment], location);
 
         ExpressionKind::Variable(path)
     }
@@ -541,11 +538,13 @@ impl HirArrayLiteral {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
                     Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer(*length, false);
+                        let literal = Literal::Integer(SignedField::positive(*length));
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }
-                    other => panic!("Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"),
+                    other => panic!(
+                        "Cannot convert non-constant type for repeated array literal from Hir -> Ast: {other:?}"
+                    ),
                 };
                 ArrayLiteral::Repeated { repeated_element, length }
             }

@@ -6,8 +6,8 @@ use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
-    ir::types::{NumericType, Type},
     Ssa,
+    ir::types::{NumericType, Type},
 };
 
 use super::{
@@ -344,11 +344,7 @@ pub(crate) fn try_to_extract_string_from_error_payload(
     values: &[ValueId],
     dfg: &DataFlowGraph,
 ) -> Option<String> {
-    if is_string_type && values.len() == 1 {
-        dfg.get_string(values[0])
-    } else {
-        None
-    }
+    if is_string_type && values.len() == 1 { dfg.get_string(values[0]) } else { None }
 }
 
 fn display_constrain_error(

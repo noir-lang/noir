@@ -271,11 +271,13 @@ It would be incorrect to say that a Noir proof verification costs any gas at all
 
 :::
 
-## A Note on EVM chains
+## Compatibility with different EVM chains
 
-Noir proof verification requires the ecMul, ecAdd and ecPairing precompiles. Not all EVM chains support EC Pairings, notably some of the ZK-EVMs. This means that you won't be able to use the verifier contract in all of them. You can find an incomplete list of which EVM chains support these precompiles [here](https://www.evmdiff.com/features?feature=precompiles).
+Barretenberg proof verification requires the `ecMul`, `ecAdd`, `ecPairing`, and `modexp` EVM precompiles. You can deploy and use the verifier contract on all EVM chains that support the precompiles.
 
-For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently support these precompiles, so proof verification via Solidity verifier contracts won't work. Here's a quick list of EVM chains that have been tested and are known to work:
+EVM Diff provides a great table of which EVM chains support which precompiles: https://www.evmdiff.com/features?feature=precompiles
+
+Some EVM chains manually tested to work with the Barretenberg verifier include:
 
 - Optimism
 - Arbitrum
@@ -289,7 +291,12 @@ For example, chains like `zkSync ERA` and `Polygon zkEVM` do not currently suppo
 - Linea
 - Moonbeam
 
-If you test any other chains, please open a PR on this page to update the list.
+Meanwhile, some EVM chains chains manually tested that failed to work with the Barretenberg verifier include:
+
+- zkSync ERA
+- Polygon zkEVM
+
+Pull requests to update this section is welcome and appreciated if you have compatibility updates on existing / new chains to contribute: https://github.com/noir-lang/noir
 
 ## What's next
 

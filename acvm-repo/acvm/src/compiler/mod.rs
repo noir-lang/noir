@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use acir::{
-    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
     AcirField,
+    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
 };
 
 // The various passes that we can use over ACIR
@@ -14,7 +14,7 @@ pub use optimizers::optimize;
 use optimizers::optimize_internal;
 pub use simulator::CircuitSimulator;
 use transformers::transform_internal;
-pub use transformers::{transform, MIN_EXPRESSION_WIDTH};
+pub use transformers::{MIN_EXPRESSION_WIDTH, transform};
 
 /// This module moves and decomposes acir opcodes. The transformation map allows consumers of this module to map
 /// metadata they had about the opcodes to the new opcode structure generated after the transformation.

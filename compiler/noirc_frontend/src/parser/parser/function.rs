@@ -17,7 +17,7 @@ use noirc_errors::{Location, Span};
 
 use super::parse_many::separated_by_comma_until_right_paren;
 use super::pattern::SelfPattern;
-use super::{pattern::PatternOrSelf, Parser};
+use super::{Parser, pattern::PatternOrSelf};
 
 pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) name: Ident,
@@ -30,7 +30,7 @@ pub(crate) struct FunctionDefinitionWithOptionalBody {
     pub(crate) return_visibility: Visibility,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Function = 'fn' identifier Generics FunctionParameters ( '->' Visibility Type )? WhereClause ( Block | ';' )
     pub(crate) fn parse_function(
         &mut self,
@@ -109,10 +109,24 @@ impl<'a> Parser<'a> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (
-                FunctionReturnType::Default(self.location_at_previous_token_end()),
-                Visibility::Private,
-            )
+            // This will return the span between `)` and `{`
+            //
+            // fn foo() { }
+            //        ^^^
+            let mut location = self.previous_token_location.merge(self.current_token_location);
+
+            // Here we change it to this (if there's space)
+            //
+            // fn foo() { }
+            //         ^
+            if location.span.end() - location.span.start() >= 3 {
+                location = Location::new(
+                    Span::from(location.span.start() + 1..location.span.end() - 1),
+                    location.file,
+                );
+            }
+
+            (FunctionReturnType::Default(location), Visibility::Private)
         };
 
         let where_clause = self.parse_where_clause();
@@ -196,7 +210,10 @@ impl<'a> Parser<'a> {
                 UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() };
             (visibility, typ)
         } else {
-            (self.parse_visibility(), self.parse_type_or_error())
+            (
+                self.parse_visibility(),
+                self.parse_type_or_error_with_recovery(&[Token::Comma, Token::RightParen]),
+            )
         };
 
         Param { visibility, pattern, typ, location: self.location_since(start_location) }
@@ -306,14 +323,17 @@ fn empty_body() -> BlockExpression {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{ItemVisibility, NoirFunction, UnresolvedTypeData, Visibility},
+        ast::{
+            IntegerBitSize, ItemVisibility, NoirFunction, Signedness, UnresolvedTypeData,
+            Visibility,
+        },
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 
@@ -519,5 +539,35 @@ mod tests {
         let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingParametersForFunctionDefinition));
+    }
+
+    #[test]
+    fn parse_function_with_keyword_before_type() {
+        let src = "
+        fn foo(x: mut i32, y: i64) {}
+                  ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (mut module, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span);
+        assert_eq!(error.to_string(), "Expected a type but found 'mut'");
+
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::Function(noir_function) = item.kind else {
+            panic!("Expected function");
+        };
+
+        let params = noir_function.parameters();
+        assert_eq!(params.len(), 2);
+
+        assert_eq!(
+            params[0].typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
+        );
+        assert_eq!(
+            params[1].typ.typ,
+            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
+        );
     }
 }

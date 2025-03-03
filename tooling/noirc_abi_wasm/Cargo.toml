@@ -31,5 +31,5 @@ getrandom = { workspace = true, features = ["js"] }
 [build-dependencies]
 build-data.workspace = true
 
-[dev-dependencies]
+[target.'cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))'.dev-dependencies]
 wasm-bindgen-test.workspace = true

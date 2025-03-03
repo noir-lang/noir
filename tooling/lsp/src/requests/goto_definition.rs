@@ -2,7 +2,7 @@ use std::future::{self, Future};
 
 use crate::attribute_reference_finder::AttributeReferenceFinder;
 use crate::utils;
-use crate::{types::GotoDefinitionResult, LspState};
+use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
 use fm::PathString;
@@ -14,7 +14,7 @@ use super::{process_request, to_lsp_location};
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
     let result = on_goto_definition_inner(state, params, false);
     future::ready(result)
 }
@@ -22,7 +22,7 @@ pub(crate) fn on_goto_definition_request(
 pub(crate) fn on_goto_type_definition_request(
     state: &mut LspState,
     params: GotoTypeDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
     let result = on_goto_definition_inner(state, params, true);
     future::ready(result)
 }

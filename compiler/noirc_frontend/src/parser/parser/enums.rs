@@ -7,11 +7,11 @@ use crate::{
 };
 
 use super::{
-    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
     Parser,
+    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
     ///
     /// EnumField = OuterDocComments identifier ':' Type
@@ -123,8 +123,8 @@ mod tests {
         ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
-            parser::tests::{expect_no_errors, get_source_with_error_span},
             ItemKind, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_source_with_error_span},
         },
     };
 

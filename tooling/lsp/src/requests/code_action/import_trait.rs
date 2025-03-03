@@ -11,13 +11,13 @@ use crate::{
     modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn import_trait_in_method_call(&mut self, method_call: &MethodCallExpression) {
         // First see if the method name already points to a function.
         let name_location = Location::new(method_call.method_name.span(), self.file);

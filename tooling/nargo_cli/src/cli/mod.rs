@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
@@ -13,8 +13,6 @@ use std::{
 use color_eyre::eyre;
 
 use crate::errors::CliError;
-
-mod fs;
 
 mod check_cmd;
 mod compile_cmd;
@@ -213,14 +211,15 @@ where
 /// Lock the (selected) packages in the workspace.
 /// The lock taken can be shared for commands that only read the artifacts,
 /// or exclusive for the ones that (might) write artifacts as well.
-fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
-    use fs2::FileExt as _;
-
+fn lock_workspace(
+    workspace: &Workspace,
+    exclusive: bool,
+) -> Result<Vec<impl Drop + use<>>, CliError> {
     struct LockedFile(File);
 
     impl Drop for LockedFile {
         fn drop(&mut self) {
-            let _ = self.0.unlock();
+            let _ = fs2::FileExt::unlock(&self.0);
         }
     }
 
@@ -233,15 +232,17 @@ fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Dro
             .unwrap_or_else(|e| panic!("Expected {path_display} to exist: {e}"));
 
         if exclusive {
-            if file.try_lock_exclusive().is_err() {
+            if fs2::FileExt::try_lock_exclusive(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...");
             }
-            file.lock_exclusive().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_exclusive(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         } else {
-            if file.try_lock_shared().is_err() {
+            if fs2::FileExt::try_lock_shared(&file).is_err() {
                 eprintln!("Waiting for lock on {path_display}...",);
             }
-            file.lock_shared().unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
+            fs2::FileExt::lock_shared(&file)
+                .unwrap_or_else(|e| panic!("Failed to lock {path_display}: {e}"));
         }
 
         locks.push(LockedFile(file));
@@ -271,9 +272,9 @@ mod tests {
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
-        assert!(err
-            .to_string()
-            .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+        assert!(
+            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
+        );
     }
 
     #[test]
