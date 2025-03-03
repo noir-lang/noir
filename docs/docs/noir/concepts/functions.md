@@ -34,6 +34,23 @@ is pre-pended with a colon and the parameter type. Multiple parameters are separ
 fn foo(x : Field, y : Field){}
 ```
 
+You can use an underscore `_` as a parameter name when you don't need to use the parameter in the function body. This is useful when you need to satisfy a function signature but don't need to use all the parameters:
+
+```rust
+fn foo(_ : Field, y : Field) {
+    // Only using y parameter
+}
+```
+
+Alternatively, you can prefix a parameter name with an underscore (e.g. `_x`), which also indicates that the parameter is unused. This approach is often preferred as it preserves the parameter name for documentation purposes:
+
+```rust
+fn foo(_x : Field, y : Field) -> Field {
+    // Only using y parameter
+    y
+}
+```
+
 The return type of a function can be stated by using the `->` arrow notation. The function below
 states that the foo function must return a `Field`. If the function returns no value, then the arrow
 is omitted.
