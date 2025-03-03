@@ -1841,9 +1841,6 @@ impl Elaborator<'_> {
                 if !matches!(actual_type, Type::MutableReference(_)) {
                     let location = self.interner.id_location(*object);
                     self.check_can_mutate(*object, location);
-                    // if let Err(error) = verify_mutable_reference(self.interner, *object) {
-                    //     self.push_err(TypeCheckError::ResolverError(error));
-                    // }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
                     *object_type = new_type.clone();

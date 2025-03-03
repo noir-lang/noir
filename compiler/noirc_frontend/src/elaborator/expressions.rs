@@ -380,7 +380,7 @@ impl Elaborator<'_> {
                 }
             }
             HirExpression::Index(_) => {
-                self.push_err(ResolverError::MutableReferenceToArrayElement { location });
+                self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);

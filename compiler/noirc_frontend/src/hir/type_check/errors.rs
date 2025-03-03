@@ -102,6 +102,8 @@ pub enum TypeCheckError {
     CannotMutateImmutableVariable { name: String, location: Location },
     #[error("Variable {name} captured in lambda must be a mutable reference")]
     MutableCaptureWithoutRef { name: String, location: Location },
+    #[error("Mutable references to array indices are unsupported")]
+    MutableReferenceToArrayElement { location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -281,6 +283,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
+            | TypeCheckError::MutableCaptureWithoutRef { location, .. }
+            | TypeCheckError::MutableReferenceToArrayElement { location }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -323,8 +327,7 @@ impl TypeCheckError {
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
-            | TypeCheckError::NestedUnsafeBlock { location }
-            | TypeCheckError::MutableCaptureWithoutRef { location, .. } => *location,
+            | TypeCheckError::NestedUnsafeBlock { location } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -486,6 +489,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
                 *location,
             ),
+            TypeCheckError::MutableReferenceToArrayElement { location } => {
+                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
+            },
             TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),

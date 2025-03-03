@@ -4032,3 +4032,27 @@ fn deny_capturing_mut_var_as_param_to_impl_method() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn deny_attaching_mut_ref_to_immutable_object() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Cannot mutate immutable variable `foo`
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
