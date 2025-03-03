@@ -31,6 +31,7 @@ use crate::node_interner::{NodeInterner, StmtId};
 
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
+use crate::hir::resolution::{errors::ResolverError, import::PathResolutionError};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
 use crate::monomorphization::ast::Program;
@@ -3403,7 +3404,7 @@ fn cfg_attribute_on_function() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3419,14 +3420,7 @@ fn cfg_disabled_attribute_on_function() {
         fn main() { }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-    for error in &errors {
-        println!("{}", error);
-    }
-
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3440,10 +3434,6 @@ fn cfg_disabled_attribute_on_function_rejects_parse_error() {
         fn main() { }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
     for error in errors {
         assert!(matches!(error, CompilationError::ParseError(_)));
     }
@@ -3458,14 +3448,7 @@ fn cfg_disabled_attribute_on_global() {
         fn main() { }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-    for error in &errors {
-        println!("{}", error);
-    }
-
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3479,7 +3462,7 @@ fn cfg_attribute_on_global() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3501,14 +3484,7 @@ fn cfg_disabled_attribute_on_statement_block() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-    for error in &errors {
-        println!("{}", error);
-    }
-
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3530,11 +3506,7 @@ fn cfg_attribute_on_statement_block() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3550,11 +3522,7 @@ fn cfg_attribute_on_module() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
 #[test]
@@ -3570,16 +3538,16 @@ fn cfg_disabled_attribute_on_module() {
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-    for error in &errors {
-        println!("{}", error);
-    }
-
     assert_eq!(errors.len(), 1);
+    match &errors[0] {
+        CompilationError::ResolverError(ResolverError::PathResolutionError(PathResolutionError::Unresolved(unresolved_path))) => {
+            assert_eq!(unresolved_path, "foo_module");
+        }
+        other_error => panic!("expected a ResolverError::PathResolutionError, but found {other_error}"),
+    }
 }
 
+// TODO: move to tests/imports
 #[test]
 fn cfg_attribute_on_use() {
     let src = r#"
@@ -3595,9 +3563,10 @@ fn cfg_attribute_on_use() {
         }
     "#;
     let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_eq!(errors, vec![]);
 }
 
+// TODO: move to tests/imports
 #[test]
 fn cfg_disabled_attribute_on_use() {
     let src = r#"
@@ -3609,21 +3578,91 @@ fn cfg_disabled_attribute_on_use() {
         use foo_module::FOO;
 
         fn main() {
+            // this is out of scope:
             // let _ = FOO;
         }
     "#;
     let errors = get_program_errors(src);
-
-    // TODO cleanup
-    dbg!(&errors);
-    for error in &errors {
-        println!("{}", error);
-    }
-
     assert_eq!(errors, vec![]);
 }
 
-// TODO: test cfg on trait, impl, contract, struct, enum, type
+// TODO: move to tests/imports
+#[test]
+fn cfg_disabled_attribute_on_use_errors_on_use() {
+    let src = r#"
+        mod foo_module {
+            pub global FOO: bool = true;
+        }
+
+        #[cfg(feature = "foo")]
+        use foo_module::FOO;
+
+        fn main() {
+            // this is out of scope:
+            let _ = FOO;
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1);
+    match &errors[0] {
+        CompilationError::ResolverError(ResolverError::VariableNotDeclared { name, .. }) => {
+            assert_eq!(name, "FOO");
+        }
+        other_error => panic!("expected a ResolverError::VariableNotDeclared, but found {other_error}"),
+    }
+}
+
+// TODO: expand the following tests into cases:
+//
+// // TODO: move to tests/traits
+// #[cfg(feature = "foo")]
+// pub trait Foo {
+//     #[cfg(feature = "bar")]
+//     fn bar(self) -> Field;
+// }
+//
+// // TODO: move to tests/traits
+// #[cfg(feature = "foo")]
+// impl Foo for Field {
+//     #[cfg(feature = "bar")]
+//     fn bar(self) -> Field {
+//         self
+//     }
+// }
+//
+// #[cfg(feature = "foo")]
+// pub struct Foo {
+//     #[cfg(feature = "bar")]
+//     bar: bool,
+//
+//     baz: Field,
+// }
+//
+//
+// // TODO: move to tests/enums
+// #[cfg(feature = "foo")]
+// pub enum Foo {
+//     #[cfg(feature = "bar")]
+//     Bar,
+//     Baz(Field),
+// }
+//
+// // TODO: move to tests/aliases
+// #[cfg(feature = "foo")]
+// pub type Foo = Field;
+//
+// // TODO: tests/metaprogramming
+// #[cfg(feature = "foo")]
+// comptime fn foo_generator() -> Field {
+//     2
+// }
+// fn main() {
+//     #[cfg(feature = "foo")]
+//     comptime let foo: Field = foo_generator();
+//
+//     #[cfg(feature = "foo")]
+//     assert_eq(foo == 2);
+// }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // END cfg tests

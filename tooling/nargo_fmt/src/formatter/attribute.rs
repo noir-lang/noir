@@ -178,10 +178,7 @@ impl Formatter<'_> {
         self.format_path(Path::from_single("cfg".to_string(), cfg_attribute.location()));
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
-            // TODO: unused variable from 'master' branch
-            let _comments_count_before_arguments = self.written_comments_count;
             let feature_eq_name = format!("feature = {}", cfg_attribute.name());
-
             let mut chunk_formatter = self.chunk_formatter();
             let mut group = ChunkGroup::new();
             group.text(chunk_formatter.chunk(|formatter| {

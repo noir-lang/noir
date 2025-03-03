@@ -286,19 +286,15 @@ mod tests {
         assert!(error.to_string().contains("This doc comment doesn't document anything"));
     }
 
-    // TODO: rename and consider relocating to more specific test location
     #[test]
     fn no_error_on_disabled_cfg_before_main() {
         let src = r#"
-        #[cfg(feature = "foo")]
+        #[cfg(feature = "disabled_feature")]
         use foo_module::FOO;
 
         fn main() { }
         "#;
         let (module, errors) = parse_program_with_dummy_file(src);
-
-        // TODO cleanup
-        dbg!(&module, &errors);
         assert_eq!(module.items.len(), 2);
         assert_eq!(errors, vec![]);
     }

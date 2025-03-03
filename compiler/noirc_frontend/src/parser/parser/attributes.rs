@@ -172,9 +172,9 @@ impl Parser<'_> {
         // "feature"
         if let Some(ident) = self.parse_path_no_turbofish().as_ref().and_then(Path::as_ident) {
             if ident.0.contents != "feature" {
-                // TODO:  new error for this case
+                let ident = ident.clone();
                 self.push_error(
-                    ParserErrorReason::UnexpectedSemicolon,
+                    ParserErrorReason::DisallowedCfgAttributeContents { ident },
                     self.location_since(start_location),
                 );
             }
@@ -197,9 +197,6 @@ impl Parser<'_> {
 
         // `)]`
         self.eat_or_error(Token::RightParen);
-
-        // TODO: skip or just parse the token?
-        // self.eat_or_error(Token::RightBracket);
         self.skip_until_right_bracket();
 
         Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
@@ -450,7 +447,7 @@ mod tests {
     use noirc_errors::Span;
 
     use crate::{
-        parser::{Parser, parser::tests::expect_no_errors},
+        parser::{Parser, ParserErrorReason, parser::tests::expect_no_errors},
         token::{Attribute, CfgAttribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 
@@ -694,6 +691,19 @@ mod tests {
         };
         let CfgAttribute::Feature { name: feature_name, location: _ } = cfg_attribute;
         assert_eq!(feature_name, "foo");
+    }
+
+    #[test]
+    fn parse_failure_cfg_non_feature() {
+        let src = "#[cfg(feature_typo = \"foo\")]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let parse_attribute_result = parser.parse_attribute();
+        assert!(parse_attribute_result.is_some());
+        assert_eq!(parser.errors.len(), 1);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::DisallowedCfgAttributeContents { .. })
+        ));
     }
 
     #[test]
