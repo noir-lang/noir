@@ -504,10 +504,92 @@ pub fn display_abi_error<F: AcirField>(
 }
 
 #[cfg(test)]
-mod test {
+mod abi_tests {
+    use std::collections::BTreeMap;
+
     use proptest::prelude::*;
 
-    use crate::arbitrary::arb_abi_and_input_map;
+    use crate::{
+        Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, arbitrary::arb_abi_and_input_map,
+    };
+
+    #[test]
+    fn is_empty_returns_expected_value() {
+        let param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Private,
+        };
+        let abi =
+            Abi { parameters: vec![param], return_type: None, error_types: BTreeMap::default() };
+        assert!(!abi.is_empty());
+
+        let empty_abi =
+            Abi { parameters: Vec::new(), return_type: None, error_types: BTreeMap::default() };
+        assert!(empty_abi.is_empty());
+    }
+
+    #[test]
+    fn has_public_inputs_returns_expected_value() {
+        // Private input
+        let private_param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Public,
+        };
+        let abi = Abi {
+            parameters: vec![private_param],
+            return_type: None,
+            error_types: BTreeMap::default(),
+        };
+        assert!(abi.has_public_inputs());
+
+        // Public input
+        let public_param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Private,
+        };
+        let abi = Abi {
+            parameters: vec![public_param],
+            return_type: None,
+            error_types: BTreeMap::default(),
+        };
+        assert!(!abi.has_public_inputs());
+
+        // Public output
+        let abi = Abi {
+            parameters: Vec::new(),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Public,
+            }),
+            error_types: BTreeMap::default(),
+        };
+        assert!(abi.has_public_inputs());
+
+        // Private output (not valid!)
+        let abi = Abi {
+            parameters: Vec::new(),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::Private,
+            }),
+            error_types: BTreeMap::default(),
+        };
+        assert!(!abi.has_public_inputs());
+
+        // Databus output
+        let abi = Abi {
+            parameters: Vec::new(),
+            return_type: Some(AbiReturnType {
+                abi_type: AbiType::Field,
+                visibility: AbiVisibility::DataBus,
+            }),
+            error_types: BTreeMap::default(),
+        };
+        assert!(!abi.has_public_inputs());
+    }
 
     proptest! {
         #[test]
@@ -518,5 +600,32 @@ mod test {
             prop_assert_eq!(decoded_inputs, input_map);
             prop_assert_eq!(return_value, None);
         }
+    }
+}
+
+#[cfg(test)]
+mod abi_param_tests {
+    use crate::{AbiParameter, AbiType, AbiVisibility};
+
+    #[test]
+    fn is_public_returns_expected_value() {
+        let public_param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Public,
+        };
+        assert!(public_param.is_public());
+        let private_param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Private,
+        };
+        assert!(!private_param.is_public());
+        let databus_param = AbiParameter {
+            name: "foo".to_owned(),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::DataBus,
+        };
+        assert!(!databus_param.is_public());
     }
 }
