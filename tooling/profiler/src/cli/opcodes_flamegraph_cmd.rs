@@ -160,7 +160,7 @@ mod tests {
             brillig::{BrilligBytecode, BrilligFunctionId},
         },
     };
-    use color_eyre::eyre::{self};
+    use color_eyre::eyre;
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};

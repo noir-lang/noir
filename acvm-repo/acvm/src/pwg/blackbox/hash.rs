@@ -136,11 +136,10 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     }
 
     // Read witness assignments
-    let mut state = Vec::new();
-    for input in inputs.iter() {
-        let witness_assignment = input_to_value(initial_witness, *input, false)?;
-        state.push(witness_assignment);
-    }
+    let state: Vec<F> = inputs
+        .iter()
+        .map(|input| input_to_value(initial_witness, *input, false))
+        .collect::<Result<_, _>>()?;
 
     let state = backend.poseidon2_permutation(&state, len)?;
 
