@@ -1150,7 +1150,6 @@ impl Elaborator<'_> {
         lambda: Lambda,
         parameters_type_hints: Option<&Vec<Type>>,
     ) -> (HirExpression, Type) {
-        // dbg!(lambda.clone());
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
