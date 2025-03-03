@@ -157,17 +157,12 @@ impl Elaborator<'_> {
             // We must check whether the mutable variable we are attempting to assign
             // comes from a lambda capture. All captures are immutable so we want to error
             // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
-            let capture_ids =
-                lambda_context.captures.iter().map(|var| var.ident.id).collect::<Vec<_>>();
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
             let typ = self.interner.definition_type(id);
-            for capture_id in capture_ids {
-                if capture_id == id && !typ.is_mutable_ref() {
-                    self.push_err(TypeCheckError::MutableCaptureWithoutRef {
-                        name: name.clone(),
-                        location,
-                    });
-                }
+            if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
+            {
+                let name = name.clone();
+                self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
             }
         }
 
