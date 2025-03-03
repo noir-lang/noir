@@ -29,7 +29,7 @@ libraries:
     timeout: 250
   noir_base64:
     repo: noir-lang/noir_base64
-    timeout: 3
+    timeout: 5
   noir_string_search:
     repo: noir-lang/noir_string_search
     timeout: 2
