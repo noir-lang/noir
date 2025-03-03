@@ -1,4 +1,4 @@
-trait MyTrait {
+pub trait MyTrait {
     fn Add10(&mut self);
 }
 
