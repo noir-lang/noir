@@ -21,14 +21,13 @@ pub struct Expression<F> {
     pub mul_terms: Vec<(F, Witness, Witness)>,
 
     pub linear_combinations: Vec<(F, Witness)>,
-    // TODO: rename q_c to `constant` moreover q_X is not clear to those who
-    // TODO are not familiar with PLONK
-    pub q_c: F,
+    // This is the constant term in the expression
+    pub constant: F,
 }
 
 impl<F: AcirField> Default for Expression<F> {
     fn default() -> Self {
-        Expression { mul_terms: Vec::new(), linear_combinations: Vec::new(), q_c: F::zero() }
+        Expression { mul_terms: Vec::new(), linear_combinations: Vec::new(), constant: F::zero() }
     }
 }
 
@@ -78,7 +77,7 @@ impl<F> Expression<F> {
     /// - f(x,y) = x + y would return `None`
     /// - f(x,y) = 5 would return `FieldElement(5)`
     pub fn to_const(&self) -> Option<&F> {
-        self.is_const().then_some(&self.q_c)
+        self.is_const().then_some(&self.constant)
     }
 
     /// Returns `true` if highest degree term in the expression is one or less.
@@ -128,8 +127,8 @@ impl<F> Expression<F> {
 }
 
 impl<F: AcirField> Expression<F> {
-    pub fn from_field(q_c: F) -> Self {
-        Self { q_c, ..Default::default() }
+    pub fn from_field(constant: F) -> Self {
+        Self { constant, ..Default::default() }
     }
 
     pub fn zero() -> Self {
@@ -157,7 +156,7 @@ impl<F: AcirField> Expression<F> {
             // ie where the constant term is 0 and the coefficient in front of the variable is
             // one.
             let (coefficient, variable) = self.linear_combinations[0];
-            let constant = self.q_c;
+            let constant = self.constant;
 
             if coefficient.is_one() && constant.is_zero() {
                 return Some(variable);
@@ -172,16 +171,16 @@ impl<F: AcirField> Expression<F> {
             return self.clone();
         } else if self.is_const() {
             let kb = b * k;
-            return kb + self.q_c;
+            return kb + self.constant;
         } else if b.is_const() {
-            return self.clone() + (k * b.q_c);
+            return self.clone() + (k * b.constant);
         }
 
         let mut mul_terms: Vec<(F, Witness, Witness)> =
             Vec::with_capacity(self.mul_terms.len() + b.mul_terms.len());
         let mut linear_combinations: Vec<(F, Witness)> =
             Vec::with_capacity(self.linear_combinations.len() + b.linear_combinations.len());
-        let q_c = self.q_c + k * b.q_c;
+        let constant = self.constant + k * b.constant;
 
         //linear combinations
         let mut i1 = 0; //a
@@ -272,7 +271,7 @@ impl<F: AcirField> Expression<F> {
             i2 += 1;
         }
 
-        Expression { mul_terms, linear_combinations, q_c }
+        Expression { mul_terms, linear_combinations, constant }
     }
 
     /// Determine the width of this expression.
@@ -332,7 +331,7 @@ impl<F: AcirField> Expression<F> {
 
 impl<F: AcirField> From<F> for Expression<F> {
     fn from(constant: F) -> Self {
-        Expression { q_c: constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
+        Expression { constant, linear_combinations: Vec::new(), mul_terms: Vec::new() }
     }
 }
 
@@ -344,7 +343,7 @@ impl<F: AcirField> From<Witness> for Expression<F> {
     /// can be seen as a univariate polynomial
     fn from(wit: Witness) -> Self {
         Expression {
-            q_c: F::zero(),
+            constant: F::zero(),
             linear_combinations: vec![(F::one(), wit)],
             mul_terms: Vec::new(),
         }
@@ -372,7 +371,7 @@ mod tests {
                 (FieldElement::from(4u128), Witness(4), Witness(5)),
             ],
             linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
+            constant: FieldElement::one(),
         };
 
         let result = a.add_mul(k, &b);
@@ -385,7 +384,7 @@ mod tests {
                     (FieldElement::from(40u128), Witness(4), Witness(5)),
                 ],
                 linear_combinations: vec![(FieldElement::from(40u128), Witness(4))],
-                q_c: FieldElement::from(10u128)
+                constant: FieldElement::from(10u128)
             }
         );
     }
