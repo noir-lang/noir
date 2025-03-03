@@ -244,28 +244,29 @@ pub(super) fn simplify_sha256_compression(
         (Some((state, _)), Some((msg_blocks, _)))
             if array_is_constant(dfg, &state) && array_is_constant(dfg, &msg_blocks) =>
         {
-            let Some(mut state) = state
+            let state: Option<Vec<u32>> = state
                 .iter()
                 .map(|id| {
                     dfg.get_numeric_constant(*id)
                         .expect("value id from array should point at constant")
                         .try_to_u32()
                 })
-                .collect::<Option<Vec<u32>>>()
-                .map(|vec| <[u32; 8]>::try_from(vec).unwrap())
-            else {
+                .collect();
+
+            let Some(mut state) = state.and_then(|vec| <[u32; 8]>::try_from(vec).ok()) else {
                 return SimplifyResult::None;
             };
 
-            let Some(msg_blocks) = msg_blocks
+            let msg_blocks: Option<Vec<u32>> = msg_blocks
                 .iter()
                 .map(|id| {
                     dfg.get_numeric_constant(*id)
                         .expect("value id from array should point at constant")
                         .try_to_u32()
                 })
-                .collect::<Option<Vec<u32>>>()
-                .map(|vec| <[u32; 16]>::try_from(vec).unwrap())
+                .collect();
+
+            let Some(msg_blocks) = msg_blocks.and_then(|vec| <[u32; 16]>::try_from(vec).ok())
             else {
                 return SimplifyResult::None;
             };
