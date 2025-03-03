@@ -48,7 +48,7 @@ impl ExpressionSolver {
             (MulTerm::OneUnknown(q, w1), OpcodeStatus::OpcodeSolvable(a, (b, w2))) => {
                 if w1 == w2 {
                     // We have one unknown so we can solve the equation
-                    let total_sum = a + opcode.q_c;
+                    let total_sum = a + opcode.constant;
                     if (q + b).is_zero() {
                         if !total_sum.is_zero() {
                             Err(OpcodeResolutionError::UnsatisfiedConstrain {
@@ -77,7 +77,7 @@ impl ExpressionSolver {
                 // Hence the equation is solvable, since there is a single unknown
                 // The equation is: partial_prod * unknown_var + sum + qC = 0
 
-                let total_sum = sum + opcode.q_c;
+                let total_sum = sum + opcode.constant;
                 if partial_prod.is_zero() {
                     if !total_sum.is_zero() {
                         Err(OpcodeResolutionError::UnsatisfiedConstrain {
@@ -95,7 +95,7 @@ impl ExpressionSolver {
             (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
                 // All the variables in the MulTerm are solved and the Fan-in is also solved
                 // There is nothing to solve
-                if !(a + b + opcode.q_c).is_zero() {
+                if !(a + b + opcode.constant).is_zero() {
                     Err(OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: ErrorLocation::Unresolved,
                         payload: None,
@@ -111,7 +111,7 @@ impl ExpressionSolver {
                 // The variables in the MulTerm are solved nad there is one unknown in the Fan-in
                 // Hence the equation is solvable, since we have one unknown
                 // The equation is total_prod + partial_sum + coeff * unknown_var + q_C = 0
-                let total_sum = total_prod + partial_sum + opcode.q_c;
+                let total_sum = total_prod + partial_sum + opcode.constant;
                 if coeff.is_zero() {
                     if !total_sum.is_zero() {
                         Err(OpcodeResolutionError::UnsatisfiedConstrain {
@@ -233,17 +233,17 @@ impl ExpressionSolver {
                         result.mul_terms.push((c, w1, w2));
                     }
                 }
-                MulTerm::Solved(f) => result.q_c += f,
+                MulTerm::Solved(f) => result.constant += f,
             }
         }
         for &(c, w) in &expr.linear_combinations {
             if let Some(f) = ExpressionSolver::solve_fan_in_term_helper(&(c, w), initial_witness) {
-                result.q_c += f;
+                result.constant += f;
             } else if !c.is_zero() {
                 result.linear_combinations.push((c, w));
             }
         }
-        result.q_c += expr.q_c;
+        result.constant += expr.constant;
         result
     }
 }
@@ -261,7 +261,7 @@ mod tests {
         let opcode_a = Expression {
             mul_terms: vec![],
             linear_combinations: vec![(FieldElement::one(), a)],
-            q_c: -FieldElement::one(),
+            constant: -FieldElement::one(),
         };
 
         let mut values = WitnessMap::new();
@@ -285,7 +285,7 @@ mod tests {
                 (-FieldElement::one(), c),
                 (-FieldElement::one(), d),
             ],
-            q_c: FieldElement::zero(),
+            constant: FieldElement::zero(),
         };
 
         let mut values = WitnessMap::new();
@@ -314,7 +314,7 @@ mod tests {
                 (-FieldElement::one(), c),
                 (-FieldElement::one(), d),
             ],
-            q_c: FieldElement::zero(),
+            constant: FieldElement::zero(),
         };
 
         let e = Witness(4);
@@ -325,7 +325,7 @@ mod tests {
                 (-FieldElement::one(), a),
                 (-FieldElement::one(), b),
             ],
-            q_c: FieldElement::zero(),
+            constant: FieldElement::zero(),
         };
 
         let mut values = WitnessMap::new();
