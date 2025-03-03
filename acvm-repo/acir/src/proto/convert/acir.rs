@@ -72,8 +72,8 @@ impl<F> ProtoCodec<circuit::ExpressionWidth, ExpressionWidth> for ProtoSchema<F>
         use crate::proto::acir::circuit::expression_width::*;
         decode_oneof_map(&value.value, |value| match value {
             Value::Unbounded(_) => Ok(circuit::ExpressionWidth::Unbounded),
-            Value::Bounded(bounded) => Ok(circuit::ExpressionWidth::Bounded {
-                width: Self::decode_wrap(&bounded.width, "width")?,
+            Value::Bounded(v) => Ok(circuit::ExpressionWidth::Bounded {
+                width: Self::decode_wrap(&v.width, "width")?,
             }),
         })
     }
@@ -121,9 +121,9 @@ impl<F> ProtoCodec<circuit::OpcodeLocation, OpcodeLocation> for ProtoSchema<F> {
             Value::Acir(location) => {
                 Ok(circuit::OpcodeLocation::Acir(Self::decode_wrap(location, "location")?))
             }
-            Value::Brillig(brillig_location) => Ok(circuit::OpcodeLocation::Brillig {
-                acir_index: Self::decode_wrap(&brillig_location.acir_index, "acir_index")?,
-                brillig_index: Self::decode_wrap(&brillig_location.brillig_index, "brillig_index")?,
+            Value::Brillig(location) => Ok(circuit::OpcodeLocation::Brillig {
+                acir_index: Self::decode_wrap(&location.acir_index, "acir_index")?,
+                brillig_index: Self::decode_wrap(&location.brillig_index, "brillig_index")?,
             }),
         })
     }
@@ -334,19 +334,19 @@ where
                 output: Self::encode_some(output),
             }),
             opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
-                let (o0, o1, o2) = outputs;
+                let (w1, w2, w3) = outputs;
                 Value::MultiScalarMul(MultiScalarMul {
                     points: Self::encode_vec(points),
                     scalars: Self::encode_vec(scalars),
-                    outputs: Self::encode_vec([o0, o1, o2]),
+                    outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
             opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
-                let (o0, o1, o2) = outputs;
+                let (w1, w2, w3) = outputs;
                 Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
                     input1: Self::encode_vec(input1.as_ref()),
                     input2: Self::encode_vec(input2.as_ref()),
-                    outputs: Self::encode_vec([o0, o1, o2]),
+                    outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
             opcodes::BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
@@ -411,8 +411,138 @@ where
         BlackBoxFuncCall { value: Some(value) }
     }
 
-    fn decode(_value: &BlackBoxFuncCall) -> eyre::Result<opcodes::BlackBoxFuncCall<F>> {
-        todo!("decode")
+    fn decode(value: &BlackBoxFuncCall) -> eyre::Result<opcodes::BlackBoxFuncCall<F>> {
+        use crate::proto::acir::circuit::black_box_func_call::*;
+        decode_oneof_map(
+            &value.value,
+            |value| -> Result<opcodes::BlackBoxFuncCall<F>, eyre::Error> {
+                match value {
+                    Value::Aes128Encrypt(v) => Ok(opcodes::BlackBoxFuncCall::AES128Encrypt {
+                        inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                        iv: Self::decode_box_arr_wrap(&v.iv, "iv")?,
+                        key: Self::decode_box_arr_wrap(&v.key, "key")?,
+                        outputs: Self::decode_vec_wrap(&v.outputs, "witness")?,
+                    }),
+                    Value::And(v) => Ok(opcodes::BlackBoxFuncCall::AND {
+                        lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                        rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        output: Self::decode_some_wrap(&v.output, "output")?,
+                    }),
+                    Value::Xor(v) => Ok(opcodes::BlackBoxFuncCall::XOR {
+                        lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                        rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        output: Self::decode_some_wrap(&v.output, "output")?,
+                    }),
+                    Value::Range(v) => Ok(opcodes::BlackBoxFuncCall::RANGE {
+                        input: Self::decode_some_wrap(&v.input, "input")?,
+                    }),
+                    Value::Blake2s(v) => Ok(opcodes::BlackBoxFuncCall::Blake2s {
+                        inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                        outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
+                    }),
+                    Value::Blake3(v) => Ok(opcodes::BlackBoxFuncCall::Blake3 {
+                        inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                        outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
+                    }),
+                    Value::EcdsaSecp256k1(v) => Ok(opcodes::BlackBoxFuncCall::EcdsaSecp256k1 {
+                        public_key_x: Self::decode_box_arr_wrap(&v.public_key_x, "public_key_x")?,
+                        public_key_y: Self::decode_box_arr_wrap(&v.public_key_y, "public_key_y")?,
+                        signature: Self::decode_box_arr_wrap(&v.signature, "signature")?,
+                        hashed_message: Self::decode_box_arr_wrap(
+                            &v.hashed_message,
+                            "hashed_message",
+                        )?,
+                        output: Self::decode_some_wrap(&v.output, "output")?,
+                    }),
+                    Value::EcdsaSecp256r1(v) => Ok(opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
+                        public_key_x: Self::decode_box_arr_wrap(&v.public_key_x, "public_key_x")?,
+                        public_key_y: Self::decode_box_arr_wrap(&v.public_key_y, "public_key_y")?,
+                        signature: Self::decode_box_arr_wrap(&v.signature, "signature")?,
+                        hashed_message: Self::decode_box_arr_wrap(
+                            &v.hashed_message,
+                            "hashed_message",
+                        )?,
+                        output: Self::decode_some_wrap(&v.output, "output")?,
+                    }),
+                    Value::MultiScalarMul(v) => Ok(opcodes::BlackBoxFuncCall::MultiScalarMul {
+                        points: Self::decode_vec_wrap(&v.points, "points")?,
+                        scalars: Self::decode_vec_wrap(&v.scalars, "scalars")?,
+                        outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
+                            .map(|[w1, w2, w3]| (w1, w2, w3))?,
+                    }),
+                    Value::EmbeddedCurveAdd(v) => Ok(opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
+                        input1: Self::decode_box_arr_wrap(&v.input1, "input1")?,
+                        input2: Self::decode_box_arr_wrap(&v.input2, "input2")?,
+                        outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
+                            .map(|[w1, w2, w3]| (w1, w2, w3))?,
+                    }),
+                    Value::KeccakF1600(v) => Ok(opcodes::BlackBoxFuncCall::Keccakf1600 {
+                        inputs: Self::decode_box_arr_wrap(&v.inputs, "inputs")?,
+                        outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
+                    }),
+                    Value::RecursiveAggregation(v) => {
+                        Ok(opcodes::BlackBoxFuncCall::RecursiveAggregation {
+                            verification_key: Self::decode_vec_wrap(
+                                &v.verification_key,
+                                "verification_key",
+                            )?,
+                            proof: Self::decode_vec_wrap(&v.proof, "proof")?,
+                            public_inputs: Self::decode_vec_wrap(
+                                &v.public_inputs,
+                                "public_inputs",
+                            )?,
+                            key_hash: Self::decode_some_wrap(&v.key_hash, "key_hash")?,
+                            proof_type: v.proof_type,
+                        })
+                    }
+                    Value::BigIntAdd(v) => Ok(opcodes::BlackBoxFuncCall::BigIntAdd {
+                        lhs: v.lhs,
+                        rhs: v.rhs,
+                        output: v.output,
+                    }),
+                    Value::BigIntSub(v) => Ok(opcodes::BlackBoxFuncCall::BigIntSub {
+                        lhs: v.lhs,
+                        rhs: v.rhs,
+                        output: v.output,
+                    }),
+                    Value::BigIntMul(v) => Ok(opcodes::BlackBoxFuncCall::BigIntMul {
+                        lhs: v.lhs,
+                        rhs: v.rhs,
+                        output: v.output,
+                    }),
+                    Value::BigIntDiv(v) => Ok(opcodes::BlackBoxFuncCall::BigIntDiv {
+                        lhs: v.lhs,
+                        rhs: v.rhs,
+                        output: v.output,
+                    }),
+                    Value::BigIntFromLeBytes(v) => {
+                        Ok(opcodes::BlackBoxFuncCall::BigIntFromLeBytes {
+                            inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                            modulus: v.modulus.clone(),
+                            output: v.output,
+                        })
+                    }
+                    Value::BigIntToLeBytes(v) => Ok(opcodes::BlackBoxFuncCall::BigIntToLeBytes {
+                        input: v.input,
+                        outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
+                    }),
+                    Value::Poseidon2Permutation(v) => {
+                        Ok(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
+                            inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                            outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
+                            len: v.len,
+                        })
+                    }
+                    Value::Sha256Compression(v) => {
+                        Ok(opcodes::BlackBoxFuncCall::Sha256Compression {
+                            inputs: Self::decode_box_arr_wrap(&v.inputs, "inputs")?,
+                            hash_values: Self::decode_box_arr_wrap(&v.hash_values, "hash_values")?,
+                            outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
+                        })
+                    }
+                }
+            },
+        )
     }
 }
 
@@ -477,8 +607,13 @@ impl<F> ProtoCodec<opcodes::BlockType, BlockType> for ProtoSchema<F> {
         BlockType { value: Some(value) }
     }
 
-    fn decode(_value: &BlockType) -> eyre::Result<opcodes::BlockType> {
-        todo!("decode")
+    fn decode(value: &BlockType) -> eyre::Result<opcodes::BlockType> {
+        use crate::proto::acir::circuit::block_type::*;
+        decode_oneof_map(&value.value, |value| match value {
+            Value::Memory(_) => Ok(opcodes::BlockType::Memory),
+            Value::CallData(v) => Ok(opcodes::BlockType::CallData(v.value)),
+            Value::ReturnData(_) => Ok(opcodes::BlockType::ReturnData),
+        })
     }
 }
 

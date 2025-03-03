@@ -28,8 +28,8 @@ where
 
     fn decode(value: &Program) -> eyre::Result<circuit::Program<F>> {
         Ok(circuit::Program {
-            functions: Self::decode_vec_msg(&value.functions, "functions")?,
-            unconstrained_functions: Self::decode_vec_msg(
+            functions: Self::decode_vec_wrap(&value.functions, "functions")?,
+            unconstrained_functions: Self::decode_vec_wrap(
                 &value.unconstrained_functions,
                 "unconstrained_functions",
             )?,

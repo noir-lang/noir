@@ -1,4 +1,4 @@
-use color_eyre::eyre::{self, eyre, Context};
+use color_eyre::eyre::{self, bail, eyre, Context};
 
 /// A protobuf codec to convert between a domain type `T`
 /// and its protobuf representation `R`.
@@ -46,6 +46,30 @@ pub trait ProtoCodec<T, R> {
     /// Decode multiple values into a vector, attaching a field name to any errors.
     fn decode_vec_wrap(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
         Self::decode_vec(values).wrap_err(msg)
+    }
+    /// Decode a fixed size array.
+    fn decode_arr<const N: usize>(values: &[R]) -> eyre::Result<[T; N]> {
+        match Self::decode_vec(values)?.try_into() {
+            Ok(arr) => Ok(arr),
+            Err(vec) => {
+                bail!("expected {N} items, got {}", vec.len());
+            }
+        }
+    }
+    /// Decode a fixed size array, attaching a field name to any errors
+    fn decode_arr_wrap<const N: usize>(values: &[R], msg: &'static str) -> eyre::Result<[T; N]> {
+        Self::decode_arr(values).wrap_err(msg)
+    }
+    /// Decode a boxed fixed size array.
+    fn decode_box_arr<const N: usize>(values: &[R]) -> eyre::Result<Box<[T; N]>> {
+        Self::decode_arr(values).map(Box::new)
+    }
+    /// Decode a boxed fixed size array, attaching a field name to any errors
+    fn decode_box_arr_wrap<const N: usize>(
+        values: &[R],
+        msg: &'static str,
+    ) -> eyre::Result<Box<[T; N]>> {
+        Self::decode_box_arr(values).wrap_err(msg)
     }
     /// Decode an optional field as a required one; fails if it's `None`.
     fn decode_some(value: &Option<R>) -> eyre::Result<T> {

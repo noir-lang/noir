@@ -147,110 +147,107 @@ where
         use brillig_opcode::*;
 
         decode_oneof_map(&value.value, |value| match value {
-            Value::BinaryFieldOp(binary_field_op) => Ok(brillig::Opcode::BinaryFieldOp {
-                destination: Self::decode_some_wrap(&binary_field_op.destination, "destination")?,
-                op: Self::decode_enum_wrap(binary_field_op.op, "op")?,
-                lhs: Self::decode_some_wrap(&binary_field_op.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&binary_field_op.rhs, "rhs")?,
+            Value::BinaryFieldOp(v) => Ok(brillig::Opcode::BinaryFieldOp {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                op: Self::decode_enum_wrap(v.op, "op")?,
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
             }),
-            Value::BinaryIntOp(binary_int_op) => Ok(brillig::Opcode::BinaryIntOp {
-                destination: Self::decode_some_wrap(&binary_int_op.destination, "destination")?,
-                op: Self::decode_enum_wrap(binary_int_op.op, "op")?,
-                bit_size: Self::decode_enum_wrap(binary_int_op.bit_size, "bit_size")?,
-                lhs: Self::decode_some_wrap(&binary_int_op.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&binary_int_op.rhs, "rhs")?,
+            Value::BinaryIntOp(v) => Ok(brillig::Opcode::BinaryIntOp {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                op: Self::decode_enum_wrap(v.op, "op")?,
+                bit_size: Self::decode_enum_wrap(v.bit_size, "bit_size")?,
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
             }),
-            Value::Not(not) => Ok(brillig::Opcode::Not {
-                destination: Self::decode_some_wrap(&not.destination, "destination")?,
-                source: Self::decode_some_wrap(&not.source, "source")?,
-                bit_size: Self::decode_enum_wrap(not.bit_size, "bit_size")?,
+            Value::Not(v) => Ok(brillig::Opcode::Not {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                source: Self::decode_some_wrap(&v.source, "source")?,
+                bit_size: Self::decode_enum_wrap(v.bit_size, "bit_size")?,
             }),
-            Value::Cast(cast) => Ok(brillig::Opcode::Cast {
-                destination: Self::decode_some_wrap(&cast.destination, "destination")?,
-                source: Self::decode_some_wrap(&cast.source, "source")?,
-                bit_size: Self::decode_some_wrap(&cast.bit_size, "bit_size")?,
+            Value::Cast(v) => Ok(brillig::Opcode::Cast {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                source: Self::decode_some_wrap(&v.source, "source")?,
+                bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
             }),
-            Value::JumpIfNot(jump_if_not) => Ok(brillig::Opcode::JumpIfNot {
-                condition: Self::decode_some_wrap(&jump_if_not.condition, "condition")?,
-                location: Self::decode_wrap(&jump_if_not.location, "location")?,
+            Value::JumpIfNot(v) => Ok(brillig::Opcode::JumpIfNot {
+                condition: Self::decode_some_wrap(&v.condition, "condition")?,
+                location: Self::decode_wrap(&v.location, "location")?,
             }),
-            Value::JumpIf(jump_if) => Ok(brillig::Opcode::JumpIf {
-                condition: Self::decode_some_wrap(&jump_if.condition, "condition")?,
-                location: Self::decode_wrap(&jump_if.location, "location")?,
+            Value::JumpIf(v) => Ok(brillig::Opcode::JumpIf {
+                condition: Self::decode_some_wrap(&v.condition, "condition")?,
+                location: Self::decode_wrap(&v.location, "location")?,
             }),
-            Value::Jump(jump) => Ok(brillig::Opcode::Jump {
-                location: Self::decode_wrap(&jump.location, "location")?,
-            }),
-            Value::CalldataCopy(calldata_copy) => Ok(brillig::Opcode::CalldataCopy {
+            Value::Jump(v) => {
+                Ok(brillig::Opcode::Jump { location: Self::decode_wrap(&v.location, "location")? })
+            }
+            Value::CalldataCopy(v) => Ok(brillig::Opcode::CalldataCopy {
                 destination_address: Self::decode_some_wrap(
-                    &calldata_copy.destination_address,
+                    &v.destination_address,
                     "destination_address",
                 )?,
-                size_address: Self::decode_some_wrap(&calldata_copy.size_address, "size_address")?,
-                offset_address: Self::decode_some_wrap(
-                    &calldata_copy.offset_address,
-                    "offset_address",
-                )?,
+                size_address: Self::decode_some_wrap(&v.size_address, "size_address")?,
+                offset_address: Self::decode_some_wrap(&v.offset_address, "offset_address")?,
             }),
-            Value::Call(call) => Ok(brillig::Opcode::Call {
-                location: Self::decode_wrap(&call.location, "location")?,
+            Value::Call(v) => {
+                Ok(brillig::Opcode::Call { location: Self::decode_wrap(&v.location, "location")? })
+            }
+            Value::Const(v) => Ok(brillig::Opcode::Const {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
+                value: Self::decode_some_wrap(&v.value, "value")?,
             }),
-            Value::Const(constant) => Ok(brillig::Opcode::Const {
-                destination: Self::decode_some_wrap(&constant.destination, "destination")?,
-                bit_size: Self::decode_some_wrap(&constant.bit_size, "bit_size")?,
-                value: Self::decode_some_wrap(&constant.value, "value")?,
-            }),
-            Value::IndirectConst(indirect_const) => Ok(brillig::Opcode::IndirectConst {
+            Value::IndirectConst(v) => Ok(brillig::Opcode::IndirectConst {
                 destination_pointer: Self::decode_some_wrap(
-                    &indirect_const.destination_pointer,
+                    &v.destination_pointer,
                     "destination_pointer",
                 )?,
-                bit_size: Self::decode_some_wrap(&indirect_const.bit_size, "bit_size")?,
-                value: Self::decode_some_wrap(&indirect_const.value, "value")?,
+                bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
+                value: Self::decode_some_wrap(&v.value, "value")?,
             }),
             Value::Return(_) => Ok(brillig::Opcode::Return),
-            Value::ForeignCall(foreign_call) => Ok(brillig::Opcode::ForeignCall {
-                function: foreign_call.function.clone(),
-                destinations: Self::decode_vec_wrap(&foreign_call.destinations, "destinations")?,
+            Value::ForeignCall(v) => Ok(brillig::Opcode::ForeignCall {
+                function: v.function.clone(),
+                destinations: Self::decode_vec_wrap(&v.destinations, "destinations")?,
                 destination_value_types: Self::decode_vec_wrap(
-                    &foreign_call.destination_value_types,
+                    &v.destination_value_types,
                     "destination_value_types",
                 )?,
-                inputs: Self::decode_vec_wrap(&foreign_call.inputs, "inputs")?,
+                inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
                 input_value_types: Self::decode_vec_wrap(
-                    &foreign_call.input_value_types,
+                    &v.input_value_types,
                     "input_value_types",
                 )?,
             }),
-            Value::Mov(mov) => Ok(brillig::Opcode::Mov {
-                destination: Self::decode_some_wrap(&mov.destination, "destination")?,
-                source: Self::decode_some_wrap(&mov.source, "source")?,
+            Value::Mov(v) => Ok(brillig::Opcode::Mov {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                source: Self::decode_some_wrap(&v.source, "source")?,
             }),
-            Value::ConditionalMov(conditional_mov) => Ok(brillig::Opcode::ConditionalMov {
-                destination: Self::decode_some_wrap(&conditional_mov.destination, "destination")?,
-                source_a: Self::decode_some_wrap(&conditional_mov.source_a, "source_a")?,
-                source_b: Self::decode_some_wrap(&conditional_mov.source_b, "source_b")?,
-                condition: Self::decode_some_wrap(&conditional_mov.condition, "condition")?,
+            Value::ConditionalMov(v) => Ok(brillig::Opcode::ConditionalMov {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                source_a: Self::decode_some_wrap(&v.source_a, "source_a")?,
+                source_b: Self::decode_some_wrap(&v.source_b, "source_b")?,
+                condition: Self::decode_some_wrap(&v.condition, "condition")?,
             }),
-            Value::Load(load) => Ok(brillig::Opcode::Load {
-                destination: Self::decode_some_wrap(&load.destination, "destination")?,
-                source_pointer: Self::decode_some_wrap(&load.source_pointer, "source_pointer")?,
+            Value::Load(v) => Ok(brillig::Opcode::Load {
+                destination: Self::decode_some_wrap(&v.destination, "destination")?,
+                source_pointer: Self::decode_some_wrap(&v.source_pointer, "source_pointer")?,
             }),
-            Value::Store(store) => Ok(brillig::Opcode::Store {
+            Value::Store(v) => Ok(brillig::Opcode::Store {
                 destination_pointer: Self::decode_some_wrap(
-                    &store.destination_pointer,
+                    &v.destination_pointer,
                     "destination_pointer",
                 )?,
-                source: Self::decode_some_wrap(&store.source, "source")?,
+                source: Self::decode_some_wrap(&v.source, "source")?,
             }),
-            Value::BlackBox(black_box) => {
-                Ok(brillig::Opcode::BlackBox(Self::decode_some_wrap(&black_box.op, "black_box")?))
+            Value::BlackBox(v) => {
+                Ok(brillig::Opcode::BlackBox(Self::decode_some_wrap(&v.op, "black_box")?))
             }
-            Value::Trap(trap) => Ok(brillig::Opcode::Trap {
-                revert_data: Self::decode_some_wrap(&trap.revert_data, "revert_data")?,
+            Value::Trap(v) => Ok(brillig::Opcode::Trap {
+                revert_data: Self::decode_some_wrap(&v.revert_data, "revert_data")?,
             }),
-            Value::Stop(stop) => Ok(brillig::Opcode::Stop {
-                return_data: Self::decode_some_wrap(&stop.return_data, "return_data")?,
+            Value::Stop(v) => Ok(brillig::Opcode::Stop {
+                return_data: Self::decode_some_wrap(&v.return_data, "return_data")?,
             }),
         })
     }
@@ -411,15 +408,15 @@ impl<F> ProtoCodec<brillig::ValueOrArray, ValueOrArray> for ProtoSchema<F> {
     fn decode(value: &ValueOrArray) -> eyre::Result<brillig::ValueOrArray> {
         use crate::proto::brillig::value_or_array::*;
         decode_oneof_map(&value.value, |value| match value {
-            Value::MemoryAddress(memory_address) => Ok(brillig::ValueOrArray::MemoryAddress(
-                Self::decode_wrap(memory_address, "memory_address")?,
-            )),
-            Value::HeapArray(heap_array) => {
-                Ok(brillig::ValueOrArray::HeapArray(Self::decode_wrap(heap_array, "heap_array")?))
+            Value::MemoryAddress(v) => {
+                Ok(brillig::ValueOrArray::MemoryAddress(Self::decode_wrap(v, "memory_address")?))
             }
-            Value::HeapVector(heap_vector) => Ok(brillig::ValueOrArray::HeapVector(
-                Self::decode_wrap(heap_vector, "heap_vector")?,
-            )),
+            Value::HeapArray(v) => {
+                Ok(brillig::ValueOrArray::HeapArray(Self::decode_wrap(v, "heap_array")?))
+            }
+            Value::HeapVector(v) => {
+                Ok(brillig::ValueOrArray::HeapVector(Self::decode_wrap(v, "heap_vector")?))
+            }
         })
     }
 }
@@ -446,12 +443,12 @@ impl<F> ProtoCodec<brillig::HeapValueType, HeapValueType> for ProtoSchema<F> {
             Value::Simple(bit_size) => {
                 Ok(brillig::HeapValueType::Simple(Self::decode_wrap(bit_size, "simple")?))
             }
-            Value::Array(array) => Ok(brillig::HeapValueType::Array {
-                value_types: Self::decode_vec_wrap(&array.value_types, "value_types")?,
-                size: Self::decode_wrap(&array.size, "size")?,
+            Value::Array(v) => Ok(brillig::HeapValueType::Array {
+                value_types: Self::decode_vec_wrap(&v.value_types, "value_types")?,
+                size: Self::decode_wrap(&v.size, "size")?,
             }),
-            Value::Vector(vector) => Ok(brillig::HeapValueType::Vector {
-                value_types: Self::decode_vec_wrap(&vector.value_types, "value_types")?,
+            Value::Vector(v) => Ok(brillig::HeapValueType::Vector {
+                value_types: Self::decode_vec_wrap(&v.value_types, "value_types")?,
             }),
         })
     }
@@ -627,128 +624,97 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
     fn decode(value: &BlackBoxOp) -> eyre::Result<brillig::BlackBoxOp> {
         use crate::proto::brillig::black_box_op::*;
         decode_oneof_map(&value.value, |value| match value {
-            Value::Aes128Encrypt(aes128_encrypt) => Ok(brillig::BlackBoxOp::AES128Encrypt {
-                inputs: Self::decode_some_wrap(&aes128_encrypt.inputs, "inputs")?,
-                iv: Self::decode_some_wrap(&aes128_encrypt.iv, "iv")?,
-                key: Self::decode_some_wrap(&aes128_encrypt.key, "key")?,
-                outputs: Self::decode_some_wrap(&aes128_encrypt.outputs, "outputs")?,
+            Value::Aes128Encrypt(v) => Ok(brillig::BlackBoxOp::AES128Encrypt {
+                inputs: Self::decode_some_wrap(&v.inputs, "inputs")?,
+                iv: Self::decode_some_wrap(&v.iv, "iv")?,
+                key: Self::decode_some_wrap(&v.key, "key")?,
+                outputs: Self::decode_some_wrap(&v.outputs, "outputs")?,
             }),
-            Value::Blake2s(blake2s) => Ok(brillig::BlackBoxOp::Blake2s {
-                message: Self::decode_some_wrap(&blake2s.message, "message")?,
-                output: Self::decode_some_wrap(&blake2s.output, "output")?,
+            Value::Blake2s(v) => Ok(brillig::BlackBoxOp::Blake2s {
+                message: Self::decode_some_wrap(&v.message, "message")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::Blake3(blake3) => Ok(brillig::BlackBoxOp::Blake3 {
-                message: Self::decode_some_wrap(&blake3.message, "message")?,
-                output: Self::decode_some_wrap(&blake3.output, "output")?,
+            Value::Blake3(v) => Ok(brillig::BlackBoxOp::Blake3 {
+                message: Self::decode_some_wrap(&v.message, "message")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::KeccakF1600(keccakf1600) => Ok(brillig::BlackBoxOp::Keccakf1600 {
-                input: Self::decode_some_wrap(&keccakf1600.input, "input")?,
-                output: Self::decode_some_wrap(&keccakf1600.output, "output")?,
+            Value::KeccakF1600(v) => Ok(brillig::BlackBoxOp::Keccakf1600 {
+                input: Self::decode_some_wrap(&v.input, "input")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::EcdsaSecp256k1(ecdsa_secp256k1) => Ok(brillig::BlackBoxOp::EcdsaSecp256k1 {
-                hashed_msg: Self::decode_some_wrap(&ecdsa_secp256k1.hashed_msg, "hashed_msg")?,
-                public_key_x: Self::decode_some_wrap(
-                    &ecdsa_secp256k1.public_key_x,
-                    "public_key_x",
-                )?,
-                public_key_y: Self::decode_some_wrap(
-                    &ecdsa_secp256k1.public_key_y,
-                    "public_key_y",
-                )?,
-                signature: Self::decode_some_wrap(&ecdsa_secp256k1.signature, "signature")?,
-                result: Self::decode_some_wrap(&ecdsa_secp256k1.result, "result")?,
+            Value::EcdsaSecp256k1(v) => Ok(brillig::BlackBoxOp::EcdsaSecp256k1 {
+                hashed_msg: Self::decode_some_wrap(&v.hashed_msg, "hashed_msg")?,
+                public_key_x: Self::decode_some_wrap(&v.public_key_x, "public_key_x")?,
+                public_key_y: Self::decode_some_wrap(&v.public_key_y, "public_key_y")?,
+                signature: Self::decode_some_wrap(&v.signature, "signature")?,
+                result: Self::decode_some_wrap(&v.result, "result")?,
             }),
-            Value::EcdsaSecp256r1(ecdsa_secp256r1) => Ok(brillig::BlackBoxOp::EcdsaSecp256r1 {
-                hashed_msg: Self::decode_some_wrap(&ecdsa_secp256r1.hashed_msg, "hashed_msg")?,
-                public_key_x: Self::decode_some_wrap(
-                    &ecdsa_secp256r1.public_key_x,
-                    "public_key_x",
-                )?,
-                public_key_y: Self::decode_some_wrap(
-                    &ecdsa_secp256r1.public_key_y,
-                    "public_key_y",
-                )?,
-                signature: Self::decode_some_wrap(&ecdsa_secp256r1.signature, "signature")?,
-                result: Self::decode_some_wrap(&ecdsa_secp256r1.result, "result")?,
+            Value::EcdsaSecp256r1(v) => Ok(brillig::BlackBoxOp::EcdsaSecp256r1 {
+                hashed_msg: Self::decode_some_wrap(&v.hashed_msg, "hashed_msg")?,
+                public_key_x: Self::decode_some_wrap(&v.public_key_x, "public_key_x")?,
+                public_key_y: Self::decode_some_wrap(&v.public_key_y, "public_key_y")?,
+                signature: Self::decode_some_wrap(&v.signature, "signature")?,
+                result: Self::decode_some_wrap(&v.result, "result")?,
             }),
-            Value::MultiScalarMul(multi_scalar_mul) => Ok(brillig::BlackBoxOp::MultiScalarMul {
-                points: Self::decode_some_wrap(&multi_scalar_mul.points, "points")?,
-                scalars: Self::decode_some_wrap(&multi_scalar_mul.scalars, "scalars")?,
-                outputs: Self::decode_some_wrap(&multi_scalar_mul.outputs, "outputs")?,
+            Value::MultiScalarMul(v) => Ok(brillig::BlackBoxOp::MultiScalarMul {
+                points: Self::decode_some_wrap(&v.points, "points")?,
+                scalars: Self::decode_some_wrap(&v.scalars, "scalars")?,
+                outputs: Self::decode_some_wrap(&v.outputs, "outputs")?,
             }),
-            Value::EmbeddedCurveAdd(embedded_curve_add) => {
-                Ok(brillig::BlackBoxOp::EmbeddedCurveAdd {
-                    input1_x: Self::decode_some_wrap(&embedded_curve_add.input1_x, "input1_x")?,
-                    input1_y: Self::decode_some_wrap(&embedded_curve_add.input1_y, "input1_y")?,
-                    input1_infinite: Self::decode_some_wrap(
-                        &embedded_curve_add.input1_infinite,
-                        "input1_infinite",
-                    )?,
-                    input2_x: Self::decode_some_wrap(&embedded_curve_add.input2_x, "input2_x")?,
-                    input2_y: Self::decode_some_wrap(&embedded_curve_add.input2_y, "input2_y")?,
-                    input2_infinite: Self::decode_some_wrap(
-                        &embedded_curve_add.input2_infinite,
-                        "input2_infinite",
-                    )?,
-                    result: Self::decode_some_wrap(&embedded_curve_add.result, "result")?,
-                })
-            }
-            Value::BigIntAdd(big_int_add) => Ok(brillig::BlackBoxOp::BigIntAdd {
-                lhs: Self::decode_some_wrap(&big_int_add.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&big_int_add.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&big_int_add.output, "output")?,
+            Value::EmbeddedCurveAdd(v) => Ok(brillig::BlackBoxOp::EmbeddedCurveAdd {
+                input1_x: Self::decode_some_wrap(&v.input1_x, "input1_x")?,
+                input1_y: Self::decode_some_wrap(&v.input1_y, "input1_y")?,
+                input1_infinite: Self::decode_some_wrap(&v.input1_infinite, "input1_infinite")?,
+                input2_x: Self::decode_some_wrap(&v.input2_x, "input2_x")?,
+                input2_y: Self::decode_some_wrap(&v.input2_y, "input2_y")?,
+                input2_infinite: Self::decode_some_wrap(&v.input2_infinite, "input2_infinite")?,
+                result: Self::decode_some_wrap(&v.result, "result")?,
             }),
-            Value::BigIntSub(big_int_sub) => Ok(brillig::BlackBoxOp::BigIntSub {
-                lhs: Self::decode_some_wrap(&big_int_sub.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&big_int_sub.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&big_int_sub.output, "output")?,
+            Value::BigIntAdd(v) => Ok(brillig::BlackBoxOp::BigIntAdd {
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::BigIntMul(big_int_mul) => Ok(brillig::BlackBoxOp::BigIntMul {
-                lhs: Self::decode_some_wrap(&big_int_mul.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&big_int_mul.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&big_int_mul.output, "output")?,
+            Value::BigIntSub(v) => Ok(brillig::BlackBoxOp::BigIntSub {
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::BigIntDiv(big_int_div) => Ok(brillig::BlackBoxOp::BigIntDiv {
-                lhs: Self::decode_some_wrap(&big_int_div.lhs, "lhs")?,
-                rhs: Self::decode_some_wrap(&big_int_div.rhs, "rhs")?,
-                output: Self::decode_some_wrap(&big_int_div.output, "output")?,
+            Value::BigIntMul(v) => Ok(brillig::BlackBoxOp::BigIntMul {
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
             }),
-            Value::BigIntFromLeBytes(big_int_from_le_bytes) => {
-                Ok(brillig::BlackBoxOp::BigIntFromLeBytes {
-                    inputs: Self::decode_some_wrap(&big_int_from_le_bytes.inputs, "inputs")?,
-                    modulus: Self::decode_some_wrap(&big_int_from_le_bytes.modulus, "modulus")?,
-                    output: Self::decode_some_wrap(&big_int_from_le_bytes.output, "output")?,
-                })
-            }
-            Value::BigIntToLeBytes(big_int_to_le_bytes) => {
-                Ok(brillig::BlackBoxOp::BigIntToLeBytes {
-                    input: Self::decode_some_wrap(&big_int_to_le_bytes.input, "input")?,
-                    output: Self::decode_some_wrap(&big_int_to_le_bytes.output, "output")?,
-                })
-            }
-            Value::Poseidon2Permutation(poseidon2_permutation) => {
-                Ok(brillig::BlackBoxOp::Poseidon2Permutation {
-                    message: Self::decode_some_wrap(&poseidon2_permutation.message, "message")?,
-                    output: Self::decode_some_wrap(&poseidon2_permutation.output, "output")?,
-                    len: Self::decode_some_wrap(&poseidon2_permutation.len, "len")?,
-                })
-            }
-            Value::Sha256Compression(sha256_compression) => {
-                Ok(brillig::BlackBoxOp::Sha256Compression {
-                    input: Self::decode_some_wrap(&sha256_compression.input, "input")?,
-                    hash_values: Self::decode_some_wrap(
-                        &sha256_compression.hash_values,
-                        "hash_values",
-                    )?,
-                    output: Self::decode_some_wrap(&sha256_compression.output, "output")?,
-                })
-            }
-            Value::ToRadix(to_radix) => Ok(brillig::BlackBoxOp::ToRadix {
-                input: Self::decode_some_wrap(&to_radix.input, "input")?,
-                radix: Self::decode_some_wrap(&to_radix.radix, "radix")?,
-                output_pointer: Self::decode_some_wrap(&to_radix.output_pointer, "output_pointer")?,
-                num_limbs: Self::decode_some_wrap(&to_radix.num_limbs, "num_limbs")?,
-                output_bits: Self::decode_some_wrap(&to_radix.output_bits, "output_bits")?,
+            Value::BigIntDiv(v) => Ok(brillig::BlackBoxOp::BigIntDiv {
+                lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
+                rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+            }),
+            Value::BigIntFromLeBytes(v) => Ok(brillig::BlackBoxOp::BigIntFromLeBytes {
+                inputs: Self::decode_some_wrap(&v.inputs, "inputs")?,
+                modulus: Self::decode_some_wrap(&v.modulus, "modulus")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+            }),
+            Value::BigIntToLeBytes(v) => Ok(brillig::BlackBoxOp::BigIntToLeBytes {
+                input: Self::decode_some_wrap(&v.input, "input")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+            }),
+            Value::Poseidon2Permutation(v) => Ok(brillig::BlackBoxOp::Poseidon2Permutation {
+                message: Self::decode_some_wrap(&v.message, "message")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+                len: Self::decode_some_wrap(&v.len, "len")?,
+            }),
+            Value::Sha256Compression(v) => Ok(brillig::BlackBoxOp::Sha256Compression {
+                input: Self::decode_some_wrap(&v.input, "input")?,
+                hash_values: Self::decode_some_wrap(&v.hash_values, "hash_values")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+            }),
+            Value::ToRadix(v) => Ok(brillig::BlackBoxOp::ToRadix {
+                input: Self::decode_some_wrap(&v.input, "input")?,
+                radix: Self::decode_some_wrap(&v.radix, "radix")?,
+                output_pointer: Self::decode_some_wrap(&v.output_pointer, "output_pointer")?,
+                num_limbs: Self::decode_some_wrap(&v.num_limbs, "num_limbs")?,
+                output_bits: Self::decode_some_wrap(&v.output_bits, "output_bits")?,
             }),
         })
     }
