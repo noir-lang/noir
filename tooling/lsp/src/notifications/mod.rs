@@ -11,7 +11,7 @@ use fxhash::FxHashMap as HashMap;
 use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
-use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 
 use crate::types::{
     Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -191,16 +191,16 @@ fn publish_diagnostics(
     package_root_dir: &PathBuf,
     files: &FileMap,
     fm: &FileManager,
-    file_diagnostics: Vec<FileDiagnostic>,
+    custom_diagnostics: Vec<CustomDiagnostic>,
 ) {
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-    for file_diagnostic in file_diagnostics.into_iter() {
-        let file_id = file_diagnostic.file_id;
-        let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
+    for custom_diagnostic in custom_diagnostics.into_iter() {
+        let file = custom_diagnostic.file;
+        let path = fm.path(file).expect("file must exist to have emitted diagnostic");
         if let Ok(uri) = Url::from_file_path(path) {
             if let Some(diagnostic) =
-                file_diagnostic_to_diagnostic(file_diagnostic, files, fm, uri.clone())
+                custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
             {
                 diagnostics_per_url.entry(uri).or_default().push(diagnostic);
             }
@@ -232,21 +232,18 @@ fn publish_diagnostics(
     state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
 }
 
-fn file_diagnostic_to_diagnostic(
-    file_diagnostic: FileDiagnostic,
+fn custom_diagnostic_to_diagnostic(
+    diagnostic: CustomDiagnostic,
     files: &FileMap,
     fm: &FileManager,
     uri: Url,
 ) -> Option<Diagnostic> {
-    let file_id = file_diagnostic.file_id;
-    let diagnostic = file_diagnostic.diagnostic;
-
     if diagnostic.secondaries.is_empty() {
         return None;
     }
 
     let span = diagnostic.secondaries.first().unwrap().location.span;
-    let range = byte_span_to_range(files, file_id, span.into())?;
+    let range = byte_span_to_range(files, diagnostic.file, span.into())?;
 
     let severity = match diagnostic.kind {
         DiagnosticKind::Error => DiagnosticSeverity::ERROR,

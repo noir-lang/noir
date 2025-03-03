@@ -2,7 +2,7 @@ use std::{io::Write, panic::RefUnwindSafe, time::Duration};
 
 use fm::FileManager;
 use nargo::ops::TestStatus;
-use noirc_errors::{FileDiagnostic, reporter::stack_trace};
+use noirc_errors::{CustomDiagnostic, reporter::stack_trace};
 use serde_json::{Map, json};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLock, WriteColor};
 
@@ -438,7 +438,7 @@ impl Formatter for JsonFormatter {
                 stdout.push_str(message.trim());
 
                 if let Some(diagnostic) = error_diagnostic {
-                    if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                    if !(diagnostic.is_warning() && silence_warnings) {
                         stdout.push('\n');
                         stdout.push_str(&diagnostic_to_string(diagnostic, file_manager));
                     }
@@ -450,7 +450,7 @@ impl Formatter for JsonFormatter {
             TestStatus::CompileError(diagnostic) => {
                 json.insert("event".to_string(), json!("failed"));
 
-                if !(diagnostic.diagnostic.is_warning() && silence_warnings) {
+                if !(diagnostic.is_warning() && silence_warnings) {
                     if !stdout.is_empty() {
                         stdout.push('\n');
                     }
@@ -515,12 +515,11 @@ fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
 }
 
 pub(crate) fn diagnostic_to_string(
-    file_diagnostic: &FileDiagnostic,
+    custom_diagnostic: &CustomDiagnostic,
     file_manager: &FileManager,
 ) -> String {
     let file_map = file_manager.as_file_map();
 
-    let custom_diagnostic = &file_diagnostic.diagnostic;
     let mut message = String::new();
     message.push_str(custom_diagnostic.message.trim());
 
@@ -529,7 +528,7 @@ pub(crate) fn diagnostic_to_string(
         message.push_str(note.trim());
     }
 
-    if let Ok(name) = file_map.get_name(file_diagnostic.file_id) {
+    if let Ok(name) = file_map.get_name(custom_diagnostic.file) {
         message.push('\n');
         message.push_str(&format!("at {name}"));
     }

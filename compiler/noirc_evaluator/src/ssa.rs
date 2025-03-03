@@ -72,8 +72,8 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// Enable the missing Brillig call constraints check
-    pub enable_brillig_constraints_check: bool,
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
 
     /// Enable the lookback feature of the Brillig call constraints
     /// check (prevents some rare false positives, leads to a slowdown
@@ -143,7 +143,7 @@ pub(crate) fn optimize_into_acir(
         ));
     }
 
-    if options.enable_brillig_constraints_check {
+    if !options.skip_brillig_constraints_check {
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,
@@ -211,6 +211,7 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
+        .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
         .run_pass(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal")

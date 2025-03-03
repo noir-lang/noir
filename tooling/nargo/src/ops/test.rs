@@ -8,7 +8,7 @@ use acvm::{
 };
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH, compile_no_check};
-use noirc_errors::{FileDiagnostic, debug_info::DebugInfo};
+use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
 use noirc_frontend::hir::{Context, def_map::TestFunction};
 
 use crate::{
@@ -22,9 +22,9 @@ use super::execute_program;
 #[derive(Debug)]
 pub enum TestStatus {
     Pass,
-    Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
+    Fail { message: String, error_diagnostic: Option<CustomDiagnostic> },
     Skipped,
-    CompileError(FileDiagnostic),
+    CompileError(CustomDiagnostic),
 }
 
 impl TestStatus {
@@ -218,7 +218,7 @@ fn test_status_program_compile_pass(
 fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
-    error_diagnostic: Option<FileDiagnostic>,
+    error_diagnostic: Option<CustomDiagnostic>,
 ) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
@@ -235,9 +235,7 @@ fn check_expected_failure_message(
     // expected_failure_message
     let expected_failure_message_matches = failed_assertion
         .as_ref()
-        .or_else(|| {
-            error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.diagnostic.message)
-        })
+        .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
         .map(|message| message.contains(expected_failure_message))
         .unwrap_or(false);
     if expected_failure_message_matches {

@@ -75,6 +75,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
+    /// Insert a conditional move instruction
+    pub(crate) fn conditional_move_instruction(
+        &mut self,
+        condition: SingleAddrVariable,
+        then_address: SingleAddrVariable,
+        else_address: SingleAddrVariable,
+        destination: SingleAddrVariable,
+    ) {
+        self.debug_show.conditional_mov_instruction(
+            destination.address,
+            then_address.address,
+            else_address.address,
+            condition.address,
+        );
+        self.push_opcode(BrilligOpcode::ConditionalMov {
+            destination: destination.address,
+            source_a: then_address.address,
+            source_b: else_address.address,
+            condition: condition.address,
+        });
+    }
+
     fn binary(
         &mut self,
         lhs: SingleAddrVariable,

@@ -126,6 +126,24 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
     }
 
+    /// Emits a `conditional mov` instruction.
+    pub(crate) fn conditional_mov_instruction(
+        &self,
+        destination: MemoryAddress,
+        source_then: MemoryAddress,
+        source_else: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  {} = MOV if {} then {}, else {}",
+            destination,
+            condition,
+            source_then,
+            source_else
+        );
+    }
+
     /// Emits a `cast` instruction.
     pub(crate) fn cast_instruction(
         &self,
