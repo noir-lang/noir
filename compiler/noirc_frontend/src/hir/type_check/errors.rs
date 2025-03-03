@@ -243,6 +243,9 @@ pub enum TypeCheckError {
     UnreachableCase { location: Location },
     #[error("Missing cases")]
     MissingCases { cases: BTreeSet<String>, location: Location },
+    /// This error is used for types like integers which have too many variants to enumerate
+    #[error("Missing cases: `{typ}` is non-empty")]
+    MissingManyCases { typ: String, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -331,6 +334,7 @@ impl TypeCheckError {
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
             | TypeCheckError::UnreachableCase { location }
             | TypeCheckError::MissingCases { location, .. }
+            | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location } => *location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -675,6 +679,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let shown_cases = shown_cases.join(", ");
                 let msg = format!("Missing case{s}: {shown_cases}{not_shown}");
                 Diagnostic::simple_error(msg, String::new(), *location)
+            },
+            TypeCheckError::MissingManyCases { typ, location } => {
+                let msg = format!("Missing cases: `{typ}` is non-empty");
+                let secondary = "Try adding a match-all pattern: `_`".to_string();
+                Diagnostic::simple_error(msg, secondary, *location)
             },
         }
     }

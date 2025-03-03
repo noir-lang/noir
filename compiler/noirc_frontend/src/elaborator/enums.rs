@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
+use rangemap::StepLite;
 
 use crate::{
     DataType, Kind, Shared, Type,
@@ -26,6 +27,8 @@ use crate::{
 };
 
 use super::Elaborator;
+
+const WILDCARD_PATTERN: &str = "_";
 
 struct MatchCompiler<'elab, 'ctx> {
     elaborator: &'elab mut Elaborator<'ctx>,
@@ -506,7 +509,7 @@ impl Elaborator<'_> {
 
         if let Some(existing) = variables_defined.iter().find(|elem| *elem == &name) {
             // Allow redefinition of `_` only, to ignore variables
-            if name.0.contents != "_" {
+            if name.0.contents != WILDCARD_PATTERN {
                 self.push_err(ResolverError::VariableAlreadyDefinedInPattern {
                     existing: existing.clone(),
                     new_location: name.location(),
@@ -793,8 +796,13 @@ impl Elaborator<'_> {
     ///
     /// This is an adaptation of https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021
     /// which is an implementation of https://julesjacobs.com/notes/patternmatching/patternmatching.pdf
-    pub(super) fn elaborate_match_rows(&mut self, rows: Vec<Row>, location: Location) -> HirMatch {
-        MatchCompiler::run(self, rows, location)
+    pub(super) fn elaborate_match_rows(
+        &mut self,
+        rows: Vec<Row>,
+        type_matched_on: &Type,
+        location: Location,
+    ) -> HirMatch {
+        MatchCompiler::run(self, rows, type_matched_on, location)
     }
 }
 
@@ -802,6 +810,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn run(
         elaborator: &'elab mut Elaborator<'ctx>,
         rows: Vec<Row>,
+        type_matched_on: &Type,
         location: Location,
     ) -> HirMatch {
         let mut compiler = Self {
@@ -816,7 +825,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         });
 
         if compiler.has_missing_cases {
-            compiler.issue_missing_cases_error(&hir_match, location);
+            compiler.issue_missing_cases_error(&hir_match, type_matched_on, location);
         }
 
         if !compiler.unreachable_cases.is_empty() {
@@ -1191,10 +1200,15 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Traverse the resulting HirMatch to build counter-examples of values which would
     /// not be covered by the match.
-    fn issue_missing_cases_error(&mut self, tree: &HirMatch, location: Location) {
+    fn issue_missing_cases_error(
+        &mut self,
+        tree: &HirMatch,
+        type_matched_on: &Type,
+        location: Location,
+    ) {
         let starting_id = match tree {
-            HirMatch::Switch(id, ..) => Some(*id),
-            _ => None,
+            HirMatch::Switch(id, ..) => *id,
+            _ => return self.issue_missing_cases_error_for_type(type_matched_on, location),
         };
 
         let mut cases = BTreeSet::new();
@@ -1203,12 +1217,28 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
     }
 
+    /// Issue a missing cases error if necessary for the given type, assuming that no
+    /// case of the type is covered. This is the case for empty matches `match foo {}`.
+    /// Note that this is expected not to error if the given type is an enum with zero variants.
+    fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
+        let typ = type_matched_on.follow_bindings_shallow();
+        if let Type::DataType(shared, generics) = typ.as_ref() {
+            if let Some(variants) = shared.borrow().get_variants(generics) {
+                let cases = variants.into_iter().map(|(name, _)| name).collect();
+                self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+                return;
+            }
+        }
+        let typ = typ.to_string();
+        self.elaborator.push_err(TypeCheckError::MissingManyCases { typ, location });
+    }
+
     fn find_missing_values(
         &self,
         tree: &HirMatch,
-        env: &mut HashMap<DefinitionId, Case>,
+        env: &mut HashMap<DefinitionId, (String, Vec<DefinitionId>)>,
         missing_cases: &mut BTreeSet<String>,
-        starting_id: Option<DefinitionId>,
+        starting_id: DefinitionId,
     ) {
         match tree {
             HirMatch::Success(_) | HirMatch::Failure { missing_case: false } => (),
@@ -1221,12 +1251,15 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             }
             HirMatch::Switch(definition_id, cases, else_case) => {
                 for case in cases {
-                    env.insert(*definition_id, case.clone());
+                    let name = case.constructor.to_string();
+                    env.insert(*definition_id, (name, case.arguments.clone()));
                     self.find_missing_values(&case.body, env, missing_cases, starting_id);
                 }
 
                 if let Some(else_case) = else_case {
-                    for case in self.missing_cases(cases) {
+                    let typ = self.elaborator.interner.definition_type(*definition_id);
+
+                    for case in self.missing_cases(cases, &typ) {
                         env.insert(*definition_id, case);
                         self.find_missing_values(else_case, env, missing_cases, starting_id);
                     }
@@ -1237,10 +1270,14 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
-    fn missing_cases(&self, cases: &[Case]) -> Vec<Case> {
+    fn missing_cases(&self, cases: &[Case], typ: &Type) -> Vec<(String, Vec<DefinitionId>)> {
         // We expect `cases` to come from a `Switch` which should always have
         // at least 2 cases, otherwise it should be a Success or Failure node.
         let first = &cases[0];
+
+        if matches!(&first.constructor, Constructor::Int(_) | Constructor::Range(..)) {
+            return self.missing_integer_cases(cases, typ);
+        }
 
         let all_constructors = first.constructor.all_constructors();
         let mut all_constructors =
@@ -1254,28 +1291,65 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             // Safety: this id should only be used in `env` of `find_missing_values` which
             //         only uses it for display and defaults to "_" on unknown ids.
             let args = vecmap(0..arg_count, |_| DefinitionId::dummy_id());
-            Case::new(constructor, args, HirMatch::Failure { missing_case: true })
+            (constructor.to_string(), args)
+        })
+    }
+
+    fn missing_integer_cases(
+        &self,
+        cases: &[Case],
+        typ: &Type,
+    ) -> Vec<(String, Vec<DefinitionId>)> {
+        // We could give missed cases for field ranges of `0 .. field_modulus` but since the field
+        // used in Noir may change we recommend a match-all pattern instead.
+        // If the type is a type variable, we don't know exactly which integer type this may
+        // resolve to so also just suggest a catch-all in that case.
+        if typ.is_field() || typ.is_bindable() {
+            return vec![(WILDCARD_PATTERN.to_string(), Vec::new())];
+        }
+
+        let mut missing_cases = rangemap::RangeInclusiveSet::new();
+
+        let int_max = SignedField::positive(typ.integral_maximum_size().unwrap());
+        let int_min = typ.integral_minimum_size().unwrap();
+        missing_cases.insert(int_min..=int_max);
+
+        for case in cases {
+            match &case.constructor {
+                Constructor::Int(signed_field) => {
+                    missing_cases.remove(*signed_field..=*signed_field)
+                }
+                Constructor::Range(start, end) => {
+                    // our ranges our exclusive, so adjust for that
+                    missing_cases.remove(*start..=end.sub_one());
+                }
+                _ => unreachable!(
+                    "missing_integer_cases should only be called with Int or Range constructors"
+                ),
+            }
+        }
+
+        vecmap(missing_cases, |range| {
+            if range.start() == range.end() {
+                (format!("{}", range.start()), Vec::new())
+            } else {
+                (format!("{}..={}", range.start(), range.end()), Vec::new())
+            }
         })
     }
 
     fn construct_missing_case(
-        starting_id: Option<DefinitionId>,
-        env: &HashMap<DefinitionId, Case>,
+        starting_id: DefinitionId,
+        env: &HashMap<DefinitionId, (String, Vec<DefinitionId>)>,
     ) -> String {
-        let Some(id) = starting_id else {
-            return "_".to_string();
+        let Some((constructor, arguments)) = env.get(&starting_id) else {
+            return WILDCARD_PATTERN.to_string();
         };
 
-        let Some(case) = env.get(&id) else {
-            return "_".to_string();
-        };
+        let no_arguments = arguments.is_empty();
 
-        let constructor = case.constructor.to_string();
-        let no_arguments = case.arguments.is_empty();
+        let args = vecmap(arguments, |arg| Self::construct_missing_case(*arg, env)).join(", ");
 
-        let args =
-            vecmap(&case.arguments, |arg| Self::construct_missing_case(Some(*arg), env)).join(", ");
-
-        if no_arguments { constructor } else { format!("{constructor}({args})") }
+        if no_arguments { constructor.clone() } else { format!("{constructor}({args})") }
     }
 }

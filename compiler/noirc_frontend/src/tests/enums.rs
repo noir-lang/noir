@@ -288,3 +288,54 @@ fn missing_many_cases() {
     ",
     );
 }
+
+#[test]
+fn missing_int_ranges() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match Opt::Some(x) {
+                  ^^^^^^^^^^^^ Missing cases: `None`, `Some(-128..=3)`, `Some(5)`, and 1 more not shown
+                Opt::Some(4) => (),
+                Opt::Some(6) => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {}
+                  ^^^^^^ Missing cases: `A`, `B`, `C`, and 23 more not shown
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_integer_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match x {}
+                  ^ Missing cases: `i8` is non-empty
+                  ~ Try adding a match-all pattern: `_`
+        }
+    ",
+    );
+}

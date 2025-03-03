@@ -1057,7 +1057,7 @@ impl Elaborator<'_> {
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
-        let (let_, variable) = self.wrap_in_let(expression, typ);
+        let (let_, variable) = self.wrap_in_let(expression, typ.clone());
 
         let (errored, (rows, result_type)) =
             self.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
@@ -1066,7 +1066,7 @@ impl Elaborator<'_> {
         // the match rows - it'll just lead to extra errors like `unreachable pattern`
         // warnings on branches which previously had type errors.
         let tree = HirExpression::Match(if !errored {
-            self.elaborate_match_rows(rows, expr_location)
+            self.elaborate_match_rows(rows, &typ, expr_location)
         } else {
             HirMatch::Failure { missing_case: false }
         });
