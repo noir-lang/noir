@@ -268,7 +268,7 @@ fn fuzz_poseidon2_equivalence() {
         let strategy = (0..=max_len)
             .prop_flat_map(field_vec_strategy)
             .prop_map(move |mut msg| {
-                let output = poseidon_hash(&msg, msg.len() < max_len).expect("failed to hash");
+                let output = poseidon_hash(&msg).expect("failed to hash");
 
                 // The input has to be padded to the maximum length.
                 let msg_size = msg.len();
