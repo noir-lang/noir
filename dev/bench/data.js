@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741014263236,
+  "lastUpdate": 1741014372538,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14814,80 +14814,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "da364d885f820f50d7b1644c16cafe694c29df7b",
-          "message": "chore(profiler): Docs on profiler command and more complete error reporting (#7436)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
-          "timestamp": "2025-02-20T18:37:03Z",
-          "tree_id": "85d7f38be27e785fe05120cf1a146720f22b815e",
-          "url": "https://github.com/noir-lang/noir/commit/da364d885f820f50d7b1644c16cafe694c29df7b"
-        },
-        "date": 1740078292193,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 36,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 72,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 51,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 163,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
-            "value": 11,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 174,
-            "unit": "s"
-          },
-          {
-            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 56,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir-bignum_",
-            "value": 340,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_bigcurve_",
-            "value": 266,
-            "unit": "s"
-          },
-          {
-            "name": "noir-lang_noir_json_parser_",
-            "value": 10,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -18467,6 +18393,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "noir-lang_noir_json_parser_",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8516bbce2b5897ab29ef2f681407a335f5b7bbff",
+          "message": "chore: bump external pinned commits (#7565)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-03-03T14:47:26Z",
+          "tree_id": "2b04321ce1001074cfabf873b53e194d871dc129",
+          "url": "https://github.com/noir-lang/noir/commit/8516bbce2b5897ab29ef2f681407a335f5b7bbff"
+        },
+        "date": 1741014370279,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 41,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 78,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 48,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 162,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_reset-kernel-lib",
+            "value": 10,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 156,
+            "unit": "s"
+          },
+          {
+            "name": "AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 56,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir-bignum_",
+            "value": 76,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_bigcurve_",
+            "value": 209,
+            "unit": "s"
+          },
+          {
+            "name": "noir-lang_noir_json_parser_",
+            "value": 9,
             "unit": "s"
           }
         ]
