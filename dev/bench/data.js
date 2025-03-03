@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741014575878,
+  "lastUpdate": 1741014579502,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3cb08f51b78727457b74619814ef8390c98105b6",
-          "message": "chore: bump external pinned commits (#7472)",
-          "timestamp": "2025-02-20T22:01:40Z",
-          "tree_id": "ea6e3775e8819eb41afb55a0bc6f9688adb2c79b",
-          "url": "https://github.com/noir-lang/noir/commit/3cb08f51b78727457b74619814ef8390c98105b6"
-        },
-        "date": 1740090365253,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 443.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.9,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14770,6 +14706,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 244.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 278.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 214.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 579.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 487.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 348.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.84,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8516bbce2b5897ab29ef2f681407a335f5b7bbff",
+          "message": "chore: bump external pinned commits (#7565)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-03-03T14:47:26Z",
+          "tree_id": "2b04321ce1001074cfabf873b53e194d871dc129",
+          "url": "https://github.com/noir-lang/noir/commit/8516bbce2b5897ab29ef2f681407a335f5b7bbff"
+        },
+        "date": 1741014577352,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 244.73,
             "unit": "MB"
           },
           {
