@@ -7,9 +7,8 @@ use noirc_driver::check_crate;
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
-    LspState,
 };
 
 const ARROW: &str = "▶\u{fe0e}";
@@ -40,7 +39,7 @@ fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde
 pub(crate) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
-) -> impl Future<Output = Result<CodeLensResult, ResponseError>> {
+) -> impl Future<Output = Result<CodeLensResult, ResponseError>> + use<> {
     future::ready(on_code_lens_request_inner(state, params))
 }
 
@@ -96,7 +95,7 @@ pub(crate) fn collect_lenses_for_package(
     let fm = &context.file_manager;
     let files = fm.as_file_map();
     let tests =
-        context.get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
+        context.get_all_test_functions_in_crate_matching(&crate_id, &FunctionNameMatch::Anything);
     for (func_name, test_function) in tests {
         let location = context.function_meta(&test_function.get_id()).name.location;
         let file_id = location.file;

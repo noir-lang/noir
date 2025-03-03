@@ -113,7 +113,7 @@ impl Context {
         let mut to_remove = HashSet::default();
 
         for instruction in function.dfg[last_block].instructions() {
-            if let Instruction::DecrementRc { value } = &function.dfg[*instruction] {
+            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction] {
                 if let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs) {
                     if !inc_rc.possibly_mutated {
                         to_remove.insert(inc_rc.id);
@@ -153,20 +153,10 @@ fn remove_instructions(to_remove: HashSet<InstructionId>, function: &mut Functio
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::DataFlowGraph,
-            function::RuntimeType,
-            instruction::Instruction,
-            map::Id,
-            types::{NumericType, Type},
-        },
+        ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
+        ssa_gen::Ssa,
     };
 
     fn count_inc_rcs(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
@@ -195,31 +185,18 @@ mod test {
         // unconstrained fn foo(x: [Field; 2]) -> [[Field; 2]; 1] {
         //     [array]
         // }
-        //
-        // fn foo {
-        //   b0(v0: [Field; 2]):
-        //     inc_rc v0
-        //     inc_rc v0
-        //     dec_rc v0
-        //     v1 = make_array [v0]
-        //     return v1
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-
-        let inner_array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
-        let v0 = builder.add_parameter(inner_array_type.clone());
-
-        builder.insert_inc_rc(v0);
-        builder.insert_inc_rc(v0);
-        builder.insert_dec_rc(v0);
-
-        let outer_array_type = Type::Array(Arc::new(vec![inner_array_type]), 1);
-        let v1 = builder.insert_make_array(vec![v0].into(), outer_array_type);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish().remove_paired_rc();
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            inc_rc v0
+            dec_rc v0 v0
+            v1 = make_array [v0] : [[Field; 2]; 1]
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
         let main = ssa.main();
         let entry = main.entry_block();
 
@@ -232,39 +209,22 @@ mod test {
         // fn mutator(mut array: [Field; 2]) {
         //     array[0] = 5;
         // }
-        //
-        // fn mutator {
-        //   b0(v0: [Field; 2]):
-        //     v1 = allocate
-        //     store v0 at v1
-        //     inc_rc v0
-        //     v2 = load v1
-        //     v7 = array_set v2, index u64 0, value Field 5
-        //     store v7 at v1
-        //     dec_rc v0
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("mutator".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        let src = "
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            v1 = allocate -> &mut [Field; 2]
+            store v0 at v1
+            inc_rc v0
+            v2 = load v1 -> [Field; 2]
+            v5 = array_set v2, index u64 0, value Field 5
+            store v5 at v1
+            dec_rc v0 v0
+            return
+        }
+        ";
 
-        let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
-        let v0 = builder.add_parameter(array_type.clone());
-
-        let v1 = builder.insert_allocate(array_type.clone());
-        builder.insert_store(v1, v0);
-        builder.insert_inc_rc(v0);
-        let v2 = builder.insert_load(v1, array_type);
-
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
-        let v7 = builder.insert_array_set(v2, zero, five);
-
-        builder.insert_store(v1, v7);
-        builder.insert_dec_rc(v0);
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish().remove_paired_rc();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
         let main = ssa.main();
         let entry = main.entry_block();
 
@@ -280,45 +240,24 @@ mod test {
         // fn mutator2(array: &mut [Field; 2]) {
         //     array[0] = 5;
         // }
-        //
-        // fn mutator2 {
-        //   b0(v0: &mut [Field; 2]):
-        //     v1 = load v0
-        //     inc_rc v1
-        //     store v1 at v0
-        //     v2 = load v0
-        //     v7 = array_set v2, index u64 0, value Field 5
-        //     store v7 at v0
-        //     v8 = load v0
-        //     dec_rc v8
-        //     store v8 at v0
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("mutator2".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+        let src = "
+        brillig(inline) fn mutator2 f0 {
+          b0(v0: &mut [Field; 2]):
+            v1 = load v0 -> [Field; 2]
+            inc_rc v1
+            store v1 at v0
+            v2 = load v1 -> [Field; 2]
+            v5 = array_set v2, index u64 0, value Field 5
+            store v5 at v0
+            v6 = load v0 -> [Field; 2]
+            dec_rc v6 v1
+            store v6 at v0
+            return
+        }
+        ";
 
-        let array_type = Type::Array(Arc::new(vec![Type::field()]), 2);
-        let reference_type = Type::Reference(Arc::new(array_type.clone()));
-
-        let v0 = builder.add_parameter(reference_type);
-
-        let v1 = builder.insert_load(v0, array_type.clone());
-        builder.insert_inc_rc(v1);
-        builder.insert_store(v0, v1);
-
-        let v2 = builder.insert_load(v1, array_type.clone());
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let five = builder.field_constant(5u128);
-        let v7 = builder.insert_array_set(v2, zero, five);
-
-        builder.insert_store(v0, v7);
-        let v8 = builder.insert_load(v0, array_type);
-        builder.insert_dec_rc(v8);
-        builder.insert_store(v0, v8);
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish().remove_paired_rc();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_paired_rc();
         let main = ssa.main();
         let entry = main.entry_block();
 

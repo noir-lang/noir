@@ -1,6 +1,6 @@
-use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
-use acir::circuit::{opcodes::BlackBoxFuncCall, Opcode as AcirOpcode};
 use acir::AcirField;
+use acir::brillig::{BinaryFieldOp, BinaryIntOp, BlackBoxOp, Opcode as BrilligOpcode};
+use acir::circuit::{Opcode as AcirOpcode, opcodes::BlackBoxFuncCall};
 
 fn format_blackbox_function<F>(call: &BlackBoxFuncCall<F>) -> String {
     match call {

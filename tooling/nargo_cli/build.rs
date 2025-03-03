@@ -27,6 +27,8 @@ fn main() {
 
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
+    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
+    // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
@@ -66,11 +68,14 @@ const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 2] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "macros_in_comptime",
+    // We issue a "experimental feature" warning for all enums until they're stabilized
+    "enums",
+    "comptime_enums",
 ];
 
 fn read_test_cases(
@@ -190,6 +195,11 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
     // Check whether the test case is non-deterministic
     nargo.arg("--check-non-determinism");
+    // Allow more bytecode in exchange to catch illegal states.
+    nargo.arg("--enable-brillig-debug-assertions");
+
+    // Enable enums as an unstable feature
+    nargo.arg("-Zenums");
 
     if force_brillig.0 {{
         nargo.arg("--force-brillig");

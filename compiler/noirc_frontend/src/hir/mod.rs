@@ -9,12 +9,12 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, StructId};
+use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{fully_qualified_module_path, Contract, CrateDefMap};
+use def_map::{Contract, CrateDefMap, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -54,11 +54,11 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub package_build_path: PathBuf,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum FunctionNameMatch<'a> {
+#[derive(Debug)]
+pub enum FunctionNameMatch {
     Anything,
-    Exact(&'a str),
-    Contains(&'a str),
+    Exact(Vec<String>),
+    Contains(Vec<String>),
 }
 
 impl Context<'_, '_> {
@@ -139,11 +139,7 @@ impl Context<'_, '_> {
         let parent =
             def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
 
-        if parent.is_empty() {
-            name.into()
-        } else {
-            format!("{parent}::{name}")
-        }
+        if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }
 
     /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
@@ -151,7 +147,7 @@ impl Context<'_, '_> {
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
     /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
-    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: TypeId) -> String {
         fully_qualified_module_path(&self.def_maps, &self.crate_graph, crate_id, id.module_id())
     }
 
@@ -175,7 +171,7 @@ impl Context<'_, '_> {
     pub fn get_all_test_functions_in_crate_matching(
         &self,
         crate_id: &CrateId,
-        pattern: FunctionNameMatch,
+        pattern: &FunctionNameMatch,
     ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
@@ -187,10 +183,13 @@ impl Context<'_, '_> {
                     self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                    FunctionNameMatch::Exact(patterns) => patterns
+                        .iter()
+                        .any(|pattern| &fully_qualified_name == pattern)
                         .then_some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
-                        .contains(pattern)
+                    FunctionNameMatch::Contains(patterns) => patterns
+                        .iter()
+                        .any(|pattern| fully_qualified_name.contains(pattern))
                         .then_some((fully_qualified_name, test_function)),
                 }
             })
@@ -229,26 +228,25 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
-        errors: &mut Vec<(CompilationError, FileId)>,
-        file_id: FileId,
+        errors: &mut Vec<CompilationError>,
     ) -> Generics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push((err.into(), file_id));
+                errors.push(err.into());
                 // When there's an error, unify with any other kinds
                 Kind::Any
             });
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
-            let span = ident.0.span();
+            let location = ident.0.location();
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.0.contents.clone());
 
-            ResolvedGeneric { name, type_var, span }
+            ResolvedGeneric { name, type_var, location }
         })
     }
 

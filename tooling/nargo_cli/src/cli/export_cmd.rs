@@ -1,6 +1,7 @@
 use nargo::errors::CompileError;
 use nargo::ops::report_errors;
-use noirc_errors::FileDiagnostic;
+use noir_artifact_cli::fs::artifact::save_program_to_file;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
 
@@ -10,10 +11,8 @@ use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
-use nargo_toml::{get_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::{
-    compile_no_check, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING,
-};
+use nargo_toml::PackageSelection;
+use noirc_driver::{CompileOptions, CompiledProgram, compile_no_check};
 
 use clap::Args;
 
@@ -21,8 +20,7 @@ use crate::errors::CliError;
 
 use super::check_cmd::check_crate_and_report_errors;
 
-use super::fs::program::save_program_to_file;
-use super::{NargoConfig, PackageOptions};
+use super::{LockType, PackageOptions, WorkspaceCommand};
 
 /// Exports functions marked with #[export] attribute
 #[derive(Debug, Clone, Args)]
@@ -34,15 +32,18 @@ pub(crate) struct ExportCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: ExportCommand, config: NargoConfig) -> Result<(), CliError> {
-    let toml_path = get_package_manifest(&config.program_dir)?;
-    let selection = args.package_options.package_selection();
-    let workspace = resolve_workspace_from_toml(
-        &toml_path,
-        selection,
-        Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
-    )?;
+impl WorkspaceCommand for ExportCommand {
+    fn package_selection(&self) -> PackageSelection {
+        self.package_options.package_selection()
+    }
 
+    fn lock_type(&self) -> LockType {
+        // Writes the exported functions.
+        LockType::Exclusive
+    }
+}
+
+pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
     let parsed_files = parse_all(&workspace_file_manager);
@@ -81,7 +82,7 @@ fn compile_exported_functions(
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
             let program = compile_no_check(&mut context, compile_options, function_id, None, false)
-                .map_err(|error| vec![FileDiagnostic::from(error)]);
+                .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
@@ -96,7 +97,7 @@ fn compile_exported_functions(
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {
-        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir);
+        save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
 }

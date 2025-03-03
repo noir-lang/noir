@@ -1,12 +1,12 @@
 use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
-use acvm::{acir::native_types::WitnessStack, AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::native_types::WitnessStack};
 use iter_extended::vecmap;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program, parse_all};
 use noirc_abi::input_parser::InputValue;
 use noirc_driver::{
-    compile_main, file_manager_with_stdlib, prepare_crate, CompilationResult, CompileOptions,
-    CompiledProgram, CrateId,
+    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
+    file_manager_with_stdlib, prepare_crate,
 };
 use noirc_frontend::hir::Context;
 use proptest::prelude::*;

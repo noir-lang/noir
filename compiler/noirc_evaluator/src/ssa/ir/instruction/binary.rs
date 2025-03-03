@@ -1,4 +1,5 @@
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
+use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -89,11 +90,14 @@ impl Binary {
 
     /// Try to simplify this binary instruction, returning the new value if possible.
     pub(super) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
-        let lhs_value = dfg.get_numeric_constant(self.lhs);
-        let rhs_value = dfg.get_numeric_constant(self.rhs);
+        let lhs = dfg.resolve(self.lhs);
+        let rhs = dfg.resolve(self.rhs);
 
-        let lhs_type = dfg.type_of_value(self.lhs).unwrap_numeric();
-        let rhs_type = dfg.type_of_value(self.rhs).unwrap_numeric();
+        let lhs_value = dfg.get_numeric_constant(lhs);
+        let rhs_value = dfg.get_numeric_constant(rhs);
+
+        let lhs_type = dfg.type_of_value(lhs).unwrap_numeric();
+        let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
 
         let operator = self.operator;
         if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
@@ -124,7 +128,7 @@ impl Binary {
         };
 
         // We never return `SimplifyResult::None` here because `operator` might have changed.
-        let simplified = Instruction::Binary(Binary { lhs: self.lhs, rhs: self.rhs, operator });
+        let simplified = Instruction::Binary(Binary { lhs, rhs, operator });
 
         if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
             return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
@@ -136,67 +140,70 @@ impl Binary {
             };
         }
 
-        let lhs_is_zero = lhs_value.map_or(false, |lhs| lhs.is_zero());
-        let rhs_is_zero = rhs_value.map_or(false, |rhs| rhs.is_zero());
+        let lhs_is_zero = lhs_value.is_some_and(|lhs| lhs.is_zero());
+        let rhs_is_zero = rhs_value.is_some_and(|rhs| rhs.is_zero());
 
-        let lhs_is_one = lhs_value.map_or(false, |lhs| lhs.is_one());
-        let rhs_is_one = rhs_value.map_or(false, |rhs| rhs.is_one());
+        let lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
+        let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
 
         match self.operator {
             BinaryOp::Add { .. } => {
                 if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.rhs);
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
                 if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
             }
             BinaryOp::Sub { .. } => {
+                if lhs == rhs {
+                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+
                 if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
             }
             BinaryOp::Mul { .. } => {
                 if lhs_is_one {
-                    return SimplifyResult::SimplifiedTo(self.rhs);
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
                 if rhs_is_one {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
                 if lhs_is_zero || rhs_is_zero {
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.get_value_max_num_bits(self.lhs) == 1 {
+                if dfg.get_value_max_num_bits(lhs) == 1 {
                     // Squaring a boolean value is a noop.
-                    if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    if lhs == rhs {
+                        return SimplifyResult::SimplifiedTo(lhs);
                     }
                     // b*(b*x) = b*x if b is boolean
-                    if let super::Value::Instruction { instruction, .. } = &dfg[self.rhs] {
-                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                    if let super::Value::Instruction { instruction, .. } = &dfg[rhs] {
+                        if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                             dfg[*instruction]
                         {
                             if matches!(operator, BinaryOp::Mul { .. })
-                                && (dfg.resolve(self.lhs) == dfg.resolve(lhs)
-                                    || dfg.resolve(self.lhs) == dfg.resolve(rhs))
+                                && (lhs == dfg.resolve(b_lhs) || lhs == dfg.resolve(b_rhs))
                             {
-                                return SimplifyResult::SimplifiedTo(self.rhs);
+                                return SimplifyResult::SimplifiedTo(rhs);
                             }
                         }
                     }
                 }
                 // (b*x)*b = b*x if b is boolean
-                if dfg.get_value_max_num_bits(self.rhs) == 1 {
-                    if let super::Value::Instruction { instruction, .. } = &dfg[self.lhs] {
-                        if let Instruction::Binary(Binary { lhs, rhs, operator }) =
+                if dfg.get_value_max_num_bits(rhs) == 1 {
+                    if let super::Value::Instruction { instruction, .. } = &dfg[lhs] {
+                        if let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                             dfg[*instruction]
                         {
                             if matches!(operator, BinaryOp::Mul { .. })
-                                && (dfg.resolve(self.rhs) == dfg.resolve(lhs)
-                                    || dfg.resolve(self.rhs) == dfg.resolve(rhs))
+                                && (rhs == dfg.resolve(b_lhs) || rhs == dfg.resolve(b_rhs))
                             {
-                                return SimplifyResult::SimplifiedTo(self.lhs);
+                                return SimplifyResult::SimplifiedTo(lhs);
                             }
                         }
                     }
@@ -204,7 +211,7 @@ impl Binary {
             }
             BinaryOp::Div => {
                 if rhs_is_one {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
             }
             BinaryOp::Mod => {
@@ -221,7 +228,7 @@ impl Binary {
                             let bit_size = modulus.ilog2();
                             return SimplifyResult::SimplifiedToInstruction(
                                 Instruction::Truncate {
-                                    value: self.lhs,
+                                    value: lhs,
                                     bit_size,
                                     max_bit_size: lhs_type.bit_size(),
                                 },
@@ -231,7 +238,7 @@ impl Binary {
                 }
             }
             BinaryOp::Eq => {
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if lhs == rhs {
                     let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
@@ -239,22 +246,22 @@ impl Binary {
                 if lhs_type == NumericType::bool() {
                     // Simplify forms of `(boolean == true)` into `boolean`
                     if lhs_is_one {
-                        return SimplifyResult::SimplifiedTo(self.rhs);
+                        return SimplifyResult::SimplifiedTo(rhs);
                     }
                     if rhs_is_one {
-                        return SimplifyResult::SimplifiedTo(self.lhs);
+                        return SimplifyResult::SimplifiedTo(lhs);
                     }
                     // Simplify forms of `(boolean == false)` into `!boolean`
                     if lhs_is_zero {
-                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.rhs));
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(rhs));
                     }
                     if rhs_is_zero {
-                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.lhs));
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(lhs));
                     }
                 }
             }
             BinaryOp::Lt => {
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if lhs == rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -267,7 +274,7 @@ impl Binary {
                         let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                         return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
                             BinaryOp::Eq,
-                            self.lhs,
+                            lhs,
                             zero,
                         ));
                     }
@@ -278,14 +285,14 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                if lhs == rhs {
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
                 if lhs_type == NumericType::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
                     // (mul unchecked because these are bools so it doesn't matter really)
                     let instruction =
-                        Instruction::binary(BinaryOp::Mul { unchecked: true }, self.lhs, self.rhs);
+                        Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
                     return SimplifyResult::SimplifiedToInstruction(instruction);
                 }
                 if lhs_type.is_unsigned() {
@@ -299,15 +306,19 @@ impl Binary {
                             // The bitmask must then be one less than a power of 2.
                             let bitmask_plus_one = bitmask.to_u128() + 1;
                             if bitmask_plus_one.is_power_of_two() {
-                                let value = if lhs_value.is_some() { self.rhs } else { self.lhs };
-                                let num_bits = bitmask_plus_one.ilog2();
-                                return SimplifyResult::SimplifiedToInstruction(
-                                    Instruction::Truncate {
-                                        value,
-                                        bit_size: num_bits,
-                                        max_bit_size: lhs_type.bit_size(),
-                                    },
-                                );
+                                let value = if lhs_value.is_some() { rhs } else { lhs };
+                                let bit_size = bitmask_plus_one.ilog2();
+                                let max_bit_size = lhs_type.bit_size();
+
+                                if bit_size == max_bit_size {
+                                    // If we're truncating a value into the full size of its type then
+                                    // the truncation is a noop.
+                                    return SimplifyResult::SimplifiedTo(value);
+                                } else {
+                                    return SimplifyResult::SimplifiedToInstruction(
+                                        Instruction::Truncate { value, bit_size, max_bit_size },
+                                    );
+                                }
                             }
                         }
 
@@ -317,27 +328,27 @@ impl Binary {
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.rhs);
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
                 if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
                 if lhs_type == NumericType::bool() && (lhs_is_one || rhs_is_one) {
                     let one = dfg.make_constant(FieldElement::one(), lhs_type);
                     return SimplifyResult::SimplifiedTo(one);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                if lhs == rhs {
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
             }
             BinaryOp::Xor => {
                 if lhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.rhs);
+                    return SimplifyResult::SimplifiedTo(rhs);
                 }
                 if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
+                    return SimplifyResult::SimplifiedTo(lhs);
                 }
-                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                if lhs == rhs {
                     let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
@@ -435,7 +446,7 @@ pub(crate) fn eval_constant_binary_op(
             }
             let result = function(lhs, rhs)?;
             // Check for overflow
-            if result >= 1 << bit_size {
+            if result != 0 && result.ilog2() >= bit_size {
                 return None;
             }
             result.into()
@@ -483,6 +494,7 @@ fn try_convert_field_element_to_signed_integer(field: FieldElement, bit_size: u3
     let signed_int = if is_positive {
         unsigned_int as i128
     } else {
+        assert!(bit_size < 128);
         let x = (1u128 << bit_size) - unsigned_int;
         -(x as i128)
     };
@@ -495,14 +507,45 @@ fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) -> FieldEle
         FieldElement::from(int)
     } else {
         // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
+        assert!(bit_size < 128);
         let offset_int = (1i128 << bit_size) + int;
         FieldElement::from(offset_int)
     }
 }
 
-fn truncate(int: u128, bit_size: u32) -> u128 {
-    let max = 1 << bit_size;
-    int % max
+/// Truncates `int` to fit within `bit_size` bits.
+pub(super) fn truncate(int: u128, bit_size: u32) -> u128 {
+    if bit_size == 128 {
+        int
+    } else {
+        let max = 1 << bit_size;
+        int % max
+    }
+}
+
+pub(crate) fn truncate_field<F: AcirField>(int: F, bit_size: u32) -> F {
+    if bit_size == 0 {
+        return F::zero();
+    }
+    let num_bytes = bit_size.div_ceil(8);
+    let mut be_bytes: Vec<u8> =
+        int.to_be_bytes().into_iter().rev().take(num_bytes as usize).rev().collect();
+
+    // We need to apply a mask to the largest byte to handle non-divisible bit sizes.
+    let mask = match bit_size % 8 {
+        0 => 0xff,
+        1 => 0x01,
+        2 => 0x03,
+        3 => 0x07,
+        4 => 0x0f,
+        5 => 0x1f,
+        6 => 0x3f,
+        7 => 0x7f,
+        _ => unreachable!("We cover the full range of x % 8"),
+    };
+    be_bytes[0] &= mask;
+
+    F::from_be_bytes_reduce(&be_bytes)
 }
 
 impl BinaryOp {
@@ -536,8 +579,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
         }
     }
 
@@ -553,8 +596,26 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some((x == y) as i128),
             BinaryOp::Lt => |x, y| Some((x < y) as i128),
-            BinaryOp::Shl => |x, y| Some(x << y),
-            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
+            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
+        }
+    }
+
+    pub(crate) fn into_unchecked(self) -> Self {
+        match self {
+            BinaryOp::Add { .. } => BinaryOp::Add { unchecked: true },
+            BinaryOp::Sub { .. } => BinaryOp::Sub { unchecked: true },
+            BinaryOp::Mul { .. } => BinaryOp::Mul { unchecked: true },
+            _ => self,
+        }
+    }
+
+    pub(crate) fn is_unchecked(self) -> bool {
+        match self {
+            BinaryOp::Add { unchecked }
+            | BinaryOp::Sub { unchecked }
+            | BinaryOp::Mul { unchecked } => unchecked,
+            _ => true,
         }
     }
 }
@@ -564,8 +625,12 @@ mod test {
     use proptest::prelude::*;
 
     use super::{
-        convert_signed_integer_to_field_element, try_convert_field_element_to_signed_integer,
+        BinaryOp, convert_signed_integer_to_field_element, truncate_field,
+        try_convert_field_element_to_signed_integer,
     };
+    use acvm::{AcirField, FieldElement};
+    use num_bigint::BigUint;
+    use num_traits::One;
 
     proptest! {
         #[test]
@@ -577,5 +642,29 @@ mod test {
 
             prop_assert_eq!(int, recovered_int);
         }
+
+        #[test]
+        fn truncate_field_agrees_with_bigint_modulo(input: u128, bit_size in (0..=253u32)) {
+            let field = FieldElement::from(input);
+            let truncated_as_field = truncate_field(field, bit_size);
+
+            let integer_modulus = BigUint::from(2_u128).pow(bit_size);
+            let truncated_as_bigint = BigUint::from(input)
+                        .modpow(&BigUint::one(), &integer_modulus);
+            let truncated_as_bigint = FieldElement::from_be_bytes_reduce(&truncated_as_bigint.to_bytes_be());
+            prop_assert_eq!(truncated_as_field, truncated_as_bigint);
+        }
+    }
+
+    #[test]
+    fn get_u128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_u128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_u128_function()(1, 128).is_none());
+    }
+
+    #[test]
+    fn get_i128_function_shift_works_with_values_larger_than_127() {
+        assert!(BinaryOp::Shr.get_i128_function()(1, 128).is_none());
+        assert!(BinaryOp::Shl.get_i128_function()(1, 128).is_none());
     }
 }

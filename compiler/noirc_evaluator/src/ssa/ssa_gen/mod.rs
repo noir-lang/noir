@@ -3,15 +3,16 @@ mod program;
 mod value;
 
 use acvm::AcirField;
+use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
 pub(crate) use program::Ssa;
 
-use context::SharedContext;
+use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::{UnaryOp, Visibility};
 use noirc_frontend::hir_def::types::Type as HirType;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
 
 use crate::{
     errors::RuntimeError,
@@ -48,9 +49,10 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
 
     let return_location = program.return_location;
-    let context = SharedContext::new(program);
+    let mut context = SharedContext::new(program);
 
-    let globals = GlobalsGraph::from_dfg(context.globals_context.dfg.clone());
+    let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
+    let globals = GlobalsGraph::from_dfg(globals_dfg);
 
     let main_id = Program::main_id();
     let main = context.program.main();
@@ -124,12 +126,11 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
         function_context.codegen_function_body(&function.body)?;
     }
 
-    let mut ssa = function_context.builder.finish();
-    ssa.globals = context.globals_context;
+    let ssa = function_context.builder.finish();
     Ok(ssa)
 }
 
-impl<'a> FunctionContext<'a> {
+impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
@@ -152,7 +153,10 @@ impl<'a> FunctionContext<'a> {
             Expression::Index(index) => self.codegen_index(index),
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
+            Expression::Loop(block) => self.codegen_loop(block),
+            Expression::While(while_) => self.codegen_while(while_),
             Expression::If(if_expr) => self.codegen_if(if_expr),
+            Expression::Match(match_expr) => self.codegen_match(match_expr),
             Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
                 self.codegen_extract_tuple_field(tuple, *index)
@@ -229,10 +233,10 @@ impl<'a> FunctionContext<'a> {
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })
             }
-            ast::Literal::Integer(value, negative, typ, location) => {
+            ast::Literal::Integer(value, typ, location) => {
                 self.builder.set_location(*location);
                 let typ = Self::convert_non_tuple_type(typ).unwrap_numeric();
-                self.checked_numeric_constant(*value, *negative, typ).map(Into::into)
+                self.checked_numeric_constant(*value, typ).map(Into::into)
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
@@ -248,7 +252,7 @@ impl<'a> FunctionContext<'a> {
                             let value = value.replace('{', "{{").replace('}', "}}");
                             string.push_str(&value);
                         }
-                        FmtStrFragment::Interpolation(value, _span) => {
+                        FmtStrFragment::Interpolation(value, _) => {
                             string.push('{');
                             string.push_str(value);
                             string.push('}');
@@ -557,7 +561,7 @@ impl<'a> FunctionContext<'a> {
 
         // Remember the blocks and variable used in case there are break/continue instructions
         // within the loop which need to jump to them.
-        self.enter_loop(loop_entry, loop_index, loop_end);
+        self.enter_loop(Loop { loop_entry, loop_index: Some(loop_index), loop_end });
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
@@ -583,6 +587,79 @@ impl<'a> FunctionContext<'a> {
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
+        self.exit_loop();
+        Ok(Self::unit_value())
+    }
+
+    /// Codegens a loop, creating two new blocks in the process.
+    /// The return value of a loop is always a unit literal.
+    ///
+    /// For example, the loop `loop { body }` is codegen'd as:
+    ///
+    /// ```text
+    ///   br loop_body()
+    /// loop_body():
+    ///   v3 = ... codegen body ...
+    ///   br loop_body()
+    /// loop_end():
+    ///   ... This is the current insert point after codegen_for finishes ...
+    /// ```
+    fn codegen_loop(&mut self, block: &Expression) -> Result<Values, RuntimeError> {
+        let loop_body = self.builder.insert_block();
+        let loop_end = self.builder.insert_block();
+
+        self.enter_loop(Loop { loop_entry: loop_body, loop_index: None, loop_end });
+
+        self.builder.terminate_with_jmp(loop_body, vec![]);
+
+        // Compile the loop body
+        self.builder.switch_to_block(loop_body);
+        self.codegen_expression(block)?;
+        self.builder.terminate_with_jmp(loop_body, vec![]);
+
+        // Finish by switching to the end of the loop
+        self.builder.switch_to_block(loop_end);
+        self.exit_loop();
+        Ok(Self::unit_value())
+    }
+
+    /// Codegens a while loop, creating three new blocks in the process.
+    /// The return value of a while is always a unit literal.
+    ///
+    /// For example, the loop `while cond { body }` is codegen'd as:
+    ///
+    /// ```text
+    ///   jmp while_entry()
+    /// while_entry:
+    ///   v0 = ... codegen cond ...
+    ///   jmpif v0, then: while_body, else: while_end  
+    /// while_body():
+    ///   v3 = ... codegen body ...
+    ///   jmp while_entry()
+    /// while_end():
+    ///   ... This is the current insert point after codegen_while finishes ...
+    /// ```
+    fn codegen_while(&mut self, while_: &While) -> Result<Values, RuntimeError> {
+        let while_entry = self.builder.insert_block();
+        let while_body = self.builder.insert_block();
+        let while_end = self.builder.insert_block();
+
+        self.builder.terminate_with_jmp(while_entry, vec![]);
+
+        // Codegen the entry (where the condition is)
+        self.builder.switch_to_block(while_entry);
+        let condition = self.codegen_non_tuple_expression(&while_.condition)?;
+        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+
+        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
+
+        // Codegen the body
+        self.builder.switch_to_block(while_body);
+        self.codegen_expression(&while_.body)?;
+        self.builder.terminate_with_jmp(while_entry, vec![]);
+
+        // Finish by switching to the end of the while
+        self.builder.switch_to_block(while_end);
         self.exit_loop();
         Ok(Self::unit_value())
     }
@@ -675,6 +752,155 @@ impl<'a> FunctionContext<'a> {
         } else {
             self.codegen_expression(&if_expr.consequence)
         })
+    }
+
+    fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
+        let variable = self.lookup(match_expr.variable_to_match);
+
+        // Any matches with only a single case we don't need to check the tag at all.
+        // Note that this includes all matches on struct / tuple values.
+        if match_expr.cases.len() == 1 && match_expr.default_case.is_none() {
+            return self.no_match(variable, &match_expr.cases[0]);
+        }
+
+        // From here on we can assume `variable` is an enum, int, or bool value (not a struct/tuple)
+        let tag = self.enum_tag(&variable);
+        let tag_type = self.builder.type_of_value(tag).unwrap_numeric();
+
+        let end_block = self.builder.insert_block();
+
+        // Optimization: if there is no default case we can jump directly to the last case
+        // when finished with the previous case instead of using a jmpif with an unreachable
+        // else block.
+        let last_case = if match_expr.default_case.is_some() {
+            match_expr.cases.len()
+        } else {
+            match_expr.cases.len() - 1
+        };
+
+        for i in 0..last_case {
+            let case = &match_expr.cases[i];
+            let variant_tag = self.variant_index_value(&case.constructor, tag_type)?;
+            let eq = self.builder.insert_binary(tag, BinaryOp::Eq, variant_tag);
+
+            let case_block = self.builder.insert_block();
+            let else_block = self.builder.insert_block();
+            self.builder.terminate_with_jmpif(eq, case_block, else_block);
+
+            self.builder.switch_to_block(case_block);
+            self.bind_case_arguments(variable.clone(), case);
+            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, results);
+
+            self.builder.switch_to_block(else_block);
+        }
+
+        if let Some(branch) = &match_expr.default_case {
+            let results = self.codegen_expression(branch)?.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, results);
+        } else {
+            // If there is no default case, assume we saved the last case from the
+            // last_case optimization above
+            let case = match_expr.cases.last().unwrap();
+            self.bind_case_arguments(variable, case);
+            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
+            self.builder.terminate_with_jmp(end_block, results);
+        }
+
+        self.builder.switch_to_block(end_block);
+        let result = Self::map_type(&match_expr.typ, |typ| {
+            self.builder.add_block_parameter(end_block, typ).into()
+        });
+        Ok(result)
+    }
+
+    fn variant_index_value(
+        &mut self,
+        constructor: &Constructor,
+        typ: NumericType,
+    ) -> Result<ValueId, RuntimeError> {
+        match constructor {
+            Constructor::Int(value) => self.checked_numeric_constant(*value, typ),
+            other => Ok(self.builder.numeric_constant(other.variant_index(), typ)),
+        }
+    }
+
+    fn no_match(&mut self, variable: Values, case: &MatchCase) -> Result<Values, RuntimeError> {
+        if !case.arguments.is_empty() {
+            self.bind_case_arguments(variable, case);
+        }
+        self.codegen_expression(&case.branch)
+    }
+
+    /// Extracts the tag value from an enum. Assumes enums are represented as a tuple
+    /// where the tag is always the first field of the tuple.
+    ///
+    /// If the enum is only a single Leaf value, this expects the enum to consist only of the tag value.
+    fn enum_tag(&mut self, enum_value: &Values) -> ValueId {
+        match enum_value {
+            Tree::Branch(values) => self.enum_tag(&values[0]),
+            Tree::Leaf(value) => value.clone().eval(self),
+        }
+    }
+
+    /// Bind the given variable ids to each argument of the given enum, using the
+    /// variant at the given variant index. Note that this function makes assumptions that the
+    /// representation of an enum is:
+    ///
+    /// (
+    ///   tag_value,
+    ///   (field0_0, .. field0_N), // fields of variant 0,
+    ///   (field1_0, .. field1_N), // fields of variant 1,
+    ///   ..,
+    ///   (fieldM_0, .. fieldM_N), // fields of variant N,
+    /// )
+    fn bind_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
+        if !case.arguments.is_empty() {
+            if case.constructor.is_enum() {
+                self.bind_enum_case_arguments(enum_value, case);
+            } else if case.constructor.is_tuple_or_struct() {
+                self.bind_tuple_or_struct_case_arguments(enum_value, case);
+            }
+        }
+    }
+
+    fn bind_enum_case_arguments(&mut self, enum_value: Values, case: &MatchCase) {
+        let Tree::Branch(mut variants) = enum_value else {
+            unreachable!("Expected enum value to contain each variant");
+        };
+
+        let variant_index = case.constructor.variant_index();
+
+        // variant_index + 1 to account for the extra tag value
+        let Tree::Branch(variant) = variants.swap_remove(variant_index + 1) else {
+            unreachable!("Expected enum variant to contain a tag and each variant's arguments");
+        };
+
+        assert_eq!(
+            variant.len(),
+            case.arguments.len(),
+            "Expected enum variant to contain a value for each variant argument"
+        );
+
+        for (value, arg) in variant.into_iter().zip(&case.arguments) {
+            self.define(*arg, value);
+        }
+    }
+
+    fn bind_tuple_or_struct_case_arguments(&mut self, struct_value: Values, case: &MatchCase) {
+        let Tree::Branch(fields) = struct_value else {
+            unreachable!("Expected struct value to contain each field");
+        };
+
+        assert_eq!(
+            fields.len(),
+            case.arguments.len(),
+            "Expected field length to match constructor argument count"
+        );
+
+        for (value, arg) in fields.into_iter().zip(&case.arguments) {
+            self.define(*arg, value);
+        }
     }
 
     fn codegen_tuple(&mut self, tuple: &[Expression]) -> Result<Values, RuntimeError> {
@@ -852,8 +1078,12 @@ impl<'a> FunctionContext<'a> {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
-        let new_loop_index = self.make_offset(loop_.loop_index, 1);
-        self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        if let Some(loop_index) = loop_.loop_index {
+            let new_loop_index = self.make_offset(loop_index, 1);
+            self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
+        } else {
+            self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
+        }
         Self::unit_value()
     }
 }

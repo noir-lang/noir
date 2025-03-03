@@ -1,6 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
-use crate::ssa::{function_builder::data_bus::DataBus, ir::instruction::SimplifyResult};
+use crate::ssa::{
+    function_builder::data_bus::DataBus,
+    ir::instruction::SimplifyResult,
+    opt::pure::{FunctionPurities, Purity},
+};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -14,12 +18,12 @@ use super::{
     value::{Value, ValueId},
 };
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use serde_with::serde_as;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -104,11 +108,15 @@ pub(crate) struct DataFlowGraph {
     pub(crate) data_bus: DataBus,
 
     pub(crate) globals: Arc<GlobalsGraph>,
+
+    #[serde(skip)]
+    pub(crate) function_purities: Arc<FunctionPurities>,
 }
 
 /// The GlobalsGraph contains the actual global data.
 /// Global data is expected to only be numeric constants or array constants (which are represented by Instruction::MakeArray).
 /// The global's data will shared across functions and should be accessible inside of a function's DataFlowGraph.
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct GlobalsGraph {
     /// Storage for all of the global values
@@ -116,16 +124,36 @@ pub(crate) struct GlobalsGraph {
     /// All of the instructions in the global value space.
     /// These are expected to all be Instruction::MakeArray
     instructions: DenseMap<Instruction>,
+    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
+    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
+    #[serde(skip)]
+    constants: HashMap<(FieldElement, NumericType), ValueId>,
 }
 
 impl GlobalsGraph {
     pub(crate) fn from_dfg(dfg: DataFlowGraph) -> Self {
-        Self { values: dfg.values, instructions: dfg.instructions }
+        Self {
+            values: dfg.values,
+            instructions: dfg.instructions,
+            results: dfg.results,
+            constants: dfg.constants,
+        }
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
+    }
+}
+
+impl From<GlobalsGraph> for DataFlowGraph {
+    fn from(value: GlobalsGraph) -> Self {
+        DataFlowGraph {
+            values: value.values,
+            instructions: value.instructions,
+            results: value.results,
+            ..Default::default()
+        }
     }
 }
 
@@ -173,12 +201,12 @@ impl DataFlowGraph {
     /// The pairs are order by id, which is not guaranteed to be meaningful.
     pub(crate) fn basic_blocks_iter(
         &self,
-    ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
+    ) -> impl DoubleEndedIterator<Item = (BasicBlockId, &BasicBlock)> {
         self.blocks.iter()
     }
 
     /// Iterate over every Value in this DFG in no particular order, including unused Values
-    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+    pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
     }
 
@@ -211,10 +239,9 @@ impl DataFlowGraph {
                 instruction,
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
             ),
-            RuntimeType::Brillig(_) => !matches!(
-                instruction,
-                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
-            ),
+            RuntimeType::Brillig(_) => {
+                !matches!(instruction, Instruction::EnableSideEffectsIf { .. })
+            }
         }
     }
 
@@ -233,17 +260,18 @@ impl DataFlowGraph {
 
     pub(crate) fn insert_instruction_and_results_without_simplification(
         &mut self,
-        instruction_data: Instruction,
+        instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        if !self.is_handled_by_runtime(&instruction_data) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction_data:?}");
+        if !self.is_handled_by_runtime(&instruction) {
+            // Panicking to raise attention. If we're not supposed to simplify it immediately,
+            // pushing the instruction would just cause a potential panic later on.
+            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
         }
-
         let id = self.insert_instruction_without_simplification(
-            instruction_data,
+            instruction,
             block,
             ctrl_typevars,
             call_stack,
@@ -280,7 +308,10 @@ impl DataFlowGraph {
         existing_id: Option<InstructionId>,
     ) -> InsertInstructionResult {
         if !self.is_handled_by_runtime(&instruction) {
-            panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            // BUG: With panicking it fails to build the `token_contract`; see:
+            // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102
+            // panic!("Attempted to insert instruction not handled by runtime: {instruction:?}");
+            return InsertInstructionResult::InstructionRemoved;
         }
 
         match instruction.simplify(self, block, ctrl_typevars.clone(), call_stack) {
@@ -308,14 +339,19 @@ impl DataFlowGraph {
                     }
                 }
                 let mut instructions = instructions.unwrap_or(vec![instruction]);
-                assert!(!instructions.is_empty(), "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector");
+                assert!(
+                    !instructions.is_empty(),
+                    "`SimplifyResult::SimplifiedToInstructionMultiple` must not return empty vector"
+                );
 
                 if instructions.len() > 1 {
                     // There's currently no way to pass results from one instruction in `instructions` on to the next.
                     // We then restrict this to only support multiple instructions if they're all `Instruction::Constrain`
                     // as this instruction type does not have any results.
                     assert!(
-                        instructions.iter().all(|instruction| matches!(instruction, Instruction::Constrain(..))),
+                        instructions
+                            .iter()
+                            .all(|instruction| matches!(instruction, Instruction::Constrain(..))),
                         "`SimplifyResult::SimplifiedToInstructionMultiple` only supports `Constrain` instructions"
                     );
                 }
@@ -338,6 +374,11 @@ impl DataFlowGraph {
                 )
             }
         }
+    }
+
+    /// Replace an existing instruction with a new one.
+    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
+        self.instructions[id] = instruction;
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.
@@ -386,6 +427,9 @@ impl DataFlowGraph {
         if let Some(id) = self.constants.get(&(constant, typ)) {
             return *id;
         }
+        if let Some(id) = self.globals.constants.get(&(constant, typ)) {
+            return *id;
+        }
         let id = self.values.insert(Value::NumericConstant { constant, typ });
         self.constants.insert((constant, typ), id);
         id
@@ -400,7 +444,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.functions.get(&function) {
             return *existing;
         }
-        self.values.insert(Value::Function(function))
+        let result = self.values.insert(Value::Function(function));
+        self.functions.insert(function, result);
+        result
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -408,7 +454,9 @@ impl DataFlowGraph {
         if let Some(existing) = self.foreign_functions.get(function) {
             return *existing;
         }
-        self.values.insert(Value::ForeignFunction(function.to_owned()))
+        let result = self.values.insert(Value::ForeignFunction(function.to_owned()));
+        self.foreign_functions.insert(function.to_owned(), result);
+        result
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
@@ -484,7 +532,7 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[value] {
+        match self[self.resolve(value)] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
                 if let Instruction::Cast(original_value, _) = self[instruction] {
@@ -619,10 +667,28 @@ impl DataFlowGraph {
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
-            (Type::Array(_, len), Some(index)) if index.to_u128() < (len as u128) => true,
+            (Type::Array(elements, len), Some(index))
+                if index.to_u128() < (len as u128 * elements.len() as u128) =>
+            {
+                true
+            }
             _ => false,
         }
     }
+
+    /// Arrays are represented as `[RC, ...items]` where RC stands for reference count.
+    /// By the time of Brillig generation we expect all constant indices
+    /// to already account for the extra offset from the RC.
+    pub(crate) fn is_safe_brillig_index(&self, index: ValueId, array: ValueId) -> bool {
+        #[allow(clippy::match_like_matches_macro)]
+        match (self.type_of_value(array), self.get_numeric_constant(index)) {
+            (Type::Array(elements, len), Some(index)) => {
+                (index.to_u128() - 1) < (len as u128 * elements.len() as u128)
+            }
+            _ => false,
+        }
+    }
+
     /// Sets the terminator instruction for the given basic block
     pub(crate) fn set_block_terminator(
         &mut self,
@@ -729,6 +795,14 @@ impl DataFlowGraph {
             _ => None,
         }
     }
+
+    pub(crate) fn set_function_purities(&mut self, purities: Arc<FunctionPurities>) {
+        self.function_purities = purities;
+    }
+
+    pub(crate) fn purity_of(&self, function: FunctionId) -> Option<Purity> {
+        self.function_purities.get(&function).copied()
+    }
 }
 
 impl std::ops::Index<InstructionId> for DataFlowGraph {
@@ -833,7 +907,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 }
 
-impl<'dfg> std::ops::Index<usize> for InsertInstructionResult<'dfg> {
+impl std::ops::Index<usize> for InsertInstructionResult<'_> {
     type Output = ValueId;
 
     fn index(&self, index: usize) -> &Self::Output {

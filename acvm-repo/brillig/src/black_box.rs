@@ -1,4 +1,4 @@
-use crate::{opcodes::HeapVector, HeapArray, MemoryAddress};
+use crate::{HeapArray, MemoryAddress, opcodes::HeapVector};
 use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
@@ -102,7 +102,8 @@ pub enum BlackBoxOp {
     ToRadix {
         input: MemoryAddress,
         radix: MemoryAddress,
-        output: HeapArray,
-        output_bits: bool,
+        output_pointer: MemoryAddress,
+        num_limbs: MemoryAddress,
+        output_bits: MemoryAddress,
     },
 }

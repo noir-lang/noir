@@ -1,6 +1,6 @@
-use acir::{circuit::opcodes::FunctionInput, native_types::WitnessMap, AcirField};
+use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
 
-use crate::pwg::{input_to_value, OpcodeResolutionError};
+use crate::pwg::{OpcodeResolutionError, input_to_value};
 
 pub(crate) fn to_u8_array<const N: usize, F: AcirField>(
     initial_witness: &WitnessMap<F>,

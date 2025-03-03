@@ -114,6 +114,7 @@ fn compute_used_before_def(
 type LastUses = HashMap<InstructionId, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
+#[derive(Default)]
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
@@ -276,6 +277,10 @@ impl VariableLiveness {
 
     fn compute_loop_body(&self, edge: BackEdge) -> HashSet<BasicBlockId> {
         let mut loop_blocks = HashSet::default();
+        if edge.header == edge.start {
+            loop_blocks.insert(edge.header);
+            return loop_blocks;
+        }
         loop_blocks.insert(edge.header);
         loop_blocks.insert(edge.start);
 

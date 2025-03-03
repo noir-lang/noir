@@ -3,8 +3,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::{
-    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 /// Trait for converting values into debug-friendly strings.
@@ -124,6 +124,24 @@ impl DebugShow {
     /// Emits a `mov` instruction.
     pub(crate) fn mov_instruction(&self, destination: MemoryAddress, source: MemoryAddress) {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
+    }
+
+    /// Emits a `conditional mov` instruction.
+    pub(crate) fn conditional_mov_instruction(
+        &self,
+        destination: MemoryAddress,
+        source_then: MemoryAddress,
+        source_else: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  {} = MOV if {} then {}, else {}",
+            destination,
+            condition,
+            source_then,
+            source_else
+        );
     }
 
     /// Emits a `cast` instruction.
@@ -397,13 +415,14 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  TO_RADIX {} {} -> {}",
+                    "  TO_RADIX {} {} {} -> {}",
                     input,
                     radix,
-                    output
+                    num_limbs,
+                    output_pointer
                 );
             }
         }

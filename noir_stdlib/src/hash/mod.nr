@@ -9,7 +9,6 @@ use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
-use crate::uint128::U128;
 
 // Kept for backwards compatibility
 pub use sha256::{digest, sha256, sha256_compression, sha256_var};
@@ -96,7 +95,7 @@ fn __derive_generators<let N: u32, let M: u32>(
 // does not assert the limbs are 128 bits
 // does not assert the decomposition does not overflow the EmbeddedCurveScalar
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
-    /// Safety: xlo and xhi decomposition is checked below
+    // Safety: xlo and xhi decomposition is checked below
     let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
     // Check that the decomposition is correct
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
@@ -241,6 +240,15 @@ impl Hash for u64 {
     }
 }
 
+impl Hash for u128 {
+    fn hash<H>(self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        H::write(state, self as Field);
+    }
+}
+
 impl Hash for i8 {
     fn hash<H>(self, state: &mut H)
     where
@@ -291,16 +299,6 @@ impl Hash for () {
     where
         H: Hasher,
     {}
-}
-
-impl Hash for U128 {
-    fn hash<H>(self, state: &mut H)
-    where
-        H: Hasher,
-    {
-        H::write(state, self.lo as Field);
-        H::write(state, self.hi as Field);
-    }
 }
 
 impl<T, let N: u32> Hash for [T; N]
