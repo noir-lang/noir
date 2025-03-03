@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741034544813,
+  "lastUpdate": 1741034750905,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11612,70 +11612,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c254c3ca07c65c7845d5affb17cb37114c5a3051",
-          "message": "feat: Sync from aztec-packages (#7474)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-02-20T23:07:40Z",
-          "tree_id": "76c74262885b3630d6c744f2967f35dc82352403",
-          "url": "https://github.com/noir-lang/noir/commit/c254c3ca07c65c7845d5affb17cb37114c5a3051"
-        },
-        "date": 1740094279244,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 443.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.9,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14765,6 +14701,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c2022f4fbab4ed5d9cd62b3ff5b9bba9bd36627e"
         },
         "date": 1741029852959,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 244.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 278.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 214.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 579.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 487.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 348.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.84,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "899e8c8ac00e091d71c7045e90bc37b8b65c6524",
+          "message": "fix(frontend)!: Restrict capturing mutable variable in lambdas (#7488)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-03-03T20:17:47Z",
+          "tree_id": "b30b6ea1aab53bb73880f59d3a5971ba1a40689e",
+          "url": "https://github.com/noir-lang/noir/commit/899e8c8ac00e091d71c7045e90bc37b8b65c6524"
+        },
+        "date": 1741034749358,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
