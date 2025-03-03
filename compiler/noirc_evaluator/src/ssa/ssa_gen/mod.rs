@@ -770,12 +770,10 @@ impl FunctionContext<'_> {
 
         let make_end_block = |this: &mut Self| -> (BasicBlockId, Values) {
             let block = this.builder.insert_block();
-            (
-                block,
-                Self::map_type(&match_expr.typ, |typ| {
-                    this.builder.add_block_parameter(block, typ).into()
-                }),
-            )
+            let results = Self::map_type(&match_expr.typ, |typ| {
+                this.builder.add_block_parameter(block, typ).into()
+            });
+            (block, results)
         };
 
         let (end_block, end_results) = make_end_block(self);
