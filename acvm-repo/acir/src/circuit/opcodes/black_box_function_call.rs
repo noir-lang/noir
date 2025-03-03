@@ -10,12 +10,14 @@ use thiserror::Error;
 // So we need to supply how many bits of the witness is needed
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ConstantOrWitnessEnum<F> {
     Constant(F),
     Witness(Witness),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct FunctionInput<F> {
     input: ConstantOrWitnessEnum<F>,
     num_bits: u32,
@@ -80,7 +82,8 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub enum BlackBoxFuncCall<F> {
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+pub enum BlackBoxFuncCall<F: AcirField> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,
         iv: Box<[FunctionInput<F>; 16]>,
@@ -214,7 +217,7 @@ pub enum BlackBoxFuncCall<F> {
     },
 }
 
-impl<F: Copy> BlackBoxFuncCall<F> {
+impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
             BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
@@ -427,7 +430,7 @@ fn get_outputs_string(outputs: &[Witness]) -> String {
     }
 }
 
-impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
@@ -452,7 +455,7 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     }
 }
 
-impl<F: std::fmt::Display + Copy> std::fmt::Debug for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Debug for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }

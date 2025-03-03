@@ -31,6 +31,9 @@ serde-big-array = "0.5.1"
 strum = { workspace = true }
 strum_macros = { workspace = true }
 
+# proptest = { workspace = true, optional = true }
+# proptest-derive = { workspace = true, optional = true }
+
 [build-dependencies]
 prost-build.workspace = true
 protoc-prebuilt.workspace = true
@@ -43,9 +46,14 @@ fxhash.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 
+
+#acir = { path = ".", features = ["arb"] }# Self to turn on `arb`.
+
 [features]
+default = []
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]
+#arb = ["proptest", "proptest-derive", "brillig/arb"]
 
 [[bench]]
 name = "serialization"
