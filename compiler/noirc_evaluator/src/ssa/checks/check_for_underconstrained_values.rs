@@ -558,8 +558,7 @@ impl DependencyContext {
             .map(|brillig_call| {
                 trace!(
                     "tainted structure for {:?}: {:?}",
-                    brillig_call,
-                    self.tainted[brillig_call]
+                    brillig_call, self.tainted[brillig_call]
                 );
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
                     call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
