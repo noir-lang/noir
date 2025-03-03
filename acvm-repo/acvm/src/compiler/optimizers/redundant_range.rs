@@ -57,7 +57,7 @@ impl<F: AcirField> RangeOptimizer<F> {
                     // as a range opcode for the number of bits required to hold that value.
                     if expr.is_degree_one_univariate() {
                         let (k, witness) = expr.linear_combinations[0];
-                        let constant = expr.q_c;
+                        let constant = expr.constant;
                         let witness_value = -constant / k;
 
                         if witness_value.is_zero() {
