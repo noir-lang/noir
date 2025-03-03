@@ -36,7 +36,7 @@ pub trait ProtoCodec<T, R> {
     /// Try to convert protobuf representation `R` to domain type `T`.
     fn decode(value: &R) -> eyre::Result<T>;
     /// Decode a field and attach the name of the field if it fails.
-    fn decode_msg(value: &R, msg: &'static str) -> eyre::Result<T> {
+    fn decode_wrap(value: &R, msg: &'static str) -> eyre::Result<T> {
         Self::decode(value).wrap_err(msg)
     }
     /// Decode multiple values into a vector.
@@ -44,7 +44,7 @@ pub trait ProtoCodec<T, R> {
         values.iter().map(Self::decode).collect()
     }
     /// Decode multiple values into a vector, attaching a field name to any errors.
-    fn decode_vec_msg(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
+    fn decode_vec_wrap(values: &[R], msg: &'static str) -> eyre::Result<Vec<T>> {
         Self::decode_vec(values).wrap_err(msg)
     }
     /// Decode an optional field as a required one; fails if it's `None`.
@@ -55,8 +55,14 @@ pub trait ProtoCodec<T, R> {
         }
     }
     /// Decode an optional field as a required one, attaching a field name to any errors.
-    fn decode_some_msg(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
+    /// Returns error if the field is missing.
+    fn decode_some_wrap(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
         Self::decode_some(value).wrap_err(msg)
+    }
+    /// Decode an optional field as a required one, attaching a field name to any errors.
+    /// Return `None` if the field is missing..
+    fn decode_opt_wrap(value: &Option<R>, msg: &'static str) -> eyre::Result<Option<T>> {
+        value.as_ref().map(|value| Self::decode_wrap(value, msg)).transpose()
     }
     /// Decode the numeric representation of an enum into the domain type.
     /// Return an error if the value cannot be recognized.
@@ -68,7 +74,7 @@ pub trait ProtoCodec<T, R> {
         Self::decode(&r)
     }
     /// Decode the numeric representation of an enum, attaching the field name to any errors.
-    fn decode_enum_msg(value: i32, msg: &'static str) -> eyre::Result<T>
+    fn decode_enum_wrap(value: i32, msg: &'static str) -> eyre::Result<T>
     where
         R: TryFrom<i32, Error = prost::UnknownEnumValue>,
     {
@@ -93,7 +99,8 @@ pub trait ProtoCodec<T, R> {
 }
 
 /// Decode repeated items by mapping a function over them, attaching an error message if it fails.
-pub fn decode_vec_msg_map<R, T, F>(rs: &[R], msg: &'static str, f: F) -> eyre::Result<Vec<T>>
+/// Useful when a lambda needs to be applied before we can use one of the type class methods.
+pub fn decode_vec_map_wrap<R, T, F>(rs: &[R], msg: &'static str, f: F) -> eyre::Result<Vec<T>>
 where
     F: Fn(&R) -> eyre::Result<T>,
 {
@@ -101,6 +108,7 @@ where
 }
 
 /// Decode an optional item, returning an error if it's `None`.
+/// Useful when a lambda needs to be applied before we can use one of the type class methods.
 pub fn decode_some_map<R, T, F>(r: &Option<R>, f: F) -> eyre::Result<T>
 where
     F: Fn(&R) -> eyre::Result<T>,
@@ -112,7 +120,8 @@ where
 }
 
 /// Decode an optional item, attaching a field name to any errors.
-pub fn decode_some_msg_map<R, T, F>(r: &Option<R>, msg: &'static str, f: F) -> eyre::Result<T>
+/// Useful when a lambda needs to be applied before we can use one of the type class methods.
+pub fn decode_some_map_wrap<R, T, F>(r: &Option<R>, msg: &'static str, f: F) -> eyre::Result<T>
 where
     F: Fn(&R) -> eyre::Result<T>,
 {
@@ -120,9 +129,10 @@ where
 }
 
 /// Decode a `oneof` field, returning an error if it's missing.
+/// Useful when a lambda needs to be applied before we can use one of the type class methods.
 pub fn decode_oneof_map<R, T, F>(r: &Option<R>, f: F) -> eyre::Result<T>
 where
     F: Fn(&R) -> eyre::Result<T>,
 {
-    decode_some_msg_map(r, "oneof value", f)
+    decode_some_map_wrap(r, "oneof value", f)
 }
