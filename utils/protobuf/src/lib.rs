@@ -1,4 +1,4 @@
-use color_eyre::eyre::{self, bail, eyre, Context};
+use color_eyre::eyre::{self, Context, bail, eyre};
 
 /// A protobuf codec to convert between a domain type `T`
 /// and its protobuf representation `R`.

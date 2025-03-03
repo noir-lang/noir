@@ -12,7 +12,7 @@ use crate::{
 };
 use acir_field::AcirField;
 use color_eyre::eyre::{self, Context};
-use noir_protobuf::{decode_oneof_map, ProtoCodec};
+use noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 use super::ProtoSchema;
 

@@ -4,11 +4,11 @@ use crate::{
 };
 use acir_field::AcirField;
 use color_eyre::eyre::{self, bail};
-use noir_protobuf::{decode_oneof_map, ProtoCodec};
+use noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 use crate::proto::brillig::{
-    brillig_opcode, BinaryFieldOpKind, BinaryIntOpKind, BrilligBytecode, BrilligOpcode,
-    IntegerBitSize, MemoryAddress,
+    BinaryFieldOpKind, BinaryIntOpKind, BrilligBytecode, BrilligOpcode, IntegerBitSize,
+    MemoryAddress, brillig_opcode,
 };
 
 use super::ProtoSchema;

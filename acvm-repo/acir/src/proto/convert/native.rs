@@ -1,6 +1,6 @@
 use acir_field::AcirField;
 use color_eyre::eyre;
-use noir_protobuf::{decode_vec_map_wrap, ProtoCodec};
+use noir_protobuf::{ProtoCodec, decode_vec_map_wrap};
 
 use crate::{
     native_types,
