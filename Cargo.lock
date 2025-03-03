@@ -6,6 +6,7 @@ version = 4
 name = "acir"
 version = "1.0.0-beta.3"
 dependencies = [
+ "acir",
  "acir_field",
  "base64 0.21.7",
  "bincode",
@@ -16,6 +17,8 @@ dependencies = [
  "fxhash",
  "noir_protobuf",
  "pprof",
+ "proptest",
+ "proptest-derive",
  "prost",
  "prost-build",
  "protoc-prebuilt",
@@ -794,6 +797,8 @@ name = "brillig"
 version = "1.0.0-beta.3"
 dependencies = [
  "acir_field",
+ "proptest",
+ "proptest-derive",
  "serde",
 ]
 

@@ -30,7 +30,7 @@ use self::{brillig::BrilligBytecode, opcodes::BlockId};
 /// into a proving system which supports PLONK, where arithmetic expressions have a
 /// finite fan-in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionWidth {
     #[default]
     Unbounded,
@@ -42,14 +42,14 @@ pub enum ExpressionWidth {
 /// A program represented by multiple ACIR circuits. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Program<F: AcirField> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
     // current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     // will take on this value. (The value is cached here as an optimization.)
@@ -77,14 +77,14 @@ pub struct Circuit<F: AcirField> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ExpressionOrMemory<F> {
     Expression(Expression<F>),
     Memory(BlockId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct AssertionPayload<F> {
     pub error_selector: u64,
     pub payload: Vec<ExpressionOrMemory<F>>,
@@ -146,7 +146,7 @@ pub struct ResolvedOpcodeLocation {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 /// Opcodes are locatable so that callers can
 /// map opcodes to debug information related to their context.
 pub enum OpcodeLocation {
@@ -375,7 +375,7 @@ impl<F: AcirField> std::fmt::Debug for Program<F> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct PublicInputs(pub BTreeSet<Witness>);
 
 impl PublicInputs {

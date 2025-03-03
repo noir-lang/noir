@@ -10,14 +10,14 @@ use thiserror::Error;
 // So we need to supply how many bits of the witness is needed
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ConstantOrWitnessEnum<F> {
     Constant(F),
     Witness(Witness),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct FunctionInput<F> {
     input: ConstantOrWitnessEnum<F>,
     num_bits: u32,
@@ -82,7 +82,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlackBoxFuncCall<F: AcirField> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,

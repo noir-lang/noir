@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 pub struct AcirFunctionId(pub u32);
 

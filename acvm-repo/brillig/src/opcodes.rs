@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub type Label = usize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
     Direct(usize),
     Relative(usize),
@@ -83,7 +83,7 @@ impl HeapValueType {
 
 /// A fixed-sized array starting from a Brillig memory location.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapArray {
     pub pointer: MemoryAddress,
     pub size: usize,
@@ -97,14 +97,14 @@ impl Default for HeapArray {
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
     pub pointer: MemoryAddress,
     pub size: MemoryAddress,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum IntegerBitSize {
     U1,
     U8,
@@ -157,7 +157,7 @@ impl std::fmt::Display for IntegerBitSize {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BitSize {
     Field,
     Integer(IntegerBitSize),
@@ -187,7 +187,7 @@ impl BitSize {
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ValueOrArray {
     /// A single value passed to or from an external call
     /// It is an 'immediate' value - used without dereferencing.
@@ -205,7 +205,7 @@ pub enum ValueOrArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
@@ -322,7 +322,7 @@ pub enum BrilligOpcode<F> {
 
 /// Binary fixed-length field expressions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryFieldOp {
     Add,
     Sub,
@@ -341,7 +341,7 @@ pub enum BinaryFieldOp {
 
 /// Binary fixed-length integer expressions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryIntOp {
     Add,
     Sub,
@@ -365,19 +365,19 @@ pub enum BinaryIntOp {
     Shr,
 }
 
-// #[cfg(feature = "arb")]
-// mod tests {
-//     use proptest::arbitrary::Arbitrary;
-//     use proptest::prelude::*;
+#[cfg(feature = "arb")]
+mod tests {
+    use proptest::arbitrary::Arbitrary;
+    use proptest::prelude::*;
 
-//     use super::HeapValueType;
+    use super::HeapValueType;
 
-//     impl Arbitrary for HeapValueType {
-//         type Parameters = ();
-//         type Strategy = BoxedStrategy<Self>;
+    impl Arbitrary for HeapValueType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
 
-//         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-//             todo!()
-//         }
-//     }
-// }
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            todo!()
+        }
+    }
+}
