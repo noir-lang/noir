@@ -840,15 +840,15 @@ mod test {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-              jmp b1(u32 0)
+            jmp b1(u32 0)
           b1(v2: u32):
-              v5 = lt v2, u32 4
-              jmpif v5 then: b3, else: b2
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
           b2():
-              return
+            return
           b3():
-              v7 = sub v2, u32 1
-              jmp b1(v7)
+            v7 = sub v2, u32 1
+            jmp b1(v7)
         }
         ";
 
