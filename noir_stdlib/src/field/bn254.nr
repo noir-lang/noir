@@ -122,9 +122,123 @@ pub fn lt(a: Field, b: Field) -> bool {
     gt(b, a)
 }
 
+pub fn eq(a: Field, b: Field) -> bool {
+    a == b
+}
+
+pub fn lte(a: Field, b: Field) -> bool {
+    if is_unconstrained() {
+        unsafe {
+            lte_hint(a, b)
+        }
+    } else {
+        if a == b {
+            true
+        } else {
+            unsafe {
+                if field_less_than(a, b) {
+                    assert_gt(b, a);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+pub fn gte(a: Field, b: Field) -> bool {
+    if is_unconstrained() {
+        unsafe {
+            !field_less_than(a, b)
+        }
+    } else if a == b {
+        true
+    } else {
+        unsafe {
+            if field_less_than(a, b) {
+                false
+            } else {
+                assert_gt(a, b);
+                true
+            }
+        }
+    }
+}
+
+pub fn assert_lte(a: Field, b: Field) {
+    if is_unconstrained() {
+        unsafe {
+            assert(lte_hint(a, b));
+        }
+    } else {
+        if a != b {
+            unsafe {
+                if !field_less_than(a, b) {
+                    assert(false);
+                }
+                assert_gt(b, a);
+            }
+        }
+    }
+}
+
+pub fn assert_gte(a: Field, b: Field) {
+    if is_unconstrained() {
+        unsafe {
+            assert(!field_less_than(a, b));
+        }
+    } else {
+        if a != b {
+            unsafe {
+                if field_less_than(a, b) {
+                    assert(false);
+                }
+                assert_gt(a, b);
+            }
+        }
+    }
+}
+
 mod tests {
     // TODO: Allow imports from "super"
-    use crate::field::bn254::{assert_gt, decompose, gt, lte_hint, PHI, PLO, TWO_POW_128};
+    use super::{
+        assert_gt, assert_gte, assert_lte, decompose, gt, gte, lte, lte_hint, PHI, PLO, TWO_POW_128,
+    };
+
+    #[test]
+    fn check_assert_lte() {
+        assert_lte(0, 0);
+        assert_lte(0, 1);
+        assert_lte(100, 100);
+    }
+
+    #[test]
+    fn check_assert_gte() {
+        assert_gte(0, 0);
+        assert_gte(1, 0);
+        assert_gte(100, 100);
+    }
+
+    #[test]
+    fn check_lte() {
+        assert(lte(0, 0));
+        assert(lte(1, 1));
+        assert(lte(0, 1));
+        assert(!lte(1, 0));
+        assert(lte(0x99, 0x100));
+        assert(!lte(0x101, 0x100));
+    }
+
+    #[test]
+    fn check_gte() {
+        assert(gte(0, 0));
+        assert(gte(1, 1));
+        assert(gte(1, 0));
+        assert(!gte(0, 1));
+        assert(gte(0x100, 0x99));
+        assert(!gte(0x100, 0x101));
+    }
 
     #[test]
     fn check_decompose() {
@@ -146,7 +260,6 @@ mod tests {
         assert(lte_hint(0, 0x100));
         assert(lte_hint(0x100, TWO_POW_128 - 1));
         assert(!lte_hint(0 - 1, 0));
-
         assert(lte_hint(0, 0));
         assert(lte_hint(0x100, 0x100));
         assert(lte_hint(0 - 1, 0 - 1));
