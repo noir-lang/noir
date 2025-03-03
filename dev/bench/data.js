@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741002270924,
+  "lastUpdate": 1741002275098,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11621,70 +11621,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "752dc0431bf561cb40684868df610a047075b122",
-          "message": "chore(ci): add workflow to automate bumping aztec-packages commit (#7465)",
-          "timestamp": "2025-02-20T20:40:38Z",
-          "tree_id": "cc9351dc896466e79f792679eb67446124476665",
-          "url": "https://github.com/noir-lang/noir/commit/752dc0431bf561cb40684868df610a047075b122"
-        },
-        "date": 1740085634781,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.84,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 443.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.87,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4b6a14d7ccb7c2302b5a4ea0d7e00f17bbf95c98",
           "message": "chore: remove `disable_macros` compile option (#7468)",
@@ -14805,6 +14741,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 355.26,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b55dbb92a009a678f19fcf167bd09ac0264c6f0d",
+          "message": "chore: bump external pinned commits (#7561)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-03-03T11:22:10Z",
+          "tree_id": "45b374e8fc78f390856aebc3a4faac6cf7223550",
+          "url": "https://github.com/noir-lang/noir/commit/b55dbb92a009a678f19fcf167bd09ac0264c6f0d"
+        },
+        "date": 1741002272430,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 244.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 278.97,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 214.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 579.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 487.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 348.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.84,
             "unit": "MB"
           }
         ]
