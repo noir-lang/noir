@@ -57,7 +57,10 @@ fn addition_circuit() {
         189, 0, 0, 0,
     ];
 
-    assert_eq!(bytes, expected_serialization)
+    assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
 
 #[test]
@@ -101,7 +104,10 @@ fn multi_scalar_mul_circuit() {
         43, 111, 168, 16, 30, 169, 242, 72, 33, 112, 0, 0, 0,
     ];
 
-    assert_eq!(bytes, expected_serialization)
+    assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
 
 #[test]
@@ -177,7 +183,10 @@ fn simple_brillig_foreign_call() {
         0,
     ];
 
-    assert_eq!(bytes, expected_serialization)
+    assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
 
 #[test]
@@ -329,7 +338,10 @@ fn complex_brillig_foreign_call() {
         220, 228, 180, 3, 0, 0,
     ];
 
-    assert_eq!(bytes, expected_serialization)
+    assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
 
 #[test]
@@ -372,7 +384,10 @@ fn memory_op_circuit() {
         173, 115, 1, 0, 0,
     ];
 
-    assert_eq!(bytes, expected_serialization)
+    assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
 
 #[test]
@@ -480,4 +495,7 @@ fn nested_acir_call_circuit() {
         0,
     ];
     assert_eq!(bytes, expected_serialization);
+
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
 }
