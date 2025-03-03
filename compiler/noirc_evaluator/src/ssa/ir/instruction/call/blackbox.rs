@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use acvm::{acir::AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+use acvm::blackbox_solver::sha256_compression;
+use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
 
 use crate::ssa::ir::call_stack::CallStackId;
 use crate::ssa::ir::instruction::BlackBoxFunc;
@@ -233,6 +234,55 @@ pub(super) fn simplify_poseidon2_permutation(
     }
 }
 
+pub(super) fn simplify_sha256_compression(
+    dfg: &mut DataFlowGraph,
+    arguments: &[ValueId],
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
+    match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
+        (Some((state, _)), Some((msg_blocks, _)))
+            if array_is_constant(dfg, &state) && array_is_constant(dfg, &msg_blocks) =>
+        {
+            let state: Option<Vec<u32>> = state
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                        .try_to_u32()
+                })
+                .collect();
+
+            let Some(mut state) = state.and_then(|vec| <[u32; 8]>::try_from(vec).ok()) else {
+                return SimplifyResult::None;
+            };
+
+            let msg_blocks: Option<Vec<u32>> = msg_blocks
+                .iter()
+                .map(|id| {
+                    dfg.get_numeric_constant(*id)
+                        .expect("value id from array should point at constant")
+                        .try_to_u32()
+                })
+                .collect();
+
+            let Some(msg_blocks) = msg_blocks.and_then(|vec| <[u32; 16]>::try_from(vec).ok())
+            else {
+                return SimplifyResult::None;
+            };
+
+            sha256_compression(&mut state, &msg_blocks);
+
+            let new_state = state.into_iter().map(FieldElement::from);
+            let typ = NumericType::Unsigned { bit_size: 32 };
+            let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
+
+            SimplifyResult::SimplifiedTo(result_array)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
 pub(super) fn simplify_hash(
     dfg: &mut DataFlowGraph,
     arguments: &[ValueId],
@@ -308,9 +358,9 @@ pub(super) fn simplify_signature(
 
 #[cfg(feature = "bn254")]
 #[cfg(test)]
-mod test {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+mod multi_scalar_mul {
     use crate::ssa::Ssa;
+    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[cfg(feature = "bn254")]
     #[test]
@@ -390,6 +440,35 @@ mod test {
                 v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
                 v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
                 return v14
+            }
+            "#;
+        assert_normalized_ssa_equals(ssa, expected_src);
+    }
+}
+
+#[cfg(test)]
+mod sha256_compression {
+    use crate::ssa::Ssa;
+    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    #[test]
+    fn is_optimized_out_with_constant_arguments() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
+                v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
+                v2 = call sha256_compression(v0, v1) -> [u32; 8]
+                return v2
+            }"#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        let expected_src = r#"
+            acir(inline) fn main f0 {
+              b0():
+                v1 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 8]
+                v2 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 16]
+                v11 = make_array [u32 2091193876, u32 1113340840, u32 3461668143, u32 3254913767, u32 3068490961, u32 2551409935, u32 2927503052, u32 3205228454] : [u32; 8]
+                return v11
             }
             "#;
         assert_normalized_ssa_equals(ssa, expected_src);

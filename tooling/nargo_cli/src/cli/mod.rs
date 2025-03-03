@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    get_package_manifest, resolve_workspace_from_toml, ManifestError, PackageSelection,
+    ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
@@ -211,7 +211,10 @@ where
 /// Lock the (selected) packages in the workspace.
 /// The lock taken can be shared for commands that only read the artifacts,
 /// or exclusive for the ones that (might) write artifacts as well.
-fn lock_workspace(workspace: &Workspace, exclusive: bool) -> Result<Vec<impl Drop>, CliError> {
+fn lock_workspace(
+    workspace: &Workspace,
+    exclusive: bool,
+) -> Result<Vec<impl Drop + use<>>, CliError> {
     struct LockedFile(File);
 
     impl Drop for LockedFile {
@@ -269,9 +272,9 @@ mod tests {
 
         let err = res.expect_err("should fail because of invalid width");
         assert!(err.to_string().contains("expression-width"));
-        assert!(err
-            .to_string()
-            .contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str()));
+        assert!(
+            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
+        );
     }
 
     #[test]

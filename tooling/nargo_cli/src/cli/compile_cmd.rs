@@ -348,7 +348,7 @@ mod tests {
     fn read_test_program_dirs(
         test_programs_dir: &Path,
         test_sub_dir: &str,
-    ) -> impl Iterator<Item = PathBuf> {
+    ) -> impl Iterator<Item = PathBuf> + use<> {
         let test_case_dir = test_programs_dir.join(test_sub_dir);
         std::fs::read_dir(test_case_dir)
             .unwrap()

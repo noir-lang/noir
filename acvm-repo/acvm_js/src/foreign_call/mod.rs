@@ -1,7 +1,7 @@
-use acvm::{brillig_vm::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo, FieldElement};
+use acvm::{FieldElement, brillig_vm::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 
 use js_sys::{Error, JsString};
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 mod inputs;
 mod outputs;

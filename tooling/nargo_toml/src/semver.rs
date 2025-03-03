@@ -1,4 +1,4 @@
-use crate::{errors::SemverError, ManifestError};
+use crate::{ManifestError, errors::SemverError};
 use nargo::{
     package::{Dependency, Package},
     workspace::Workspace,

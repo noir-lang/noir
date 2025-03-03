@@ -20,7 +20,7 @@
 //! only used by Brillig bytecode.
 use std::collections::BTreeSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use im::HashSet;
 
 use crate::{
@@ -1033,9 +1033,9 @@ mod tests {
     use test_case::test_case;
 
     use crate::errors::RuntimeError;
-    use crate::ssa::{ir::value::ValueId, opt::assert_normalized_ssa_equals, Ssa};
+    use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{is_new_size_ok, BoilerplateStats, Loops};
+    use super::{BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimisations.

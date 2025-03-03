@@ -10,7 +10,7 @@
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 use std::collections::HashSet;
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{

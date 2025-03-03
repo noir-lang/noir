@@ -93,11 +93,7 @@ impl Formatter<'_> {
 }
 
 fn is_identifier_pattern(pattern: &Pattern, ident: &Ident) -> bool {
-    if let Pattern::Identifier(pattern_ident) = pattern {
-        pattern_ident == ident
-    } else {
-        false
-    }
+    if let Pattern::Identifier(pattern_ident) = pattern { pattern_ident == ident } else { false }
 }
 
 #[cfg(test)]

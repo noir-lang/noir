@@ -63,7 +63,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
-    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_location: Location },
+    TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
     TypeCanonicalizationMismatch {
         to: Type,
@@ -377,11 +377,37 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 )
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
-                Diagnostic::simple_error(
-                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
-                    String::new(),
-                    *expr_location,
-                )
+                // Try to improve the error message for some kind combinations
+                match (expected_kind, expr_kind) {
+                    (Kind::Normal, Kind::Numeric(_)) => {
+                        Diagnostic::simple_error(
+                            "Expected type, found numeric generic".into(),
+                            "not a type".into(),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(typ), Kind::Normal) => {
+                        Diagnostic::simple_error(
+                            "Type provided when a numeric generic was expected".into(),
+                            format!("the numeric generic is not of type `{typ}`"),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(expected_type), Kind::Numeric(found_type)) => {
+                        Diagnostic::simple_error(
+                            format!("The numeric generic is not of type `{expected_type}`"),
+                            format!("expected `{expected_type}`, found `{found_type}`"),
+                            *expr_location,
+                        )
+                    }
+                    _ => {
+                        Diagnostic::simple_error(
+                            format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                            String::new(),
+                            *expr_location,
+                        )
+                    }
+                }
             }
             TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, location } => {
                 Diagnostic::simple_error(
@@ -556,7 +582,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location, ref note, .. } => {
+            TypeCheckError::CallDeprecated { location,  note, .. } => {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
@@ -664,15 +690,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
     fn from(error: &'a NoMatchingImplFoundError) -> Self {
         let constraints = &error.constraints;
-        let span = error.location;
+        let location = error.location;
 
         assert!(!constraints.is_empty());
         let msg =
             format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-        let mut diagnostic = Diagnostic::from_message(&msg);
+        let mut diagnostic = Diagnostic::from_message(&msg, location.file);
 
         let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
-        diagnostic.add_secondary(secondary, span);
+        diagnostic.add_secondary(secondary, location);
 
         // These must be notes since secondaries are unordered
         for (typ, trait_name) in &constraints[1..] {

@@ -11,8 +11,8 @@ use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::Context;
+use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
 use crate::ast::{Expression, NoirEnumeration};
 use crate::node_interner::{

@@ -1,9 +1,9 @@
 use acvm::{
+    FieldElement,
     acir::{
         circuit::Program,
         native_types::{Witness, WitnessMap},
     },
-    FieldElement,
 };
 use js_sys::JsString;
 use wasm_bindgen::prelude::wasm_bindgen;

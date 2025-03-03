@@ -10,18 +10,18 @@ use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_artifacts_info::{
-    count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
+    FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report,
 };
 use noirc_driver::CompileOptions;
-use prettytable::{row, Row};
+use prettytable::{Row, row};
 use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::errors::CliError;
 
 use super::{
-    compile_cmd::{compile_workspace_full, get_target_width},
     LockType, PackageOptions, WorkspaceCommand,
+    compile_cmd::{compile_workspace_full, get_target_width},
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)

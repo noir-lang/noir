@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use acvm::acir::native_types::WitnessStack;
 use acvm::FieldElement;
+use acvm::acir::native_types::WitnessStack;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -15,9 +15,9 @@ use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
-use noirc_abi::input_parser::InputValue;
 use noirc_abi::InputMap;
-use noirc_driver::{file_manager_with_stdlib, CompileOptions, CompiledProgram};
+use noirc_abi::input_parser::InputValue;
+use noirc_driver::{CompileOptions, CompiledProgram, file_manager_with_stdlib};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 
@@ -215,7 +215,7 @@ fn run_async(
 
             if let Some(witness_name) = witness_name {
                 let witness_path =
-                    save_witness_to_dir(solved_witness_stack, witness_name, target_dir)?;
+                    save_witness_to_dir(&solved_witness_stack, witness_name, target_dir)?;
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }

@@ -1,4 +1,4 @@
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use num_bigint::BigUint;
 
 use super::{DataFlowGraph, Instruction, NumericType, SimplifyResult, Type, Value, ValueId};

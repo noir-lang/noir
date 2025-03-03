@@ -1,6 +1,6 @@
+use crate::Type;
 use crate::graph::CrateId;
 use crate::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
-use crate::Type;
 
 use std::collections::BTreeMap;
 

@@ -1,6 +1,5 @@
 [package]
-name = "comptime_from_field"
+name = "shift_right_overflow"
 type = "bin"
 authors = [""]
-
 [dependencies]

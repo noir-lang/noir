@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::{
-    ssa::{opt::assert_normalized_ssa_equals, Ssa},
+    ssa::{Ssa, opt::assert_normalized_ssa_equals},
     trim_leading_whitespace_from_lines,
 };
 

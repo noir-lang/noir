@@ -17,6 +17,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, ItemVisibility, LValue, Literal,
@@ -26,9 +27,9 @@ use crate::{
     elaborator::{ElaborateReason, Elaborator},
     hir::{
         comptime::{
+            InterpreterError, Value,
             errors::IResult,
             value::{ExprValue, TypedExpr},
-            InterpreterError, Value,
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
@@ -41,7 +42,6 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, LocatedToken, Token},
-    Kind, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -958,11 +958,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits {
-            Value::U1(digit != 0)
-        } else {
-            Value::U8(digit)
-        }
+        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
     });
 
     let result_type = Type::Array(
@@ -1045,11 +1041,7 @@ fn type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::MutableReference(typ) = typ {
-            Some(Value::Type(*typ))
-        } else {
-            None
-        }
+        if let Type::MutableReference(typ) = typ { Some(Value::Type(*typ)) } else { None }
     })
 }
 
@@ -1060,11 +1052,7 @@ fn type_as_slice(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::Slice(slice_type) = typ {
-            Some(Value::Type(*slice_type))
-        } else {
-            None
-        }
+        if let Type::Slice(slice_type) = typ { Some(Value::Type(*slice_type)) } else { None }
     })
 }
 
@@ -1075,11 +1063,7 @@ fn type_as_str(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::String(n) = typ {
-            Some(Value::Type(*n))
-        } else {
-            None
-        }
+        if let Type::String(n) = typ { Some(Value::Type(*n)) } else { None }
     })
 }
 
@@ -1322,11 +1306,7 @@ fn typed_expr_get_type(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let typ = interner.id_type(expr_id);
-        if typ == Type::Error {
-            None
-        } else {
-            Some(Value::Type(typ))
-        }
+        if typ == Type::Error { None } else { Some(Value::Type(typ)) }
     } else {
         None
     };

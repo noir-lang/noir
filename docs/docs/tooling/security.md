@@ -39,7 +39,7 @@ Here, the results of `factor` are two elements of the returned array. The value 
 
 This pass checks if the constraint coverage of Brillig calls is sufficient in these terms.
 
-The check is at the moment disabled by default due to performance concerns and can be enabled by passing the `--enable-brillig-constraints-check` option to `nargo`.
+The check is enabled by default and can be disabled by passing the `--skip-brillig-constraints-check` option to `nargo`.
 
 #### Lookback option
 

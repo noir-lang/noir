@@ -85,11 +85,7 @@ impl<F: Ord> Expression<F> {
 
     fn cmp_max(m1: Option<Witness>, m2: Option<Witness>) -> Ordering {
         if let Some(m1) = m1 {
-            if let Some(m2) = m2 {
-                m1.cmp(&m2)
-            } else {
-                Ordering::Greater
-            }
+            if let Some(m2) = m2 { m1.cmp(&m2) } else { Ordering::Greater }
         } else if m2.is_some() {
             Ordering::Less
         } else {

@@ -15,6 +15,7 @@ use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
 use crate::{
+    Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
     hir_def::{
         expr::*,
@@ -23,9 +24,8 @@ use crate::{
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
-    Kind, Type, TypeBinding, TypeBindings,
 };
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, While};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1182,7 +1182,7 @@ impl<'interner> Monomorphizer<'interner> {
                 unreachable!("All TraitAsType should be replaced before calling convert_type");
             }
             HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding, location);
                 }
 
@@ -1198,12 +1198,12 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::convert_type(to, location)?
             }
 
-            HirType::TypeVariable(ref binding) => {
+            HirType::TypeVariable(binding) => {
                 let type_var_kind = match &*binding.borrow() {
-                    TypeBinding::Bound(ref binding) => {
+                    TypeBinding::Bound(binding) => {
                         return Self::convert_type(binding, location);
                     }
-                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
+                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
                 };
 
                 // Default any remaining unbound type variables.
@@ -1328,18 +1328,18 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Array(_length, element) => Self::check_type(element.as_ref(), location),
             HirType::Slice(element) => Self::check_type(element.as_ref(), location),
             HirType::NamedGeneric(binding, _) => {
-                if let TypeBinding::Bound(ref binding) = &*binding.borrow() {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::check_type(binding, location);
                 }
 
                 Ok(())
             }
-            HirType::TypeVariable(ref binding) => {
+            HirType::TypeVariable(binding) => {
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {
                         return Self::check_type(binding, location);
                     }
-                    TypeBinding::Unbound(_, ref type_var_kind) => type_var_kind.clone(),
+                    TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
                 };
 
                 // Default any remaining unbound type variables.

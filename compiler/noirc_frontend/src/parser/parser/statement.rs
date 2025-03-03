@@ -6,7 +6,7 @@ use crate::{
         ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
         StatementKind, WhileStatement,
     },
-    parser::{labels::ParsingRuleLabel, ParserErrorReason},
+    parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, Token, TokenKind},
 };
 
@@ -462,11 +462,11 @@ mod tests {
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
+            Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            Parser, ParserErrorReason,
         },
     };
 
@@ -521,7 +521,9 @@ mod tests {
     fn parses_let_statement_with_unsafe() {
         let src = "// Safety: comment
         let x = unsafe { 1 };";
-        let statement = parse_statement_no_errors(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -534,6 +536,20 @@ mod tests {
         let x = unsafe { 1 };";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let (statement, _) = parser.parse_statement().unwrap();
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_unsafe_after_some_other_comment() {
+        let src = "// Top comment
+        // Safety: comment
+        let x = unsafe { 1 };";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let statement = parser.parse_statement_or_error();
+        assert!(parser.errors.is_empty());
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };

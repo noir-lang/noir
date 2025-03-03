@@ -1,9 +1,9 @@
 use acvm::{
-    acir::{
-        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
-        AcirField, BlackBoxFunc,
-    },
     BlackBoxFunctionSolver,
+    acir::{
+        AcirField, BlackBoxFunc,
+        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
+    },
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -11,8 +11,8 @@ use num_bigint::BigUint;
 use crate::errors::{InternalError, RuntimeError};
 
 use super::{
-    acir_variable::{AcirContext, AcirVar},
     AcirValue,
+    acir_variable::{AcirContext, AcirVar},
 };
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {

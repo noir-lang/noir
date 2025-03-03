@@ -1,12 +1,12 @@
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
-use acvm_blackbox_solver::{sha256_compression, BlackBoxFunctionSolver, BlackBoxResolutionError};
+use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError, sha256_compression};
 
-use crate::pwg::{input_to_value, insert_value};
 use crate::OpcodeResolutionError;
+use crate::pwg::{input_to_value, insert_value};
 
 /// Attempts to solve a 256 bit hash function opcode.
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
@@ -136,11 +136,10 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     }
 
     // Read witness assignments
-    let mut state = Vec::new();
-    for input in inputs.iter() {
-        let witness_assignment = input_to_value(initial_witness, *input, false)?;
-        state.push(witness_assignment);
-    }
+    let state: Vec<F> = inputs
+        .iter()
+        .map(|input| input_to_value(initial_witness, *input, false))
+        .collect::<Result<_, _>>()?;
 
     let state = backend.poseidon2_permutation(&state, len)?;
 

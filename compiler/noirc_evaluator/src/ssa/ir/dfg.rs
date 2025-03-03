@@ -18,12 +18,12 @@ use super::{
     value::{Value, ValueId},
 };
 
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use serde_with::DisplayFromStr;
+use serde_with::serde_as;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -239,10 +239,9 @@ impl DataFlowGraph {
                 instruction,
                 Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
             ),
-            RuntimeType::Brillig(_) => !matches!(
-                instruction,
-                Instruction::EnableSideEffectsIf { .. } | Instruction::IfElse { .. }
-            ),
+            RuntimeType::Brillig(_) => {
+                !matches!(instruction, Instruction::EnableSideEffectsIf { .. })
+            }
         }
     }
 
@@ -375,6 +374,11 @@ impl DataFlowGraph {
                 )
             }
         }
+    }
+
+    /// Replace an existing instruction with a new one.
+    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
+        self.instructions[id] = instruction;
     }
 
     /// Set the value of value_to_replace to refer to the value referred to by new_value.

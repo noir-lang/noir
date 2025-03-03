@@ -1,13 +1,13 @@
 use acvm::{
+    BlackBoxFunctionSolver,
     acir::{
+        AcirField, BlackBoxFunc,
         circuit::{
-            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
             AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
+            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
         },
         native_types::{Expression, Witness},
-        AcirField, BlackBoxFunc,
     },
-    BlackBoxFunctionSolver,
 };
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
@@ -22,7 +22,7 @@ use crate::ssa::ir::{
 
 use super::big_int::BigIntContext;
 use super::generated_acir::{BrilligStdlibFunc, GeneratedAcir, PLACEHOLDER_BRILLIG_INDEX};
-use super::{brillig_directive, AcirDynamicArray, AcirValue};
+use super::{AcirDynamicArray, AcirValue, brillig_directive};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 /// High level Type descriptor for Variables.

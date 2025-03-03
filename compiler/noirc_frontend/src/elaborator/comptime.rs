@@ -4,6 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
+    Type, TypeBindings, UnificationError,
     ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
@@ -21,7 +22,6 @@ use crate::{
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
     token::{MetaAttribute, SecondaryAttribute},
-    Type, TypeBindings, UnificationError,
 };
 
 use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};

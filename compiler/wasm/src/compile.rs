@@ -5,7 +5,7 @@ use js_sys::{JsString, Object};
 use nargo::parse_all;
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 use noirc_driver::{
-    add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency, CompileOptions,
+    CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
 use noirc_evaluator::errors::SsaReport;
 use noirc_frontend::{
@@ -130,7 +130,7 @@ pub(crate) struct DependencyGraph {
     pub(crate) root_dependencies: Vec<CrateName>,
     pub(crate) library_dependencies: BTreeMap<CrateName, Vec<CrateName>>,
 }
-/// This is map contains the paths of all of the files in the entry-point crate and
+/// This map contains the paths of all of the files in the entry-point crate and
 /// the transitive dependencies of the entry-point crate.
 ///
 /// This is for all intents and purposes the file system that the compiler will use to resolve/compile
@@ -176,7 +176,7 @@ pub fn compile_program(
     let compiled_program =
         noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
             .map_err(|errs| {
-                CompileError::with_file_diagnostics(
+                CompileError::with_custom_diagnostics(
                     "Failed to compile program",
                     errs,
                     &context.file_manager,
@@ -186,7 +186,7 @@ pub fn compile_program(
 
     let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
     nargo::ops::check_program(&optimized_program).map_err(|errs| {
-        CompileError::with_file_diagnostics(
+        CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
             &context.file_manager,
@@ -212,8 +212,8 @@ pub fn compile_contract(
 
     let compiled_contract =
         noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
-            .map_err(|errs: Vec<noirc_errors::FileDiagnostic>| {
-                CompileError::with_file_diagnostics(
+            .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
+                CompileError::with_custom_diagnostics(
                     "Failed to compile contract",
                     errs,
                     &context.file_manager,
@@ -316,7 +316,7 @@ mod test {
 
     use crate::compile::PathToFileSourceMap;
 
-    use super::{file_manager_with_source_map, process_dependency_graph, DependencyGraph};
+    use super::{DependencyGraph, file_manager_with_source_map, process_dependency_graph};
     use std::{collections::BTreeMap, path::Path};
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {
