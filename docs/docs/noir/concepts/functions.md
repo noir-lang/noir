@@ -39,7 +39,15 @@ You can use an underscore `_` as a parameter name when you don't need to use the
 ```rust
 fn foo(_ : Field, y : Field) {
     // Only using y parameter
-    y + 1
+}
+```
+
+Alternatively, you can prefix a parameter name with an underscore (e.g. `_x`), which also indicates that the parameter is unused. This approach is often preferred as it preserves the parameter name for documentation purposes:
+
+```rust
+fn foo(_x : Field, y : Field) -> Field {
+    // Only using y parameter
+    y
 }
 ```
 
