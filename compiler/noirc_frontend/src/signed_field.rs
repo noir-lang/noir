@@ -19,6 +19,14 @@ impl SignedField {
         Self { field: field.into(), is_negative: true }
     }
 
+    pub fn zero() -> SignedField {
+        Self { field: FieldElement::zero(), is_negative: false }
+    }
+
+    pub fn one() -> SignedField {
+        Self { field: FieldElement::one(), is_negative: false }
+    }
+
     /// Convert a signed integer to a SignedField, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
     /// you can call `SignedField::positive`.
@@ -122,6 +130,30 @@ impl std::fmt::Display for SignedField {
             write!(f, "-")?;
         }
         write!(f, "{}", self.field)
+    }
+}
+
+impl rangemap::StepLite for SignedField {
+    fn add_one(&self) -> Self {
+        if self.is_negative {
+            if self.field.is_one() {
+                Self::new(FieldElement::zero(), false)
+            } else {
+                Self::new(self.field - FieldElement::one(), self.is_negative)
+            }
+        } else {
+            Self::new(self.field + FieldElement::one(), self.is_negative)
+        }
+    }
+
+    fn sub_one(&self) -> Self {
+        if self.is_negative {
+            Self::new(self.field + FieldElement::one(), self.is_negative)
+        } else if self.field.is_zero() {
+            Self::new(FieldElement::one(), true)
+        } else {
+            Self::new(self.field - FieldElement::one(), self.is_negative)
+        }
     }
 }
 
