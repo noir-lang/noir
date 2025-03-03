@@ -11,7 +11,7 @@ use std::{io::prelude::*, num::ParseIntError, str::FromStr};
 
 use base64::Engine;
 use flate2::Compression;
-use serde::{de::Error as DeserializationError, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as DeserializationError};
 
 use std::collections::BTreeSet;
 
@@ -408,8 +408,8 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::{
-        opcodes::{BlackBoxFuncCall, FunctionInput},
         Circuit, Compression, Opcode, PublicInputs,
+        opcodes::{BlackBoxFuncCall, FunctionInput},
     };
     use crate::{
         circuit::{ExpressionWidth, Program},

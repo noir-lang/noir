@@ -153,6 +153,37 @@ fn main() {
 }
 ```
 
+## As Trait Syntax
+
+Rarely to call a method it may not be sufficient to use the general method call syntax of `obj.method(args)`.
+One case where this may happen is if there are two traits in scope which both define a method with the same name.
+For example:
+
+```rust
+trait Foo  { fn bar(); }
+trait Foo2 { fn bar(); }
+
+fn example<T>()
+    where T: Foo + Foo2
+{
+    // How to call Foo::bar and Foo2::bar?
+}
+```
+
+In the above example we have both `Foo` and `Foo2` which define a `bar` method. The normal way to resolve
+this would be to use the static method syntax `Foo::bar(object)` but there is no object in this case and
+`Self` does not appear in the type signature of `bar` at all so we would not know which impl to choose.
+For these situations there is the "as trait" syntax: `<Type as Trait>::method(object, args...)`
+
+```rust
+fn example<T>()
+    where T: Foo + Foo2
+{
+    <T as Foo>::bar();
+    <T as Foo2>::bar();
+}
+```
+
 ## Generic Implementations
 
 You can add generics to a trait implementation by adding the generic list after the `impl` keyword:

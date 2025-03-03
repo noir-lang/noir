@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use acir::{
+    AcirField,
     circuit::{
+        Circuit, Opcode,
         brillig::{BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        Circuit, Opcode,
     },
     native_types::{Expression, Witness},
-    AcirField,
 };
 
 use crate::compiler::CircuitSimulator;
@@ -258,16 +258,16 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::{optimizers::MergeExpressionsOptimizer, CircuitSimulator};
+    use crate::compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer};
     use acir::{
+        FieldElement,
         acir_field::AcirField,
         circuit::{
+            Circuit, ExpressionWidth, Opcode, PublicInputs,
             brillig::{BrilligFunctionId, BrilligOutputs},
             opcodes::{BlackBoxFuncCall, FunctionInput},
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
         },
         native_types::{Expression, Witness},
-        FieldElement,
     };
     use std::collections::BTreeSet;
 

@@ -9,7 +9,7 @@
 //! Should any projects require/desire a different artifact format, it's expected that they will write a transformer
 //! to generate them using these artifacts as a starting point.
 
-use serde::{de::Visitor, Deserializer, Serializer};
+use serde::{Deserializer, Serializer, de::Visitor};
 
 pub mod contract;
 pub mod debug;

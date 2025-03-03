@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
-use acir::{native_types::WitnessStackError, FieldElement};
+use acir::{FieldElement, native_types::WitnessStackError};
 use acvm::acir::native_types::WitnessStack;
 
 use crate::errors::{CliError, FilesystemError};
 
 /// Write `witness.gz` to the output directory.
 pub fn save_witness_to_dir(
-    witnesses: WitnessStack<FieldElement>,
+    witnesses: &WitnessStack<FieldElement>,
     witness_name: &str,
     witness_dir: &Path,
 ) -> Result<PathBuf, CliError> {

@@ -12,11 +12,11 @@ use fxhash::FxHashMap as HashMap;
 
 use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::{
-    brillig_ir::{
-        artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
-        BrilligContext,
-    },
     Brillig, BrilligOptions, BrilligVariable, ValueId,
+    brillig_ir::{
+        BrilligContext,
+        artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
+    },
 };
 use crate::{
     errors::InternalError,

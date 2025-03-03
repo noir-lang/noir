@@ -3,7 +3,7 @@ use crate::{
     token::{DocStyle, Token, TokenKind},
 };
 
-use super::{parse_many::without_separator, Parser};
+use super::{Parser, parse_many::without_separator};
 
 impl Parser<'_> {
     /// InnerDocComments = inner_doc_comment*
@@ -47,7 +47,7 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parser::tests::expect_no_errors, Parser};
+    use crate::parser::{Parser, parser::tests::expect_no_errors};
 
     #[test]
     fn parses_inner_doc_comments() {

@@ -10,19 +10,19 @@
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
 
+use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,
     HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
 };
-use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
-use black_box::{evaluate_black_box, BrilligBigIntSolver};
+use arithmetic::{BrilligArithmeticError, evaluate_binary_field_op, evaluate_binary_int_op};
+use black_box::{BrilligBigIntSolver, evaluate_black_box};
 
 // Re-export `brillig`.
 pub use acir::brillig;
 use memory::MemoryTypeError;
-pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
+pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
 
 mod arithmetic;
 mod black_box;

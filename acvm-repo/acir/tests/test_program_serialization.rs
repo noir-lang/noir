@@ -13,9 +13,9 @@ use std::collections::BTreeSet;
 
 use acir::{
     circuit::{
+        Circuit, Opcode, Program, PublicInputs,
         brillig::{BrilligBytecode, BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
-        Circuit, Opcode, Program, PublicInputs,
     },
     native_types::{Expression, Witness},
 };

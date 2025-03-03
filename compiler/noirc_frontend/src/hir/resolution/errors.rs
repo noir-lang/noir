@@ -1,9 +1,10 @@
 use acvm::FieldElement;
 pub use noirc_errors::Span;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
+    Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
     hir::{
         comptime::{InterpreterError, Value},
@@ -11,7 +12,6 @@ use crate::{
     },
     parser::ParserError,
     usage_tracker::UnusedItem,
-    Kind, Type,
 };
 
 use super::import::PathResolutionError;
@@ -90,9 +90,7 @@ pub enum ResolverError {
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { ident: Ident },
-    #[error(
-        "Usage of the `#[oracle]` function attribute is only valid on unconstrained functions"
-    )]
+    #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident },
     #[error("Oracle functions cannot be called directly from constrained functions")]
     UnconstrainedOracleReturnToConstrained { location: Location },
@@ -111,7 +109,11 @@ pub enum ResolverError {
     #[error("Only `comptime` globals can be mutable")]
     MutableGlobal { location: Location },
     #[error("Globals must have a specified type")]
-    UnspecifiedGlobalType { location: Location, expected_type: Type },
+    UnspecifiedGlobalType {
+        pattern_location: Location,
+        expr_location: Location,
+        expected_type: Type,
+    },
     #[error("Global failed to evaluate")]
     UnevaluatedGlobalType { location: Location },
     #[error("Globals used in a type position must be non-negative")]
@@ -132,8 +134,6 @@ pub enum ResolverError {
     ArrayLengthInterpreter { error: InterpreterError },
     #[error("The unquote operator '$' can only be used within a quote expression")]
     UnquoteUsedOutsideQuote { location: Location },
-    #[error("\"as trait path\" not yet implemented")]
-    AsTraitPathNotYetImplemented { location: Location },
     #[error("Invalid syntax in macro call")]
     InvalidSyntaxInMacroCall { location: Location },
     #[error("Macros must be comptime functions")]
@@ -172,7 +172,7 @@ pub enum ResolverError {
     AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, location: Location },
-    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}")]
+    #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}`")]
     TraitNotImplemented {
         impl_trait: String,
         missing_trait: String,
@@ -194,16 +194,14 @@ pub enum ResolverError {
     TypeUnsupportedInMatch { typ: Type, location: Location },
     #[error("Expected a struct, enum, or literal value in pattern, but found a {item}")]
     UnexpectedItemInPattern { location: Location, item: &'static str },
+    #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
+    NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
 }
 
 impl ResolverError {
-    pub fn into_file_diagnostic(&self, file: fm::FileId) -> FileDiagnostic {
-        Diagnostic::from(self).in_file(file)
-    }
-
     pub fn location(&self) -> Location {
         match self {
-            ResolverError::DuplicateDefinition { first_location: location, .. }
+            ResolverError::DuplicateDefinition { second_location: location, .. }
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::PathIsNotIdent { location }
             | ResolverError::Expected { location, .. }
@@ -239,7 +237,7 @@ impl ResolverError {
             | ResolverError::WhileInConstrainedFn { location }
             | ResolverError::JumpOutsideLoop { location, .. }
             | ResolverError::MutableGlobal { location }
-            | ResolverError::UnspecifiedGlobalType { location, .. }
+            | ResolverError::UnspecifiedGlobalType { pattern_location: location, .. }
             | ResolverError::UnevaluatedGlobalType { location }
             | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
@@ -247,7 +245,6 @@ impl ResolverError {
             | ResolverError::SelfReferentialType { location }
             | ResolverError::NumericGenericUsedForType { location, .. }
             | ResolverError::UnquoteUsedOutsideQuote { location }
-            | ResolverError::AsTraitPathNotYetImplemented { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
             | ResolverError::MacroIsNotComptime { location }
             | ResolverError::NonFunctionInAnnotation { location }
@@ -263,6 +260,7 @@ impl ResolverError {
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
+            | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. } => {
                 *location
             }
@@ -298,10 +296,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::DuplicateDefinition { name, first_location, second_location} => {
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {name} found"),
-                    "first definition found here".to_string(),
-                    *first_location,
+                    "second definition found here".to_string(),
+                    *second_location,
                 );
-                diag.add_secondary("second definition found here".to_string(), *second_location);
+                diag.add_secondary("first definition found here".to_string(), *first_location);
                 diag
             }
             ResolverError::UnusedVariable { ident } => {
@@ -579,12 +577,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::UnspecifiedGlobalType { location, expected_type } => {
-                Diagnostic::simple_error(
+            ResolverError::UnspecifiedGlobalType { pattern_location, expr_location, expected_type } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     "Globals must have a specified type".to_string(),
-                    format!("Inferred type is `{expected_type}`"),
-                    *location,
-                )
+                    String::new(),
+                    *pattern_location,
+                );
+                diagnostic.add_secondary(format!("Inferred type is `{expected_type}`"), *expr_location);
+                diagnostic
             },
             ResolverError::UnevaluatedGlobalType { location } => {
                 Diagnostic::simple_error(
@@ -656,13 +656,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnquoteUsedOutsideQuote { location } => {
                 Diagnostic::simple_error(
                     "The unquote operator '$' can only be used within a quote expression".into(),
-                    "".into(),
-                    *location,
-                )
-            },
-            ResolverError::AsTraitPathNotYetImplemented { location } => {
-                Diagnostic::simple_error(
-                    "\"as trait path\" not yet implemented".into(),
                     "".into(),
                     *location,
                 )
@@ -776,9 +769,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} => {
                 let mut diagnostic = Diagnostic::simple_error(
                     format!("The trait bound `{typ}: {the_trait}` is not satisfied"), 
-                    format!("The trait `{the_trait}` is not implemented for `{typ}")
+                    format!("The trait `{the_trait}` is not implemented for `{typ}`")
                     , *location);
-                diagnostic.add_secondary(format!("required by this bound in `{impl_trait}"), *missing_trait_location);
+                diagnostic.add_secondary(format!("required by this bound in `{impl_trait}`"), *missing_trait_location);
                 diagnostic
             },
             ResolverError::LoopNotYetSupported { location  } => {
@@ -820,6 +813,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a struct, enum, or literal pattern, but found a {item}"), 
+                    String::new(),
+                    *location,
+                )
+            },
+            ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } => {
+                Diagnostic::simple_error(
+                    format!("Trait `{trait_name}` has no method named `{method_name}`"), 
                     String::new(),
                     *location,
                 )

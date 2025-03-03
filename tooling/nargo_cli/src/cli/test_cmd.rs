@@ -1,9 +1,9 @@
 use std::{
     collections::{BTreeMap, HashMap},
     fmt::Display,
-    panic::{catch_unwind, UnwindSafe},
+    panic::{UnwindSafe, catch_unwind},
     path::PathBuf,
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
     thread,
     time::Duration,
 };
@@ -14,12 +14,12 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    foreign_calls::DefaultForeignCallBuilder, insert_all_files_for_workspace_into_file_manager,
-    ops::TestStatus, package::Package, parse_all, prepare_package, workspace::Workspace,
-    PrintOutput,
+    PrintOutput, foreign_calls::DefaultForeignCallBuilder,
+    insert_all_files_for_workspace_into_file_manager, ops::TestStatus, package::Package, parse_all,
+    prepare_package, workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_driver::{check_crate, CompileOptions};
+use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -229,11 +229,7 @@ impl<'a> TestRunner<'a> {
             };
         }
 
-        if all_passed {
-            Ok(())
-        } else {
-            Err(CliError::Generic(String::new()))
-        }
+        if all_passed { Ok(()) } else { Err(CliError::Generic(String::new())) }
     }
 
     /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
@@ -444,11 +440,7 @@ impl<'a> TestRunner<'a> {
             }
         });
 
-        if let Some(error) = error {
-            Err(error)
-        } else {
-            Ok(package_tests)
-        }
+        if let Some(error) = error { Err(error) } else { Ok(package_tests) }
     }
 
     /// Compiles a single package and returns all of its tests

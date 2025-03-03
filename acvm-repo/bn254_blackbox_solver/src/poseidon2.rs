@@ -626,7 +626,7 @@ impl<'a> Poseidon2Sponge<'a> {
 mod test {
     use acir::AcirField;
 
-    use super::{field_from_hex, poseidon2_permutation, FieldElement};
+    use super::{FieldElement, field_from_hex, poseidon2_permutation};
 
     #[test]
     fn smoke_test() {

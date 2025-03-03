@@ -382,7 +382,7 @@ impl DebugInstrumenter {
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
-            ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
+            ast::ExpressionKind::Block(ast::BlockExpression { statements, .. }) => {
                 self.scope.push(HashMap::default());
                 self.walk_scope(statements, expr.location);
             }
@@ -396,19 +396,19 @@ impl DebugInstrumenter {
             ast::ExpressionKind::Call(call_expr) => {
                 // TODO: push a stack frame or something here?
                 self.walk_expr(&mut call_expr.func);
-                call_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                call_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::MethodCall(mc_expr) => {
                 // TODO: also push a stack frame here
                 self.walk_expr(&mut mc_expr.object);
-                mc_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                mc_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::Constructor(c_expr) => {
-                c_expr.fields.iter_mut().for_each(|(_id, ref mut expr)| {
+                c_expr.fields.iter_mut().for_each(|(_id, expr)| {
                     self.walk_expr(expr);
                 });
             }
@@ -492,7 +492,7 @@ impl DebugInstrumenter {
             ast::StatementKind::Semi(expr) => {
                 self.walk_expr(expr);
             }
-            ast::StatementKind::For(ref mut for_stmt) => {
+            ast::StatementKind::For(for_stmt) => {
                 self.walk_for(for_stmt);
             }
             _ => {} // Constrain, Error

@@ -58,11 +58,7 @@ pub(super) enum ReferenceValue {
 
 impl ReferenceValue {
     fn unify(self, other: Self) -> Self {
-        if self == other {
-            self
-        } else {
-            ReferenceValue::Unknown
-        }
+        if self == other { self } else { ReferenceValue::Unknown }
     }
 }
 
