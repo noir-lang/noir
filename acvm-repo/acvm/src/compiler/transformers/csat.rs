@@ -242,7 +242,7 @@ impl CSatTransformer {
         // Add the rest of the elements back into the new_opcode
         new_opcode.mul_terms.extend(opcode.mul_terms);
         new_opcode.linear_combinations.extend(opcode.linear_combinations);
-        new_opcode.q_c = opcode.q_c;
+        new_opcode.constant = opcode.constant;
         new_opcode.sort();
         new_opcode
     }
