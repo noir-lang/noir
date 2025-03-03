@@ -174,8 +174,8 @@ impl Elaborator<'_> {
 
         if !kind.unifies(&resolved_type.kind()) {
             let expected_typ_err = CompilationError::TypeError(TypeCheckError::TypeKindMismatch {
-                expected_kind: kind.to_string(),
-                expr_kind: resolved_type.kind().to_string(),
+                expected_kind: kind.clone(),
+                expr_kind: resolved_type.kind(),
                 expr_location: location,
             });
             self.push_err(expected_typ_err);
@@ -523,8 +523,8 @@ impl Elaborator<'_> {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
                         if !lhs_kind.unifies(&rhs_kind) {
                             self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: lhs_kind.to_string(),
-                                expr_kind: rhs_kind.to_string(),
+                                expected_kind: lhs_kind,
+                                expr_kind: rhs_kind,
                                 expr_location: location,
                             });
                             return Type::Error;
@@ -557,8 +557,8 @@ impl Elaborator<'_> {
     fn check_kind(&mut self, typ: Type, expected_kind: &Kind, location: Location) -> Type {
         if !typ.kind().unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
-                expected_kind: expected_kind.to_string(),
-                expr_kind: typ.kind().to_string(),
+                expected_kind: expected_kind.clone(),
+                expr_kind: typ.kind(),
                 expr_location: location,
             });
             return Type::Error;

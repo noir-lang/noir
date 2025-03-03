@@ -109,7 +109,7 @@ impl CompilerContext {
         let compiled_program =
             compile_main(&mut self.context, root_crate_id, &compile_options, None)
                 .map_err(|errs| {
-                    CompileError::with_file_diagnostics(
+                    CompileError::with_custom_diagnostics(
                         "Failed to compile program",
                         errs,
                         &self.context.file_manager,
@@ -119,7 +119,7 @@ impl CompilerContext {
 
         let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
         nargo::ops::check_program(&optimized_program).map_err(|errs| {
-            CompileError::with_file_diagnostics(
+            CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
                 &self.context.file_manager,
@@ -148,7 +148,7 @@ impl CompilerContext {
         let compiled_contract =
             compile_contract(&mut self.context, root_crate_id, &compile_options)
                 .map_err(|errs| {
-                    CompileError::with_file_diagnostics(
+                    CompileError::with_custom_diagnostics(
                         "Failed to compile contract",
                         errs,
                         &self.context.file_manager,
