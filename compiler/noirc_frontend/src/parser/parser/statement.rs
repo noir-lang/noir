@@ -75,32 +75,6 @@ impl Parser<'_> {
         }
     }
 
-    // TODO relocate
-    //
-    /// Return the unique `CfgAttribute` in the given `attributes` list along
-    /// with its `Span`, if it exists
-    fn cfg_attribute(&mut self, attributes: &Vec<(Attribute, Location)>) -> Option<CfgAttribute> {
-        let mut found_cfg_attribute: Option<CfgAttribute> = None;
-        for (attribute, attribute_span) in attributes {
-            if let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute {
-                if let Some(ref second_cfg_attribute) = found_cfg_attribute {
-                    let cfg_attribute = cfg_attribute.clone();
-                    let second_cfg_attribute = second_cfg_attribute.clone();
-                    self.push_error(
-                        ParserErrorReason::MultipleCfgAttributesFound {
-                            cfg_attribute,
-                            second_cfg_attribute,
-                        },
-                        *attribute_span,
-                    );
-                } else {
-                    found_cfg_attribute = Some(cfg_attribute.clone());
-                }
-            }
-        }
-        found_cfg_attribute
-    }
-
     /// StatementKind
     ///     = BreakStatement
     ///     | ContinueStatement
@@ -486,6 +460,32 @@ impl Parser<'_> {
             comptime: false,
             is_global_let: false,
         })
+    }
+
+    /// Return the unique `CfgAttribute` in the given `attributes` list along
+    /// with its `Span`, if it exists.
+    ///
+    /// Logs an error if multiple `CfgAttribute`'s` are found.
+    fn cfg_attribute(&mut self, attributes: &Vec<(Attribute, Location)>) -> Option<CfgAttribute> {
+        let mut found_cfg_attribute: Option<CfgAttribute> = None;
+        for (attribute, attribute_span) in attributes {
+            if let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute {
+                if let Some(ref second_cfg_attribute) = found_cfg_attribute {
+                    let cfg_attribute = cfg_attribute.clone();
+                    let second_cfg_attribute = second_cfg_attribute.clone();
+                    self.push_error(
+                        ParserErrorReason::MultipleCfgAttributesFound {
+                            cfg_attribute,
+                            second_cfg_attribute,
+                        },
+                        *attribute_span,
+                    );
+                } else {
+                    found_cfg_attribute = Some(cfg_attribute.clone());
+                }
+            }
+        }
+        found_cfg_attribute
     }
 }
 
