@@ -12,16 +12,20 @@ use super::Expression;
 impl<F: AcirField> Neg for &Expression<F> {
     type Output = Expression<F>;
     fn neg(self) -> Self::Output {
-        // XXX(med) : Implement an efficient way to do this
+        let mut mul_terms = self.mul_terms.clone();
+        let mut linear_combinations = self.linear_combinations.clone();
 
-        let mul_terms: Vec<_> =
-            self.mul_terms.iter().map(|(q_m, w_l, w_r)| (-*q_m, *w_l, *w_r)).collect();
+        for (coeff, _, _) in mul_terms.iter_mut() {
+            *coeff = -*coeff;
+        }
 
-        let linear_combinations: Vec<_> =
-            self.linear_combinations.iter().map(|(q_k, w_k)| (-*q_k, *w_k)).collect();
-        let q_c = -self.q_c;
+        for (coeff, _) in linear_combinations.iter_mut() {
+            *coeff = -*coeff;
+        }
 
-        Expression { mul_terms, linear_combinations, q_c }
+        let constant = -self.constant;
+
+        Expression { mul_terms, linear_combinations, constant }
     }
 }
 
@@ -31,9 +35,9 @@ impl<F: AcirField> Add<F> for Expression<F> {
     type Output = Self;
     fn add(self, rhs: F) -> Self::Output {
         // Increase the constant
-        let q_c = self.q_c + rhs;
+        let constant = self.constant + rhs;
 
-        Expression { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
+        Expression { mul_terms: self.mul_terms, constant, linear_combinations: self.linear_combinations }
     }
 }
 
@@ -41,9 +45,9 @@ impl<F: AcirField> Sub<F> for Expression<F> {
     type Output = Self;
     fn sub(self, rhs: F) -> Self::Output {
         // Increase the constant
-        let q_c = self.q_c - rhs;
+        let constant = self.constant - rhs;
 
-        Expression { mul_terms: self.mul_terms, q_c, linear_combinations: self.linear_combinations }
+        Expression { mul_terms: self.mul_terms, constant, linear_combinations: self.linear_combinations }
     }
 }
 
@@ -59,9 +63,9 @@ impl<F: AcirField> Mul<F> for &Expression<F> {
             self.linear_combinations.iter().map(|(q_l, w_l)| (*q_l * rhs, *w_l)).collect();
 
         // Scale the constant
-        let q_c = self.q_c * rhs;
+        let constant = self.constant * rhs;
 
-        Expression { mul_terms, q_c, linear_combinations: lin_combinations }
+        Expression { mul_terms, constant, linear_combinations: lin_combinations }
     }
 }
 
@@ -119,16 +123,16 @@ impl<F: AcirField> Mul<&Expression<F>> for &Expression<F> {
     type Output = Option<Expression<F>>;
     fn mul(self, rhs: &Expression<F>) -> Self::Output {
         if self.is_const() {
-            return Some(rhs * self.q_c);
+            return Some(rhs * self.constant);
         } else if rhs.is_const() {
-            return Some(self * rhs.q_c);
+            return Some(self * rhs.constant);
         } else if !(self.is_linear() && rhs.is_linear()) {
             // `Expression`s can only represent terms which are up to degree 2.
             // We then disallow multiplication of `Expression`s which have degree 2 terms.
             return None;
         }
 
-        let mut output = Expression::from_field(self.q_c * rhs.q_c);
+        let mut output = Expression::from_field(self.constant * rhs.constant);
 
         //TODO to optimize...
         for lc in &self.linear_combinations {
@@ -144,8 +148,8 @@ impl<F: AcirField> Mul<&Expression<F>> for &Expression<F> {
             let (b_c, b_w) = rhs.linear_combinations[i2];
 
             // Apply scaling from multiplication
-            let a_c = rhs.q_c * a_c;
-            let b_c = self.q_c * b_c;
+            let a_c = rhs.constant * a_c;
+            let b_c = self.constant * b_c;
 
             let (coeff, witness) = match a_w.cmp(&b_w) {
                 Ordering::Greater => {
@@ -171,7 +175,7 @@ impl<F: AcirField> Mul<&Expression<F>> for &Expression<F> {
         }
         while i1 < self.linear_combinations.len() {
             let (a_c, a_w) = self.linear_combinations[i1];
-            let coeff = rhs.q_c * a_c;
+            let coeff = rhs.constant * a_c;
             if !coeff.is_zero() {
                 output.linear_combinations.push((coeff, a_w));
             }
@@ -179,7 +183,7 @@ impl<F: AcirField> Mul<&Expression<F>> for &Expression<F> {
         }
         while i2 < rhs.linear_combinations.len() {
             let (b_c, b_w) = rhs.linear_combinations[i2];
-            let coeff = self.q_c * b_c;
+            let coeff = self.constant * b_c;
             if !coeff.is_zero() {
                 output.linear_combinations.push((coeff, b_w));
             }
@@ -215,13 +219,13 @@ mod tests {
         let a = Expression {
             mul_terms: vec![],
             linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-            q_c: FieldElement::from(2u128),
+            constant: FieldElement::from(2u128),
         };
 
         let b = Expression {
             mul_terms: vec![],
             linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
+            constant: FieldElement::one(),
         };
 
         assert_eq!(
@@ -232,7 +236,7 @@ mod tests {
                     (FieldElement::from(2u128), Witness(2)),
                     (FieldElement::from(4u128), Witness(4))
                 ],
-                q_c: FieldElement::from(3u128)
+                constant: FieldElement::from(3u128)
             }
         );
 
@@ -245,13 +249,13 @@ mod tests {
         let a = Expression {
             mul_terms: vec![],
             linear_combinations: vec![(FieldElement::from(2u128), Witness(2))],
-            q_c: FieldElement::from(2u128),
+            constant: FieldElement::from(2u128),
         };
 
         let b = Expression {
             mul_terms: vec![],
             linear_combinations: vec![(FieldElement::from(4u128), Witness(4))],
-            q_c: FieldElement::one(),
+            constant: FieldElement::one(),
         };
 
         assert_eq!(
@@ -262,7 +266,7 @@ mod tests {
                     (FieldElement::from(2u128), Witness(2)),
                     (FieldElement::from(8u128), Witness(4))
                 ],
-                q_c: FieldElement::from(2u128)
+                constant: FieldElement::from(2u128)
             }
         );
 
