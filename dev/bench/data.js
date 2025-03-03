@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741034459465,
+  "lastUpdate": 1741034460964,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c254c3ca07c65c7845d5affb17cb37114c5a3051",
-          "message": "feat: Sync from aztec-packages (#7474)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-02-20T23:07:40Z",
-          "tree_id": "76c74262885b3630d6c744f2967f35dc82352403",
-          "url": "https://github.com/noir-lang/noir/commit/c254c3ca07c65c7845d5affb17cb37114c5a3051"
-        },
-        "date": 1740094018208,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.946,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.685,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.4,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.499,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.24,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.082,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.328,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.951,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 90.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 89.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.923,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.614,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8401,6 +8307,100 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.532,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "899e8c8ac00e091d71c7045e90bc37b8b65c6524",
+          "message": "fix(frontend)!: Restrict capturing mutable variable in lambdas (#7488)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-03-03T20:17:47Z",
+          "tree_id": "b30b6ea1aab53bb73880f59d3a5971ba1a40689e",
+          "url": "https://github.com/noir-lang/noir/commit/899e8c8ac00e091d71c7045e90bc37b8b65c6524"
+        },
+        "date": 1741034457423,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "sha256_regression",
+            "value": 1.1,
+            "unit": "s"
+          },
+          {
+            "name": "regression_4709",
+            "value": 0.742,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 21.6,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.542,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.924,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.042,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 11.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.952,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 101,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 109,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.917,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.552,
             "unit": "s"
           }
         ]
