@@ -1317,7 +1317,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         for case in cases {
             match &case.constructor {
                 Constructor::Int(signed_field) => {
-                    missing_cases.remove(*signed_field..=*signed_field)
+                    missing_cases.remove(*signed_field..=*signed_field);
                 }
                 Constructor::Range(start, end) => {
                     // our ranges our exclusive, so adjust for that

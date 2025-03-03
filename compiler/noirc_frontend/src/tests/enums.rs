@@ -311,6 +311,23 @@ fn missing_int_ranges() {
 }
 
 #[test]
+fn missing_int_ranges_with_negatives() {
+    check_errors(
+        "
+        fn main() {
+            let x: i32 = -4;
+            match x {
+                  ^ Missing cases: `-2147483648..=-6`, `-4..=-1`, `1..=2`, and 1 more not shown
+                -5 => (),
+                0 => (),
+                3 => (),
+            }
+        }
+    ",
+    );
+}
+
+#[test]
 fn missing_cases_with_empty_match() {
     check_errors(
         "

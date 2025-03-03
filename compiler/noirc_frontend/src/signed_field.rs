@@ -149,12 +149,10 @@ impl rangemap::StepLite for SignedField {
     fn sub_one(&self) -> Self {
         if self.is_negative {
             Self::new(self.field + FieldElement::one(), self.is_negative)
+        } else if self.field.is_zero() {
+            Self::new(FieldElement::one(), true)
         } else {
-            if self.field.is_zero() {
-                Self::new(FieldElement::one(), true)
-            } else {
-                Self::new(self.field - FieldElement::one(), self.is_negative)
-            }
+            Self::new(self.field - FieldElement::one(), self.is_negative)
         }
     }
 }
