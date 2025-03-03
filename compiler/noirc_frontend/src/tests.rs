@@ -3994,9 +3994,12 @@ fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
     let src = r#"
     fn main() {
         let mut x = 3;
-        let f = || { || mutate(&mut x) };
-                                    ^ Mutable variable x captured in lambda must be a mutable reference
-                                    ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        let f = || { 
+            let inner = || mutate(&mut x); 
+                                       ^ Mutable variable x captured in lambda must be a mutable reference
+                                       ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            inner();
+        };
         f();
         assert(x == 3);
     }
