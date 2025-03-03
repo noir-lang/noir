@@ -3938,6 +3938,26 @@ fn deny_capturing_mut_variable_without_reference_in_lambda() {
 }
 
 #[test]
+fn deny_capturing_mut_variable_without_reference_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            let inner = || {
+                x += 2;
+                ^ Mutable variable x captured in lambda must be a mutable reference
+                ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            };
+            inner();
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allow_capturing_mut_variable_only_used_immutably() {
     let src = r#"
     fn main() {
@@ -3948,4 +3968,67 @@ fn allow_capturing_mut_variable_only_used_immutably() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || mutate(&mut x);
+                               ^ Mutable variable x captured in lambda must be a mutable reference
+                               ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || { || mutate(&mut x) };
+                                    ^ Mutable variable x captured in lambda must be a mutable reference
+                                    ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_impl_method() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let mut foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Mutable variable foo captured in lambda must be a mutable reference
+                   ~~~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
 }
