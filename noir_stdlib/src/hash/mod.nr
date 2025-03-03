@@ -17,7 +17,7 @@ pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
 pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 // docs:end:keccakf1600
 
-pub mod keccak256 {
+pub mod keccak {
     #[deprecated("This function has been moved to std::hash::keccakf1600")]
     pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {
         super::keccakf1600(input)
