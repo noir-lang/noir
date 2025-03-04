@@ -19,6 +19,7 @@ enum SerializationError {
     #[error(transparent)]
     Deflate(#[from] std::io::Error),
 
+    #[allow(dead_code)]
     #[error("error deserializing witness map: {0}")]
     Deserialize(String),
 }
@@ -29,6 +30,7 @@ pub struct WitnessMapError(#[from] SerializationError);
 
 /// A map from the witnesses in a constraint system to the field element values
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct WitnessMap<F>(BTreeMap<Witness, F>);
 
 impl<F> WitnessMap<F> {
@@ -82,18 +84,39 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
+impl<F: Serialize + AcirField> WitnessMap<F> {
+    pub(crate) fn bincode_serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
+        bincode::serialize(self).map_err(|e| SerializationError::Deserialize(e.to_string()).into())
+    }
+}
+
+impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
+    pub(crate) fn bincode_deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
+        bincode::deserialize(buf).map_err(|e| SerializationError::Deserialize(e.to_string()).into())
+    }
+}
+
+#[allow(dead_code)]
+impl<F: AcirField> WitnessMap<F> {
+    pub(crate) fn proto_serialize(&self) -> Vec<u8> {
+        ProtoSchema::<F>::serialize_to_vec(self)
+    }
+
+    pub(crate) fn proto_deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
+        ProtoSchema::<F>::deserialize_from_vec(buf)
+            .map_err(|e| SerializationError::Deserialize(e.to_string()).into())
+    }
+}
+
 impl<F: Serialize + AcirField> TryFrom<WitnessMap<F>> for Vec<u8> {
     type Error = WitnessMapError;
 
     fn try_from(val: WitnessMap<F>) -> Result<Self, Self::Error> {
-        let buf = {
-            // bincode::serialize(&val).unwrap()
-            ProtoSchema::<F>::serialize_to_vec(&val)
-        };
+        let buf = val.bincode_serialize()?;
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
-        let mut buf_c = Vec::new();
-        deflater.read_to_end(&mut buf_c).map_err(|err| WitnessMapError(err.into()))?;
-        Ok(buf_c)
+        let mut buf = Vec::new();
+        deflater.read_to_end(&mut buf).map_err(|err| WitnessMapError(err.into()))?;
+        Ok(buf)
     }
 }
 
@@ -104,14 +127,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
         let mut deflater = GzDecoder::new(bytes);
         let mut buf = Vec::new();
         deflater.read_to_end(&mut buf).map_err(|err| WitnessMapError(err.into()))?;
-
-        let witness_map = {
-            // Self(bincode::deserialize(&buf).unwrap())
-
-            ProtoSchema::<F>::deserialize_from_vec(&buf)
-                .map_err(|e| SerializationError::Deserialize(e.to_string()))?
-        };
-
+        let witness_map = Self::bincode_deserialize(&buf)?;
         Ok(witness_map)
     }
 }
