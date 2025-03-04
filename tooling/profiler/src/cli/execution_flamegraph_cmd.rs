@@ -174,7 +174,6 @@ fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError
     let err_msg = "Command only supports fully unconstrained Noir programs e.g. `unconstrained fn main() { .. }";
     let program = &artifact.bytecode;
     if program.functions.len() != 1 || program.unconstrained_functions.len() != 1 {
-        dbg!("got here");
         return report_error(err_msg);
     }
 
@@ -192,7 +191,7 @@ fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError
 
 #[cfg(test)]
 mod tests {
-    use acir::circuit::{Circuit, Program};
+    use acir::circuit::{Circuit, Program, brillig::BrilligBytecode};
     use color_eyre::eyre;
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
@@ -235,7 +234,13 @@ mod tests {
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),
-            bytecode: Program { functions: vec![Circuit::default()], ..Program::default() },
+            bytecode: Program {
+                functions: vec![Circuit::default()],
+                unconstrained_functions: vec![
+                    BrilligBytecode::default(),
+                    BrilligBytecode::default(),
+                ],
+            },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
             names: vec!["main".to_string()],
