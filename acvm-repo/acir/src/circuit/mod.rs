@@ -556,8 +556,7 @@ mod tests {
 
         #[test]
         fn prop_program_serialization_roundtrip() {
-            run_with_max_size_range(5, |program: Program<TestField>| {
-                println!("\nPROGRAM:\n{:?}", program);
+            run_with_max_size_range(100, |program: Program<TestField>| {
                 let bz = Program::serialize_program(&program);
                 let de = Program::deserialize_program(&bz)?;
                 prop_assert_eq!(program, de);
