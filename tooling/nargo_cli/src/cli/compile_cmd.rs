@@ -404,8 +404,10 @@ mod tests {
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             for package in binary_packages {
-                let mut options = CompileOptions::default();
-                options.unstable_features = vec![UnstableFeature::Enums];
+                let options = CompileOptions {
+                    unstable_features: vec![UnstableFeature::Enums],
+                    ..Default::default()
+                };
 
                 let (program_0, _warnings) = compile_program(
                     &file_manager,
