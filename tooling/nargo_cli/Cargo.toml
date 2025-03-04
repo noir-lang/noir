@@ -99,12 +99,7 @@ sha3.workspace = true
 iai = "0.1.1"
 test-case.workspace = true
 lazy_static.workspace = true
-light-poseidon = "0.2.0"
-
-ark-bn254-v04 = { package = "ark-bn254", version = "^0.4.0", default-features = false, features = [
-    "curve",
-] }
-ark-ff-v04 = { package = "ark-ff", version = "^0.4.0", default-features = false }
+light-poseidon = "0.3.0"
 
 [[bench]]
 name = "criterion"
