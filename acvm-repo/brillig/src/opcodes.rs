@@ -379,17 +379,16 @@ mod tests {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
-            // leaf.prop_recursive(2, 3, 2, |inner| {
-            //     prop_oneof![
-            //         (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
-            //             |(value_types, size)| { HeapValueType::Array { value_types, size } }
-            //         ),
-            //         (prop::collection::vec(inner.clone(), 1..3))
-            //             .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
-            //     ]
-            // })
-            // .boxed()
-            leaf.boxed()
+            leaf.prop_recursive(2, 3, 2, |inner| {
+                prop_oneof![
+                    (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
+                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                    ),
+                    (prop::collection::vec(inner.clone(), 1..3))
+                        .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
+                ]
+            })
+            .boxed()
         }
     }
 }
