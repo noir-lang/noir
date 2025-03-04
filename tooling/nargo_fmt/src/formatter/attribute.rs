@@ -178,16 +178,19 @@ impl Formatter<'_> {
         self.format_path(Path::from_single("cfg".to_string(), cfg_attribute.location()));
         self.skip_comments_and_whitespace();
         if self.is_at(Token::LeftParen) {
-            let feature_eq_name = format!("feature = {}", cfg_attribute.name());
             let mut chunk_formatter = self.chunk_formatter();
             let mut group = ChunkGroup::new();
             group.text(chunk_formatter.chunk(|formatter| {
+                // (feature
+                let feature_ident = crate::formatter::Ident::new("feature".to_string(), noirc_errors::Location::dummy());
                 formatter.write_left_paren();
-            }));
-            chunk_formatter.chunk(|formatter| {
-                formatter.write(&feature_eq_name);
-            });
-            group.text(chunk_formatter.chunk(|formatter| {
+                formatter.write_identifier(feature_ident);
+                // =
+                formatter.write_space();
+                formatter.write_token(Token::Assign);
+                //  "[name]")
+                formatter.write_space();
+                formatter.write_token(Token::Str(cfg_attribute.name()));
                 formatter.write_right_paren();
             }));
             self.format_chunk_group(group);
