@@ -370,14 +370,25 @@ mod tests {
     use proptest::arbitrary::Arbitrary;
     use proptest::prelude::*;
 
-    use super::HeapValueType;
+    use super::{BitSize, HeapValueType};
 
+    // Need to define recursive strategy for `HeapValueType`
     impl Arbitrary for HeapValueType {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            todo!()
+            let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
+            leaf.prop_recursive(2, 10, 3, |inner| {
+                prop_oneof![
+                    (prop::collection::vec(inner.clone(), 1..5), any::<usize>()).prop_map(
+                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                    ),
+                    (prop::collection::vec(inner.clone(), 1..5))
+                        .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
+                ]
+            })
+            .boxed()
         }
     }
 }
