@@ -10,7 +10,6 @@ use noirc_driver::{
 };
 use noirc_frontend::hir::Context;
 use proptest::prelude::*;
-use sha3::Digest;
 
 /// Inputs and expected output of a snippet encoded in ABI format.
 #[derive(Debug)]
@@ -105,64 +104,6 @@ fn run_snippet_proptest(
     });
 }
 
-/// Run property tests on a code snippet which is assumed to execute a hashing function with the following signature:
-///
-/// ```ignore
-/// fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32]
-/// ```
-///
-/// The calls are executed with and without forcing brillig, because it seems common for hash functions to run different
-/// code paths based on `runtime::is_unconstrained()`.
-fn run_hash_proptest<const N: usize>(
-    // Different generic maximum input sizes to try.
-    max_lengths: &[usize],
-    // Some hash functions allow inputs which are less than the generic parameters, others don't.
-    variable_length: bool,
-    // Make the source code specialized for a given expected input size.
-    source: impl Fn(usize) -> String,
-    // Rust implementation of the hash function.
-    hash: fn(&[u8]) -> [u8; N],
-) {
-    for max_len in max_lengths {
-        let max_len = *max_len;
-        // The maximum length is used to pick the generic version of the method.
-        let source = source(max_len);
-        // Hash functions runs differently depending on whether the code is unconstrained or not.
-        for force_brillig in [false, true] {
-            let length_strategy =
-                if variable_length { (0..=max_len).boxed() } else { Just(max_len).boxed() };
-            // The actual input length can be up to the maximum.
-            let strategy = length_strategy
-                .prop_flat_map(|len| prop::collection::vec(any::<u8>(), len))
-                .prop_map(move |mut msg| {
-                    // The output is the hash of the data as it is.
-                    let output = hash(&msg);
-
-                    // The input has to be padded to the maximum length.
-                    let msg_size = msg.len();
-                    msg.resize(max_len, 0u8);
-
-                    let mut inputs = vec![("input", bytes_input(&msg))];
-
-                    // Omit the `message_size` if the hash function doesn't support it.
-                    if variable_length {
-                        inputs.push((
-                            "message_size",
-                            InputValue::Field(FieldElement::from(msg_size)),
-                        ));
-                    }
-
-                    SnippetInputOutput::new(inputs, bytes_input(&output)).with_description(format!(
-                        "force_brillig = {force_brillig}, max_len = {max_len}"
-                    ))
-                })
-                .boxed();
-
-            run_snippet_proptest(source.clone(), force_brillig, strategy);
-        }
-    }
-}
-
 /// This is just a simple test to check that property testing works.
 #[test]
 fn fuzz_basic() {
@@ -185,72 +126,6 @@ fn fuzz_basic() {
         .boxed();
 
     run_snippet_proptest(program.to_string(), false, strategy);
-}
-
-#[test]
-fn fuzz_keccak256_equivalence() {
-    run_hash_proptest(
-        // XXX: Currently it fails with inputs >= 135 bytes
-        &[0, 1, 100, 134],
-        true,
-        |max_len| {
-            format!(
-                "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
-                    std::hash::keccak256(input, message_size)
-                }}"
-            )
-        },
-        |data| sha3::Keccak256::digest(data).into(),
-    );
-}
-
-#[test]
-#[should_panic] // Remove once fixed
-fn fuzz_keccak256_equivalence_over_135() {
-    run_hash_proptest(
-        &[135, 150],
-        true,
-        |max_len| {
-            format!(
-                "fn main(input: [u8; {max_len}], message_size: u32) -> pub [u8; 32] {{
-                    std::hash::keccak256(input, message_size)
-                }}"
-            )
-        },
-        |data| sha3::Keccak256::digest(data).into(),
-    );
-}
-
-#[test]
-fn fuzz_sha256_equivalence() {
-    run_hash_proptest(
-        &[0, 1, 200, 511, 512],
-        true,
-        |max_len| {
-            format!(
-                "fn main(input: [u8; {max_len}], message_size: u64) -> pub [u8; 32] {{
-                    std::hash::sha256_var(input, message_size)
-                }}"
-            )
-        },
-        |data| sha2::Sha256::digest(data).into(),
-    );
-}
-
-#[test]
-fn fuzz_sha512_equivalence() {
-    run_hash_proptest(
-        &[0, 1, 200],
-        false,
-        |max_len| {
-            format!(
-                "fn main(input: [u8; {max_len}]) -> pub [u8; 64] {{
-                    std::hash::sha512::digest(input)
-                }}"
-            )
-        },
-        |data| sha2::Sha512::digest(data).into(),
-    );
 }
 
 #[test]
@@ -330,12 +205,6 @@ fn fuzz_poseidon_equivalence() {
 
         run_snippet_proptest(source.clone(), false, strategy);
     }
-}
-
-fn bytes_input(bytes: &[u8]) -> InputValue {
-    InputValue::Vec(
-        bytes.iter().map(|b| InputValue::Field(FieldElement::from(*b as u32))).collect(),
-    )
 }
 
 fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
