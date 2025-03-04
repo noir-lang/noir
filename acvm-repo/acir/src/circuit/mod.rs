@@ -501,9 +501,19 @@ mod tests {
     mod props {
         use acir_field::FieldElement;
         use proptest::prelude::*;
-        use proptest::test_runner::{Config, TestCaseResult, TestRunner};
+        use proptest::test_runner::{TestCaseResult, TestRunner};
 
         use crate::circuit::Program;
+
+        // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var,
+        // because e.g. the `VecStrategy` uses `Config::default().max_default_size_range`. On top of that,
+        // `Config::default()` reads a static `DEFAULT_CONFIG`, which gets the env vars only once at the
+        // beginning, so we can't override this on a test-by-test basis, unless we use `fork`,
+        // which is a feature that is currently disabled, because it doesn't work with Wasm.
+        // We could add it as a `dev-dependency` just for this crate, but when I tried it just crashed.
+        // For now using a const so it's obvious we can't set it to different values for different tests.
+        const MAX_SIZE_RANGE: usize = 5;
+        const SIZE_RANGE_KEY: &str = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
 
         // Define a wrapper around field so we can implement `Arbitrary`.
         // NB there are other methods like `arbitrary_field_elements` around the codebase,
@@ -520,25 +530,28 @@ mod tests {
         }
 
         /// Override the maximum size of collections created by `proptest`.
-        fn run_with_size_range<T, F>(max_size: usize, f: F)
+        fn run_with_max_size_range<T, F>(f: F)
         where
             T: Arbitrary,
             F: Fn(T) -> TestCaseResult,
         {
-            // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var.
-            let size_range_key = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
-            let orig_size_range = std::env::var(size_range_key).ok();
-            unsafe {
-                std::env::set_var(size_range_key, max_size.to_string());
+            let orig_size_range = std::env::var(SIZE_RANGE_KEY).ok();
+            // The defaults are only read once. If they are already set, leave them be.
+            if orig_size_range.is_none() {
+                unsafe {
+                    std::env::set_var(SIZE_RANGE_KEY, MAX_SIZE_RANGE.to_string());
+                }
             }
 
-            let mut runner = TestRunner::new(Config::with_cases(1));
+            let mut config = ProptestConfig::default();
+            config.cases = 1;
+
+            let mut runner = TestRunner::new(config);
             let result = runner.run(&any::<T>(), f);
 
-            if let Some(size_range) = orig_size_range {
-                unsafe {
-                    std::env::set_var(size_range_key, size_range);
-                }
+            // Restore the original.
+            unsafe {
+                std::env::set_var(SIZE_RANGE_KEY, orig_size_range.unwrap_or_default());
             }
 
             result.unwrap()
@@ -546,7 +559,7 @@ mod tests {
 
         #[test]
         fn prop_program_serialization_roundtrip() {
-            run_with_size_range(5, |program: Program<TestField>| {
+            run_with_max_size_range(|program: Program<TestField>| {
                 println!("\nPROGRAM:\n{:?}", program);
                 // let bz = Program::serialize_program(&program);
                 // let de = Program::deserialize_program(&bz).unwrap();
