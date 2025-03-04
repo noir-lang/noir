@@ -1919,6 +1919,7 @@ impl<'context> Elaborator<'context> {
                 self.interner.add_definition_location(reference_id, location, Some(module_id));
             }
         }
+        self.generics.clear();
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
