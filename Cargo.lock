@@ -16,6 +16,7 @@ dependencies = [
  "flate2",
  "fxhash",
  "noir_protobuf",
+ "num-bigint",
  "pprof",
  "proptest",
  "proptest-derive",

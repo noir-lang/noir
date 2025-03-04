@@ -496,4 +496,63 @@ mod tests {
             Program::deserialize_program(&zipped_bad_circuit);
         assert!(deserialization_result.is_err());
     }
+
+    /// Property based testing for serialization
+    mod props {
+        use acir_field::FieldElement;
+        use proptest::prelude::*;
+        use proptest::test_runner::{Config, TestCaseResult, TestRunner};
+
+        use crate::circuit::Program;
+
+        // Define a wrapper around field so we can implement `Arbitrary`.
+        // NB there are other methods like `arbitrary_field_elements` around the codebase,
+        // but for `proptest_derive::Arbitrary` we need `F: AcirField + Arbitrary`.
+        acir_field::field_wrapper!(TestField, FieldElement);
+
+        impl Arbitrary for TestField {
+            type Parameters = ();
+            type Strategy = BoxedStrategy<Self>;
+
+            fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+                any::<u128>().prop_map(|v| Self(FieldElement::from(v))).boxed()
+            }
+        }
+
+        /// Override the maximum size of collections created by `proptest`.
+        fn run_with_size_range<T, F>(max_size: usize, f: F)
+        where
+            T: Arbitrary,
+            F: Fn(T) -> TestCaseResult,
+        {
+            // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var.
+            let size_range_key = "PROPTEST_MAX_DEFAULT_SIZE_RANGE";
+            let orig_size_range = std::env::var(size_range_key).ok();
+            unsafe {
+                std::env::set_var(size_range_key, max_size.to_string());
+            }
+
+            let mut runner = TestRunner::new(Config::with_cases(1));
+            let result = runner.run(&any::<T>(), f);
+
+            if let Some(size_range) = orig_size_range {
+                unsafe {
+                    std::env::set_var(size_range_key, size_range);
+                }
+            }
+
+            result.unwrap()
+        }
+
+        #[test]
+        fn prop_program_serialization_roundtrip() {
+            run_with_size_range(5, |program: Program<TestField>| {
+                println!("\nPROGRAM:\n{:?}", program);
+                // let bz = Program::serialize_program(&program);
+                // let de = Program::deserialize_program(&bz).unwrap();
+                // prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+    }
 }

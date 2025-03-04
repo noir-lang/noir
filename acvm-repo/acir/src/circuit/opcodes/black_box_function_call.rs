@@ -82,7 +82,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))] //
 pub enum BlackBoxFuncCall<F: AcirField> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,
@@ -507,5 +507,29 @@ mod tests {
         let buf = bincode::serialize(&opcode).unwrap();
         let recovered_opcode = bincode::deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
+    }
+}
+
+#[cfg(feature = "arb")]
+mod arb {
+    use acir_field::AcirField;
+    use proptest::prelude::*;
+
+    use super::{BlackBoxFuncCall, FunctionInput};
+
+    impl<F> Arbitrary for BlackBoxFuncCall<F>
+    where
+        F: AcirField + Arbitrary,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                any::<FunctionInput<F>>()
+                    .prop_map(|input| BlackBoxFuncCall::RANGE { input })
+                    .boxed()
+            ]
+        }
     }
 }

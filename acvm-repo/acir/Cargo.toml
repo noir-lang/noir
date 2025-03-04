@@ -45,7 +45,7 @@ serde-generate = "0.25.1"
 fxhash.workspace = true
 criterion.workspace = true
 pprof.workspace = true
-
+num-bigint.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 
