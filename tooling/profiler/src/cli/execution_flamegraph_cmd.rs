@@ -174,6 +174,7 @@ fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError
     let err_msg = "Command only supports fully unconstrained Noir programs e.g. `unconstrained fn main() { .. }";
     let program = &artifact.bytecode;
     if program.functions.len() != 1 || program.unconstrained_functions.len() != 1 {
+        dbg!("got here");
         return report_error(err_msg);
     }
 
@@ -187,4 +188,77 @@ fn ensure_brillig_entry_point(artifact: &ProgramArtifact) -> Result<(), CliError
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use acir::circuit::{Circuit, Program};
+    use color_eyre::eyre;
+    use fm::codespan_files::Files;
+    use noirc_artifacts::program::ProgramArtifact;
+    use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
+    use std::{collections::BTreeMap, path::Path};
+
+    use crate::flamegraph::Sample;
+
+    #[derive(Default)]
+    struct TestFlamegraphGenerator {}
+
+    impl super::FlamegraphGenerator for TestFlamegraphGenerator {
+        fn generate_flamegraph<'files, S: Sample>(
+            &self,
+            _samples: Vec<S>,
+            _debug_symbols: &DebugInfo,
+            _files: &'files impl Files<'files, FileId = fm::FileId>,
+            _artifact_name: &str,
+            _function_name: &str,
+            output_path: &Path,
+        ) -> eyre::Result<()> {
+            let output_file = std::fs::File::create(output_path).unwrap();
+            std::io::Write::write_all(&mut std::io::BufWriter::new(output_file), b"success")
+                .unwrap();
+
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn error_reporter_smoke_test() {
+        // This test purposefully uses an artifact that does not represent a Brillig entry point.
+        // The goal is to see that our program fails gracefully and does not panic.
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let artifact_path = temp_dir.path().join("test.json");
+        let prover_toml_path = temp_dir.path().join("Prover.toml");
+
+        let artifact = ProgramArtifact {
+            noir_version: "0.0.0".to_string(),
+            hash: 27,
+            abi: noirc_abi::Abi::default(),
+            bytecode: Program { functions: vec![Circuit::default()], ..Program::default() },
+            debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
+            file_map: BTreeMap::default(),
+            names: vec!["main".to_string()],
+            brillig_names: Vec::new(),
+        };
+
+        // Write the artifact to a file
+        let artifact_file = std::fs::File::create(&artifact_path).unwrap();
+        serde_json::to_writer(artifact_file, &artifact).unwrap();
+
+        let flamegraph_generator = TestFlamegraphGenerator::default();
+
+        assert!(
+            super::run_with_generator(
+                &artifact_path,
+                &prover_toml_path,
+                &flamegraph_generator,
+                &Some(temp_dir.into_path()),
+                false,
+                false,
+                false
+            )
+            .is_err()
+        );
+    }
 }
