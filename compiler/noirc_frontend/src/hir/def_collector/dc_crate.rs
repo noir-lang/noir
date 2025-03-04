@@ -206,6 +206,13 @@ impl CompilationError {
             CompilationError::DebugComptimeScopeNotFound(_, location) => *location,
         }
     }
+
+    pub(crate) fn is_error(&self) -> bool {
+        // This is a bit expensive but not all error types have a `is_warning` method
+        // and it'd lead to code duplication to add them. `CompilationError::is_error`
+        // also isn't expected to be called too often.
+        CustomDiagnostic::from(self).is_error()
+    }
 }
 
 impl std::fmt::Display for CompilationError {
