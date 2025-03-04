@@ -530,7 +530,7 @@ mod tests {
         }
 
         /// Override the maximum size of collections created by `proptest`.
-        fn run_with_max_size_range<T, F>(f: F)
+        fn run_with_max_size_range<T, F>(cases: u32, f: F)
         where
             T: Arbitrary,
             F: Fn(T) -> TestCaseResult,
@@ -543,10 +543,7 @@ mod tests {
                 }
             }
 
-            let mut config = ProptestConfig::default();
-            config.cases = 1;
-
-            let mut runner = TestRunner::new(config);
+            let mut runner = TestRunner::new(ProptestConfig { cases, ..Default::default() });
             let result = runner.run(&any::<T>(), f);
 
             // Restore the original.
@@ -559,11 +556,11 @@ mod tests {
 
         #[test]
         fn prop_program_serialization_roundtrip() {
-            run_with_max_size_range(|program: Program<TestField>| {
+            run_with_max_size_range(5, |program: Program<TestField>| {
                 println!("\nPROGRAM:\n{:?}", program);
-                // let bz = Program::serialize_program(&program);
-                // let de = Program::deserialize_program(&bz).unwrap();
-                // prop_assert_eq!(program, de);
+                let bz = Program::serialize_program(&program);
+                let de = Program::deserialize_program(&bz)?;
+                prop_assert_eq!(program, de);
                 Ok(())
             });
         }
