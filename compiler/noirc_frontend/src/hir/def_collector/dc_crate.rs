@@ -206,6 +206,12 @@ impl CompilationError {
             CompilationError::DebugComptimeScopeNotFound(_, location) => *location,
         }
     }
+
+    /// Return true if this diagnostic is an actual error and not a warning or note.
+    /// Note that this is somewhat inefficient.
+    pub fn is_error(&self) -> bool {
+        CustomDiagnostic::from(self).is_error()
+    }
 }
 
 impl std::fmt::Display for CompilationError {
