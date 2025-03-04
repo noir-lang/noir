@@ -221,7 +221,8 @@ fn check_for_negated_jmpif_condition(
         call_stack,
     }) = function.dfg[block].terminator()
     {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+        let condition = function.dfg.resolve(*condition);
+        if let Value::Instruction { instruction, .. } = function.dfg[condition] {
             if let Instruction::Not(negated_condition) = function.dfg[instruction] {
                 let call_stack = *call_stack;
                 let jmpif = TerminatorInstruction::JmpIf {
