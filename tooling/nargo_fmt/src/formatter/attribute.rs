@@ -182,7 +182,10 @@ impl Formatter<'_> {
             let mut group = ChunkGroup::new();
             group.text(chunk_formatter.chunk(|formatter| {
                 // (feature
-                let feature_ident = crate::formatter::Ident::new("feature".to_string(), noirc_errors::Location::dummy());
+                let feature_ident = crate::formatter::Ident::new(
+                    "feature".to_string(),
+                    noirc_errors::Location::dummy(),
+                );
                 formatter.write_left_paren();
                 formatter.write_identifier(feature_ident);
                 // =
