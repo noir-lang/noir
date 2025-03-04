@@ -116,14 +116,10 @@ fn run_with_generator(
 
     if verbose {
         println!("Executed");
-        println!("{} samples", profiling_samples.len());
     }
 
     if print_sample_count {
-        // We avoid redundantly printing the sample count when in verbose mode.
-        if !verbose {
-            println!("{}", profiling_samples.len());
-        }
+        println!("{}", profiling_samples.len());
         return Ok(());
     }
 
@@ -131,7 +127,7 @@ fn run_with_generator(
     // This is done because large traces can take some time, and can make it look
     // as if the profiler has stalled.
     if verbose {
-        println!("Generating flamegraph...");
+        println!("Generating flamegraph for {} samples...", profiling_samples.len());
     }
 
     let profiling_samples: Vec<BrilligExecutionSample> = profiling_samples
