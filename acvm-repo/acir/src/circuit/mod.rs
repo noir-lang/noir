@@ -249,11 +249,7 @@ impl<F: AcirField> Circuit<F> {
 
 impl<F: Serialize + AcirField> Program<F> {
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = {
-            // bincode::serialize(self).unwrap()
-
-            ProtoSchema::<F>::serialize_to_vec(self)
-        };
+        let buf = self.bincode_serialize()?;
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -277,17 +273,39 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
+impl<F: Serialize + AcirField> Program<F> {
+    /// Serialize the program using `bincode`, which is what we have to use until Barretenberg can read another format.
+    fn bincode_serialize(&self) -> std::io::Result<Vec<u8>> {
+        bincode::serialize(self).map_err(std::io::Error::other)
+    }
+}
+
+impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+    fn bincode_deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        bincode::deserialize(buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+    }
+}
+
+#[allow(dead_code)] // TODO: Remove once we switch to protobuf
+impl<F: AcirField> Program<F> {
+    /// Serialize the program using `protobuf`, which is what we try to replace `bincode` with.
+    fn proto_serialize(&self) -> Vec<u8> {
+        ProtoSchema::<F>::serialize_to_vec(self)
+    }
+    fn proto_deserialize(buf: &[u8]) -> std::io::Result<Self> {
+        ProtoSchema::<F>::deserialize_from_vec(buf)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+    }
+}
+
 impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let result = {
-            // bincode::deserialize(&buf)
-
-            ProtoSchema::<F>::deserialize_from_vec(&buf)
-        };
-        result.map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidInput, err))
+        let program = Self::bincode_deserialize(&buf)?;
+        Ok(program)
     }
 
     /// Deserialize bytecode.
@@ -555,10 +573,20 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_serialization_roundtrip() {
+        fn prop_program_proto_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = Program::serialize_program(&program);
-                let de = Program::deserialize_program(&bz)?;
+                let bz = Program::proto_serialize(&program);
+                let de = Program::proto_deserialize(&bz)?;
+                prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_program_bincode_roundtrip() {
+            run_with_max_size_range(100, |program: Program<TestField>| {
+                let bz = Program::bincode_serialize(&program)?;
+                let de = Program::bincode_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
