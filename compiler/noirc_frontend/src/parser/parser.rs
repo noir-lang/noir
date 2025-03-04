@@ -623,9 +623,8 @@ impl<'a> Parser<'a> {
         self.errors.push(ParserError::with_reason(reason, location));
     }
 
-    pub(crate) fn is_enabled_cfg(&self, _opt_cfg_attribute: Option<CfgAttribute>) -> bool {
-        // TODO
-        true
+    pub(crate) fn is_enabled_cfg(&self, opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+        opt_cfg_attribute.as_ref().map(CfgAttribute::is_enabled).unwrap_or(true)
     }
 }
 

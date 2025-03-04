@@ -1103,18 +1103,21 @@ impl Display for CfgAttribute {
 }
 
 impl CfgAttribute {
-    // TODO(follow-up-issue): enable more features once working
-    pub(crate) fn is_disabled(&self) -> bool {
+    // TODO(https://github.com/noir-lang/noir/issues/7574): enable more features once working
+    pub(crate) fn is_enabled(&self) -> bool {
         match self {
-            CfgAttribute::Feature { name, .. } => name != "default",
+            CfgAttribute::Feature { name, .. } => name == "default",
         }
+    }
+
+    pub(crate) fn is_disabled(&self) -> bool {
+        !self.is_enabled()
     }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct CustomAttribute {
     pub contents: String,
-    // TODO: follow up to use Location here and/or for "contents_span"?
     // The span of the entire attribute, including leading `#[` and trailing `]`
     pub span: Span,
     // The span for the attribute contents (what's inside `#[...]`)
