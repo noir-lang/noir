@@ -3,9 +3,9 @@
 // equivalent of a nested series of if-else instead.
 fn main(x: Field) {
     match x {
-        1 => println(1),
-        2 => println(2),
-        3 => println(3),
-        x => println(x),
+        1 => panic(f"Branch 1 should not be taken"),
+        2 => panic(f"Branch 2 should not be taken"),
+        3 => panic(f"Branch 3 should not be taken"),
+        _ => (),
     }
 }
