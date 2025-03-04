@@ -650,19 +650,15 @@ mod arb {
             let big_int_args = (any::<u32>(), any::<u32>(), any::<u32>());
 
             let case_big_int_add = big_int_args
-                .clone()
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntAdd { lhs, rhs, output });
 
             let case_big_int_sub = big_int_args
-                .clone()
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntSub { lhs, rhs, output });
 
             let case_big_int_mul = big_int_args
-                .clone()
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntMul { lhs, rhs, output });
 
             let case_big_int_div = big_int_args
-                .clone()
                 .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntDiv { lhs, rhs, output });
 
             let case_big_int_from_le_bytes = (input_vec.clone(), any::<Vec<u8>>(), any::<u32>())

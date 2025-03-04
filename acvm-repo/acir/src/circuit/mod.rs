@@ -569,7 +569,7 @@ mod tests {
                 std::env::set_var(SIZE_RANGE_KEY, orig_size_range.unwrap_or_default());
             }
 
-            result.unwrap()
+            result.unwrap();
         }
 
         #[test]
