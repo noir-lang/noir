@@ -28,10 +28,11 @@ pub(crate) fn on_references_request(
 #[cfg(test)]
 mod references_tests {
     use super::*;
-    use crate::notifications;
     use crate::test_utils::{self, search_in_file};
+    use crate::{notifications, on_did_open_text_document};
     use lsp_types::{
-        PartialResultParams, Position, Range, ReferenceContext, TextDocumentPositionParams, Url,
+        DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
+        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,
     };
     use tokio::test;
@@ -55,9 +56,7 @@ mod references_tests {
 
             let params = ReferenceParams {
                 text_document_position: TextDocumentPositionParams {
-                    text_document: lsp_types::TextDocumentIdentifier {
-                        uri: noir_text_document.clone(),
-                    },
+                    text_document: TextDocumentIdentifier { uri: noir_text_document.clone() },
                     position: target_position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
@@ -123,7 +122,7 @@ mod references_tests {
 
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier { uri: one_lib.clone() },
+                text_document: TextDocumentIdentifier { uri: one_lib.clone() },
                 position: Position { line: 0, character: 7 },
             },
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
@@ -169,5 +168,66 @@ mod references_tests {
                 end: Position { line: 3, character: 16 },
             }
         );
+    }
+
+    #[test]
+    async fn ignores_macro_expansions() {
+        let src = "
+        #[foo]
+        struct Fo>|<o {}
+
+        trait Trait {}
+
+        fn main() {}
+
+        comptime fn foo(s: StructDefinition) -> Quoted {
+            let t = s.as_type();
+            quote {
+                impl Trait for $t {}
+            }
+        }
+        ";
+
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
+
+        let (line, column) = src
+            .lines()
+            .enumerate()
+            .filter_map(|(line_index, line)| {
+                line.find(">|<").map(|char_index| (line_index, char_index))
+            })
+            .next()
+            .expect("Expected to find one >|< in the source code");
+
+        let src = src.replace(">|<", "");
+
+        on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        let result = on_references_request(
+            &mut state,
+            ReferenceParams {
+                text_document_position: TextDocumentPositionParams {
+                    text_document: TextDocumentIdentifier { uri: noir_text_document },
+                    position: Position { line: line as u32, character: column as u32 },
+                },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                partial_result_params: PartialResultParams { partial_result_token: None },
+                context: ReferenceContext { include_declaration: true },
+            },
+        )
+        .await;
+        let locations = result.unwrap().unwrap();
+        assert_eq!(locations.len(), 1);
+        assert_eq!(locations[0].range.start.line, 2); // Just the one for "struct Foo"
     }
 }
