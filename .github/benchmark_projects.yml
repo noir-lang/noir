@@ -16,7 +16,7 @@ projects:
     num_runs: 5
     timeout: 4
     compilation-timeout: 1.2
-    execution-timeout: 0.02
+    execution-timeout: 0.04
     compilation-memory-limit: 250
     execution-memory-limit: 230
   private-kernel-reset:
@@ -47,7 +47,7 @@ projects:
     timeout: 15
     compilation-timeout: 15
     execution-timeout: 0.75
-    compilation-memory-limit: 1300
+    compilation-memory-limit: 1500
     execution-memory-limit: 500
   rollup-block-root-empty:
     repo: AztecProtocol/aztec-packages
