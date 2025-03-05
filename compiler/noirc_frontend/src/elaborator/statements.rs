@@ -155,8 +155,11 @@ impl Elaborator<'_> {
         let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
-            let (name, location) = self.get_lvalue_name_and_location(&lvalue);
+            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+        } else {
+            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
+            self.check_can_mutate_lambda_capture(id, name, location);
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
@@ -334,20 +337,20 @@ impl Elaborator<'_> {
         (expr, self.interner.next_type_variable())
     }
 
-    fn get_lvalue_name_and_location(&self, lvalue: &HirLValue) -> (String, Location) {
+    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
                 let location = name.location;
 
                 if let Some(definition) = self.interner.try_definition(name.id) {
-                    (definition.name.clone(), location)
+                    (name.id, definition.name.clone(), location)
                 } else {
-                    ("(undeclared variable)".into(), location)
+                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
                 }
             }
-            HirLValue::MemberAccess { object, .. } => self.get_lvalue_name_and_location(object),
-            HirLValue::Index { array, .. } => self.get_lvalue_name_and_location(array),
-            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_name_and_location(lvalue),
+            HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
+            HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
+            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
         }
     }
 
@@ -449,8 +452,8 @@ impl Elaborator<'_> {
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
-                        let (_lvalue_name, lvalue_location) =
-                            self.get_lvalue_name_and_location(&lvalue);
+                        let (_id, _lvalue_name, lvalue_location) =
+                            self.get_lvalue_error_info(&lvalue);
                         self.push_err(TypeCheckError::StringIndexAssign {
                             location: lvalue_location,
                         });

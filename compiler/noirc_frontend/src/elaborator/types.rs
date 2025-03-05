@@ -31,8 +31,8 @@ use crate::{
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, NodeInterner, TraitId,
-        TraitImplKind, TraitMethodId,
+        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
+        TraitMethodId,
     },
     signed_field::SignedField,
     token::SecondaryAttribute,
@@ -766,8 +766,7 @@ impl Elaborator<'_> {
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
         if let Err(UnificationError) = actual.unify(expected) {
-            let error: CompilationError = make_error().into();
-            self.push_err(error);
+            self.push_err(make_error());
         }
     }
 
@@ -1839,9 +1838,8 @@ impl Elaborator<'_> {
 
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 if !matches!(actual_type, Type::MutableReference(_)) {
-                    if let Err(error) = verify_mutable_reference(self.interner, *object) {
-                        self.push_err(TypeCheckError::ResolverError(error));
-                    }
+                    let location = self.interner.id_location(*object);
+                    self.check_can_mutate(*object, location);
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
                     *object_type = new_type.clone();
@@ -1852,8 +1850,6 @@ impl Elaborator<'_> {
 
                     // If that didn't work, then wrap the whole expression in an `&mut`
                     *object = new_object.unwrap_or_else(|| {
-                        let location = self.interner.id_location(*object);
-
                         let new_object =
                             self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
                                 operator: UnaryOp::MutableReference,
@@ -2134,32 +2130,5 @@ fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings
     // Avoid binding t = t
     if !arg.occurs(param.type_var.id()) {
         bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
-    }
-}
-
-/// Gives an error if a user tries to create a mutable reference
-/// to an immutable variable.
-fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
-    match interner.expression(&rhs) {
-        HirExpression::MemberAccess(member_access) => {
-            verify_mutable_reference(interner, member_access.lhs)
-        }
-        HirExpression::Index(_) => {
-            let location = interner.expr_location(&rhs);
-            Err(ResolverError::MutableReferenceToArrayElement { location })
-        }
-        HirExpression::Ident(ident, _) => {
-            if let Some(definition) = interner.try_definition(ident.id) {
-                if !definition.mutable {
-                    let location = interner.expr_location(&rhs);
-                    let variable = definition.name.clone();
-                    let err =
-                        ResolverError::MutableReferenceToImmutableVariable { location, variable };
-                    return Err(err);
-                }
-            }
-            Ok(())
-        }
-        _ => Ok(()),
     }
 }

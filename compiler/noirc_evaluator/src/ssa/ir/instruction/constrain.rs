@@ -210,7 +210,7 @@ mod tests {
         // Regression test for https://github.com/noir-lang/noir/issues/7451
         let src = "
         acir(inline) predicate_pure fn main f0 {
-        b0(v0: u8):
+          b0(v0: u8):
             v1 = and u8 255, v0
             return v1
         }
@@ -220,7 +220,7 @@ mod tests {
 
         let expected = "
         acir(inline) fn main f0 {
-        b0(v0: u8):
+          b0(v0: u8):
             return v0
         }
         ";

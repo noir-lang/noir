@@ -26,7 +26,8 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind, TraitMethod,
+            HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
+            TraitMethod,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -360,23 +361,47 @@ impl Elaborator<'_> {
         (expr_id, typ)
     }
 
-    fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
+    pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         let expr = self.interner.expression(&expr_id);
         match expr {
             HirExpression::Ident(hir_ident, _) => {
                 if let Some(definition) = self.interner.try_definition(hir_ident.id) {
+                    let name = definition.name.clone();
                     if !definition.mutable {
                         self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name: definition.name.clone(),
+                            name,
                             location,
                         });
+                    } else {
+                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                     }
                 }
+            }
+            HirExpression::Index(_) => {
+                self.push_err(TypeCheckError::MutableReferenceToArrayElement { location });
             }
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);
             }
             _ => (),
+        }
+    }
+
+    // We must check whether the mutable variable we are attempting to mutate
+    // comes from a lambda capture. All captures are immutable so we want to error
+    // if the user attempts to mutate a captured variable inside of a lambda without mutable references.
+    pub(super) fn check_can_mutate_lambda_capture(
+        &mut self,
+        id: DefinitionId,
+        name: String,
+        location: Location,
+    ) {
+        if let Some(lambda_context) = self.lambda_stack.last() {
+            let typ = self.interner.definition_type(id);
+            if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
+            {
+                self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
+            }
         }
     }
 
@@ -1054,11 +1079,22 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         self.use_unstable_feature(super::UnstableFeature::Enums, location);
 
+        let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
-        let (let_, variable) = self.wrap_in_let(expression, typ);
+        let (let_, variable) = self.wrap_in_let(expression, typ.clone());
 
-        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
-        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let (errored, (rows, result_type)) =
+            self.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
+
+        // Avoid calling `elaborate_match_rows` if there were errors while constructing
+        // the match rows - it'll just lead to extra errors like `unreachable pattern`
+        // warnings on branches which previously had type errors.
+        let tree = HirExpression::Match(if !errored {
+            self.elaborate_match_rows(rows, &typ, expr_location)
+        } else {
+            HirMatch::Failure { missing_case: false }
+        });
+
         let tree = self.interner.push_expr(tree);
         self.interner.push_expr_type(tree, result_type.clone());
         self.interner.push_expr_location(tree, location);
