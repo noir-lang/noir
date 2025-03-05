@@ -373,7 +373,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
-          sudo apt-get install libc++-dev -y
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -474,7 +474,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
-          sudo apt-get install libc++-dev -y
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
