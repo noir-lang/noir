@@ -5,7 +5,8 @@ use acvm::{AcirField, FieldElement};
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::tests::{assert_no_errors, get_monomorphization_error};
+use crate::monomorphization::tests::get_monomorphized;
+use crate::tests::assert_no_errors;
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -72,13 +73,10 @@ fn arithmetic_generics_checked_cast_zeros() {
             bar(w)
         }
     "#;
-    assert_no_errors(source);
 
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
         monomorphization_error
     {
@@ -117,13 +115,10 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
             let _ = bar(w);
         }
     "#;
-    assert_no_errors(source);
 
-    let monomorphization_error = get_monomorphization_error(source);
-    assert!(monomorphization_error.is_some());
+    let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    let monomorphization_error = monomorphization_error.unwrap();
     if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
         monomorphization_error
     {

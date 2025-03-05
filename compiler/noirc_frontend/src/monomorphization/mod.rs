@@ -48,7 +48,7 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
-mod tests;
+pub mod tests;
 
 struct LambdaContext {
     env_ident: ast::Ident,
