@@ -250,3 +250,120 @@ fn match_reachability_errors_ignored_when_there_is_a_type_error() {
     ",
     );
 }
+
+#[test]
+fn missing_single_case() {
+    check_errors(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                  ^^^^^^^^^^^^ Missing case: `Some(_)`
+                Opt::None => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_many_cases() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {
+                  ^^^^^^ Missing cases: `C`, `D`, `E`, and 21 more not shown
+                Abc::A => (),
+                Abc::B => (),
+            }
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_int_ranges() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match Opt::Some(x) {
+                  ^^^^^^^^^^^^ Missing cases: `None`, `Some(-128..=3)`, `Some(5)`, and 1 more not shown
+                Opt::Some(4) => (),
+                Opt::Some(6) => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_int_ranges_with_negatives() {
+    check_errors(
+        "
+        fn main() {
+            let x: i32 = -4;
+            match x {
+                  ^ Missing cases: `-2147483648..=-6`, `-4..=-1`, `1..=2`, and 1 more not shown
+                -5 => (),
+                0 => (),
+                3 => (),
+            }
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {}
+                  ^^^^^^ Missing cases: `A`, `B`, `C`, and 23 more not shown
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_integer_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match x {}
+                  ^ Missing cases: `i8` is non-empty
+                  ~ Try adding a match-all pattern: `_`
+        }
+    ",
+    );
+}
+
+#[test]
+fn match_on_empty_enum() {
+    check_errors(
+        "
+        pub fn foo(v: Void) {
+            match v {}
+        }
+        pub enum Void {}",
+    );
+}

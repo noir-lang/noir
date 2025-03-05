@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use acvm::FieldElement;
@@ -14,6 +15,9 @@ use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
 use crate::signed_field::SignedField;
+
+/// Rust also only shows 3 maximum, even for short patterns.
+pub const MAX_MISSING_CASES: usize = 3;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -237,6 +241,11 @@ pub enum TypeCheckError {
     NestedUnsafeBlock { location: Location },
     #[error("Unreachable match case")]
     UnreachableCase { location: Location },
+    #[error("Missing cases")]
+    MissingCases { cases: BTreeSet<String>, location: Location },
+    /// This error is used for types like integers which have too many variants to enumerate
+    #[error("Missing cases: `{typ}` is non-empty")]
+    MissingManyCases { typ: String, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -324,6 +333,8 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
             | TypeCheckError::UnreachableCase { location }
+            | TypeCheckError::MissingCases { location, .. }
+            | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location } => *location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -650,6 +661,29 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )
+            },
+            TypeCheckError::MissingCases { cases, location } => {
+                let s = if cases.len() == 1 { "" } else { "s" };
+
+                let mut not_shown = String::new();
+                let mut shown_cases = cases.iter()
+                    .map(|s| format!("`{s}`"))
+                    .take(MAX_MISSING_CASES)
+                    .collect::<Vec<_>>();
+
+                if cases.len() > MAX_MISSING_CASES {
+                    shown_cases.truncate(MAX_MISSING_CASES);
+                    not_shown = format!(", and {} more not shown", cases.len() - MAX_MISSING_CASES);
+                }
+
+                let shown_cases = shown_cases.join(", ");
+                let msg = format!("Missing case{s}: {shown_cases}{not_shown}");
+                Diagnostic::simple_error(msg, String::new(), *location)
+            },
+            TypeCheckError::MissingManyCases { typ, location } => {
+                let msg = format!("Missing cases: `{typ}` is non-empty");
+                let secondary = "Try adding a match-all pattern: `_`".to_string();
+                Diagnostic::simple_error(msg, secondary, *location)
             },
         }
     }
