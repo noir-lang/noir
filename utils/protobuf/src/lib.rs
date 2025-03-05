@@ -83,8 +83,8 @@ pub trait ProtoCodec<T, R> {
     fn decode_some_wrap(value: &Option<R>, msg: &'static str) -> eyre::Result<T> {
         Self::decode_some(value).wrap_err(msg)
     }
-    /// Decode an optional field as a required one, attaching a field name to any errors.
-    /// Return `None` if the field is missing..
+    /// Decode an optional field, attaching a field name to any errors.
+    /// Return `None` if the field is missing.
     fn decode_opt_wrap(value: &Option<R>, msg: &'static str) -> eyre::Result<Option<T>> {
         value.as_ref().map(|value| Self::decode_wrap(value, msg)).transpose()
     }
