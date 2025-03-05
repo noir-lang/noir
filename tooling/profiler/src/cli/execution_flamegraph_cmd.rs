@@ -195,8 +195,9 @@ mod tests {
     use color_eyre::eyre;
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
+    use noirc_driver::CrateName;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
-    use std::{collections::BTreeMap, path::Path};
+    use std::{collections::BTreeMap, path::Path, str::FromStr};
 
     use crate::flamegraph::Sample;
 
@@ -227,7 +228,6 @@ mod tests {
         // The goal is to see that our program fails gracefully and does not panic.
         let temp_dir = tempfile::tempdir().unwrap();
 
-        let artifact_path = temp_dir.path().join("test.json");
         let prover_toml_path = temp_dir.path().join("Prover.toml");
 
         let artifact = ProgramArtifact {
@@ -248,8 +248,12 @@ mod tests {
         };
 
         // Write the artifact to a file
-        let artifact_file = std::fs::File::create(&artifact_path).unwrap();
-        serde_json::to_writer(artifact_file, &artifact).unwrap();
+        let artifact_path = noir_artifact_cli::fs::artifact::save_program_to_file(
+            &artifact,
+            &CrateName::from_str("test").unwrap(),
+            temp_dir.path(),
+        )
+        .unwrap();
 
         let flamegraph_generator = TestFlamegraphGenerator::default();
 
