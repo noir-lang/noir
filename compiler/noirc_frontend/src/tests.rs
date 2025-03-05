@@ -156,6 +156,7 @@ fn assert_no_errors(src: &str) {
 /// where:
 /// - lines with "^^^" are primary errors
 /// - lines with "~~~" are secondary errors
+/// - lines with "---" are custom errors
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
@@ -184,6 +185,10 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
     //
     //   ~~~ error message
     let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
+    // Here we'll capture lines that are custom error spans, like:
+    //
+    //   --- error message
+    let mut custom_spans_with_errors: Vec<(Span, String)> = Vec::new();
     // The byte at the start of this line
     let mut byte = 0;
     // The length of the last line, needed to go back to the byte at the beginning of the last line
@@ -203,21 +208,33 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
             continue;
         }
 
+        if let Some((span, message)) =
+            get_error_line_span_and_message(line, '-', byte, last_line_length)
+        {
+            custom_spans_with_errors.push((span, message));
+            continue;
+        }
+
         code_lines.push(line);
 
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-
+    dbg!(&custom_spans_with_errors);
     let mut primary_spans_with_errors: HashMap<Span, String> =
         primary_spans_with_errors.into_iter().collect();
 
     let mut secondary_spans_with_errors: HashMap<Span, String> =
         secondary_spans_with_errors.into_iter().collect();
 
+    let mut custom_spans_with_errors: HashMap<Span, String> =
+        custom_spans_with_errors.into_iter().collect();
+
     let src = code_lines.join("\n");
     let (_, _, errors) = get_program_with_options(&src, allow_parser_errors, options);
-    if errors.is_empty() && !primary_spans_with_errors.is_empty() {
+    if errors.is_empty()
+        && (!primary_spans_with_errors.is_empty() || !custom_spans_with_errors.is_empty())
+    {
         panic!("Expected some errors but got none");
     }
 
@@ -229,8 +246,11 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
             .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
         let span = secondary.location.span;
         let message = &error.message;
-
-        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
+        dbg!(&span);
+        let Some(expected_message) = primary_spans_with_errors
+            .remove(&span)
+            .or_else(|| custom_spans_with_errors.remove(&span))
+        else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
                 panic!(
                     "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
@@ -251,6 +271,7 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
             }
 
             let span = secondary.location.span;
+            dbg!(&span);
             let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
                 if let Some(message) = primary_spans_with_errors.get(&span) {
                     panic!(
@@ -1191,8 +1212,8 @@ fn deny_cyclic_type_aliases() {
     let src = r#"
         type A = B;
         type B = A;
-        ^^^^^^^^^^ Dependency cycle found
-        ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
+        ------ Dependency cycle found
+        ~~~~~~ 'B' recursively depends on itself: B -> A -> B
         fn main() {}
     "#;
     check_errors(src);

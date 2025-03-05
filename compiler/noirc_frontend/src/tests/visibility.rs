@@ -22,7 +22,7 @@ fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-                   ^^^ Type `Foo` is more private than item `Bar`
+    ------------ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _: Bar = Foo {};
     }
@@ -37,7 +37,7 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     pub struct Generic<T> { value: T }
     struct Foo {}
     pub type Bar = Generic<Foo>;
-                   ^^^^^^^^^^^^ Type `Foo` is more private than item `Bar`
+    ------------ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _ = Foo {};
         let _: Bar = Generic { value: Foo {} };
@@ -54,7 +54,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
         struct Bar {}
         pub struct Foo<T> { pub value: T }
         pub type FooBar = Foo<Bar>;
-                          ^^^^^^^^ Type `Bar` is more private than item `FooBar`
+        --------------- Type `Bar` is more private than item `FooBar`
 
         pub fn no_unused_warnings() {
             let _: FooBar = Foo { value: Bar {} };
