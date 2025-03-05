@@ -59,10 +59,20 @@ impl Ssa {
 
         for (func_id, entries) in calls {
             let function = self.functions[&func_id].clone();
+            let function_num_instructions = function.num_instructions();
             for (constants, _) in entries {
-                let new_function_id = self.add_fn(|func_id| {
-                    inline_constants_into_function(&function, &constants, func_id)
-                });
+                let Some(new_function_id) = self.maybe_add_fn(|func_id| {
+                    let new_function =
+                        inline_constants_into_function(&function, &constants, func_id);
+                    // No point in using the new function if it's not more optimal
+                    if new_function.num_instructions() < function_num_instructions {
+                        Some(new_function)
+                    } else {
+                        None
+                    }
+                }) else {
+                    continue;
+                };
                 let entry = new_functions.entry(func_id).or_default();
                 entry.entry(constants).insert_entry(new_function_id);
             }
@@ -287,8 +297,8 @@ mod tests {
         }
         brillig(inline) fn foo f1 {
           b0(v0: Field, v1: Field):
-            v2 = add v0, v1
-            return v2
+            v3 = add v0, Field 1
+            return v3
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -303,13 +313,12 @@ mod tests {
         }
         brillig(inline) fn foo f1 {
           b0(v0: Field, v1: Field):
-            v2 = add v0, v1
-            return v2
+            v3 = add v0, Field 1
+            return v3
         }
         brillig(inline) fn foo f2 {
           b0(v0: Field):
-            v2 = add Field 1, v0
-            return v2
+            return Field 2
         }
         ";
         let ssa = ssa.inline_constants_into_brillig_functions();
@@ -361,6 +370,27 @@ mod tests {
         ";
         let ssa = ssa.inline_constants_into_brillig_functions();
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn does_not_inline_if_inlined_function_does_not_have_less_instructions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v3 = call f1(Field 1, v0) -> Field
+            v4 = call f1(Field 1, v0) -> Field
+            v5 = add v3, v4
+            return v5
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_constants_into_brillig_functions();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]

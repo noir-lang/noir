@@ -85,6 +85,17 @@ impl Ssa {
         new_id
     }
 
+    /// Adds a new function to the program, but only if the given lambda returns `Some`.
+    pub(crate) fn maybe_add_fn(
+        &mut self,
+        build_with_id: impl FnOnce(FunctionId) -> Option<Function>,
+    ) -> Option<FunctionId> {
+        let new_id = self.next_id.next();
+        let function = build_with_id(new_id)?;
+        self.functions.insert(new_id, function);
+        Some(new_id)
+    }
+
     pub(crate) fn generate_entry_point_index(mut self) -> Self {
         let entry_points =
             self.functions.keys().filter(|function| self.is_entry_point(**function)).enumerate();
