@@ -169,7 +169,7 @@ impl DominatorTree {
     /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
     #[cfg(test)]
     pub(crate) fn with_function_post_dom(func: &Function) -> Self {
-        let reversed_cfg = ControlFlowGraph::with_function(&func).reverse();
+        let reversed_cfg = ControlFlowGraph::with_function(func).reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         Self::with_cfg_and_post_order(&reversed_cfg, &post_order)
     }
