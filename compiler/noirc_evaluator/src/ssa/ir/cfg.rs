@@ -140,11 +140,7 @@ impl ControlFlowGraph {
     }
 
     pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
-        self.data
-            .keys()
-            .filter(|&&block| self.predecessors(block).len() == 0)
-            .cloned()
-            .collect()
+        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).cloned().collect()
     }
 }
 

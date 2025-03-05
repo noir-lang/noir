@@ -142,7 +142,7 @@ impl DominatorTree {
 
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
-    /// 
+    ///
     /// This method should be used for when we want to compute a post-dominator tree.
     /// A post-dominator tree just expects the control flow graph to be reversed.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
@@ -273,7 +273,9 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type
+            basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph,
+            dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id,
+            post_order::PostOrder, types::Type,
         },
     };
 
@@ -405,8 +407,7 @@ mod tests {
         dt.dominates(b2, b1);
     }
 
-    #[test]
-    fn backwards_layout() {
+    fn backwards_layout_setup() -> (Function, BasicBlockId, BasicBlockId, BasicBlockId) {
         // func {
         //   block0():
         //     jmp block2()
@@ -427,10 +428,16 @@ mod tests {
         builder.terminate_with_jmp(block1_id, vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.main();
+        let func = ssa.main().clone();
         let block0_id = func.entry_block();
 
-        let mut dt = DominatorTree::with_function(func);
+        (func, block0_id, block1_id, block2_id)
+    }
+
+    #[test]
+    fn backwards_layout() {
+        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
+        let mut dt = DominatorTree::with_function(&func);
 
         // Expected dominance tree:
         // block0 {
@@ -477,30 +484,9 @@ mod tests {
 
     #[test]
     fn post_dom_backwards_layout() {
-        // func {
-        //   block0():
-        //     jmp block2()
-        //   block1():
-        //     return ()
-        //   block2():
-        //     jump block1()
-        // }
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let block1_id = builder.insert_block();
-        let block2_id = builder.insert_block();
+        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
 
-        builder.terminate_with_jmp(block2_id, vec![]);
-        builder.switch_to_block(block1_id);
-        builder.terminate_with_return(vec![]);
-        builder.switch_to_block(block2_id);
-        builder.terminate_with_jmp(block1_id, vec![]);
-
-        let ssa = builder.finish();
-        let func = ssa.main();
-        let block0_id = func.entry_block();
-
-        let reversed_cfg = ControlFlowGraph::with_function(func).reverse();
+        let reversed_cfg = ControlFlowGraph::with_function(&func).reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
 
@@ -537,11 +523,11 @@ mod tests {
         assert!(post_dom.dominates(block1_id, block1_id));
         assert!(post_dom.dominates(block1_id, block2_id));
         assert!(post_dom.dominates(block1_id, block0_id));
-    
+
         assert!(!post_dom.dominates(block2_id, block1_id));
         assert!(post_dom.dominates(block2_id, block2_id));
         assert!(post_dom.dominates(block2_id, block0_id));
-    
+
         assert!(!post_dom.dominates(block0_id, block1_id));
         assert!(!post_dom.dominates(block0_id, block2_id));
         assert!(post_dom.dominates(block0_id, block0_id));
