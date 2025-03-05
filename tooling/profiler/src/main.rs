@@ -22,7 +22,7 @@ fn main() {
             .with_span_events(FmtSpan::ACTIVE)
             .with_writer(debug_file)
             .with_ansi(false)
-            .with_env_filter(EnvFilter::from_default_env())
+            .with_env_filter(EnvFilter::from_env("NOIR_LOG"))
             .init();
     } else {
         tracing_subscriber::fmt()
