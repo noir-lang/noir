@@ -15,6 +15,6 @@ fn main(mut x: [Foo; 3], y: pub Field, hash_result: pub [u8; 32]) {
     // Make sure that we are passing a dynamic array to the black box function call
     // by setting the array using a dynamic index here
     hash_input[y - 1] = 0;
-    let hash = std::hash::sha256(hash_input);
+    let hash = std::hash::blake3(hash_input);
     assert_eq(hash, hash_result);
 }

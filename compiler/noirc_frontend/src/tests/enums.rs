@@ -199,3 +199,170 @@ fn constructor_arg_arity_mismatch_in_pattern() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn unreachable_match_case() {
+    check_errors(
+        r#"
+        fn main() {
+            match Opt::Some(Opt::Some(3)) {
+                Opt::Some(_) => (),
+                Opt::None => (),
+                Opt::Some(Opt::Some(_)) => (),
+                ^^^^^^^^^^^^^^^^^^^^^^^ Unreachable match case
+                ~~~~~~~~~~~~~~~~~~~~~~~ This pattern is redundant with one or more prior patterns
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    "#,
+    );
+}
+
+#[test]
+fn match_reachability_errors_ignored_when_there_is_a_type_error() {
+    // No comment on the second `None` case.
+    // Type errors in general mess up reachability errors in match cases.
+    // If we naively change to catch this case (which is easy) we also end up
+    // erroring that the `3 => ()` case is unreachable as well, which is true
+    // but we don't want to annoy users with an extra obvious error. This
+    // behavior matches Rust as well.
+    check_errors(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                Opt::None => (),
+                Opt::Some(_) => {},
+                Opt::None => (),
+                3 => (),
+                ^ Expected type Opt<Field>, found type Field
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_single_case() {
+    check_errors(
+        "
+        fn main() {
+            match Opt::Some(3) {
+                  ^^^^^^^^^^^^ Missing case: `Some(_)`
+                Opt::None => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_many_cases() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {
+                  ^^^^^^ Missing cases: `C`, `D`, `E`, and 21 more not shown
+                Abc::A => (),
+                Abc::B => (),
+            }
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_int_ranges() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match Opt::Some(x) {
+                  ^^^^^^^^^^^^ Missing cases: `None`, `Some(-128..=3)`, `Some(5)`, and 1 more not shown
+                Opt::Some(4) => (),
+                Opt::Some(6) => (),
+            }
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_int_ranges_with_negatives() {
+    check_errors(
+        "
+        fn main() {
+            let x: i32 = -4;
+            match x {
+                  ^ Missing cases: `-2147483648..=-6`, `-4..=-1`, `1..=2`, and 1 more not shown
+                -5 => (),
+                0 => (),
+                3 => (),
+            }
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            match Abc::A {}
+                  ^^^^^^ Missing cases: `A`, `B`, `C`, and 23 more not shown
+        }
+
+        enum Abc {
+            A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
+        }
+    ",
+    );
+}
+
+#[test]
+fn missing_integer_cases_with_empty_match() {
+    check_errors(
+        "
+        fn main() {
+            let x: i8 = 3;
+            match x {}
+                  ^ Missing cases: `i8` is non-empty
+                  ~ Try adding a match-all pattern: `_`
+        }
+    ",
+    );
+}
+
+#[test]
+fn match_on_empty_enum() {
+    check_errors(
+        "
+        pub fn foo(v: Void) {
+            match v {}
+        }
+        pub enum Void {}",
+    );
+}
