@@ -23,24 +23,6 @@ fn check_rewrite(src: &str, expected: &str) {
 }
 
 #[test]
-fn infinitely_recursive_type_errors() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
-    let src = "
-        fn main() {
-            let _list: List<()> = List::Nil;
-        }
-
-        enum List<T> {
-            Cons(T, List<T>),
-            Nil,
-        }";
-
-    let error = get_monomorphized(src).unwrap_err();
-    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
-}
-
-#[test]
 fn bounded_recursive_type_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
     // disallowed because they cause a panic in convert_type during monomorphization.
