@@ -373,6 +373,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          apt-get install libc++-dev -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
