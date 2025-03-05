@@ -2115,17 +2115,17 @@ fn main() {
     async fn test_auto_import_from_std() {
         let src = r#"
             fn main() {
-                compute_merkle_roo>|<
+                zeroe>|<
             }
         "#;
         let items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
-        assert_eq!(item.label, "compute_merkle_root(…)");
+        assert_eq!(item.label, "zeroed()");
         assert_eq!(
             item.label_details.as_ref().unwrap().detail,
-            Some("(use std::merkle::compute_merkle_root)".to_string()),
+            Some("(use std::mem::zeroed)".to_string()),
         );
     }
 

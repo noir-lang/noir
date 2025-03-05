@@ -2167,4 +2167,13 @@ impl<'context> Elaborator<'context> {
             self.push_err(ParserError::with_reason(reason, location));
         }
     }
+
+    /// Run the given function using the resolver and return true if any errors (not warnings)
+    /// occurred while running it.
+    pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
+        let previous_errors = self.errors.len();
+        let ret = f(self);
+        let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
+        (errored, ret)
+    }
 }

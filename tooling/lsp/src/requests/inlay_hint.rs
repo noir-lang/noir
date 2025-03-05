@@ -255,7 +255,7 @@ impl<'a> InlayHintCollector<'a> {
 
         self.push_type_hint(
             object_lsp_location,
-            &typ,
+            typ,
             false, // not editable
             false, // don't include colon
         );
