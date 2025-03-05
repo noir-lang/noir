@@ -133,13 +133,14 @@ impl ControlFlowGraph {
             // For each block, reverse the edges
             // In the reversed CFG, successors becomes predecessors
             for &successor in &node.successors {
-                reversed_cfg.add_edge(successor, *block_id); 
+                reversed_cfg.add_edge(successor, *block_id);
             }
         }
 
         reversed_cfg
     }
 
+    /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
     pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
         self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).cloned().collect()
     }

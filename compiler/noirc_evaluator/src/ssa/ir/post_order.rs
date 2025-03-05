@@ -48,15 +48,8 @@ impl PostOrder {
         let mut visited: HashSet<BasicBlockId> = HashSet::new();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
 
-        // Determine root blocks
-        let root_blocks: Vec<BasicBlockId> = cfg.compute_entry_blocks();
-
-        // Start traversal from detected root blocks
-        for root in root_blocks {
-            if !visited.contains(&root) {
-                stack.push((Visit::First, root));
-            }
-        }
+        // Set root blocks
+        stack.extend(cfg.compute_entry_blocks().into_iter().map(|root| (Visit::First, root)));
 
         while let Some((visit, block_id)) = stack.pop() {
             match visit {
