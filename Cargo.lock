@@ -2839,12 +2839,12 @@ dependencies = [
 
 [[package]]
 name = "light-poseidon"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
+checksum = "39e3d87542063daaccbfecd78b60f988079b6ec4e089249658b9455075c78d42"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "num-bigint",
  "thiserror",
 ]
@@ -3047,9 +3047,7 @@ name = "nargo_cli"
 version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
- "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
- "ark-ff 0.4.2",
  "assert_cmd",
  "assert_fs",
  "async-lsp",
