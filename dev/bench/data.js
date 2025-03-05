@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741204580015,
+  "lastUpdate": 1741204948478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11567,70 +11567,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ffcc6f891152a9dc89fceb33aefae935cecf6946",
-          "message": "fix(performance): Accurately mark safe constant indices for arrays of complex types (#7491)",
-          "timestamp": "2025-02-22T01:06:27Z",
-          "tree_id": "4fcf047b7963a9120f5dc9423b8aed948a48984a",
-          "url": "https://github.com/noir-lang/noir/commit/ffcc6f891152a9dc89fceb33aefae935cecf6946"
-        },
-        "date": 1740187846074,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.77,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 441.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.9,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14720,6 +14656,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0a64e8ee6497ef228a92f42af0bdb5081025bf37"
         },
         "date": 1741190848358,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 273.89,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 209.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 516.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 425.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 289.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.34,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "95ac7a8477d16a293659fd1eca73ce12debd9968",
+          "message": "feat(cli): Log and replay oracle transcript (#7417)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-03-05T19:29:05Z",
+          "tree_id": "fac64a048b38da107475b30fa86d23928949430b",
+          "url": "https://github.com/noir-lang/noir/commit/95ac7a8477d16a293659fd1eca73ce12debd9968"
+        },
+        "date": 1741204946232,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
