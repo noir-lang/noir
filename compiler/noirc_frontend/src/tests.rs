@@ -3894,3 +3894,174 @@ fn subtract_to_int_min() {
     let errors = get_program_errors(src);
     assert_eq!(errors.len(), 0);
 }
+
+#[test]
+fn mutate_with_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+
+    assert_no_errors(src);
+}
+
+#[test]
+fn mutate_with_reference_marked_mutable_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = &mut 3;
+        let f = || {
+            *x += 2;
+        };
+        f();
+        assert(*x == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            x += 2;
+            ^ Mutable variable x captured in lambda must be a mutable reference
+            ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_variable_without_reference_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || {
+            let inner = || {
+                x += 2;
+                ^ Mutable variable x captured in lambda must be a mutable reference
+                ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            };
+            inner();
+        };
+        f();
+        assert(x == 5);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allow_capturing_mut_variable_only_used_immutably() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || x;
+        let _x2 = f();
+        assert(x == 3);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || mutate(&mut x);
+                               ^ Mutable variable x captured in lambda must be a mutable reference
+                               ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_function_in_nested_lambda() {
+    let src = r#"
+    fn main() {
+        let mut x = 3;
+        let f = || { 
+            let inner = || mutate(&mut x); 
+                                       ^ Mutable variable x captured in lambda must be a mutable reference
+                                       ~ Use '&mut' instead of 'mut' to capture a mutable variable.
+            inner();
+        };
+        f();
+        assert(x == 3);
+    }
+
+    fn mutate(x: &mut Field) {
+        *x = 5;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_capturing_mut_var_as_param_to_impl_method() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let mut foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Mutable variable foo captured in lambda must be a mutable reference
+                   ~~~ Use '&mut' instead of 'mut' to capture a mutable variable.
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deny_attaching_mut_ref_to_immutable_object() {
+    let src = r#"
+    struct Foo {
+        value: Field,
+    }
+
+    impl Foo {
+        fn mutate(&mut self) {
+            self.value = 2;
+        }
+    }
+
+    fn main() {
+        let foo = Foo { value: 1 };
+        let f = || foo.mutate();
+                   ^^^ Cannot mutate immutable variable `foo`
+        f();
+        assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}

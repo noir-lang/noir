@@ -70,7 +70,7 @@ impl Visitor for HoverFinder<'_> {
     }
 }
 
-fn format_integer(typ: Type, value: SignedField) -> String {
+fn format_integer(typ: &Type, value: SignedField) -> String {
     let value_base_10 = value.field.to_string();
 
     // For simplicity we parse the value as a BigInt to convert it to hex
@@ -98,7 +98,7 @@ mod tests {
         let typ = Type::FieldElement;
         let value = SignedField::positive(0_u128);
         let expected = "    Field\n---\nvalue of literal: `0 (0x00)`";
-        assert_eq!(format_integer(typ, value), expected);
+        assert_eq!(format_integer(&typ, value), expected);
     }
 
     #[test]
@@ -106,7 +106,7 @@ mod tests {
         let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
         let value = SignedField::positive(123456_u128);
         let expected = "    u32\n---\nvalue of literal: `123456 (0x1e240)`";
-        assert_eq!(format_integer(typ, value), expected);
+        assert_eq!(format_integer(&typ, value), expected);
     }
 
     #[test]
@@ -114,6 +114,6 @@ mod tests {
         let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
         let value = SignedField::new(987654_u128.into(), true);
         let expected = "    i64\n---\nvalue of literal: `-987654 (-0xf1206)`";
-        assert_eq!(format_integer(typ, value), expected);
+        assert_eq!(format_integer(&typ, value), expected);
     }
 }

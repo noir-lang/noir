@@ -32,9 +32,24 @@ impl NodeInterner {
     }
 
     /// Returns the Type of the expression that exists at the given location.
-    pub fn type_at_location(&self, location: Location) -> Option<Type> {
-        let index = self.find_location_index(location)?;
-        Some(self.id_type(index))
+    pub fn type_at_location(&self, location: Location) -> Option<&Type> {
+        // This is similar to `find_location_index` except that we skip indexes for which there is no type
+        let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
+
+        for (index, interned_location) in self.id_to_location.iter() {
+            if interned_location.contains(&location) {
+                if let Some(typ) = self.try_id_type(*index) {
+                    if let Some(current_location) = location_candidate {
+                        if interned_location.span.is_smaller(&current_location.1.span) {
+                            location_candidate = Some((index, interned_location, typ));
+                        }
+                    } else {
+                        location_candidate = Some((index, interned_location, typ));
+                    }
+                }
+            }
+        }
+        location_candidate.map(|(_index, _location, typ)| typ)
     }
 
     /// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].

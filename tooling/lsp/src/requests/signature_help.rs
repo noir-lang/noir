@@ -98,8 +98,8 @@ impl<'a> SignatureFinder<'a> {
         }
 
         // Otherwise, the call must be a reference to an fn type
-        if let Some(mut typ) = self.interner.type_at_location(location) {
-            typ = typ.follow_bindings();
+        if let Some(typ) = self.interner.type_at_location(location) {
+            let mut typ = typ.follow_bindings();
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
