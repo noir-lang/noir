@@ -115,13 +115,36 @@ impl ControlFlowGraph {
     pub(crate) fn successors(
         &self,
         basic_block_id: BasicBlockId,
-    ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator + '_ {
         self.data
             .get(&basic_block_id)
             .expect("ICE: Attempted to iterate successors of block not found within cfg.")
             .successors
             .iter()
             .copied()
+    }
+
+    /// Reverse the control flow graph, swapping predecessors and successors.
+    pub(crate) fn reverse(&self) -> Self {
+        let mut reversed_cfg = ControlFlowGraph::default();
+
+        // Iterate over all the blocks in the original CFG
+        for (block_id, node) in &self.data {
+            // For each block, reverse the edges (swap predecessors and successors)
+            for &successor in &node.successors {
+                reversed_cfg.add_edge(successor, *block_id); // In the reversed CFG, successor becomes predecessor
+            }
+        }
+
+        reversed_cfg
+    }
+
+    pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
+        self.data
+            .keys()
+            .filter(|&&block| self.predecessors(block).len() == 0)
+            .cloned()
+            .collect()
     }
 }
 
@@ -273,6 +296,41 @@ mod tests {
             assert!(block1_successors.contains(&block1_id));
             assert!(block1_successors.contains(&block2_id));
             assert!(block2_successors.contains(&ret_block_id));
+        }
+
+        let reversed_cfg = cfg.reverse();
+        #[allow(clippy::needless_collect)]
+        {
+            let block0_predecessors: Vec<_> = reversed_cfg.predecessors(block0_id).collect();
+            let block1_predecessors: Vec<_> = reversed_cfg.predecessors(block1_id).collect();
+            let block2_predecessors: Vec<_> = reversed_cfg.predecessors(block2_id).collect();
+            let ret_block_predecessors: Vec<_> = reversed_cfg.predecessors(ret_block_id).collect();
+
+            let block0_successors: Vec<_> = reversed_cfg.successors(block0_id).collect();
+            let block1_successors: Vec<_> = reversed_cfg.successors(block1_id).collect();
+            let block2_successors: Vec<_> = reversed_cfg.successors(block2_id).collect();
+            let ret_block_successors: Vec<_> = reversed_cfg.successors(ret_block_id).collect();
+
+            assert_eq!(block0_predecessors.len(), 2);
+            assert_eq!(block1_predecessors.len(), 2);
+            assert_eq!(block2_predecessors.len(), 1);
+            assert_eq!(ret_block_predecessors.len(), 0);
+
+            assert!(block1_predecessors.contains(&block1_id));
+            assert!(block1_predecessors.contains(&block2_id));
+            assert!(!block2_predecessors.contains(&block0_id));
+            assert!(block2_predecessors.contains(&ret_block_id));
+
+            assert_eq!(block0_successors.len(), 0);
+            assert_eq!(block1_successors.len(), 2);
+            assert_eq!(block2_successors.len(), 1);
+            assert_eq!(ret_block_successors.len(), 2);
+
+            assert!(block1_successors.contains(&block0_id));
+            assert!(block1_successors.contains(&block1_id));
+            assert!(block2_successors.contains(&block1_id));
+            assert!(ret_block_successors.contains(&block0_id));
+            assert!(ret_block_successors.contains(&block2_id));
         }
     }
 }
