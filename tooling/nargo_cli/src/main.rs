@@ -42,6 +42,6 @@ fn setup_tracing() {
         let debug_file = rolling::daily(log_dir, "nargo-log");
         subscriber.with_writer(debug_file).with_ansi(false).json().init();
     } else {
-        subscriber.with_ansi(true).init();
+        subscriber.with_writer(std::io::stderr).with_ansi(true).init();
     }
 }
