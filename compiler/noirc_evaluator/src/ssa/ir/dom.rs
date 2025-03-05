@@ -501,17 +501,17 @@ mod tests {
         assert_eq!(post_dom.immediate_dominator(block2_id), Some(block1_id));
         assert_eq!(post_dom.immediate_dominator(block0_id), Some(block2_id));
 
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block1_id), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block2_id), Ordering::Less);
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block0_id), Ordering::Less);
-
-        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block1_id), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block2_id), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block0_id), Ordering::Less);
-
+        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block0_id), Ordering::Equal);
         assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block1_id), Ordering::Greater);
         assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block2_id), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block0_id), Ordering::Equal);
+
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block0_id), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block1_id), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block2_id), Ordering::Less);
+
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block0_id), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block1_id), Ordering::Greater);
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block2_id), Ordering::Equal);
 
         // Post-dominance matrix:
         // ✓: Row item post-dominates column item
@@ -520,17 +520,17 @@ mod tests {
         // b1 ✓   ✓   ✓
         // b2 ✓       ✓
 
-        assert!(post_dom.dominates(block1_id, block1_id));
-        assert!(post_dom.dominates(block1_id, block2_id));
-        assert!(post_dom.dominates(block1_id, block0_id));
-
-        assert!(!post_dom.dominates(block2_id, block1_id));
-        assert!(post_dom.dominates(block2_id, block2_id));
-        assert!(post_dom.dominates(block2_id, block0_id));
-
+        assert!(post_dom.dominates(block0_id, block0_id));
         assert!(!post_dom.dominates(block0_id, block1_id));
         assert!(!post_dom.dominates(block0_id, block2_id));
-        assert!(post_dom.dominates(block0_id, block0_id));
+
+        assert!(post_dom.dominates(block1_id, block0_id));
+        assert!(post_dom.dominates(block1_id, block1_id));
+        assert!(post_dom.dominates(block1_id, block2_id));
+
+        assert!(post_dom.dominates(block2_id, block0_id));
+        assert!(!post_dom.dominates(block2_id, block1_id));
+        assert!(post_dom.dominates(block2_id, block2_id));
     }
 
     #[test]

@@ -28,7 +28,7 @@ impl PostOrder {
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
-        PostOrder(Self::compute_post_order(&cfg))
+        Self::with_cfg(&cfg)
     }
 
     /// Allocate and compute a function's block post-order.

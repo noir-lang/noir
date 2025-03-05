@@ -125,6 +125,7 @@ impl ControlFlowGraph {
     }
 
     /// Reverse the control flow graph, swapping predecessors and successors.
+    #[cfg(test)]
     pub(crate) fn reverse(&self) -> Self {
         let mut reversed_cfg = ControlFlowGraph::default();
 
@@ -147,7 +148,8 @@ impl ControlFlowGraph {
 #[cfg(test)]
 mod tests {
     use crate::ssa::ir::{
-        call_stack::CallStackId, instruction::TerminatorInstruction, map::Id, types::Type,
+        basic_block::BasicBlockId, call_stack::CallStackId, instruction::TerminatorInstruction,
+        map::Id, types::Type,
     };
 
     use super::{super::function::Function, ControlFlowGraph};
@@ -165,8 +167,7 @@ mod tests {
         ControlFlowGraph::with_function(&func);
     }
 
-    #[test]
-    fn jumps() {
+    fn build_test_function() -> (Function, BasicBlockId, BasicBlockId, BasicBlockId) {
         // Build function of form
         // fn func {
         //   block0(cond: u1):
@@ -200,6 +201,50 @@ mod tests {
             call_stack: CallStackId::root(),
         });
 
+        (func, block0_id, block1_id, block2_id)
+    }
+
+    fn modify_test_function(
+        func: &mut Function,
+        block0_id: BasicBlockId,
+        block1_id: BasicBlockId,
+        block2_id: BasicBlockId,
+    ) -> BasicBlockId {
+        // Modify function to form:
+        // fn func {
+        //   block0(cond: u1):
+        //     jmpif cond, then: block1, else: ret_block
+        //   block1():
+        //     jmpif cond, then: block1, else: block2
+        //   block2():
+        //     jmp ret_block()
+        //   ret_block():
+        //     return ()
+        // }
+        let ret_block_id = func.dfg.make_block();
+        func.dfg[ret_block_id].set_terminator(TerminatorInstruction::Return {
+            return_values: vec![],
+            call_stack: CallStackId::root(),
+        });
+        func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
+            destination: ret_block_id,
+            arguments: vec![],
+            call_stack: CallStackId::root(),
+        });
+        let cond = func.dfg[block0_id].parameters()[0];
+        func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
+            condition: cond,
+            then_destination: block1_id,
+            else_destination: ret_block_id,
+            call_stack: CallStackId::root(),
+        });
+        ret_block_id
+    }
+
+    #[test]
+    fn jumps() {
+        let (mut func, block0_id, block1_id, block2_id) = build_test_function();
+
         let mut cfg = ControlFlowGraph::with_function(&func);
 
         #[allow(clippy::needless_collect)]
@@ -231,33 +276,7 @@ mod tests {
             assert!(block1_successors.contains(&block2_id));
         }
 
-        // Modify function to form:
-        // fn func {
-        //   block0(cond: u1):
-        //     jmpif cond, then: block1, else: ret_block
-        //   block1():
-        //     jmpif cond, then: block1, else: block2
-        //   block2():
-        //     jmp ret_block()
-        //   ret_block():
-        //     return ()
-        // }
-        let ret_block_id = func.dfg.make_block();
-        func.dfg[ret_block_id].set_terminator(TerminatorInstruction::Return {
-            return_values: vec![],
-            call_stack: CallStackId::root(),
-        });
-        func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
-            destination: ret_block_id,
-            arguments: vec![],
-            call_stack: CallStackId::root(),
-        });
-        func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
-            condition: cond,
-            then_destination: block1_id,
-            else_destination: ret_block_id,
-            call_stack: CallStackId::root(),
-        });
+        let ret_block_id = modify_test_function(&mut func, block0_id, block1_id, block2_id);
 
         // Recompute new and changed blocks
         cfg.recompute_block(&func, block0_id);
@@ -293,8 +312,53 @@ mod tests {
             assert!(block1_successors.contains(&block2_id));
             assert!(block2_successors.contains(&ret_block_id));
         }
+    }
+
+    #[test]
+    fn reversed_cfg_jumps() {
+        let (mut func, block0_id, block1_id, block2_id) = build_test_function();
+
+        let mut cfg = ControlFlowGraph::with_function(&func);
+        let reversed_cfg = cfg.reverse();
+
+        #[allow(clippy::needless_collect)]
+        {
+            let block0_predecessors: Vec<_> = reversed_cfg.predecessors(block0_id).collect();
+            let block1_predecessors: Vec<_> = reversed_cfg.predecessors(block1_id).collect();
+            let block2_predecessors: Vec<_> = reversed_cfg.predecessors(block2_id).collect();
+
+            let block0_successors: Vec<_> = reversed_cfg.successors(block0_id).collect();
+            let block1_successors: Vec<_> = reversed_cfg.successors(block1_id).collect();
+            let block2_successors: Vec<_> = reversed_cfg.successors(block2_id).collect();
+
+            assert_eq!(block0_predecessors.len(), 2);
+            assert_eq!(block1_predecessors.len(), 2);
+            assert_eq!(block2_predecessors.len(), 0);
+
+            assert!(block0_predecessors.contains(&block1_id));
+            assert!(block0_predecessors.contains(&block2_id));
+            assert!(block1_predecessors.contains(&block1_id));
+            assert!(block1_predecessors.contains(&block2_id));
+
+            assert_eq!(block0_successors.len(), 0);
+            assert_eq!(block1_successors.len(), 2);
+            assert_eq!(block2_successors.len(), 2);
+
+            assert!(block1_successors.contains(&block0_id));
+            assert!(block1_successors.contains(&block1_id));
+            assert!(block2_successors.contains(&block0_id));
+            assert!(block2_successors.contains(&block1_id));
+        }
+
+        let ret_block_id = modify_test_function(&mut func, block0_id, block1_id, block2_id);
+
+        // Recompute new and changed blocks
+        cfg.recompute_block(&func, block0_id);
+        cfg.recompute_block(&func, block2_id);
+        cfg.recompute_block(&func, ret_block_id);
 
         let reversed_cfg = cfg.reverse();
+
         #[allow(clippy::needless_collect)]
         {
             let block0_predecessors: Vec<_> = reversed_cfg.predecessors(block0_id).collect();
@@ -312,6 +376,8 @@ mod tests {
             assert_eq!(block2_predecessors.len(), 1);
             assert_eq!(ret_block_predecessors.len(), 0);
 
+            assert!(block0_predecessors.contains(&block1_id));
+            assert!(block0_predecessors.contains(&ret_block_id));
             assert!(block1_predecessors.contains(&block1_id));
             assert!(block1_predecessors.contains(&block2_id));
             assert!(!block2_predecessors.contains(&block0_id));
