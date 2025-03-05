@@ -367,7 +367,7 @@ mod multi_scalar_mul {
     fn full_constant_folding() {
         let src = r#"
             acir(inline) fn main f0 {
-            b0():
+              b0():
                 v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
                 v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
                 v2 = call multi_scalar_mul (v1, v0) -> [Field; 3]
@@ -377,7 +377,7 @@ mod multi_scalar_mul {
 
         let expected_src = r#"
             acir(inline) fn main f0 {
-            b0():
+              b0():
                 v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
                 v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
                 v10 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, Field 0] : [Field; 3]
@@ -392,7 +392,7 @@ mod multi_scalar_mul {
     fn simplify_zero() {
         let src = r#"
             acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
+              b0(v0: Field, v1: Field):
                 v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
                 v3 = make_array [
                 Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
@@ -405,7 +405,7 @@ mod multi_scalar_mul {
         //First point is zero, second scalar is zero, so we should be left with the scalar mul of the last point.
         let expected_src = r#"
             acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
+              b0(v0: Field, v1: Field):
                 v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
                 v5 = make_array [Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
                 v6 = make_array [v0, Field 0] : [Field; 2]
@@ -422,7 +422,7 @@ mod multi_scalar_mul {
     fn partial_constant_folding() {
         let src = r#"
             acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
+              b0(v0: Field, v1: Field):
                 v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
                 v3 = make_array [
                 Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
@@ -433,7 +433,7 @@ mod multi_scalar_mul {
         //First and last scalar/point are constant, so we should be left with the msm of the middle point and the folded constant point
         let expected_src = r#"
             acir(inline) fn main f0 {
-            b0(v0: Field, v1: Field):
+              b0(v0: Field, v1: Field):
                 v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
                 v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
                 v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
