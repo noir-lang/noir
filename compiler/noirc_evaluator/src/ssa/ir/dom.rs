@@ -162,6 +162,18 @@ impl DominatorTree {
         Self::with_cfg_and_post_order(&cfg, &post_order)
     }
 
+    /// Allocate and compute a post-dominator tree for the given function.
+    ///
+    /// This approach computes the reversed control flow graph and post-order internally and then
+    /// discards them. If either should be retained reuse it is better to instead pre-compute them
+    /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
+    #[cfg(test)]
+    pub(crate) fn with_function_post_dom(func: &Function) -> Self {
+        let reversed_cfg = ControlFlowGraph::with_function(&func).reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+        Self::with_cfg_and_post_order(&reversed_cfg, &post_order)
+    }
+
     /// Build a dominator tree from a control flow graph using Keith D. Cooper's
     /// "Simple, Fast Dominator Algorithm."
     fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
@@ -486,9 +498,7 @@ mod tests {
     fn post_dom_backwards_layout() {
         let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
 
-        let reversed_cfg = ControlFlowGraph::with_function(&func).reverse();
-        let post_order = PostOrder::with_cfg(&reversed_cfg);
-        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let mut post_dom = DominatorTree::with_function_post_dom(&func);
 
         // Expected post-dominator tree:
         // block1 {
