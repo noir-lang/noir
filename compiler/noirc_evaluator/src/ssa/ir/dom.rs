@@ -142,7 +142,7 @@ impl DominatorTree {
 
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
-    /// 
+    ///
     /// This method should be used for when we want to compute a post-dominator tree.
     /// A post-dominator tree just expects the control flow graph to be reversed.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
@@ -285,7 +285,9 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type
+            basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph,
+            dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id,
+            post_order::PostOrder, types::Type,
         },
     };
 
