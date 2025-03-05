@@ -1320,7 +1320,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     missing_cases.remove(*signed_field..=*signed_field);
                 }
                 Constructor::Range(start, end) => {
-                    // our ranges our exclusive, so adjust for that
+                    // Our ranges are exclusive, so adjust for that
                     missing_cases.remove(*start..=end.sub_one());
                 }
                 _ => unreachable!(
