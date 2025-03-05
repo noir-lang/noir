@@ -14,6 +14,7 @@ use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
+    signed_field::{AbsU128, SignedField},
 };
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -1156,15 +1157,15 @@ impl Type {
     }
 
     pub fn is_field(&self) -> bool {
-        matches!(self.follow_bindings(), Type::FieldElement)
+        matches!(self.follow_bindings_shallow().as_ref(), Type::FieldElement)
     }
 
     pub fn is_bool(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Bool)
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Bool)
     }
 
     pub fn is_integer(&self) -> bool {
-        matches!(self.follow_bindings(), Type::Integer(_, _))
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
     }
 
     /// If value_level, only check for Type::FieldElement,
@@ -2763,6 +2764,36 @@ impl Type {
             | Type::Forall(..)
             | Type::Quoted(..)
             | Type::Error => None,
+        }
+    }
+
+    pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
+        match self.follow_bindings_shallow().as_ref() {
+            Type::FieldElement => None,
+            Type::Integer(sign, num_bits) => {
+                if *sign == Signedness::Unsigned {
+                    return Some(SignedField::zero());
+                }
+
+                let max_bit_size = num_bits.bit_size() - 1;
+                Some(if max_bit_size == 128 {
+                    SignedField::negative(i128::MIN.abs_u128())
+                } else {
+                    SignedField::negative(1u128 << max_bit_size)
+                })
+            }
+            Type::Bool => Some(SignedField::zero()),
+            Type::TypeVariable(var) => {
+                let binding = &var.1;
+                match &*binding.borrow() {
+                    TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
+                        Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => None,
+                        Kind::Numeric(typ) => typ.integral_minimum_size(),
+                    },
+                    TypeBinding::Bound(typ) => typ.integral_minimum_size(),
+                }
+            }
+            _ => None,
         }
     }
 }

@@ -233,7 +233,7 @@ impl HirMatch {
     fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> ExpressionKind {
         match self {
             HirMatch::Success(expr) => expr.to_display_ast(interner).kind,
-            HirMatch::Failure => ExpressionKind::Error,
+            HirMatch::Failure { .. } => ExpressionKind::Error,
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = cond.to_display_ast(interner);
                 let consequence = body.to_display_ast(interner);
