@@ -394,7 +394,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -406,6 +406,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -489,7 +490,7 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-nargo, build-noir-execute]
     timeout-minutes: 30
 
@@ -506,6 +507,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
