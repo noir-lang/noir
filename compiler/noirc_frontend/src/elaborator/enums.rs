@@ -1214,7 +1214,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         let mut cases = BTreeSet::new();
         self.find_missing_values(tree, &mut Default::default(), &mut cases, starting_id);
 
-        self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+        // It's possible to trigger this matching on an empty enum like `enum Void {}`
+        if !cases.is_empty() {
+            self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+        }
     }
 
     /// Issue a missing cases error if necessary for the given type, assuming that no
@@ -1224,8 +1227,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         let typ = type_matched_on.follow_bindings_shallow();
         if let Type::DataType(shared, generics) = typ.as_ref() {
             if let Some(variants) = shared.borrow().get_variants(generics) {
-                let cases = variants.into_iter().map(|(name, _)| name).collect();
-                self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+                let cases: BTreeSet<_> = variants.into_iter().map(|(name, _)| name).collect();
+                if !cases.is_empty() {
+                    self.elaborator.push_err(TypeCheckError::MissingCases { cases, location });
+                }
                 return;
             }
         }

@@ -356,3 +356,14 @@ fn missing_integer_cases_with_empty_match() {
     ",
     );
 }
+
+#[test]
+fn match_on_empty_enum() {
+    check_errors(
+        "
+        pub fn foo(v: Void) {
+            match v {}
+        }
+        pub enum Void {}",
+    );
+}
