@@ -29,6 +29,7 @@ pub(crate) fn on_references_request(
 mod references_tests {
     use super::*;
     use crate::test_utils::{self, search_in_file};
+    use crate::utils::get_cursor_line_and_column;
     use crate::{notifications, on_did_open_text_document};
     use lsp_types::{
         DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
@@ -190,16 +191,7 @@ mod references_tests {
 
         let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
 
-        let (line, column) = src
-            .lines()
-            .enumerate()
-            .filter_map(|(line_index, line)| {
-                line.find(">|<").map(|char_index| (line_index, char_index))
-            })
-            .next()
-            .expect("Expected to find one >|< in the source code");
-
-        let src = src.replace(">|<", "");
+        let (line, column, src) = get_cursor_line_and_column(src);
 
         on_did_open_text_document(
             &mut state,
