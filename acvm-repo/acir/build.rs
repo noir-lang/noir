@@ -52,7 +52,7 @@ fn proto_cpp_codegen(
     includes: &[impl AsRef<Path>],
 ) -> std::io::Result<()> {
     let mut cmd = Command::new(protoc_bin.as_ref());
-    cmd.arg("--cpp_out").arg(&out_dir.as_ref());
+    cmd.arg("--cpp_out").arg(out_dir.as_ref());
     for i in includes {
         cmd.arg("-I").arg(i.as_ref());
     }
