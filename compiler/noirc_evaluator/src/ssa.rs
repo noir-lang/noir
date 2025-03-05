@@ -211,10 +211,6 @@ fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ss
         .run_pass(Ssa::remove_if_else, "Remove IfElse")
         .run_pass(Ssa::purity_analysis, "Purity Analysis (2nd)")
         .run_pass(Ssa::fold_constants, "Constant Folding")
-        .run_pass(
-            Ssa::inline_constants_into_brillig_functions,
-            "Inline constants into brillig functions",
-        )
         .run_pass(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained")
         .run_pass(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal")
         .run_pass(Ssa::fold_constants_using_constraints, "Constraint Folding")
