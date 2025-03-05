@@ -13,7 +13,7 @@
 //! generated for different entry points can conflict.
 //!
 //! To provide a more concrete example, let's take this program:
-//! ```
+//! ```noir
 //! global ONE: Field = 1;
 //! global TWO: Field = 2;
 //! global THREE: Field = 3;
@@ -40,7 +40,7 @@
 //! }
 //! ```
 //! The two entry points will have different global allocation maps:
-//! ```
+//! ```noir
 //! GlobalInit(Id(1)):
 //!   CONST M32835 = 1
 //!   CONST M32836 = 2
