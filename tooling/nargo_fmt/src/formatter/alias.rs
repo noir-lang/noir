@@ -1,12 +1,12 @@
 use noirc_frontend::{
-    ast::NoirTypeAlias,
+    ast::{NoirTypeAlias, NormalTypeAlias},
     token::{Keyword, Token},
 };
 
 use super::Formatter;
 
 impl Formatter<'_> {
-    pub(super) fn format_type_alias(&mut self, type_alias: NoirTypeAlias) {
+    pub(super) fn format_type_alias(&mut self, type_alias: NormalTypeAlias) {
         self.write_indentation();
         self.format_item_visibility(type_alias.visibility);
         self.write_keyword(Keyword::Type);
@@ -18,6 +18,14 @@ impl Formatter<'_> {
         self.write_space();
         self.format_type(type_alias.typ);
         self.write_semicolon();
+    }
+
+    pub(super) fn format_noir_type_alias(&mut self, noir_type_alias: NoirTypeAlias) {
+        let type_alias = match noir_type_alias {
+            NoirTypeAlias::NumericTypeAlias(numeric_type_alias) => numeric_type_alias.type_alias,
+            NoirTypeAlias::NormalTypeAlias(normal_type_alias) => normal_type_alias,
+        };
+        self.format_type_alias(type_alias);
     }
 }
 

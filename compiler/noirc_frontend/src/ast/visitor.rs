@@ -823,7 +823,12 @@ impl NoirTypeAlias {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        self.typ.accept(visitor);
+        match self {
+            NoirTypeAlias::NormalTypeAlias(type_alias) => type_alias.typ.accept(visitor),
+            NoirTypeAlias::NumericTypeAlias(num_type_alias) => {
+                num_type_alias.type_alias.typ.accept(visitor);
+            }
+        }
     }
 }
 

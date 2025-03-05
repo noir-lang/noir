@@ -1638,13 +1638,22 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = alias.module_id;
 
-        let name = &alias.type_alias_def.name;
-        let visibility = alias.type_alias_def.visibility;
-        let location = alias.type_alias_def.typ.location;
+        let name = &alias.type_alias_def.name();
+        let visibility = alias.type_alias_def.visibility();
+        let location = alias.type_alias_def.location();
 
-        let generics = self.add_generics(&alias.type_alias_def.generics);
+        let generics = self.add_generics(alias.type_alias_def.generics());
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let typ = self.resolve_type(alias.type_alias_def.typ);
+        let typ = match alias.type_alias_def {
+            crate::ast::NoirTypeAlias::NormalTypeAlias(type_alias) => {
+                self.resolve_type(type_alias.typ)
+            }
+            crate::ast::NoirTypeAlias::NumericTypeAlias(numeric_type_alias) => {
+                let num_type = self.resolve_type(numeric_type_alias.numeric_type);
+                let kind = Kind::numeric(num_type);
+                self.resolve_type_with_kind(numeric_type_alias.type_alias.typ, &kind)
+            }
+        };
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);

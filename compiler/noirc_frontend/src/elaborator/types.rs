@@ -59,6 +59,15 @@ impl Elaborator<'_> {
         resolved_type
     }
 
+    pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
+        let location = typ.location;
+        let resolved_type = self.resolve_type_inner(typ, kind);
+        if resolved_type.is_nested_slice() {
+            self.push_err(ResolverError::NestedSlices { location });
+        }
+        resolved_type
+    }
+
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     pub fn resolve_type_inner(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
@@ -508,7 +517,14 @@ impl Elaborator<'_> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
-                let typ = self.resolve_named_type(path, GenericTypeArgs::default());
+                let mut ab = GenericTypeArgs::default();
+                // Use generics from path, if they exist
+                if let Some(last_segment) = path.segments.last() {
+                    if let Some(generics) = &last_segment.generics {
+                        ab.ordered_args = generics.clone();
+                    }
+                }
+                let typ = self.resolve_named_type(path, ab);
                 self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, _span) => {

@@ -1539,6 +1539,22 @@ fn numeric_generic_as_struct_field_type_fails() {
 }
 
 #[test]
+fn type_alias_to_numeric_generic() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    fn main() {
+        let b: [u8; 6] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u8;Double::<N>] {
+        let mut a = [0;Double::<N>];
+        a
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn normal_generic_as_array_length() {
     // TODO: improve error location, should be just on N
     let src = r#"
