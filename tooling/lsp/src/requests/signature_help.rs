@@ -146,7 +146,7 @@ impl<'a> SignatureFinder<'a> {
             }
 
             if has_self && index == 0 {
-                if let Type::MutableReference(..) = typ {
+                if let Type::Reference(..) = typ {
                     label.push_str("&mut self");
                 } else {
                     label.push_str("self");

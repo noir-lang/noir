@@ -485,8 +485,8 @@ fn unresolved_type_data_with_file(typ: UnresolvedTypeData, file: FileId) -> Unre
                 generic_type_args_with_file(generic_type_args, file),
             )
         }
-        UnresolvedTypeData::MutableReference(typ) => {
-            UnresolvedTypeData::MutableReference(Box::new(unresolved_type_with_file(*typ, file)))
+        UnresolvedTypeData::Reference(typ, mutable) => {
+            UnresolvedTypeData::Reference(Box::new(unresolved_type_with_file(*typ, file)), mutable)
         }
         UnresolvedTypeData::Tuple(types) => {
             UnresolvedTypeData::Tuple(unresolved_types_with_file(types, file))

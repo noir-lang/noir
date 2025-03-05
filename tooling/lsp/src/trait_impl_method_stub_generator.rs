@@ -359,7 +359,11 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_type(ret);
                 }
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, false) => {
+                self.string.push('&');
+                self.append_type(typ);
+            }
+            Type::Reference(typ, true) => {
                 self.string.push_str("&mut ");
                 self.append_type(typ);
             }

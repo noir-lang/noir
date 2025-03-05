@@ -557,6 +557,7 @@ impl<'a> Parser<'a> {
         );
     }
 
+    #[allow(unused)]
     fn expected_mut_after_ampersand(&mut self) {
         self.push_error(
             ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },

@@ -715,7 +715,7 @@ impl ChunkFormatter<'_, '_> {
     fn format_prefix(&mut self, prefix: PrefixExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            if let UnaryOp::MutableReference = prefix.operator {
+            if let UnaryOp::Reference { mutable: true } = prefix.operator {
                 formatter.write_current_token();
                 formatter.bump();
                 formatter.skip_comments_and_whitespace();

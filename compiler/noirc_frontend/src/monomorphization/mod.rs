@@ -1280,7 +1280,8 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            HirType::MutableReference(element) => {
+            // Lower both mutable & immutable references to the same reference type
+            HirType::Reference(element, _mutable) => {
                 let element = Self::convert_type(element, location)?;
                 ast::Type::MutableReference(Box::new(element))
             }
@@ -1386,7 +1387,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::check_type(env, location)
             }
 
-            HirType::MutableReference(element) => Self::check_type(element, location),
+            HirType::Reference(element, _mutable) => Self::check_type(element, location),
             HirType::InfixExpr(lhs, _, rhs, _) => {
                 Self::check_type(lhs, location)?;
                 Self::check_type(rhs, location)
@@ -1601,8 +1602,8 @@ impl<'interner> Monomorphizer<'interner> {
     fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         // Disallow printing slices and mutable references for consistency,
         // since they cannot be passed from ACIR into Brillig
-        if matches!(typ, HirType::MutableReference(_)) {
-            unreachable!("println and format strings do not support mutable references.");
+        if matches!(typ, HirType::Reference(..)) {
+            unreachable!("println and format strings do not support references.");
         }
 
         let printable_type: PrintableType = typ.into();
@@ -2102,13 +2103,13 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
             ast::Type::MutableReference(element) => {
-                use crate::ast::UnaryOp::MutableReference;
+                use crate::ast::UnaryOp::Reference;
                 let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {
                     rhs,
                     result_type,
-                    operator: MutableReference,
+                    operator: Reference { mutable: true },
                     location,
                 })
             }

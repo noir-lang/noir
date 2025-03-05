@@ -588,7 +588,7 @@ impl<'context> Elaborator<'context> {
         for (mut constraint, expr_id, select_impl) in context.trait_constraints {
             let location = self.interner.expr_location(&expr_id);
 
-            if matches!(&constraint.typ, Type::MutableReference(_)) {
+            if matches!(&constraint.typ, Type::Reference(..)) {
                 let (_, dereferenced_typ) =
                     self.insert_auto_dereferences(expr_id, constraint.typ.clone());
                 constraint.typ = dereferenced_typ;
@@ -1078,7 +1078,7 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(from);
                 self.mark_type_as_used(to);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 self.mark_type_as_used(typ);
             }
             Type::InfixExpr(left, _op, right, _) => {
@@ -1461,8 +1461,8 @@ impl<'context> Elaborator<'context> {
         self.self_type = Some(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::MutableReference(_)) {
-            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl {
+        if matches!(self_type, Type::Reference(..)) {
+            self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
                 location: self_type_location,
             });
         }
@@ -1755,7 +1755,7 @@ impl<'context> Elaborator<'context> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Slice(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {
@@ -2166,6 +2166,11 @@ impl<'context> Elaborator<'context> {
             let reason = ParserErrorReason::ExperimentalFeature(feature);
             self.push_err(ParserError::with_reason(reason, location));
         }
+    }
+
+    /// Return true if the given unstable feature is enabled
+    fn unstable_feature_enabled(&self, feature: UnstableFeature) -> bool {
+        self.options.enabled_unstable_features.contains(&feature)
     }
 
     /// Run the given function using the resolver and return true if any errors (not warnings)

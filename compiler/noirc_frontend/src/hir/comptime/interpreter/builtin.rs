@@ -1041,7 +1041,7 @@ fn type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::MutableReference(typ) = typ { Some(Value::Type(*typ)) } else { None }
+        if let Type::Reference(typ, true) = typ { Some(Value::Type(*typ)) } else { None }
     })
 }
 
@@ -1321,7 +1321,7 @@ fn unresolved_type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        if let UnresolvedTypeData::MutableReference(typ) = typ {
+        if let UnresolvedTypeData::Reference(typ, true) = typ {
             Some(Value::UnresolvedType(typ.typ))
         } else {
             None
@@ -1483,9 +1483,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Value::Zeroed(typ)
         }
-        Type::MutableReference(element) => {
+        Type::Reference(element, mutable) => {
             let element = zeroed(*element, location);
-            Value::Pointer(Shared::new(element), false)
+            Value::Pointer(Shared::new(element), false, mutable)
         }
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_)
@@ -2177,7 +2177,11 @@ fn expr_as_unary_op(
             let unary_op_value: u128 = match prefix_expr.operator {
                 UnaryOp::Minus => 0,
                 UnaryOp::Not => 1,
-                UnaryOp::MutableReference => 2,
+                UnaryOp::Reference { mutable: true } => 2,
+                UnaryOp::Reference { mutable: false } => {
+                    // `&` alone is experimental and currently hidden from the comptime API
+                    return None;
+                }
                 UnaryOp::Dereference { .. } => 3,
             };
 
