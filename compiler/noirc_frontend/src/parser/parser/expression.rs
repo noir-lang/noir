@@ -388,20 +388,23 @@ impl Parser<'_> {
     /// UnsafeExpression = 'unsafe' Block
     fn parse_unsafe_expr(&mut self) -> Option<ExpressionKind> {
         let start_location = self.current_token_location;
+        let comments_before_unsafe = self.current_token_comments.clone();
 
         if !self.eat_keyword(Keyword::Unsafe) {
             return None;
         }
 
-        if self.current_token_comments.is_empty() {
-            if let Some(statement_comments) = &mut self.statement_comments {
-                if !statement_comments.trim().to_lowercase().starts_with("safety:") {
-                    self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
-                }
+        let comments: &str = if comments_before_unsafe.is_empty() {
+            if let Some(statement_comments) = &self.statement_comments {
+                statement_comments
             } else {
-                self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
+                ""
             }
-        } else if !self.current_token_comments.trim().to_lowercase().starts_with("safety:") {
+        } else {
+            &comments_before_unsafe
+        };
+
+        if !comments.lines().any(|line| line.trim().to_lowercase().starts_with("safety:")) {
             self.push_error(ParserErrorReason::MissingSafetyComment, start_location);
         }
 
@@ -1079,7 +1082,9 @@ mod tests {
         let src = "
         // Safety: test
         unsafe { 1 }";
-        let expr = parse_expression_no_errors(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let expr = parser.parse_expression_or_error();
+        assert!(parser.errors.is_empty());
         let ExpressionKind::Unsafe(unsafe_expression) = expr.kind else {
             panic!("Expected unsafe expression");
         };

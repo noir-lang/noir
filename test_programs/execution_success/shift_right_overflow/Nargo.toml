@@ -1,6 +1,5 @@
 [package]
-name = "sha256"
+name = "shift_right_overflow"
 type = "bin"
 authors = [""]
-
 [dependencies]

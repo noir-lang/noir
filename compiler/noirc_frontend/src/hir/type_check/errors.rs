@@ -63,7 +63,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
-    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_location: Location },
+    TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
     TypeCanonicalizationMismatch {
         to: Type,
@@ -100,6 +100,10 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
+    #[error("Variable {name} captured in lambda must be a mutable reference")]
+    MutableCaptureWithoutRef { name: String, location: Location },
+    #[error("Mutable references to array indices are unsupported")]
+    MutableReferenceToArrayElement { location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -279,6 +283,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
+            | TypeCheckError::MutableCaptureWithoutRef { location, .. }
+            | TypeCheckError::MutableReferenceToArrayElement { location }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -322,8 +328,10 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
             | TypeCheckError::NestedUnsafeBlock { location } => *location,
+
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
+
             TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
             }
@@ -369,11 +377,37 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 )
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
-                Diagnostic::simple_error(
-                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
-                    String::new(),
-                    *expr_location,
-                )
+                // Try to improve the error message for some kind combinations
+                match (expected_kind, expr_kind) {
+                    (Kind::Normal, Kind::Numeric(_)) => {
+                        Diagnostic::simple_error(
+                            "Expected type, found numeric generic".into(),
+                            "not a type".into(),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(typ), Kind::Normal) => {
+                        Diagnostic::simple_error(
+                            "Type provided when a numeric generic was expected".into(),
+                            format!("the numeric generic is not of type `{typ}`"),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(expected_type), Kind::Numeric(found_type)) => {
+                        Diagnostic::simple_error(
+                            format!("The numeric generic is not of type `{expected_type}`"),
+                            format!("expected `{expected_type}`, found `{found_type}`"),
+                            *expr_location,
+                        )
+                    }
+                    _ => {
+                        Diagnostic::simple_error(
+                            format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                            String::new(),
+                            *expr_location,
+                        )
+                    }
+                }
             }
             TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, location } => {
                 Diagnostic::simple_error(
@@ -476,6 +510,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
+            TypeCheckError::MutableCaptureWithoutRef { name, location } => Diagnostic::simple_error(
+                format!("Mutable variable {name} captured in lambda must be a mutable reference"),
+                "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
+                *location,
+            ),
+            TypeCheckError::MutableReferenceToArrayElement { location } => {
+                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
+            },
             TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),
@@ -648,15 +690,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
     fn from(error: &'a NoMatchingImplFoundError) -> Self {
         let constraints = &error.constraints;
-        let span = error.location;
+        let location = error.location;
 
         assert!(!constraints.is_empty());
         let msg =
             format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-        let mut diagnostic = Diagnostic::from_message(&msg);
+        let mut diagnostic = Diagnostic::from_message(&msg, location.file);
 
         let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
-        diagnostic.add_secondary(secondary, span);
+        diagnostic.add_secondary(secondary, location);
 
         // These must be notes since secondaries are unordered
         for (typ, trait_name) in &constraints[1..] {

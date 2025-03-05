@@ -858,8 +858,8 @@ impl TypeVariable {
     ) -> Result<(), TypeCheckError> {
         if !binding.kind().unifies(kind) {
             return Err(TypeCheckError::TypeKindMismatch {
-                expected_kind: format!("{}", kind),
-                expr_kind: format!("{}", binding.kind()),
+                expected_kind: kind.clone(),
+                expr_kind: binding.kind(),
                 expr_location: location,
             });
         }
@@ -1240,6 +1240,10 @@ impl Type {
             Type::Alias(alias_type, _) => alias_type.borrow().typ.is_function(),
             _ => false,
         }
+    }
+
+    pub(crate) fn is_mutable_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::MutableReference(_))
     }
 
     /// True if this type can be used as a parameter to `main` or a contract function.
@@ -2144,8 +2148,8 @@ impl Type {
                     kind.ensure_value_fits(x, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
-                        expected_kind: format!("{}", constant_kind),
-                        expr_kind: format!("{}", kind),
+                        expected_kind: constant_kind,
+                        expr_kind: kind.clone(),
                         expr_location: location,
                     })
                 }
@@ -2166,8 +2170,8 @@ impl Type {
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
-                        expected_kind: format!("{}", kind),
-                        expr_kind: format!("{}", infix_kind),
+                        expected_kind: kind.clone(),
+                        expr_kind: infix_kind,
                         expr_location: location,
                     })
                 }

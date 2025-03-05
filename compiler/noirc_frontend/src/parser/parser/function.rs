@@ -109,10 +109,24 @@ impl Parser<'_> {
             let visibility = self.parse_visibility();
             (FunctionReturnType::Ty(self.parse_type_or_error()), visibility)
         } else {
-            (
-                FunctionReturnType::Default(self.location_at_previous_token_end()),
-                Visibility::Private,
-            )
+            // This will return the span between `)` and `{`
+            //
+            // fn foo() { }
+            //        ^^^
+            let mut location = self.previous_token_location.merge(self.current_token_location);
+
+            // Here we change it to this (if there's space)
+            //
+            // fn foo() { }
+            //         ^
+            if location.span.end() - location.span.start() >= 3 {
+                location = Location::new(
+                    Span::from(location.span.start() + 1..location.span.end() - 1),
+                    location.file,
+                );
+            }
+
+            (FunctionReturnType::Default(location), Visibility::Private)
         };
 
         let where_clause = self.parse_where_clause();
