@@ -124,16 +124,16 @@ impl ControlFlowGraph {
             .copied()
     }
 
-    /// Reverse the control flow graph, swapping predecessors and successors.
+    /// Reverse the control flow graph
     #[cfg(test)]
     pub(crate) fn reverse(&self) -> Self {
         let mut reversed_cfg = ControlFlowGraph::default();
 
-        // Iterate over all the blocks in the original CFG
         for (block_id, node) in &self.data {
-            // For each block, reverse the edges (swap predecessors and successors)
+            // For each block, reverse the edges
+            // In the reversed CFG, successors becomes predecessors
             for &successor in &node.successors {
-                reversed_cfg.add_edge(successor, *block_id); // In the reversed CFG, successor becomes predecessor
+                reversed_cfg.add_edge(successor, *block_id); 
             }
         }
 
