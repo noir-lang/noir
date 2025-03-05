@@ -1289,7 +1289,11 @@ impl NodeInterner {
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
     pub fn id_type(&self, index: impl Into<Index>) -> Type {
-        self.id_to_type.get(&index.into()).cloned().unwrap_or(Type::Error)
+        self.try_id_type(index).cloned().unwrap_or(Type::Error)
+    }
+
+    pub fn try_id_type(&self, index: impl Into<Index>) -> Option<&Type> {
+        self.id_to_type.get(&index.into())
     }
 
     /// Returns the type of the definition or `Type::Error` if it was not found.

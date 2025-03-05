@@ -35,6 +35,7 @@ pub fn start_cli() -> eyre::Result<()> {
 fn main() {
     tracing_subscriber::fmt()
         .with_span_events(FmtSpan::ACTIVE)
+        .with_writer(std::io::stderr)
         .with_ansi(true)
         .with_env_filter(EnvFilter::from_env("NOIR_LOG"))
         .init();
