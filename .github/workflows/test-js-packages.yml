@@ -361,7 +361,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -457,7 +457,7 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-nargo]
     timeout-minutes: 30
 
