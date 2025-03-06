@@ -48,6 +48,9 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 3
+  keccak256:
+    repo: noir-lang/keccak256
+    timeout: 3
   aztec_nr:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
