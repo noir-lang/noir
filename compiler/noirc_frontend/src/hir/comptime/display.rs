@@ -174,31 +174,31 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         match token {
             Token::QuotedType(id) => {
                 let value = Value::Type(self.interner.get_quoted_type(*id).clone());
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedExpr(id) => {
                 let value = Value::expression(ExpressionKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedStatement(id) => {
                 let value = Value::statement(StatementKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedLValue(id) => {
                 let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedUnresolvedTypeData(id) => {
                 let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedPattern(id) => {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::Keyword(..)
             | Token::Ident(..)
@@ -297,14 +297,18 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         }
     }
 
-    fn print_value(&mut self, value: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn print_value(
+        &mut self,
+        value: &Value,
+        last_was_alphanumeric: bool,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         let string = value.display(self.interner).to_string();
         if string.is_empty() {
             return Ok(());
         }
 
-        let starts_with_alphanumeric = string.bytes().next().unwrap().is_ascii_alphanumeric();
-        if starts_with_alphanumeric {
+        if last_was_alphanumeric && string.bytes().next().unwrap().is_ascii_alphanumeric() {
             write!(f, " ")?;
         }
 
