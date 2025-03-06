@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741276608737,
+  "lastUpdate": 1741276609994,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8b1e50a07ebdf97e0bab66e0dc5f3014a800d128",
-          "message": "chore(docs): Supplement docs on `modexp` as a required precompile for Barretenberg's Solidity verifier (#7508)",
-          "timestamp": "2025-02-24T21:29:30Z",
-          "tree_id": "564cac36923f35644812ce367334d0f3e6fcc2f7",
-          "url": "https://github.com/noir-lang/noir/commit/8b1e50a07ebdf97e0bab66e0dc5f3014a800d128"
-        },
-        "date": 1740434102412,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 285.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 597.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 956.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 828.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 338.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 6880,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 6880,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 337.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 384.97,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 349.25,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "073625a9fd8b1081bd299a869c640f199a6e9692",
+          "message": "fix: TokensPrettyPrinter was missing some spaces between tokens (#7607)",
+          "timestamp": "2025-03-06T15:31:43Z",
+          "tree_id": "0f1606761fdbb1d757b83019be0fe664d7753d30",
+          "url": "https://github.com/noir-lang/noir/commit/073625a9fd8b1081bd299a869c640f199a6e9692"
+        },
+        "date": 1741276607382,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 299.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 609.76,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 226.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1330,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 303.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 301.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 349.27,
             "unit": "MB"
           }
         ]
