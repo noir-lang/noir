@@ -155,7 +155,7 @@ impl ChunkFormatter<'_, '_> {
 
         group.text(self.chunk(|formatter| {
             if is_slice {
-                formatter.write_token(Token::Ampersand);
+                formatter.write_token(Token::SliceStart);
             }
             formatter.write_left_bracket();
         }));
