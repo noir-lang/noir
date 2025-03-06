@@ -2168,11 +2168,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Return true if the given unstable feature is enabled
-    fn unstable_feature_enabled(&self, feature: UnstableFeature) -> bool {
-        self.options.enabled_unstable_features.contains(&feature)
-    }
-
     /// Run the given function using the resolver and return true if any errors (not warnings)
     /// occurred while running it.
     pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {

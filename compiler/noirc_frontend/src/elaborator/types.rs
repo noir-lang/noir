@@ -1318,22 +1318,14 @@ impl Elaborator<'_> {
                     |mutable| Type::Reference(Box::new(element_type.clone()), mutable);
 
                 let immutable = make_expected(false);
-                let ownership_enabled = self.unstable_feature_enabled(UnstableFeature::Ownership);
+                let mutable = make_expected(true);
 
                 // Both `&mut T` and `&T` should coerce to an expected `&T`.
                 if !rhs_type.try_reference_coercion(&immutable) {
-                    self.unify(rhs_type, &immutable, || {
-                        let expected_typ = if ownership_enabled {
-                            immutable.to_string()
-                        } else {
-                            make_expected(true).to_string()
-                        };
-
-                        TypeCheckError::TypeMismatch {
-                            expr_typ: rhs_type.to_string(),
-                            expected_typ,
-                            expr_location: location,
-                        }
+                    self.unify(rhs_type, &mutable, || TypeCheckError::TypeMismatch {
+                        expr_typ: rhs_type.to_string(),
+                        expected_typ: mutable.to_string(),
+                        expr_location: location,
                     });
                 }
                 Ok((element_type, false))
