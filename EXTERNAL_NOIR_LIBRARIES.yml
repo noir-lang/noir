@@ -45,6 +45,9 @@ libraries:
   sha256:
     repo: noir-lang/sha256
     timeout: 3
+  sha512:
+    repo: noir-lang/sha512
+    timeout: 3
   aztec_nr:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
