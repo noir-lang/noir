@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741291814777,
+  "lastUpdate": 1741291816654,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11502,70 +11502,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fdc742369c4f0cda307b5b1904260133d1add64",
-          "message": "feat: let all compiler errors carry a Location instead of a Span (#7486)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-25T19:49:03Z",
-          "tree_id": "5bae5dff581fd8c385f830b9a295c29dc4a24575",
-          "url": "https://github.com/noir-lang/noir/commit/4fdc742369c4f0cda307b5b1904260133d1add64"
-        },
-        "date": 1740515030760,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 231.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 266.42,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 201.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 450.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 392.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 338.35,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14655,6 +14591,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b3443c124b19a909bf9cb370b4e0ebc151bb6aa3"
         },
         "date": 1741291139157,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83d7e6a074118ea081011b95e2406e7863eb583c",
+          "message": "feat: relate errors to macro built-ins errors (#7609)",
+          "timestamp": "2025-03-06T19:46:22Z",
+          "tree_id": "ee9b219006c7f2fde72f83cd069f8e96e4cbd085",
+          "url": "https://github.com/noir-lang/noir/commit/83d7e6a074118ea081011b95e2406e7863eb583c"
+        },
+        "date": 1741291811888,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
