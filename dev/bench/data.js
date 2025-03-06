@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741264189633,
+  "lastUpdate": 1741264485318,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11542,70 +11542,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6f79fd1c8617fc01e9138168c888018fe4492752",
-          "message": "feat(experimental): Support struct constructors in match patterns (#7489)",
-          "timestamp": "2025-02-24T15:58:15Z",
-          "tree_id": "951eebb4c1187b32a9a7b9dea80c567f92e6247c",
-          "url": "https://github.com/noir-lang/noir/commit/6f79fd1c8617fc01e9138168c888018fe4492752"
-        },
-        "date": 1740414160879,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 441.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.77,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14695,6 +14631,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d047779cfdc013c9ad4da693d3e8fa17658fc106"
         },
         "date": 1741255356920,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3531474040bed8e56b1682c65339ecdd99587b3d",
+          "message": "feat: Sync from aztec-packages (#7606)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
+          "timestamp": "2025-03-06T12:07:31Z",
+          "tree_id": "27f1182cb235bac01c68444396faa1c6bebfe61c",
+          "url": "https://github.com/noir-lang/noir/commit/3531474040bed8e56b1682c65339ecdd99587b3d"
+        },
+        "date": 1741264483142,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
