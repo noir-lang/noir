@@ -7,11 +7,11 @@ use crate::{
 };
 
 use super::{
-    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
     Parser,
+    parse_many::{separated_by_comma_until_right_brace, separated_by_comma_until_right_paren},
 };
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Enum = 'enum' identifier Generics '{' EnumVariant* '}'
     ///
     /// EnumField = OuterDocComments identifier ':' Type
@@ -22,8 +22,6 @@ impl<'a> Parser<'a> {
         start_location: Location,
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
-
-        self.push_error(ParserErrorReason::ExperimentalFeature("Enums"), start_location);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
@@ -125,8 +123,8 @@ mod tests {
         ast::{IntegerBitSize, NoirEnumeration, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
-            parser::tests::{expect_no_errors, get_source_with_error_span},
             ItemKind, ParserErrorReason,
+            parser::tests::{expect_no_errors, get_source_with_error_span},
         },
     };
 
@@ -218,7 +216,7 @@ mod tests {
     fn parse_unclosed_enum() {
         let src = "enum Foo {";
         let (module, errors) = parse_program_with_dummy_file(src);
-        assert_eq!(errors.len(), 2);
+        assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
         let ItemKind::Enum(noir_enum) = &item.kind else {
@@ -256,7 +254,8 @@ mod tests {
         assert_eq!("Foo", noir_enum.name.to_string());
         assert_eq!(noir_enum.variants.len(), 1);
 
-        let error = &errors[1];
+        assert_eq!(errors.len(), 1);
+        let error = &errors[0];
         assert_eq!(error.to_string(), "Expected an identifier but found '42'");
     }
 }

@@ -67,11 +67,7 @@ mod completion_tests {
         .await
         .expect("Could not execute on_completion_request");
 
-        if let Some(CompletionResponse::Array(items)) = response {
-            items
-        } else {
-            vec![]
-        }
+        if let Some(CompletionResponse::Array(items)) = response { items } else { vec![] }
     }
 
     fn assert_items_match(mut items: Vec<CompletionItem>, mut expected: Vec<CompletionItem>) {
@@ -799,9 +795,11 @@ mod completion_tests {
         "#;
 
         let items = get_completions(src).await;
-        assert!(items
-            .iter()
-            .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD)));
+        assert!(
+            items
+                .iter()
+                .any(|item| item.label == "true" && item.kind == Some(CompletionItemKind::KEYWORD))
+        );
     }
 
     #[test]
@@ -2117,17 +2115,17 @@ fn main() {
     async fn test_auto_import_from_std() {
         let src = r#"
             fn main() {
-                compute_merkle_roo>|<
+                zeroe>|<
             }
         "#;
         let items = get_completions(src).await;
         assert_eq!(items.len(), 1);
 
         let item = &items[0];
-        assert_eq!(item.label, "compute_merkle_root(…)");
+        assert_eq!(item.label, "zeroed()");
         assert_eq!(
             item.label_details.as_ref().unwrap().detail,
-            Some("(use std::merkle::compute_merkle_root)".to_string()),
+            Some("(use std::mem::zeroed)".to_string()),
         );
     }
 
@@ -2659,8 +2657,8 @@ fn main() {
     }
 
     #[test]
-    async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime(
-    ) {
+    async fn test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime()
+     {
         let src = r#"
         comptime fn foobar() -> Quoted {}
 

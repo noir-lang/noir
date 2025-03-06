@@ -1,5 +1,5 @@
-use fm::FileMap;
-use noirc_errors::{CustomDiagnostic, Span};
+use fm::{FileId, FileMap};
+use noirc_errors::CustomDiagnostic;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -9,8 +9,8 @@ pub(crate) enum CliError {
 }
 
 /// Report an error from the CLI that is not reliant on a stack trace.
-pub(crate) fn report_error(message: String) -> Result<(), CliError> {
-    let error = CustomDiagnostic::simple_error(message.clone(), String::new(), Span::default());
-    noirc_errors::reporter::report(&FileMap::default(), &error, None, false);
+pub(crate) fn report_error(message: &str) -> Result<(), CliError> {
+    let error = CustomDiagnostic::from_message(message, FileId::dummy());
+    noirc_errors::reporter::report(&FileMap::default(), &error, false);
     Err(CliError::Generic)
 }

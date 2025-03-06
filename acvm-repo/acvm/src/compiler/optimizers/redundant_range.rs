@@ -1,10 +1,10 @@
 use acir::{
+    AcirField,
     circuit::{
-        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
         Circuit, Opcode,
+        opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
     },
     native_types::Witness,
-    AcirField,
 };
 use std::collections::{BTreeMap, HashSet};
 
@@ -163,12 +163,12 @@ mod tests {
 
     use crate::compiler::optimizers::redundant_range::RangeOptimizer;
     use acir::{
+        FieldElement,
         circuit::{
-            opcodes::{BlackBoxFuncCall, FunctionInput},
             Circuit, ExpressionWidth, Opcode, PublicInputs,
+            opcodes::{BlackBoxFuncCall, FunctionInput},
         },
         native_types::{Expression, Witness},
-        FieldElement,
     };
 
     fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {

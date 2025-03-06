@@ -198,6 +198,9 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     // Allow more bytecode in exchange to catch illegal states.
     nargo.arg("--enable-brillig-debug-assertions");
 
+    // Enable enums as an unstable feature
+    nargo.arg("-Zenums");
+
     if force_brillig.0 {{
         nargo.arg("--force-brillig");
 
@@ -435,7 +438,6 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             &test_dir,
             "compile",
             r#"
-                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:").not());
             "#,
             &MatrixConfig::default(),
@@ -465,7 +467,6 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             "compile",
             r#"
-                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:"));
             "#,
             &MatrixConfig::default(),

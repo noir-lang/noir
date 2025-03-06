@@ -7,22 +7,21 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::Format;
+use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_artifacts_info::{
-    count_opcodes_and_gates_in_program, show_info_report, FunctionInfo, InfoReport, ProgramInfo,
+    FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report,
 };
 use noirc_driver::CompileOptions;
-use prettytable::{row, Row};
+use prettytable::{Row, row};
 use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::errors::CliError;
 
 use super::{
-    compile_cmd::{compile_workspace_full, get_target_width},
-    fs::{inputs::read_inputs_from_file, program::read_program_from_file},
     LockType, PackageOptions, WorkspaceCommand,
+    compile_cmd::{compile_workspace_full, get_target_width},
 };
 
 /// Provides detailed information on each of a program's function (represented by a single circuit)
@@ -75,7 +74,7 @@ pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), Cli
         .filter(|package| package.is_binary())
         .map(|package| -> Result<(Package, ProgramArtifact), CliError> {
             let program_artifact_path = workspace.package_build_path(package);
-            let program = read_program_from_file(program_artifact_path)?;
+            let program = read_program_from_file(&program_artifact_path)?;
             Ok((package.clone(), program))
         })
         .collect::<Result<_, _>>()?;
@@ -144,9 +143,7 @@ fn profile_brillig_execution(
     for (package, program_artifact) in binary_packages.iter() {
         // Parse the initial witness values from Prover.toml or Prover.json
         let (inputs_map, _) = read_inputs_from_file(
-            &package.root_dir,
-            prover_name,
-            Format::Toml,
+            &package.root_dir.join(prover_name).with_extension("toml"),
             &program_artifact.abi,
         )?;
         let initial_witness = program_artifact.abi.encode(&inputs_map, None)?;

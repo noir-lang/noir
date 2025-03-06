@@ -1,4 +1,4 @@
-use acir::circuit::{brillig::BrilligInputs, opcodes::BlockId, Circuit, Opcode};
+use acir::circuit::{Circuit, Opcode, brillig::BrilligInputs, opcodes::BlockId};
 use std::collections::HashSet;
 
 /// `UnusedMemoryOptimizer` will remove initializations of memory blocks which are unused.

@@ -1,9 +1,10 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::ParsedModule;
+use crate::signed_field::SignedField;
 use crate::{
     ast,
-    ast::{Path, PathKind},
+    ast::Path,
     parser::{Item, ItemKind},
 };
 use fm::FileId;
@@ -123,7 +124,7 @@ impl DebugInstrumenter {
         let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
-        self.walk_scope(&mut statements, func.location.span);
+        self.walk_scope(&mut statements, func.location);
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");
@@ -139,7 +140,7 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -166,8 +167,8 @@ impl DebugInstrumenter {
             }
         };
 
-        let span = Span::empty(span.end());
-        let location = Location::new(span, FileId::dummy());
+        let span = Span::empty(location.span.end());
+        let location = Location::new(span, location.file);
 
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
@@ -179,11 +180,10 @@ impl DebugInstrumenter {
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path {
-                        segments: vec![PathSegment::from(ident("__debug_expr", location))],
-                        kind: PathKind::Plain,
+                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                        vec![PathSegment::from(ident("__debug_expr", location))],
                         location,
-                    }),
+                    )),
                     location,
                 }),
                 location,
@@ -382,9 +382,9 @@ impl DebugInstrumenter {
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
-            ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
+            ast::ExpressionKind::Block(ast::BlockExpression { statements, .. }) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.location.span);
+                self.walk_scope(statements, expr.location);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
@@ -396,19 +396,19 @@ impl DebugInstrumenter {
             ast::ExpressionKind::Call(call_expr) => {
                 // TODO: push a stack frame or something here?
                 self.walk_expr(&mut call_expr.func);
-                call_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                call_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::MethodCall(mc_expr) => {
                 // TODO: also push a stack frame here
                 self.walk_expr(&mut mc_expr.object);
-                mc_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                mc_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::Constructor(c_expr) => {
-                c_expr.fields.iter_mut().for_each(|(_id, ref mut expr)| {
+                c_expr.fields.iter_mut().for_each(|(_id, expr)| {
                     self.walk_expr(expr);
                 });
             }
@@ -492,7 +492,7 @@ impl DebugInstrumenter {
             ast::StatementKind::Semi(expr) => {
                 self.walk_expr(expr);
             }
-            ast::StatementKind::For(ref mut for_stmt) => {
+            ast::StatementKind::For(for_stmt) => {
                 self.walk_for(for_stmt);
             }
             _ => {} // Constrain, Error
@@ -633,11 +633,10 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident("__debug_var_assign", location))],
-                kind: PathKind::Plain,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident("__debug_var_assign", location))],
                 location,
-            }),
+            )),
             location,
         }),
         is_macro_call: false,
@@ -649,11 +648,10 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident("__debug_var_drop", location))],
-                kind: PathKind::Plain,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident("__debug_var_drop", location))],
                 location,
-            }),
+            )),
             location,
         }),
         is_macro_call: false,
@@ -674,14 +672,10 @@ fn build_assign_member_stmt(
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident(
-                    &format!["__debug_member_assign_{arity}"],
-                    location,
-                ))],
-                kind: PathKind::Plain,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
                 location,
-            }),
+            )),
             location,
         }),
         is_macro_call: false,
@@ -698,11 +692,10 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
-                kind: PathKind::Plain,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
                 location,
-            }),
+            )),
             location,
         }),
         is_macro_call: false,
@@ -767,21 +760,22 @@ fn ident(s: &str, location: Location) -> ast::Ident {
 
 fn id_expr(id: &ast::Ident) -> ast::Expression {
     ast::Expression {
-        kind: ast::ExpressionKind::Variable(Path {
-            segments: vec![PathSegment::from(id.clone())],
-            kind: PathKind::Plain,
-            location: id.location(),
-        }),
+        kind: ast::ExpressionKind::Variable(Path::plain(
+            vec![PathSegment::from(id.clone())],
+            id.location(),
+        )),
         location: id.location(),
     }
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), false));
+    let value = SignedField::positive(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0));
+    let value = SignedField::from_signed(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }

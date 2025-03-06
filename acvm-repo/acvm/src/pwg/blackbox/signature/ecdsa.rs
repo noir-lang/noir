@@ -1,16 +1,16 @@
 use acir::{
+    AcirField,
     circuit::opcodes::FunctionInput,
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 
 use crate::{
+    OpcodeResolutionError,
     pwg::{
         blackbox::utils::{to_u8_array, to_u8_vec},
         insert_value,
     },
-    OpcodeResolutionError,
 };
 
 pub(crate) fn secp256k1_prehashed<F: AcirField>(

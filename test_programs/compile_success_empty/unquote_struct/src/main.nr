@@ -1,3 +1,5 @@
+use std::meta::unquote;
+
 fn main() {
     let foo = Foo { x: 4, y: 4 };
     foo.assert_equal();
@@ -20,4 +22,17 @@ comptime fn output_struct(f: FunctionDefinition) -> Quoted {
             }
         }
     }
+}
+
+// The following code proves that `Bar::<i32>` can be unquoted
+// into a constructor position without losing its generic types.
+
+pub struct Bar<T> {}
+
+pub fn bar() {
+    let _ = comptime {
+        let x = quote { Bar::<i32> };
+        let q = quote { $x {} };
+        unquote!(q)
+    };
 }

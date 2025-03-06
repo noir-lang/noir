@@ -4,6 +4,7 @@ use thiserror::Error;
 pub mod layers;
 pub mod mocker;
 pub mod print;
+pub mod transcript;
 
 pub mod default;
 #[cfg(feature = "rpc")]
@@ -83,4 +84,7 @@ pub enum ForeignCallError {
 
     #[error("Assert message resolved after an unsatisfied constrain. {0}")]
     ResolvedAssertMessage(String),
+
+    #[error("Failed to replay oracle transcript: {0}")]
+    TranscriptError(String),
 }

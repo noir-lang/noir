@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location, Span};
+use noirc_errors::{CustomDiagnostic, Location};
 use thiserror::Error;
 
 use crate::graph::CrateId;
@@ -44,17 +44,36 @@ pub enum PathResolutionError {
     #[error("{0} is private and not visible from the current module")]
     Private(Ident),
     #[error("There is no super module")]
-    NoSuper(Span),
+    NoSuper(Location),
     #[error("turbofish (`::<_>`) not allowed on {item}")]
-    TurbofishNotAllowedOnItem { item: String, span: Span },
+    TurbofishNotAllowedOnItem { item: String, location: Location },
     #[error("{ident} is a {kind}, not a module")]
     NotAModule { ident: Ident, kind: &'static str },
-    #[error("trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it")]
+    #[error(
+        "trait `{trait_name}` which provides `{ident}` is implemented but not in scope, please import it"
+    )]
     TraitMethodNotInScope { ident: Ident, trait_name: String },
     #[error("Could not resolve '{ident}' in path")]
     UnresolvedWithPossibleTraitsToImport { ident: Ident, traits: Vec<String> },
     #[error("Multiple applicable items in scope")]
     MultipleTraitsInScope { ident: Ident, traits: Vec<String> },
+}
+
+impl PathResolutionError {
+    pub fn location(&self) -> Location {
+        match self {
+            PathResolutionError::NoSuper(location)
+            | PathResolutionError::TurbofishNotAllowedOnItem { location, .. } => *location,
+            PathResolutionError::Unresolved(ident)
+            | PathResolutionError::Private(ident)
+            | PathResolutionError::NotAModule { ident, .. }
+            | PathResolutionError::TraitMethodNotInScope { ident, .. }
+            | PathResolutionError::MultipleTraitsInScope { ident, .. }
+            | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. } => {
+                ident.location()
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -75,43 +94,48 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
     fn from(error: &'a PathResolutionError) -> Self {
         match &error {
             PathResolutionError::Unresolved(ident) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             // This will be upgraded to an error in future versions
             PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
                 format!("{ident} is private"),
-                ident.span(),
+                ident.location(),
             ),
-            PathResolutionError::NoSuper(span) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            PathResolutionError::NoSuper(location) => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
-            PathResolutionError::TurbofishNotAllowedOnItem { item: _, span } => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), *span)
+            PathResolutionError::TurbofishNotAllowedOnItem { item: _, location } => {
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             PathResolutionError::NotAModule { ident, kind: _ } => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::TraitMethodNotInScope { ident, .. } => {
-                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.span())
+                CustomDiagnostic::simple_warning(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
-                    format!("The following traits which provide `{ident}` are implemented but not in scope: {}", traits.join(", ")),
-                    ident.span(),
+                    format!(
+                        "The following traits which provide `{ident}` are implemented but not in scope: {}",
+                        traits.join(", ")
+                    ),
+                    ident.location(),
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
-                let traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
                         "All these trait which provide `{ident}` are implemented and in scope: {}",
                         traits.join(", ")
                     ),
-                    ident.span(),
+                    ident.location(),
                 )
             }
         }
@@ -162,7 +186,7 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
     references_tracker: Option<ReferencesTracker<'references_tracker>>,
 }
 
-impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 'references_tracker> {
+impl PathResolutionTargetResolver<'_, '_> {
     fn resolve(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path),
@@ -227,9 +251,7 @@ impl<'def_maps, 'references_tracker> PathResolutionTargetResolver<'def_maps, 're
 
     fn resolve_super_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
         let Some(parent_module_id) = get_module(self.def_maps, self.importing_module).parent else {
-            let span_start = path.location.span.start();
-            let span = Span::from(span_start..span_start + 5); // 5 == "super".len()
-            return Err(PathResolutionError::NoSuper(span));
+            return Err(PathResolutionError::NoSuper(path.kind_location));
         };
 
         let current_module =

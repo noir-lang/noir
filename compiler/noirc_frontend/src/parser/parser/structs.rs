@@ -6,9 +6,9 @@ use crate::{
     token::{Attribute, SecondaryAttribute, Token},
 };
 
-use super::{parse_many::separated_by_comma_until_right_brace, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Struct = 'struct' identifier Generics '{' StructField* '}'
     ///
     /// StructField = OuterDocComments identifier ':' Type
@@ -132,11 +132,11 @@ mod tests {
         ast::{IntegerBitSize, NoirStruct, Signedness, UnresolvedGeneric, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
+            ItemKind, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error, get_single_error_reason,
                 get_source_with_error_span,
             },
-            ItemKind, ParserErrorReason,
         },
     };
 

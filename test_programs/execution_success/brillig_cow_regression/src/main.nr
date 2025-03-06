@@ -172,6 +172,6 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
         }
     }
 
-    let sha_digest = std::hash::sha256(hash_input_flattened);
-    U256::from_bytes32(sha_digest).to_u128_limbs()
+    let blake3_digest = std::hash::blake3(hash_input_flattened);
+    U256::from_bytes32(blake3_digest).to_u128_limbs()
 }
