@@ -1,14 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use acir::AcirField;
 use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{Circuit, Opcode, OpcodeLocation};
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 
+use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_artifacts::debug::DebugArtifact;
 
 use crate::flamegraph::{CompilationSample, FlamegraphGenerator, InfernoFlamegraphGenerator};
-use crate::fs::read_program_from_file;
 use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 
 /// Generates a flamegraph mapping ACIR opcodes to their associated locations in the source code.
@@ -16,11 +17,11 @@ use crate::opcode_formatter::{format_acir_opcode, format_brillig_opcode};
 pub(crate) struct OpcodesFlamegraphCommand {
     /// The path to the artifact JSON file
     #[clap(long, short)]
-    artifact_path: String,
+    artifact_path: PathBuf,
 
     /// The output folder for the flamegraph svg files
     #[clap(long, short)]
-    output: String,
+    output: PathBuf,
 
     /// Whether to skip brillig functions
     #[clap(long, short, action)]
@@ -29,9 +30,9 @@ pub(crate) struct OpcodesFlamegraphCommand {
 
 pub(crate) fn run(args: OpcodesFlamegraphCommand) -> eyre::Result<()> {
     run_with_generator(
-        &PathBuf::from(args.artifact_path),
+        &args.artifact_path,
         &InfernoFlamegraphGenerator { count_name: "opcodes".to_string() },
-        &PathBuf::from(args.output),
+        &args.output,
         args.skip_brillig,
     )
 }
@@ -134,7 +135,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
     Ok(())
 }
 
-fn locate_brillig_call<F>(
+fn locate_brillig_call<F: AcirField>(
     brillig_fn_index: usize,
     acir_functions: &[Circuit<F>],
 ) -> Option<(usize, usize)> {
@@ -142,7 +143,7 @@ fn locate_brillig_call<F>(
         for (acir_opcode_index, acir_opcode) in acir_fn.opcodes.iter().enumerate() {
             match acir_opcode {
                 Opcode::BrilligCall { id, .. } if id.as_usize() == brillig_fn_index => {
-                    return Some((acir_fn_index, acir_opcode_index))
+                    return Some((acir_fn_index, acir_opcode_index));
                 }
                 _ => {}
             }
@@ -154,13 +155,13 @@ fn locate_brillig_call<F>(
 #[cfg(test)]
 mod tests {
     use acir::{
-        circuit::{
-            brillig::{BrilligBytecode, BrilligFunctionId},
-            Circuit, Opcode, Program,
-        },
         FieldElement,
+        circuit::{
+            Circuit, Opcode, Program,
+            brillig::{BrilligBytecode, BrilligFunctionId},
+        },
     };
-    use color_eyre::eyre::{self};
+    use color_eyre::eyre;
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};

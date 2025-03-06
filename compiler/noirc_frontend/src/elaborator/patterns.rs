@@ -3,9 +3,10 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath, UnresolvedType,
-        ERROR_IDENT,
+        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
+        UnresolvedType,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -17,12 +18,11 @@ use crate::{
         stmt::HirPattern,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
-    DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
 };
 
-use super::{path_resolution::PathResolutionItem, Elaborator, ResolverMeta};
+use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
@@ -834,13 +834,13 @@ impl<'context> Elaborator<'context> {
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item))
+                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
                 Err(error) => error,
             },

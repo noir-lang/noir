@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
-use acvm::acir::AcirField;
 use acvm::FieldElement;
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
@@ -11,8 +11,8 @@ use super::{
     MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
-use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::elaborator::Turbofish;
+use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -505,7 +505,11 @@ impl PathSegment {
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
-        Span::from(self.ident.span().end()..self.location.span.end())
+        if self.ident.location().file == self.location.file {
+            Span::from(self.ident.span().end()..self.location.span.end())
+        } else {
+            self.location.span
+        }
     }
 
     pub fn turbofish_location(&self) -> Location {

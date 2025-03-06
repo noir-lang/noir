@@ -9,7 +9,7 @@ use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     #[cfg(test)]
     pub(crate) fn parse_path_or_error(&mut self) -> Path {
         if let Some(path) = self.parse_path() {
@@ -91,11 +91,7 @@ impl<'a> Parser<'a> {
             start_location,
         );
 
-        if path.segments.is_empty() && path.kind == PathKind::Plain {
-            None
-        } else {
-            Some(path)
-        }
+        if path.segments.is_empty() && path.kind == PathKind::Plain { None } else { Some(path) }
     }
 
     /// Parses a path assuming the path's kind (plain, `crate::`, `super::`, etc.)
@@ -125,7 +121,11 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, location });
+                segments.push(PathSegment {
+                    ident,
+                    generics,
+                    location: self.location_since(location),
+                });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))
@@ -214,8 +214,8 @@ mod tests {
     use crate::{
         ast::{Path, PathKind},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 

@@ -1,3 +1,4 @@
+//! This module is for commands that we might want to invoke from `nargo` as-is.
 use std::path::PathBuf;
 
 use color_eyre::eyre;

@@ -8,7 +8,7 @@ use crate::config::ImportsGranularity;
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_items(&mut self, mut items: Vec<Item>, mut ignore_next: bool) {
         // Reverse the items because we'll be processing them one by one, and it's a bit
         // more efficient to pop than to shift.

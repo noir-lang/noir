@@ -1,23 +1,23 @@
 use acvm::{
+    FieldElement,
     acir::{
+        AcirField,
         brillig::{
             BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, HeapVector,
             MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
-        AcirField,
     },
-    FieldElement,
 };
 
 use crate::ssa::ir::function::FunctionId;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     artifact::{Label, UnresolvedJumpLocation},
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     procedures::ProcedureId,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 /// Low level instructions of the brillig IR, used by the brillig ir codegens and brillig_gen
@@ -73,6 +73,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             ),
             op,
         );
+    }
+
+    /// Insert a conditional move instruction
+    pub(crate) fn conditional_move_instruction(
+        &mut self,
+        condition: SingleAddrVariable,
+        then_address: SingleAddrVariable,
+        else_address: SingleAddrVariable,
+        destination: SingleAddrVariable,
+    ) {
+        self.debug_show.conditional_mov_instruction(
+            destination.address,
+            then_address.address,
+            else_address.address,
+            condition.address,
+        );
+        self.push_opcode(BrilligOpcode::ConditionalMov {
+            destination: destination.address,
+            source_a: then_address.address,
+            source_b: else_address.address,
+            condition: condition.address,
+        });
     }
 
     fn binary(

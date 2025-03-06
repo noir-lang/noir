@@ -3,9 +3,9 @@ use crate::{
     token::{DocStyle, Token, TokenKind},
 };
 
-use super::{parse_many::without_separator, Parser};
+use super::{Parser, parse_many::without_separator};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// InnerDocComments = inner_doc_comment*
     pub(super) fn parse_inner_doc_comments(&mut self) -> Vec<String> {
         self.parse_many("inner doc comments", without_separator(), Self::parse_inner_doc_comment)
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{parser::tests::expect_no_errors, Parser};
+    use crate::parser::{Parser, parser::tests::expect_no_errors};
 
     #[test]
     fn parses_inner_doc_comments() {

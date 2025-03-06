@@ -2,12 +2,13 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::blackbox_solver::BigIntSolverWithId;
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
@@ -20,9 +21,10 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
+use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
-use crate::TypeVariable;
 use crate::{
+    Shared, Type, TypeBinding, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -37,11 +39,10 @@ use crate::{
         types::Kind,
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId},
-    Shared, Type, TypeBinding, TypeBindings,
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{unwrap_rc, Closure, Value};
+use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod foreign;
@@ -632,7 +633,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     }
                 }?;
 
-                self.evaluate_integer(value, false, id)
+                self.evaluate_integer(value.into(), id)
             }
         }
     }
@@ -641,9 +642,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value, is_negative) => {
-                self.evaluate_integer(value, is_negative, id)
-            }
+            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
             HirLiteral::FmtStr(fragments, captures, _length) => {
                 self.evaluate_format_string(fragments, captures, id)
@@ -703,113 +702,85 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::FormatString(Rc::new(result), typ))
     }
 
-    fn evaluate_integer(
-        &self,
-        value: FieldElement,
-        is_negative: bool,
-        id: ExprId,
-    ) -> IResult<Value> {
+    fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
         if let Type::FieldElement = &typ {
-            let value = if is_negative { -value } else { value };
-            Ok(Value::Field(value))
+            Ok(Value::Field(value.into()))
         } else if let Type::Integer(sign, bit_size) = &typ {
             match (sign, bit_size) {
                 (Signedness::Unsigned, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Unsigned, IntegerBitSize::Eight) => {
-                    let value: u8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { 0u8.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U8(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
-                    let value: u16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { 0u16.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U16(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
-                    let value: u32 =
-                        value.try_to_u32().ok_or(InterpreterError::IntegerOutOfRangeForType {
-                            value,
-                            typ,
-                            location,
-                        })?;
-                    let value = if is_negative { 0u32.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U32(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
-                    let value: u64 =
-                        value.try_to_u64().ok_or(InterpreterError::IntegerOutOfRangeForType {
-                            value,
-                            typ,
-                            location,
-                        })?;
-                    let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
+                    let value = value.try_to_unsigned().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::U64(value))
                 }
                 (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
-                    let value: u128 = value.try_into_u128().ok_or(
+                    let value: u128 = value.try_to_unsigned().ok_or(
                         InterpreterError::IntegerOutOfRangeForType { value, typ, location },
                     )?;
-                    let value = if is_negative { 0u128.wrapping_sub(value) } else { value };
                     Ok(Value::U128(value))
                 }
                 (Signedness::Signed, IntegerBitSize::One) => {
                     return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
                 (Signedness::Signed, IntegerBitSize::Eight) => {
-                    let value: i8 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I8(value))
                 }
                 (Signedness::Signed, IntegerBitSize::Sixteen) => {
-                    let value: i16 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I16(value))
                 }
                 (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
-                    let value: i32 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I32(value))
                 }
                 (Signedness::Signed, IntegerBitSize::SixtyFour) => {
-                    let value: i64 =
-                        value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or(
-                            InterpreterError::IntegerOutOfRangeForType { value, typ, location },
-                        )?;
-                    let value = if is_negative { -value } else { value };
+                    let value = value.try_to_signed().ok_or(
+                        InterpreterError::IntegerOutOfRangeForType { value, typ, location },
+                    )?;
                     Ok(Value::I64(value))
                 }
                 (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                    todo!()
+                    return Err(InterpreterError::TypeUnsupported { typ, location });
                 }
             }
         } else if let Type::TypeVariable(variable) = &typ {
             if variable.is_integer_or_field() {
-                Ok(Value::Field(value))
+                Ok(Value::Field(value.into()))
             } else if variable.is_integer() {
-                let value: u64 = value
-                    .try_to_u64()
+                let value = value
+                    .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-                let value = if is_negative { 0u64.wrapping_sub(value) } else { value };
                 Ok(Value::U64(value))
             } else {
                 Err(InterpreterError::NonIntegerIntegerLiteral { typ, location })
@@ -1256,6 +1227,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Field(value) => {
                 value.try_to_u64().and_then(|value| value.try_into().ok()).ok_or_else(|| {
                     let typ = Type::default_int_type();
+                    let value = SignedField::positive(value);
                     InterpreterError::IntegerOutOfRangeForType { value, typ, location }
                 })?
             }

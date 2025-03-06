@@ -11,8 +11,8 @@ use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{Generics, Type};
 
-use crate::hir::resolution::import::{resolve_import, ImportDirective};
 use crate::hir::Context;
+use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
 use crate::ast::{Expression, NoirEnumeration};
 use crate::node_interner::{
@@ -205,6 +205,13 @@ impl CompilationError {
             CompilationError::ComptimeError(error) => error.location(),
             CompilationError::DebugComptimeScopeNotFound(_, location) => *location,
         }
+    }
+
+    pub(crate) fn is_error(&self) -> bool {
+        // This is a bit expensive but not all error types have a `is_warning` method
+        // and it'd lead to code duplication to add them. `CompilationError::is_error`
+        // also isn't expected to be called too often.
+        CustomDiagnostic::from(self).is_error()
     }
 }
 

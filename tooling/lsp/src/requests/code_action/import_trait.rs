@@ -11,13 +11,13 @@ use crate::{
     modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
 };
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn import_trait_in_method_call(&mut self, method_call: &MethodCallExpression) {
         // First see if the method name already points to a function.
         let name_location = Location::new(method_call.method_name.span(), self.file);
@@ -42,7 +42,7 @@ impl<'a> CodeActionFinder<'a> {
         };
 
         let trait_methods =
-            self.interner.lookup_trait_methods(&typ, &method_call.method_name.0.contents, true);
+            self.interner.lookup_trait_methods(typ, &method_call.method_name.0.contents, true);
         let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
 
         for trait_id in trait_ids {

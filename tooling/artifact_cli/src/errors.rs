@@ -1,6 +1,10 @@
 use acir::FieldElement;
-use nargo::NargoError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use nargo::{NargoError, foreign_calls::transcript::TranscriptError};
+use noirc_abi::{
+    AbiReturnType,
+    errors::{AbiError, InputParserError},
+    input_parser::InputValue,
+};
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -35,6 +39,10 @@ pub enum CliError {
     #[error("Failed to deserialize inputs")]
     InputDeserializationError(#[from] InputParserError),
 
+    /// Error related to oracle transcript deserialization
+    #[error(transparent)]
+    TranscriptError(#[from] TranscriptError),
+
     /// Error related to ABI encoding
     #[error(transparent)]
     AbiError(#[from] AbiError),
@@ -61,4 +69,16 @@ pub enum CliError {
 
     #[error("Failed to serialize output witness: {0}")]
     OutputWitnessSerializationFailed(#[from] toml::ser::Error),
+
+    #[error("Unexpected return value: expected {expected:?}; got {actual:?}")]
+    UnexpectedReturn { expected: InputValue, actual: Option<InputValue> },
+
+    #[error("Missing return witnesses; expected {expected:?}")]
+    MissingReturn { expected: AbiReturnType },
+
+    #[error("Missing contract function name; options: {names:?}")]
+    MissingContractFn { names: Vec<String> },
+
+    #[error("Unknown contract function '{name}'; options: {names:?}")]
+    UnknownContractFn { name: String, names: Vec<String> },
 }

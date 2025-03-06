@@ -1,6 +1,6 @@
 use acir::{
-    brillig::{BitSize, IntegerBitSize, MemoryAddress},
     AcirField,
+    brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
@@ -18,7 +18,9 @@ pub enum MemoryValue<F> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryTypeError {
-    #[error("Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}")]
+    #[error(
+        "Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
+    )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
 }
 

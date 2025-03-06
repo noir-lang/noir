@@ -1,9 +1,10 @@
-use crate::{opcodes::HeapVector, HeapArray, MemoryAddress};
+use crate::{HeapArray, MemoryAddress, opcodes::HeapVector};
 use serde::{Deserialize, Serialize};
 
 /// These opcodes provide an equivalent of ACIR blackbox functions.
 /// They are implemented as native functions in the VM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlackBoxOp {
     /// Encrypts a message using AES128.
     AES128Encrypt {

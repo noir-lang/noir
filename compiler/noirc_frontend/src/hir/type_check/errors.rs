@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use acvm::FieldElement;
@@ -13,6 +14,10 @@ use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
+use crate::signed_field::SignedField;
+
+/// Rust also only shows 3 maximum, even for short patterns.
+pub const MAX_MISSING_CASES: usize = 3;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum Source {
@@ -42,8 +47,8 @@ pub enum TypeCheckError {
     DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
-    #[error("The value `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, location: Location },
+    #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: SignedField, ty: Type, range: String, location: Location },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
@@ -62,7 +67,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected} is not the same as {actual}")]
     TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
-    TypeKindMismatch { expected_kind: String, expr_kind: String, expr_location: Location },
+    TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
     TypeCanonicalizationMismatch {
         to: Type,
@@ -99,6 +104,10 @@ pub enum TypeCheckError {
     VariableMustBeMutable { name: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
+    #[error("Variable {name} captured in lambda must be a mutable reference")]
+    MutableCaptureWithoutRef { name: String, location: Location },
+    #[error("Mutable references to array indices are unsupported")]
+    MutableReferenceToArrayElement { location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -115,11 +124,15 @@ pub enum TypeCheckError {
     InvalidInfixOp { kind: &'static str, location: Location },
     #[error("{kind} cannot be used in a unary operation")]
     InvalidUnaryOp { kind: String, location: Location },
-    #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
+    #[error(
+        "Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
+    )]
     FieldBitwiseOp { location: Location },
     #[error("Integer cannot be used with type {typ}")]
     IntegerTypeMismatch { typ: Type, location: Location },
-    #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
+    #[error(
+        "Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first"
+    )]
     IntegerAndFieldBinaryOperation { location: Location },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { location: Location },
@@ -127,9 +140,13 @@ pub enum TypeCheckError {
     FieldNot { location: Location },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { location: Location },
-    #[error("The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first")]
+    #[error(
+        "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
+    )]
     InvalidShiftSize { location: Location },
-    #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
+    #[error(
+        "The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified"
+    )]
     AmbiguousBitWidth { location: Location },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
@@ -164,7 +181,9 @@ pub enum TypeCheckError {
     },
     #[error("No matching impl found")]
     NoMatchingImplFound(NoMatchingImplFoundError),
-    #[error("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope")]
+    #[error(
+        "Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope"
+    )]
     UnneededTraitConstraint { trait_name: String, typ: Type, location: Location },
     #[error(
         "Expected {expected_count} generic(s) from this function, but {actual_count} were provided"
@@ -184,7 +203,9 @@ pub enum TypeCheckError {
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { location: Location },
-    #[error("Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block")]
+    #[error(
+        "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
+    )]
     Unsafe { location: Location },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
     UnsafeFn { location: Location },
@@ -222,6 +243,13 @@ pub enum TypeCheckError {
     UnnecessaryUnsafeBlock { location: Location },
     #[error("Unnecessary `unsafe` block")]
     NestedUnsafeBlock { location: Location },
+    #[error("Unreachable match case")]
+    UnreachableCase { location: Location },
+    #[error("Missing cases")]
+    MissingCases { cases: BTreeSet<String>, location: Location },
+    /// This error is used for types like integers which have too many variants to enumerate
+    #[error("Missing cases: `{typ}` is non-empty")]
+    MissingManyCases { typ: String, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -266,6 +294,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
+            | TypeCheckError::MutableCaptureWithoutRef { location, .. }
+            | TypeCheckError::MutableReferenceToArrayElement { location }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -308,9 +338,14 @@ impl TypeCheckError {
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
+            | TypeCheckError::UnreachableCase { location }
+            | TypeCheckError::MissingCases { location, .. }
+            | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location } => *location,
+
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
+
             TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
             }
@@ -356,11 +391,37 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 )
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
-                Diagnostic::simple_error(
-                    format!("Expected kind {expected_kind}, found kind {expr_kind}"),
-                    String::new(),
-                    *expr_location,
-                )
+                // Try to improve the error message for some kind combinations
+                match (expected_kind, expr_kind) {
+                    (Kind::Normal, Kind::Numeric(_)) => {
+                        Diagnostic::simple_error(
+                            "Expected type, found numeric generic".into(),
+                            "not a type".into(),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(typ), Kind::Normal) => {
+                        Diagnostic::simple_error(
+                            "Type provided when a numeric generic was expected".into(),
+                            format!("the numeric generic is not of type `{typ}`"),
+                            *expr_location,
+                        )
+                    }
+                    (Kind::Numeric(expected_type), Kind::Numeric(found_type)) => {
+                        Diagnostic::simple_error(
+                            format!("The numeric generic is not of type `{expected_type}`"),
+                            format!("expected `{expected_type}`, found `{found_type}`"),
+                            *expr_location,
+                        )
+                    }
+                    _ => {
+                        Diagnostic::simple_error(
+                            format!("Expected kind {expected_kind}, found kind {expr_kind}"),
+                            String::new(),
+                            *expr_location,
+                        )
+                    }
+                }
             }
             TypeCheckError::TypeCanonicalizationMismatch { to, from, to_value, from_value, location } => {
                 Diagnostic::simple_error(
@@ -463,6 +524,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
+            TypeCheckError::MutableCaptureWithoutRef { name, location } => Diagnostic::simple_error(
+                format!("Mutable variable {name} captured in lambda must be a mutable reference"),
+                "Use '&mut' instead of 'mut' to capture a mutable variable.".to_string(),
+                *location,
+            ),
+            TypeCheckError::MutableReferenceToArrayElement { location } => {
+                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
+            },
             TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
                 format!("return type is {typ}"),
@@ -527,7 +596,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location, ref note, .. } => {
+            TypeCheckError::CallDeprecated { location,  note, .. } => {
                 let primary_message = error.to_string();
                 let secondary_message = note.clone().unwrap_or_default();
 
@@ -628,6 +697,36 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     *location,
                 )
             },
+            TypeCheckError::UnreachableCase { location } => {
+                Diagnostic::simple_warning(
+                    "Unreachable match case".into(), 
+                    "This pattern is redundant with one or more prior patterns".into(),
+                    *location,
+                )
+            },
+            TypeCheckError::MissingCases { cases, location } => {
+                let s = if cases.len() == 1 { "" } else { "s" };
+
+                let mut not_shown = String::new();
+                let mut shown_cases = cases.iter()
+                    .map(|s| format!("`{s}`"))
+                    .take(MAX_MISSING_CASES)
+                    .collect::<Vec<_>>();
+
+                if cases.len() > MAX_MISSING_CASES {
+                    shown_cases.truncate(MAX_MISSING_CASES);
+                    not_shown = format!(", and {} more not shown", cases.len() - MAX_MISSING_CASES);
+                }
+
+                let shown_cases = shown_cases.join(", ");
+                let msg = format!("Missing case{s}: {shown_cases}{not_shown}");
+                Diagnostic::simple_error(msg, String::new(), *location)
+            },
+            TypeCheckError::MissingManyCases { typ, location } => {
+                let msg = format!("Missing cases: `{typ}` is non-empty");
+                let secondary = "Try adding a match-all pattern: `_`".to_string();
+                Diagnostic::simple_error(msg, secondary, *location)
+            },
         }
     }
 }
@@ -635,15 +734,15 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 impl<'a> From<&'a NoMatchingImplFoundError> for Diagnostic {
     fn from(error: &'a NoMatchingImplFoundError) -> Self {
         let constraints = &error.constraints;
-        let span = error.location;
+        let location = error.location;
 
         assert!(!constraints.is_empty());
         let msg =
             format!("No matching impl found for `{}: {}`", constraints[0].0, constraints[0].1);
-        let mut diagnostic = Diagnostic::from_message(&msg);
+        let mut diagnostic = Diagnostic::from_message(&msg, location.file);
 
         let secondary = format!("No impl for `{}: {}`", constraints[0].0, constraints[0].1);
-        diagnostic.add_secondary(secondary, span);
+        diagnostic.add_secondary(secondary, location);
 
         // These must be notes since secondaries are unordered
         for (typ, trait_name) in &constraints[1..] {

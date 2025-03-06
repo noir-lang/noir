@@ -1,6 +1,7 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::ParsedModule;
+use crate::signed_field::SignedField;
 use crate::{
     ast,
     ast::Path,
@@ -381,7 +382,7 @@ impl DebugInstrumenter {
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
-            ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
+            ast::ExpressionKind::Block(ast::BlockExpression { statements, .. }) => {
                 self.scope.push(HashMap::default());
                 self.walk_scope(statements, expr.location);
             }
@@ -395,19 +396,19 @@ impl DebugInstrumenter {
             ast::ExpressionKind::Call(call_expr) => {
                 // TODO: push a stack frame or something here?
                 self.walk_expr(&mut call_expr.func);
-                call_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                call_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::MethodCall(mc_expr) => {
                 // TODO: also push a stack frame here
                 self.walk_expr(&mut mc_expr.object);
-                mc_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                mc_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::Constructor(c_expr) => {
-                c_expr.fields.iter_mut().for_each(|(_id, ref mut expr)| {
+                c_expr.fields.iter_mut().for_each(|(_id, expr)| {
                     self.walk_expr(expr);
                 });
             }
@@ -491,7 +492,7 @@ impl DebugInstrumenter {
             ast::StatementKind::Semi(expr) => {
                 self.walk_expr(expr);
             }
-            ast::StatementKind::For(ref mut for_stmt) => {
+            ast::StatementKind::For(for_stmt) => {
                 self.walk_for(for_stmt);
             }
             _ => {} // Constrain, Error
@@ -768,11 +769,13 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), false));
+    let value = SignedField::positive(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0));
+    let value = SignedField::from_signed(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }

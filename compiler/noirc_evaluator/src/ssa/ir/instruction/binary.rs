@@ -1,4 +1,4 @@
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use num_traits::ToPrimitive as _;
 use serde::{Deserialize, Serialize};
 
@@ -140,11 +140,11 @@ impl Binary {
             };
         }
 
-        let lhs_is_zero = lhs_value.map_or(false, |lhs| lhs.is_zero());
-        let rhs_is_zero = rhs_value.map_or(false, |rhs| rhs.is_zero());
+        let lhs_is_zero = lhs_value.is_some_and(|lhs| lhs.is_zero());
+        let rhs_is_zero = rhs_value.is_some_and(|rhs| rhs.is_zero());
 
-        let lhs_is_one = lhs_value.map_or(false, |lhs| lhs.is_one());
-        let rhs_is_one = rhs_value.map_or(false, |rhs| rhs.is_one());
+        let lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
+        let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
 
         match self.operator {
             BinaryOp::Add { .. } => {
@@ -625,8 +625,8 @@ mod test {
     use proptest::prelude::*;
 
     use super::{
-        convert_signed_integer_to_field_element, truncate_field,
-        try_convert_field_element_to_signed_integer, BinaryOp,
+        BinaryOp, convert_signed_integer_to_field_element, truncate_field,
+        try_convert_field_element_to_signed_integer,
     };
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;

@@ -136,10 +136,7 @@ impl DominatorTree {
             if let Some(value) = f(block_id) {
                 return Some(value);
             }
-            block_id = match self.immediate_dominator(block_id) {
-                Some(immediate_dominator) => immediate_dominator,
-                None => return None,
-            }
+            block_id = self.immediate_dominator(block_id)?;
         }
     }
 
@@ -295,8 +292,8 @@ mod tests {
     }
 
     // Testing setup for a function with an unreachable block2
-    fn unreachable_node_setup(
-    ) -> (DominatorTree, BasicBlockId, BasicBlockId, BasicBlockId, BasicBlockId) {
+    fn unreachable_node_setup()
+    -> (DominatorTree, BasicBlockId, BasicBlockId, BasicBlockId, BasicBlockId) {
         // func() {
         //   block0(cond: u1):
         //     jmpif v0 block2() block3()

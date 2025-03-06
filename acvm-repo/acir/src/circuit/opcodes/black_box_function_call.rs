@@ -10,12 +10,14 @@ use thiserror::Error;
 // So we need to supply how many bits of the witness is needed
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ConstantOrWitnessEnum<F> {
     Constant(F),
     Witness(Witness),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct FunctionInput<F> {
     input: ConstantOrWitnessEnum<F>,
     num_bits: u32,
@@ -80,7 +82,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub enum BlackBoxFuncCall<F> {
+pub enum BlackBoxFuncCall<F: AcirField> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,
         iv: Box<[FunctionInput<F>; 16]>,
@@ -214,7 +216,7 @@ pub enum BlackBoxFuncCall<F> {
     },
 }
 
-impl<F: Copy> BlackBoxFuncCall<F> {
+impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
             BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
@@ -427,7 +429,7 @@ fn get_outputs_string(outputs: &[Witness]) -> String {
     }
 }
 
-impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
@@ -452,7 +454,7 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     }
 }
 
-impl<F: std::fmt::Display + Copy> std::fmt::Debug for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Debug for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }
@@ -504,5 +506,209 @@ mod tests {
         let buf = bincode::serialize(&opcode).unwrap();
         let recovered_opcode = bincode::deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
+    }
+}
+
+#[cfg(feature = "arb")]
+mod arb {
+    use acir_field::AcirField;
+    use proptest::prelude::*;
+
+    use crate::native_types::Witness;
+
+    use super::{BlackBoxFuncCall, FunctionInput};
+
+    // Implementing this separately because trying to derive leads to stack overflow.
+    impl<F> Arbitrary for BlackBoxFuncCall<F>
+    where
+        F: AcirField + Arbitrary,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let input = any::<FunctionInput<F>>();
+            let input_vec = any::<Vec<FunctionInput<F>>>();
+            let input_arr_3 = any::<Box<[FunctionInput<F>; 3]>>();
+            let input_arr_8 = any::<Box<[FunctionInput<F>; 8]>>();
+            let input_arr_16 = any::<Box<[FunctionInput<F>; 16]>>();
+            let input_arr_25 = any::<Box<[FunctionInput<F>; 25]>>();
+            let input_arr_32 = any::<Box<[FunctionInput<F>; 32]>>();
+            let input_arr_64 = any::<Box<[FunctionInput<F>; 64]>>();
+            let witness = any::<Witness>();
+            let witness_vec = any::<Vec<Witness>>();
+            let witness_arr_8 = any::<Box<[Witness; 8]>>();
+            let witness_arr_25 = any::<Box<[Witness; 25]>>();
+            let witness_arr_32 = any::<Box<[Witness; 32]>>();
+
+            let case_aes128_encrypt = (
+                input_vec.clone(),
+                input_arr_16.clone(),
+                input_arr_16.clone(),
+                witness_vec.clone(),
+            )
+                .prop_map(|(inputs, iv, key, outputs)| {
+                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
+                });
+
+            let case_and = (input.clone(), input.clone(), witness.clone())
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::AND { lhs, rhs, output });
+
+            let case_xor = (input.clone(), input.clone(), witness.clone())
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::XOR { lhs, rhs, output });
+
+            let case_range = input.clone().prop_map(|input| BlackBoxFuncCall::RANGE { input });
+
+            let case_blake2s = (input_vec.clone(), witness_arr_32.clone())
+                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2s { inputs, outputs });
+
+            let case_blake3 = (input_vec.clone(), witness_arr_32.clone())
+                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake3 { inputs, outputs });
+
+            let case_ecdsa_secp256k1 = (
+                input_arr_32.clone(),
+                input_arr_32.clone(),
+                input_arr_64.clone(),
+                input_arr_32.clone(),
+                witness.clone(),
+            )
+                .prop_map(
+                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                        BlackBoxFuncCall::EcdsaSecp256k1 {
+                            public_key_x,
+                            public_key_y,
+                            signature,
+                            hashed_message,
+                            output,
+                        }
+                    },
+                );
+
+            let case_ecdsa_secp256r1 = (
+                input_arr_32.clone(),
+                input_arr_32.clone(),
+                input_arr_64.clone(),
+                input_arr_32.clone(),
+                witness.clone(),
+            )
+                .prop_map(
+                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                        BlackBoxFuncCall::EcdsaSecp256r1 {
+                            public_key_x,
+                            public_key_y,
+                            signature,
+                            hashed_message,
+                            output,
+                        }
+                    },
+                );
+
+            let case_multi_scalar_mul = (
+                input_vec.clone(),
+                input_vec.clone(),
+                witness.clone(),
+                witness.clone(),
+                witness.clone(),
+            )
+                .prop_map(|(points, scalars, w1, w2, w3)| {
+                    BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs: (w1, w2, w3) }
+                });
+
+            let case_embedded_curve_add = (
+                input_arr_3.clone(),
+                input_arr_3.clone(),
+                witness.clone(),
+                witness.clone(),
+                witness.clone(),
+            )
+                .prop_map(|(input1, input2, w1, w2, w3)| {
+                    BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs: (w1, w2, w3) }
+                });
+
+            let case_keccakf1600 = (input_arr_25.clone(), witness_arr_25.clone())
+                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Keccakf1600 { inputs, outputs });
+
+            let case_recursive_aggregation = (
+                input_vec.clone(),
+                input_vec.clone(),
+                input_vec.clone(),
+                input.clone(),
+                any::<u32>(),
+            )
+                .prop_map(
+                    |(verification_key, proof, public_inputs, key_hash, proof_type)| {
+                        BlackBoxFuncCall::RecursiveAggregation {
+                            verification_key,
+                            proof,
+                            public_inputs,
+                            key_hash,
+                            proof_type,
+                        }
+                    },
+                );
+
+            let big_int_args = (any::<u32>(), any::<u32>(), any::<u32>());
+
+            let case_big_int_add = big_int_args
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntAdd { lhs, rhs, output });
+
+            let case_big_int_sub = big_int_args
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntSub { lhs, rhs, output });
+
+            let case_big_int_mul = big_int_args
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntMul { lhs, rhs, output });
+
+            let case_big_int_div = big_int_args
+                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntDiv { lhs, rhs, output });
+
+            let case_big_int_from_le_bytes = (input_vec.clone(), any::<Vec<u8>>(), any::<u32>())
+                .prop_map(|(inputs, modulus, output)| BlackBoxFuncCall::BigIntFromLeBytes {
+                    inputs,
+                    modulus,
+                    output,
+                });
+
+            let case_big_int_to_le_bytes = (any::<u32>(), witness_vec.clone())
+                .prop_map(|(input, outputs)| BlackBoxFuncCall::BigIntToLeBytes { input, outputs });
+
+            let case_poseidon2_permutation = (input_vec.clone(), witness_vec.clone(), any::<u32>())
+                .prop_map(|(inputs, outputs, len)| BlackBoxFuncCall::Poseidon2Permutation {
+                    inputs,
+                    outputs,
+                    len,
+                });
+
+            let case_sha256_compression = (input_arr_16, input_arr_8, witness_arr_8).prop_map(
+                |(inputs, hash_values, outputs)| BlackBoxFuncCall::Sha256Compression {
+                    inputs,
+                    hash_values,
+                    outputs,
+                },
+            );
+
+            prop_oneof![
+                case_aes128_encrypt,
+                case_and,
+                case_xor,
+                case_range,
+                case_blake2s,
+                case_blake3,
+                case_ecdsa_secp256k1,
+                case_ecdsa_secp256r1,
+                case_multi_scalar_mul,
+                case_embedded_curve_add,
+                case_keccakf1600,
+                case_recursive_aggregation,
+                case_big_int_add,
+                case_big_int_sub,
+                case_big_int_mul,
+                case_big_int_div,
+                case_big_int_from_le_bytes,
+                case_big_int_to_le_bytes,
+                case_poseidon2_permutation,
+                case_sha256_compression,
+            ]
+            .boxed()
+        }
     }
 }
