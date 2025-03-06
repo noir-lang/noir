@@ -19,6 +19,7 @@ mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
 mod execute_cmd;
+mod expand_cmd;
 mod export_cmd;
 mod fmt_cmd;
 mod generate_completion_script_cmd;
@@ -106,6 +107,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
     #[command(hide = true)]
     Dap(dap_cmd::DapCommand),
+    Expand(expand_cmd::ExpandCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
 }
 
@@ -147,6 +149,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Lsp(_) => lsp_cmd::run(),
         NargoCommand::Dap(args) => dap_cmd::run(args),
         NargoCommand::Fmt(args) => with_workspace(args, config, fmt_cmd::run),
+        NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
     }?;
 
