@@ -342,14 +342,11 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        let previous_errors =
-            self.push_elaborate_reason_and_take_errors(ElaborateReason::RunningAttribute, location);
-
-        for item in items {
-            self.add_item(item, generated_items, location);
-        }
-
-        self.pop_elaborate_reason(previous_errors);
+        self.with_elaborate_reason(ElaborateReason::RunningAttribute(location), |elaborator| {
+            for item in items {
+                elaborator.add_item(item, generated_items, location);
+            }
+        })
     }
 
     pub(crate) fn add_item(
@@ -558,14 +555,10 @@ impl<'context> Elaborator<'context> {
             });
 
             if !generated_items.is_empty() {
-                let previous_errors = self.push_elaborate_reason_and_take_errors(
-                    ElaborateReason::RunningAttribute,
-                    location,
-                );
-
-                self.elaborate_items(generated_items);
-
-                self.pop_elaborate_reason(previous_errors);
+                let reason = ElaborateReason::RunningAttribute(location);
+                self.with_elaborate_reason(reason, |elaborator| {
+                    elaborator.elaborate_items(generated_items)
+                });
             }
         }
     }
@@ -652,24 +645,22 @@ impl<'context> Elaborator<'context> {
             }
     }
 
-    /// Pushes an ElaborateReason but also `std::mem::take`s the current errors and returns them.
-    pub(crate) fn push_elaborate_reason_and_take_errors(
-        &mut self,
-        reason: ElaborateReason,
-        location: Location,
-    ) -> Vec<CompilationError> {
-        self.elaborate_reasons.push_back((reason, location));
-        std::mem::take(&mut self.errors)
-    }
+    pub(crate) fn with_elaborate_reason<F, T>(&mut self, reason: ElaborateReason, f: F) -> T
+    where
+        F: FnOnce(&mut Elaborator) -> T,
+    {
+        self.elaborate_reasons.push_back(reason);
+        let previous_errors = std::mem::take(&mut self.errors);
 
-    /// Pops en ElaborateREason. Receives the errors that were returned by `push_elaborate_reason`
-    /// so they are restored, while also wrapping errors in the current Elaborator in a ComptimeError.
-    pub(crate) fn pop_elaborate_reason(&mut self, previous_errors: Vec<CompilationError>) {
+        let value = f(self);
+
         let new_errors = std::mem::take(&mut self.errors);
         let new_errors = self.wrap_errors_in_macro_error(new_errors);
         self.errors = previous_errors;
         self.push_errors(new_errors);
         self.elaborate_reasons.pop_back();
+
+        value
     }
 
     fn wrap_errors_in_macro_error(&self, errors: Vec<CompilationError>) -> Vec<CompilationError> {
@@ -677,8 +668,8 @@ impl<'context> Elaborator<'context> {
     }
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
-        for (reason, location) in self.elaborate_reasons.iter().rev() {
-            error = CompilationError::ComptimeError(reason.to_macro_error(error, *location));
+        for reason in self.elaborate_reasons.iter().rev() {
+            error = CompilationError::ComptimeError(reason.to_macro_error(error));
         }
         error
     }
