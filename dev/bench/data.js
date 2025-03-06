@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741224184694,
+  "lastUpdate": 1741224189993,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8360,70 +8360,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "43ca11ab0f33eabfd590a0fad10c908a421f0792",
-          "message": "feat: better error message when keyword is found instead of type in p… (#7501)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-02-24T13:57:29Z",
-          "tree_id": "cf8269b7cb8aefea0d348ec4907744887bd5f506",
-          "url": "https://github.com/noir-lang/noir/commit/43ca11ab0f33eabfd590a0fad10c908a421f0792"
-        },
-        "date": 1740406582061,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.294,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.431,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 34.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.038,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "e26e993d09beafec1dff81014f4b350cf4289656",
           "message": "feat: use resolved type instead of needing Constructor.struct_type (#7500)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
           "timestamp": "2025-02-24T14:55:25Z",
@@ -11533,6 +11469,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.026,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5a3d2bc0e13a12b039c793c73d7817924c13e159",
+          "message": "chore: track more critical libraries (#7604)",
+          "timestamp": "2025-03-06T01:05:39Z",
+          "tree_id": "315ec998910b2cd3e4097a6acf76dfcaee318b24",
+          "url": "https://github.com/noir-lang/noir/commit/5a3d2bc0e13a12b039c793c73d7817924c13e159"
+        },
+        "date": 1741224187013,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.299,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.788,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.527,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.1,
             "unit": "s"
           },
           {
