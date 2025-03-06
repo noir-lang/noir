@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741255109489,
+  "lastUpdate": 1741255359247,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11547,70 +11547,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e26e993d09beafec1dff81014f4b350cf4289656",
-          "message": "feat: use resolved type instead of needing Constructor.struct_type (#7500)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-24T14:55:25Z",
-          "tree_id": "abd525ad904d332070fc4d27f9ce3b49b36673a7",
-          "url": "https://github.com/noir-lang/noir/commit/e26e993d09beafec1dff81014f4b350cf4289656"
-        },
-        "date": 1740410378518,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 224.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 441.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.77,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14700,6 +14636,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5a3d2bc0e13a12b039c793c73d7817924c13e159"
         },
         "date": 1741224486011,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.29,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d047779cfdc013c9ad4da693d3e8fa17658fc106",
+          "message": "feat: Compare bincode to CBOR, FlexBuffers and Protobuf - implement best (#7513)",
+          "timestamp": "2025-03-06T09:38:38Z",
+          "tree_id": "b97e92a7c40d3cf2823ae28bdd9a39ce6be0474f",
+          "url": "https://github.com/noir-lang/noir/commit/d047779cfdc013c9ad4da693d3e8fa17658fc106"
+        },
+        "date": 1741255356920,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
