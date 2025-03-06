@@ -76,10 +76,6 @@ pub enum ResolverError {
     GenericsOnAssociatedType { location: Location },
     #[error("{0}")]
     ParserError(Box<ParserError>),
-    #[error("Cannot create a mutable reference to {variable}, it was declared to be immutable")]
-    MutableReferenceToImmutableVariable { variable: String, location: Location },
-    #[error("Mutable references to array indices are unsupported")]
-    MutableReferenceToArrayElement { location: Location },
     #[error("Closure environment must be a tuple or unit type")]
     InvalidClosureEnvironment { typ: Type, location: Location },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
@@ -224,8 +220,6 @@ impl ResolverError {
             | ResolverError::NonStructWithGenerics { location }
             | ResolverError::GenericsOnSelfType { location }
             | ResolverError::GenericsOnAssociatedType { location }
-            | ResolverError::MutableReferenceToImmutableVariable { location, .. }
-            | ResolverError::MutableReferenceToArrayElement { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedSlices { location }
             | ResolverError::AbiAttributeOutsideContract { location }
@@ -490,12 +484,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 *location,
             ),
             ResolverError::ParserError(error) => error.as_ref().into(),
-            ResolverError::MutableReferenceToImmutableVariable { variable, location } => {
-                Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), *location)
-            },
-            ResolverError::MutableReferenceToArrayElement { location } => {
-                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
-            },
             ResolverError::InvalidClosureEnvironment { location, typ } => Diagnostic::simple_error(
                 format!("{typ} is not a valid closure environment type"),
                 "Closure environment must be a tuple or unit type".to_string(), *location),

@@ -72,8 +72,8 @@ pub struct SsaEvaluatorOptions {
     /// Skip the check for under constrained values
     pub skip_underconstrained_check: bool,
 
-    /// Enable the missing Brillig call constraints check
-    pub enable_brillig_constraints_check: bool,
+    /// Skip the missing Brillig call constraints check
+    pub skip_brillig_constraints_check: bool,
 
     /// Enable the lookback feature of the Brillig call constraints
     /// check (prevents some rare false positives, leads to a slowdown
@@ -143,7 +143,7 @@ pub(crate) fn optimize_into_acir(
         ));
     }
 
-    if options.enable_brillig_constraints_check {
+    if !options.skip_brillig_constraints_check {
         ssa_level_warnings.extend(time(
             "After Check for Missing Brillig Call Constraints",
             options.print_codegen_timings,

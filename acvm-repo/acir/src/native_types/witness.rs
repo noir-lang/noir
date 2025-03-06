@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Witness(pub u32);
 
 impl Witness {

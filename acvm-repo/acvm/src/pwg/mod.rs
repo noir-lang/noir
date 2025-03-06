@@ -178,7 +178,7 @@ pub struct ProfilingSample {
     pub brillig_function_id: Option<BrilligFunctionId>,
 }
 
-pub struct ACVM<'a, F, B: BlackBoxFunctionSolver<F>> {
+pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     status: ACVMStatus<F>,
 
     backend: &'a B,
