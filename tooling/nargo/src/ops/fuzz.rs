@@ -62,10 +62,7 @@ pub enum FuzzingRunStatus {
 
 impl FuzzingRunStatus {
     pub fn failed(&self) -> bool {
-        !matches!(
-            self,
-            FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationFailure { .. }
-        )
+        !matches!(self, FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass)
     }
 }
 

@@ -259,15 +259,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
     // Enable brillig fuzzing
     pub fn with_brillig_fuzzing(
         &mut self,
-        brillig_fuzzing_active: bool,
         brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
     ) {
-        self.brillig_fuzzing_active = brillig_fuzzing_active;
-        if brillig_fuzzing_active {
-            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
-        } else {
-            self.brillig_branch_to_feature_map = None;
-        }
+        self.brillig_fuzzing_active = brillig_branch_to_feature_map.is_some();
+        self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
     }
 
     pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u32>> {

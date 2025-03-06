@@ -50,10 +50,10 @@ pub struct SuccessfulCaseOutcome {
     pub brillig_coverage: Option<Vec<u32>>,
 
     /// How much time executing the acir program took (0 if it hasn't been run)
-    pub acir_time: u128,
+    pub acir_duration_micros: u128,
 
     /// How much time executing the brillig program took (0 if it hasn't been run)
-    pub brillig_time: u128,
+    pub brillig_duration_micros: u128,
 }
 
 /// Returned by a single fuzz when there is a discrepancy between brillig and acir execution

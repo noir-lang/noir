@@ -212,11 +212,8 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     .expect("Could not write templated test file.");
 }
 
-/// Generate all test cases for a given test name (expected to be unique for the test directory),
-/// based on the matrix configuration. These will be executed serially, but concurrently with
-/// other test directories. Running multiple tests on the same directory would risk overriding
-/// each others compilation artifacts, which is why this method injects a mutex shared by
-/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
+/// Generate fuzzing tests, where the noir program is fuzzed with one thread for 120 seconds.
+/// We expect that a failure is found in that time
 fn generate_fuzzing_test_case(
     test_file: &mut File,
     test_name: &str,

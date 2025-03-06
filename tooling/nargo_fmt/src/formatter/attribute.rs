@@ -143,7 +143,7 @@ impl<'a> Formatter<'a> {
     fn format_fuzz_attribute(&mut self, fuzz_scope: FuzzingScope) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        self.write_current_token_and_bump(); // test
+        self.write_current_token_and_bump(); // fuzz
 
         match fuzz_scope {
             FuzzingScope::None => (),

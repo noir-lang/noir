@@ -12,13 +12,24 @@ use num_traits::Zero;
 
 use crate::corpus::TestCaseId;
 
-/// A branch taken or comparison state in brillig VM.
-/// The first usize is the index of the instruction,
-/// the second is the state (0,1 for branches, log2 of the difference for comparisons)
-pub type Feature = (usize, usize);
+
+
+/// The position of an opcode that is currently being executed in the bytecode
+pub type OpcodePosition = usize;
+
+/// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
+pub type NextOpcodePositionOrState = usize;
+
+
+/// A tuple of the current opcode position and the next opcode position or state
+pub type Feature = (OpcodePosition, NextOpcodePositionOrState);
+
+/// The index of a unique feature in the fuzzing trace
+pub type UniqueFeatureIndex = usize;
+
 
 /// A map from a particular branch or comparison to its unique index in the raw vector used inside brillig vm
-pub type FeatureToIndexMap = HashMap<Feature, usize>;
+pub type FeatureToIndexMap = HashMap<Feature, UniqueFeatureIndex>;
 
 /// This file implements the mechanisms for coverage - detection of changes is the execution of the target program
 /// It assists in exploration of the program through testcase mutation by telling the fuzzer whether a new testcase represents previously unexplored
@@ -47,7 +58,7 @@ impl From<&WitnessStack<FieldElement>> for PotentialBoolWitnessList {
 
         // Look for witnesses that are either 0 or 1
         for (witness_index, value) in first_func_witnesses.witness.clone().into_iter() {
-            if value == FieldElement::one() || value == FieldElement::zero() {
+            if value.is_one() || value.is_zero() {
                 witness_set.insert(witness_index);
             }
         }
@@ -73,8 +84,8 @@ impl PotentialBoolWitnessList {
                 .get(&witness_index)
                 .expect("There should be a witness in the witness map");
 
-            // Check that the values are zero or 1
-            if *value != FieldElement::zero() && *value != FieldElement::one() {
+            // Check that the values are zero or one
+            if !value.is_one() && !value.is_zero() {
                 witnesses_for_removal.push(witness_index);
             }
         }
@@ -680,8 +691,7 @@ pub fn analyze_brillig_program_before_fuzzing(
                 acvm::acir::brillig::BinaryFieldOp::Equals
                 | acvm::acir::brillig::BinaryFieldOp::LessThan
                 | acvm::acir::brillig::BinaryFieldOp::LessThanEquals => {
-                    let features_per_comparison= 1 /*true */+1/*false */+255 /*possible bits() results*/;
-
+                    let features_per_comparison = 1 /*true */ + 1/*false */ + 255 /*possible bits() results*/;
                     // Insert features for each potential difference log
                     for i in 0..features_per_comparison {
                         feature_to_index_map
@@ -709,22 +719,16 @@ pub fn analyze_brillig_program_before_fuzzing(
                 acvm::acir::brillig::BinaryIntOp::Equals
                 | acvm::acir::brillig::BinaryIntOp::LessThan
                 | acvm::acir::brillig::BinaryIntOp::LessThanEquals => {
-                    let features_per_comparison = 1 /*true */+1/*false */+1/*when ilog is zero*/+ match bit_size{
-                    acvm::acir::brillig::IntegerBitSize::U1 => 1,
-                    acvm::acir::brillig::IntegerBitSize::U8 => 8,
-                    acvm::acir::brillig::IntegerBitSize::U16 => 16,
-                    acvm::acir::brillig::IntegerBitSize::U32 => 32,
-                    acvm::acir::brillig::IntegerBitSize::U64 => 64,
-                    acvm::acir::brillig::IntegerBitSize::U128 => 128,
-                };
-                    // Insert features for each potential difference log
+                    let comparison_bits=u32::from(bit_size) as usize;
+                    let features_per_comparison = 1 /*true */ + 1/*false */ + 1/*when ilog is zero*/ + comparison_bits; 
+                     // Insert features for each potential difference log
                     for i in 0..features_per_comparison {
                         feature_to_index_map
                             .insert((opcode_index, usize::MAX - i), total_features + i);
                     }
                     coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
                         index: total_features,
-                        bits: features_per_comparison - 3,
+                        bits: comparison_bits,
                     }));
                     total_features += features_per_comparison;
                 }

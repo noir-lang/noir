@@ -78,16 +78,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
 
     fn with_brillig_fuzzing(
         &mut self,
-        brillig_fuzzing_active: bool,
         brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
     ) {
-        self.brillig_fuzzing_active = brillig_fuzzing_active;
-        if brillig_fuzzing_active {
-            self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
-        } else {
-            self.brillig_branch_to_feature_map = None;
-        }
+        self.brillig_fuzzing_active = brillig_branch_to_feature_map.is_some();
+        self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
     }
+
     fn finalize(self) -> WitnessStack<F> {
         self.witness_stack
     }
@@ -106,7 +102,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
             &circuit.assert_messages,
         );
         acvm.with_profiler(self.profiling_active);
-        acvm.with_brillig_fuzzing(self.brillig_fuzzing_active, self.brillig_branch_to_feature_map);
+        acvm.with_brillig_fuzzing(self.brillig_branch_to_feature_map);
 
         loop {
             let solver_status = acvm.solve();
@@ -287,7 +283,8 @@ pub(crate) fn execute_program_with_brillig_fuzzing<
         foreign_call_executor,
         false,
     );
-    executor.with_brillig_fuzzing(true, brillig_branch_to_feature_map);
+    assert!(brillig_branch_to_feature_map.is_some());
+    executor.with_brillig_fuzzing(brillig_branch_to_feature_map);
     match executor.execute_circuit(initial_witness) {
         Ok((main_witness, _)) => {
             executor.witness_stack.push(0, main_witness);
