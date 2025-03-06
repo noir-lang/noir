@@ -1411,7 +1411,7 @@ impl NodeInterner {
     ) -> Option<FuncId> {
         match self_type {
             Type::Error => None,
-            Type::MutableReference(element) => {
+            Type::Reference(element, _mutable) => {
                 self.add_method(element, method_name, method_id, trait_id)
             }
             _ => {
@@ -2415,8 +2415,8 @@ impl Methods {
                             return true;
                         }
 
-                        // Handle auto-dereferencing `&mut T` into `T`
-                        if let Type::MutableReference(object) = object {
+                        // Handle auto-dereferencing `&T` and `&mut T` into `T`
+                        if let Type::Reference(object, _mutable) = object {
                             if object.unify(typ).is_ok() {
                                 return true;
                             }
@@ -2430,8 +2430,8 @@ impl Methods {
                         return true;
                     }
 
-                    // Handle auto-dereferencing `&mut T` into `T`
-                    if let Type::MutableReference(method_type) = method_type {
+                    // Handle auto-dereferencing `&T` and `&mut T` into `T`
+                    if let Type::Reference(method_type, _mutable) = method_type {
                         if method_type.unify(typ).is_ok() {
                             return true;
                         }
@@ -2488,7 +2488,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Function(_, _, _, _) => Some(Function),
         Type::NamedGeneric(_, _) => Some(Generic),
         Type::Quoted(quoted) => Some(Quoted(*quoted)),
-        Type::MutableReference(element) => get_type_method_key(element),
+        Type::Reference(element, _) => get_type_method_key(element),
         Type::Alias(alias, _) => get_type_method_key(&alias.borrow().typ),
         Type::DataType(struct_type, _) => Some(Struct(struct_type.borrow().id)),
 

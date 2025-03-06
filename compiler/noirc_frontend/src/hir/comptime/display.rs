@@ -260,6 +260,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
+            | Token::SliceStart
             | Token::ShiftLeft
             | Token::ShiftRight => {
                 self.last_was_op = true;
@@ -400,7 +401,13 @@ impl Display for ValuePrinter<'_, '_> {
                     other => write!(f, "{other}(args)"),
                 }
             }
-            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
+            Value::Pointer(value, _, mutable) => {
+                if *mutable {
+                    write!(f, "&mut {}", value.borrow().display(self.interner))
+                } else {
+                    write!(f, "&{}", value.borrow().display(self.interner))
+                }
+            }
             Value::Array(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
@@ -875,8 +882,9 @@ fn remove_interned_in_unresolved_type_data(
                 remove_interned_in_generic_type_args(interner, generic_type_args),
             )
         }
-        UnresolvedTypeData::MutableReference(typ) => UnresolvedTypeData::MutableReference(
+        UnresolvedTypeData::Reference(typ, mutable) => UnresolvedTypeData::Reference(
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+            mutable,
         ),
         UnresolvedTypeData::Tuple(types) => UnresolvedTypeData::Tuple(vecmap(types, |typ| {
             remove_interned_in_unresolved_type(interner, typ)

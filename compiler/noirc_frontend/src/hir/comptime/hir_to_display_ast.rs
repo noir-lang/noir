@@ -465,9 +465,9 @@ impl Type {
                 let env = Box::new(env.to_display_ast());
                 UnresolvedTypeData::Function(args, ret, env, *unconstrained)
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, mutable) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::MutableReference(element)
+                UnresolvedTypeData::Reference(element, *mutable)
             }
             // Type::Forall is only for generic functions which don't store a type
             // in their Ast so they don't need to call to_display_ast for their Forall type.
