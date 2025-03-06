@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741255068258,
+  "lastUpdate": 1741255069424,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e26e993d09beafec1dff81014f4b350cf4289656",
-          "message": "feat: use resolved type instead of needing Constructor.struct_type (#7500)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-24T14:55:25Z",
-          "tree_id": "abd525ad904d332070fc4d27f9ce3b49b36673a7",
-          "url": "https://github.com/noir-lang/noir/commit/e26e993d09beafec1dff81014f4b350cf4289656"
-        },
-        "date": 1740410087401,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.932,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.686,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.488,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.382,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.95,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 91.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 95.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.963,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.502,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8341,6 +8247,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.482,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d047779cfdc013c9ad4da693d3e8fa17658fc106",
+          "message": "feat: Compare bincode to CBOR, FlexBuffers and Protobuf - implement best (#7513)",
+          "timestamp": "2025-03-06T09:38:38Z",
+          "tree_id": "b97e92a7c40d3cf2823ae28bdd9a39ce6be0474f",
+          "url": "https://github.com/noir-lang/noir/commit/d047779cfdc013c9ad4da693d3e8fa17658fc106"
+        },
+        "date": 1741255066272,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.686,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.482,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.418,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.798,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.152,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 11.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.922,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.466,
             "unit": "s"
           }
         ]
