@@ -46,7 +46,7 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::SecondaryAttribute,
+    token::{CfgAttribute, SecondaryAttribute},
 };
 
 mod comptime;
@@ -2158,6 +2158,10 @@ impl<'context> Elaborator<'context> {
                 }
                 _ => true,
             })
+    }
+
+    pub(crate) fn is_cfg_attribute_enabled(&self, opt_cfg_attribute: Option<CfgAttribute>) -> bool {
+        opt_cfg_attribute.as_ref().map(CfgAttribute::is_enabled).unwrap_or(true)
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not

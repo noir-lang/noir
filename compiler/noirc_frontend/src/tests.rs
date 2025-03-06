@@ -3,6 +3,7 @@
 mod aliases;
 mod arithmetic_generics;
 mod bound_checks;
+mod cfg;
 mod enums;
 mod imports;
 mod metaprogramming;

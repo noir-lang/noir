@@ -1,5 +1,9 @@
-use noirc_frontend::token::{
-    Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
+use noirc_frontend::{
+    ast::Path,
+    token::{
+        Attribute, Attributes, CfgAttribute, FunctionAttribute, MetaAttribute, SecondaryAttribute,
+        TestScope, Token,
+    },
 };
 
 use crate::chunks::ChunkGroup;
@@ -87,6 +91,9 @@ impl Formatter<'_> {
             SecondaryAttribute::Meta(meta_attribute) => {
                 self.format_meta_attribute(meta_attribute);
             }
+            SecondaryAttribute::Cfg(cfg_attribute) => {
+                self.format_cfg_attribute(cfg_attribute);
+            }
         }
 
         self.write_line();
@@ -161,6 +168,35 @@ impl Formatter<'_> {
             if has_arguments || self.written_comments_count > comments_count_before_arguments {
                 self.format_chunk_group(group);
             }
+        }
+        self.write_right_bracket();
+    }
+
+    fn format_cfg_attribute(&mut self, cfg_attribute: CfgAttribute) {
+        self.write_current_token_and_bump(); // #[
+        self.skip_comments_and_whitespace();
+        self.format_path(Path::from_single("cfg".to_string(), cfg_attribute.location()));
+        self.skip_comments_and_whitespace();
+        if self.is_at(Token::LeftParen) {
+            let mut chunk_formatter = self.chunk_formatter();
+            let mut group = ChunkGroup::new();
+            group.text(chunk_formatter.chunk(|formatter| {
+                // (feature
+                let feature_ident = crate::formatter::Ident::new(
+                    "feature".to_string(),
+                    noirc_errors::Location::dummy(),
+                );
+                formatter.write_left_paren();
+                formatter.write_identifier(feature_ident);
+                // =
+                formatter.write_space();
+                formatter.write_token(Token::Assign);
+                //  "[name]")
+                formatter.write_space();
+                formatter.write_token(Token::Str(cfg_attribute.name()));
+                formatter.write_right_paren();
+            }));
+            self.format_chunk_group(group);
         }
         self.write_right_bracket();
     }

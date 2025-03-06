@@ -850,6 +850,15 @@ impl fmt::Display for Attribute {
     }
 }
 
+impl Attribute {
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            Attribute::Function(_) => false,
+            Attribute::Secondary(secondary) => secondary.is_disabled_cfg(),
+        }
+    }
+}
+
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -973,6 +982,9 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    // A #[cfg(..)] attribute
+    Cfg(CfgAttribute),
 }
 
 impl SecondaryAttribute {
@@ -990,6 +1002,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+            SecondaryAttribute::Cfg(_) => Some("cfg".to_string()),
         }
     }
 
@@ -1002,6 +1015,22 @@ impl SecondaryAttribute {
 
     pub(crate) fn is_abi(&self) -> bool {
         matches!(self, SecondaryAttribute::Abi(_))
+    }
+
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            SecondaryAttribute::Deprecated(..) => false,
+            SecondaryAttribute::Tag(..) => false,
+            SecondaryAttribute::Meta(..) => false,
+            SecondaryAttribute::ContractLibraryMethod => false,
+            SecondaryAttribute::Export => false,
+            SecondaryAttribute::Field(..) => false,
+            SecondaryAttribute::Abi(..) => false,
+            SecondaryAttribute::Varargs => false,
+            SecondaryAttribute::UseCallersScope => false,
+            SecondaryAttribute::Allow(..) => false,
+            SecondaryAttribute::Cfg(cfg_attribute) => cfg_attribute.is_disabled(),
+        }
     }
 
     pub(crate) fn contents(&self) -> String {
@@ -1019,6 +1048,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(k) => format!("allow({k})"),
+            SecondaryAttribute::Cfg(cfg_attribute) => format!("cfg({cfg_attribute})"),
         }
     }
 }
@@ -1045,6 +1075,49 @@ impl Display for MetaAttribute {
                 self.arguments.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
             write!(f, "{}({})", self.name, args)
         }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum CfgAttribute {
+    // feature = "{name}"
+    Feature { name: String, location: Location },
+}
+
+impl CfgAttribute {
+    pub fn name(&self) -> String {
+        match self {
+            CfgAttribute::Feature { name, .. } => name.clone(),
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            CfgAttribute::Feature { location, .. } => *location,
+        }
+    }
+}
+
+impl Display for CfgAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CfgAttribute::Feature { name, location: _ } => {
+                write!(f, "feature = {:?}", name)
+            }
+        }
+    }
+}
+
+impl CfgAttribute {
+    // TODO(https://github.com/noir-lang/noir/issues/7574): enable more features once working
+    pub(crate) fn is_enabled(&self) -> bool {
+        match self {
+            CfgAttribute::Feature { name, .. } => name == "default",
+        }
+    }
+
+    pub(crate) fn is_disabled(&self) -> bool {
+        !self.is_enabled()
     }
 }
 
