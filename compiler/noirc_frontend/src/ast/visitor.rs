@@ -397,10 +397,6 @@ pub trait Visitor {
         true
     }
 
-    fn visit_mutable_reference_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
-        true
-    }
-
     fn visit_tuple_type(&mut self, _: &[UnresolvedType], _: Span) -> bool {
         true
     }
