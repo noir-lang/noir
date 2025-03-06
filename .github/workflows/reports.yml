@@ -42,6 +42,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -305,7 +307,7 @@ jobs:
           repository: ${{ matrix.repo }}
           path: test-repo
           ref: ${{ matrix.ref }}
-      
+
       - name: Fetch noir dependencies
         working-directory: ./test-repo/${{ matrix.path }}
         run: |
@@ -341,7 +343,7 @@ jobs:
           path: ${{ steps.compilation_report.outputs.report_path }}
           retention-days: 3
           overwrite: true
-        
+
       - name: Generate execution report
         id: execution_report
         working-directory: ./test-repo/${{ matrix.path }}
@@ -359,7 +361,7 @@ jobs:
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
           echo "report_path=$REPORT_PATH" >> $GITHUB_OUTPUT
-    
+
       - name: Upload execution report
         if: ${{ !matrix.cannot_execute }}
         uses: actions/upload-artifact@v4
@@ -716,7 +718,7 @@ jobs:
       - upload_compilation_memory_report
       - upload_execution_report
       - upload_execution_memory_report
-     
+
     steps:
         - name: Report overall success
           run: |
