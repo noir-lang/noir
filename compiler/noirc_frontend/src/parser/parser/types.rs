@@ -237,10 +237,10 @@ impl Parser<'_> {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
         }
         if self.eat_keyword(Keyword::StructDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
-        if self.eat_keyword(Keyword::EnumDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        if self.eat_keyword(Keyword::TypeDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));

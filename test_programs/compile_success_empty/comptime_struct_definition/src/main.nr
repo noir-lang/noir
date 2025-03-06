@@ -49,7 +49,7 @@ mod foo {
 fn main() {
     comptime {
         let typ = quote { MyType<i8, i16, i32> }.as_type();
-        let (struct_def, generics) = typ.as_struct().unwrap();
+        let (struct_def, generics) = typ.as_data_type().unwrap();
 
         let fields = struct_def.fields(generics);
         assert_eq(fields.len(), 2);
