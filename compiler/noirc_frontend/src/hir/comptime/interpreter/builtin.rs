@@ -34,13 +34,15 @@ use crate::{
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
         function::FunctionBody,
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, LocatedToken, Token},
 };
@@ -2425,8 +2427,27 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
+    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
-    let hir_ident = HirIdent::non_trait_method(definition_id, location);
+    let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
+        let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let ordered = trait_impl.trait_generics.clone();
+        let named =
+            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+        let trait_generics = TraitGenerics { ordered, named };
+        let trait_bound =
+            ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
+        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
+        let method_index = method_index.expect("Expected to find the method");
+        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
+        let trait_method = TraitMethod { method_id, constraint, assumed: true };
+        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
+        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+    } else {
+        HirIdent::non_trait_method(definition_id, location)
+    };
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
