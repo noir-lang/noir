@@ -703,15 +703,22 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 /// comptime call or macro "something" that eventually led to that error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComptimeError {
-    ErrorRunningAttribute { error: Box<CompilationError>, location: Location },
-    ErrorAddingItemToModule { error: Box<CompilationError>, location: Location },
+    ErrorRunningAttribute {
+        error: Box<CompilationError>,
+        location: Location,
+    },
+    ErrorEvaluatingComptimeCall {
+        method_name: &'static str,
+        error: Box<CompilationError>,
+        location: Location,
+    },
 }
 
 impl ComptimeError {
     pub fn location(&self) -> Location {
         match self {
             ComptimeError::ErrorRunningAttribute { location, .. }
-            | ComptimeError::ErrorAddingItemToModule { location, .. } => *location,
+            | ComptimeError::ErrorEvaluatingComptimeCall { location, .. } => *location,
         }
     }
 }
@@ -724,9 +731,9 @@ impl<'a> From<&'a ComptimeError> for CustomDiagnostic {
                 diagnostic.add_secondary("While running this function attribute".into(), *location);
                 diagnostic
             }
-            ComptimeError::ErrorAddingItemToModule { error, location } => {
+            ComptimeError::ErrorEvaluatingComptimeCall { method_name, error, location } => {
                 let mut diagnostic = CustomDiagnostic::from(&**error);
-                diagnostic.add_secondary("While interpreting `Module::add_item`".into(), *location);
+                diagnostic.add_secondary(format!("While evaluating `{method_name}`"), *location);
                 diagnostic
             }
         }

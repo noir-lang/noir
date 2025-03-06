@@ -49,8 +49,9 @@ pub enum PrintableType {
         env: Box<PrintableType>,
         unconstrained: bool,
     },
-    MutableReference {
+    Reference {
         typ: Box<PrintableType>,
+        mutable: bool,
     },
     Unit,
 }
@@ -127,7 +128,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
             output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
         }
-        (_, PrintableType::MutableReference { .. }) => {
+        (_, PrintableType::Reference { mutable: false, .. }) => {
+            output.push_str("<<ref>>");
+        }
+        (_, PrintableType::Reference { mutable: true, .. }) => {
             output.push_str("<<mutable ref>>");
         }
         (PrintableValue::Vec { array_elements, is_slice }, PrintableType::Array { typ, .. })

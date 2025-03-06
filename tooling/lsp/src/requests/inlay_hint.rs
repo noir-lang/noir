@@ -511,7 +511,11 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part(") -> "));
             push_type_parts(return_type, parts, files);
         }
-        Type::MutableReference(typ) => {
+        Type::Reference(typ, false) => {
+            parts.push(string_part("&"));
+            push_type_parts(typ, parts, files);
+        }
+        Type::Reference(typ, true) => {
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }

@@ -2,6 +2,7 @@
 mod signature_help_tests {
     use crate::{
         notifications::on_did_open_text_document, requests::on_signature_help_request, test_utils,
+        utils::get_cursor_line_and_column,
     };
 
     use lsp_types::{
@@ -14,15 +15,7 @@ mod signature_help_tests {
     async fn get_signature_help(src: &str) -> SignatureHelp {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
 
-        let (line, column) = src
-            .lines()
-            .enumerate()
-            .find_map(|(line_index, line)| {
-                line.find(">|<").map(|char_index| (line_index, char_index))
-            })
-            .expect("Expected to find one >|< in the source code");
-
-        let src = src.replace(">|<", "");
+        let (line, column, src) = get_cursor_line_and_column(src);
 
         on_did_open_text_document(
             &mut state,

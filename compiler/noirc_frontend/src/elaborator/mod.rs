@@ -199,25 +199,26 @@ pub struct Elaborator<'context> {
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+    pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 }
 
 #[derive(Copy, Clone)]
 pub enum ElaborateReason {
     /// A function attribute generated an item that's being elaborated.
-    RunningAttribute,
-    /// Evaluating `Module::add_item`
-    AddingItemToModule,
+    RunningAttribute(Location),
+    /// Evaluating a comptime call like `Module::add_item`
+    EvaluatingComptimeCall(&'static str, Location),
 }
 
 impl ElaborateReason {
-    fn to_macro_error(self, error: CompilationError, location: Location) -> ComptimeError {
+    fn to_macro_error(self, error: CompilationError) -> ComptimeError {
         match self {
-            ElaborateReason::RunningAttribute => {
+            ElaborateReason::RunningAttribute(location) => {
                 ComptimeError::ErrorRunningAttribute { error: Box::new(error), location }
             }
-            ElaborateReason::AddingItemToModule => {
-                ComptimeError::ErrorAddingItemToModule { error: Box::new(error), location }
+            ElaborateReason::EvaluatingComptimeCall(method_name, location) => {
+                let error = Box::new(error);
+                ComptimeError::ErrorEvaluatingComptimeCall { method_name, error, location }
             }
         }
     }
@@ -251,7 +252,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+        elaborate_reasons: im::Vector<ElaborateReason>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -588,7 +589,7 @@ impl<'context> Elaborator<'context> {
         for (mut constraint, expr_id, select_impl) in context.trait_constraints {
             let location = self.interner.expr_location(&expr_id);
 
-            if matches!(&constraint.typ, Type::MutableReference(_)) {
+            if matches!(&constraint.typ, Type::Reference(..)) {
                 let (_, dereferenced_typ) =
                     self.insert_auto_dereferences(expr_id, constraint.typ.clone());
                 constraint.typ = dereferenced_typ;
@@ -1078,7 +1079,7 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(from);
                 self.mark_type_as_used(to);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 self.mark_type_as_used(typ);
             }
             Type::InfixExpr(left, _op, right, _) => {
@@ -1461,8 +1462,8 @@ impl<'context> Elaborator<'context> {
         self.self_type = Some(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::MutableReference(_)) {
-            self.push_err(DefCollectorErrorKind::MutableReferenceInTraitImpl {
+        if matches!(self_type, Type::Reference(..)) {
+            self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
                 location: self_type_location,
             });
         }
@@ -1755,7 +1756,7 @@ impl<'context> Elaborator<'context> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::MutableReference(typ) | Type::Array(_, typ) | Type::Slice(typ) => {
+            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Slice(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {

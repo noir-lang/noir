@@ -188,8 +188,8 @@ impl NodeFinder<'_> {
 
         let func_self_type = if let Some((pattern, typ, _)) = func_meta.parameters.0.first() {
             if self.hir_pattern_is_self_type(pattern) {
-                if let Type::MutableReference(mut_typ) = typ {
-                    let typ: &Type = mut_typ;
+                if let Type::Reference(elem_type, _) = typ {
+                    let typ: &Type = elem_type;
                     Some(typ)
                 } else {
                     Some(typ)
@@ -222,9 +222,8 @@ impl NodeFinder<'_> {
                         // Check that the pattern type is the same as self type.
                         // We do this because some types (only Field and integer types)
                         // have their methods in the same HashMap.
-
-                        if let Type::MutableReference(mut_typ) = self_type {
-                            self_type = mut_typ;
+                        if let Type::Reference(elem_type, _) = self_type {
+                            self_type = elem_type;
                         }
 
                         if self_type != func_self_type {
@@ -597,7 +596,7 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: boo
 }
 
 fn type_to_self_string(typ: &Type, string: &mut String) {
-    if let Type::MutableReference(..) = typ {
+    if let Type::Reference(..) = typ {
         string.push_str("&mut self");
     } else {
         string.push_str("self");
