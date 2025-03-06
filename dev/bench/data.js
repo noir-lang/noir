@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741291138582,
+  "lastUpdate": 1741291142183,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11507,70 +11507,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0",
-          "message": "chore: Increaes base64's allotted time (#7521)",
-          "timestamp": "2025-02-25T19:43:21Z",
-          "tree_id": "4948cc7e0a0820fc1d21ba7c33073d5b011dffdc",
-          "url": "https://github.com/noir-lang/noir/commit/f0c7feb1c18a6b0ae97cfaaf93f21c0c24863ad0"
-        },
-        "date": 1740514036040,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 225.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 259.7,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 441.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 382.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 321.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 329.09,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14685,6 +14621,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 416.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b3443c124b19a909bf9cb370b4e0ebc151bb6aa3",
+          "message": "fix: FunctionDefinition::as_typed_expr didn't work well for trait imp… (#7611)",
+          "timestamp": "2025-03-06T19:33:36Z",
+          "tree_id": "52c188769be086d8e158635c195667ad59d52530",
+          "url": "https://github.com/noir-lang/noir/commit/b3443c124b19a909bf9cb370b4e0ebc151bb6aa3"
+        },
+        "date": 1741291139157,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.27,
             "unit": "MB"
           },
           {
