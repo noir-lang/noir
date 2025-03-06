@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, Signedness, UnaryOp};
-use crate::elaborator::Elaborator;
+use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
@@ -191,7 +191,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
-                    self.elaborate_in_function(None, |elaborator| {
+                    self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
 
@@ -207,10 +207,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_function<T>(
         &mut self,
         function: Option<FuncId>,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -218,10 +219,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn elaborate_in_module<T>(
         &mut self,
         module: ModuleId,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator) -> T,
     ) -> T {
         self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, f);
+        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
         self.rebind_generics_from_previous_function();
         result
     }
@@ -1325,9 +1327,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
-                    let expr = self.elaborate_in_function(self.current_function, |elaborator| {
-                        elaborator.elaborate_expression(expr).0
-                    });
+                    let expr =
+                        self.elaborate_in_function(self.current_function, None, |elaborator| {
+                            elaborator.elaborate_expression(expr).0
+                        });
                     result = self.evaluate(expr)?;
 
                     // Macro calls are typed as type variables during type checking.

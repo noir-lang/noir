@@ -833,12 +833,10 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
+        let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
         let module =
-            interpreter.elaborate_in_function(interpreter.current_function, |elaborator| {
-                let reason = ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location);
-                elaborator.with_elaborate_reason(reason, |elaborator| {
-                    elaborator.resolve_module_by_path(path)
-                })
+            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+                elaborator.resolve_module_by_path(path)
             });
         module.map(Value::ModuleDefinition)
     });
@@ -859,13 +857,11 @@ fn quoted_as_trait_constraint(
         Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
+    let reason =
+        Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, |elaborator| {
-            let reason =
-                ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location);
-            elaborator.with_elaborate_reason(reason, |elaborator| {
-                elaborator.resolve_trait_bound(&trait_bound)
-            })
+        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.resolve_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
@@ -880,10 +876,11 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
-    let typ = interpreter.elaborate_in_function(interpreter.current_function, |elaborator| {
-        let reason = ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location);
-        elaborator.with_elaborate_reason(reason, |elaborator| elaborator.resolve_type(typ))
-    });
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.resolve_type(typ)
+        });
     Ok(Value::Type(typ))
 }
 
@@ -2301,37 +2298,34 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| {
-        let reason = ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location);
-        elaborator.with_elaborate_reason(reason, |elaborator| match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, location: self_argument_location };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
+    {
+        ExprValue::Expression(expression_kind) => {
+            let expr = Expression { kind: expression_kind, location: self_argument_location };
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Statement(statement_kind) => {
+            let statement = Statement { kind: statement_kind, location: self_argument_location };
+            let (stmt_id, _) = elaborator.elaborate_statement(statement);
+            Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+        }
+        ExprValue::LValue(lvalue) => {
+            let expr = lvalue.as_expression();
+            let (expr_id, _) = elaborator.elaborate_expression(expr);
+            Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+        }
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                let (expr_id, _) = elaborator.elaborate_expression(expression);
                 Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+            } else {
+                let expression = Value::pattern(pattern).display(elaborator.interner).to_string();
+                let location = self_argument_location;
+                Err(InterpreterError::CannotResolveExpression { location, expression })
             }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, location: self_argument_location };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            }
-            ExprValue::Pattern(pattern) => {
-                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                    let (expr_id, _) = elaborator.elaborate_expression(expression);
-                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-                } else {
-                    let expression =
-                        Value::pattern(pattern).display(elaborator.interner).to_string();
-                    let location = self_argument_location;
-                    Err(InterpreterError::CannotResolveExpression { location, expression })
-                }
-            }
-        })
+        }
     })
 }
 
@@ -2440,13 +2434,14 @@ fn function_def_as_typed_expr(
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
     interpreter.elaborator.interner.push_expr_location(expr_id, location);
-    let typ = interpreter.elaborate_in_function(interpreter.current_function, |elaborator| {
-        let reason =
-            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::as_typed_expr", location);
-        elaborator.with_elaborate_reason(reason, |elaborator| {
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall(
+        "FunctionDefinition::as_typed_expr",
+        location,
+    ));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.type_check_variable(hir_ident, expr_id, generics)
-        })
-    });
+        });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2652,20 +2647,17 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
-            let reason = ElaborateReason::EvaluatingComptimeCall(
-                "FunctionDefinition::set_parameters",
-                location,
-            );
-            elaborator.with_elaborate_reason(reason, |elaborator| {
-                elaborator.elaborate_pattern_and_store_ids(
-                    parameter_pattern,
-                    parameter_type.clone(),
-                    DefinitionKind::Local(None),
-                    &mut parameter_idents,
-                    true, // warn_if_unused
-                )
-            })
+        let reason =
+            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
+        let reason = Some(reason);
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
+            elaborator.elaborate_pattern_and_store_ids(
+                parameter_pattern,
+                parameter_type.clone(),
+                DefinitionKind::Local(None),
+                &mut parameter_idents,
+                true, // warn_if_unused
+            )
         });
 
         parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
@@ -2773,19 +2765,17 @@ fn module_add_item(
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
-    interpreter.elaborate_in_module(module_id, |elaborator| {
-        let reason = ElaborateReason::EvaluatingComptimeCall("Module::add_item", location);
-        elaborator.with_elaborate_reason(reason, |elaborator| {
-            let mut generated_items = CollectedItems::default();
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
+    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
+        let mut generated_items = CollectedItems::default();
 
-            for top_level_statement in top_level_statements {
-                elaborator.add_item(top_level_statement, &mut generated_items, location);
-            }
+        for top_level_statement in top_level_statements {
+            elaborator.add_item(top_level_statement, &mut generated_items, location);
+        }
 
-            if !generated_items.is_empty() {
-                elaborator.elaborate_items(generated_items);
-            }
-        });
+        if !generated_items.is_empty() {
+            elaborator.elaborate_items(generated_items);
+        }
     });
 
     Ok(Value::Unit)

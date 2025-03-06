@@ -49,9 +49,10 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
-        self.elaborate_item_from_comptime(f, |elaborator| {
+        self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
                 let meta = elaborator.interner.function_meta(&function);
                 elaborator.current_item = Some(DependencyId::Function(function));
@@ -65,9 +66,10 @@ impl<'context> Elaborator<'context> {
     pub fn elaborate_item_from_comptime_in_module<'a, T>(
         &'a mut self,
         module: ModuleId,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
-        self.elaborate_item_from_comptime(f, |elaborator| {
+        self.elaborate_item_from_comptime(reason, f, |elaborator| {
             elaborator.current_item = None;
             elaborator.crate_id = module.krate;
             elaborator.local_module = module.local_id;
@@ -76,6 +78,7 @@ impl<'context> Elaborator<'context> {
 
     fn elaborate_item_from_comptime<'a, T>(
         &'a mut self,
+        reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
         setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
@@ -104,7 +107,14 @@ impl<'context> Elaborator<'context> {
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
-        self.errors.append(&mut elaborator.errors);
+        let mut errors = std::mem::take(&mut elaborator.errors);
+        if let Some(reason) = reason {
+            errors = vecmap(errors, |error| {
+                CompilationError::ComptimeError(reason.to_macro_error(error))
+            });
+        };
+
+        self.errors.extend(errors);
         result
     }
 
@@ -346,7 +356,7 @@ impl<'context> Elaborator<'context> {
             for item in items {
                 elaborator.add_item(item, generated_items, location);
             }
-        })
+        });
     }
 
     pub(crate) fn add_item(
@@ -557,7 +567,7 @@ impl<'context> Elaborator<'context> {
             if !generated_items.is_empty() {
                 let reason = ElaborateReason::RunningAttribute(location);
                 self.with_elaborate_reason(reason, |elaborator| {
-                    elaborator.elaborate_items(generated_items)
+                    elaborator.elaborate_items(generated_items);
                 });
             }
         }
