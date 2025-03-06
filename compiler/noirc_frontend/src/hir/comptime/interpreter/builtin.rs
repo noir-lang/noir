@@ -28,6 +28,7 @@ use crate::{
     hir::{
         comptime::{
             InterpreterError, Value,
+            display::tokens_to_string,
             errors::IResult,
             value::{ExprValue, TypedExpr},
         },
@@ -166,7 +167,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => quoted_eq(arguments, location),
+            "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
@@ -2913,10 +2914,24 @@ fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IR
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
-fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_quoted)
-}
+fn quoted_eq(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let self_arg = get_quoted(self_arg)?;
+    let other_arg = get_quoted(other_arg)?;
 
+    // Comparing tokens one against each other doesn't work in the general case because tokens
+    // might be refer to interned expressions/statements/etc. We'd need to convert those nodes
+    // to tokens and compare the final result, but comparing their string representation works
+    // equally well and, for simplicity, that's what we do here.
+    let self_string = tokens_to_string(&self_arg, interner);
+    let other_string = tokens_to_string(&other_arg, interner);
+
+    Ok(Value::Bool(self_string == other_string))
+}
 fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     hash_item(arguments, location, get_quoted)
 }
