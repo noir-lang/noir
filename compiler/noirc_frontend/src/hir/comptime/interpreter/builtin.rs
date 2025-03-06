@@ -2426,7 +2426,9 @@ fn function_def_as_typed_expr(
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
     interpreter.elaborator.interner.push_expr_location(expr_id, location);
-    let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
+    let typ = interpreter.elaborate_in_function(interpreter.current_function, |elaborator| {
+        elaborator.type_check_variable(hir_ident, expr_id, generics)
+    });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
