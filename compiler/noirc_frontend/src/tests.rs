@@ -381,7 +381,6 @@ fn check_trait_implementation_duplicate_method() {
 
 #[test]
 fn check_trait_wrong_method_return_type() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default() -> Self;
@@ -406,7 +405,6 @@ fn check_trait_wrong_method_return_type() {
 
 #[test]
 fn check_trait_wrong_method_return_type2() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field, y: Field) -> Self;
@@ -531,7 +529,6 @@ fn check_trait_wrong_method_name() {
 
 #[test]
 fn check_trait_wrong_parameter() {
-    // TODO: improve the error location
     let src = "
     trait Default {
         fn default(x: Field) -> Self;
@@ -1524,7 +1521,6 @@ fn numeric_generic_binary_operation_type_mismatch() {
 
 #[test]
 fn bool_generic_as_loop_bound() {
-    // TODO: improve the error location of the last error (should be just on N)
     let src = r#"
     pub fn read<let N: bool>() {
                     ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
@@ -1565,8 +1561,6 @@ fn numeric_generic_in_function_signature() {
 
 #[test]
 fn numeric_generic_as_struct_field_type_fails() {
-    // TODO: improve error message, in Rust it says "expected type, found const parameter `N`"
-    // which might be more understandable
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
@@ -1594,7 +1588,6 @@ fn normal_generic_as_array_length() {
 
 #[test]
 fn numeric_generic_as_param_type() {
-    // TODO: improve the error message, see what Rust does
     let src = r#"
     pub fn foo<let I: u32>(x: I) -> I {
                                     ^ Expected type, found numeric generic
@@ -1614,7 +1607,6 @@ fn numeric_generic_as_param_type() {
 
 #[test]
 fn numeric_generic_as_unused_param_type() {
-    // TODO: improve the error message
     let src = r#"
     pub fn foo<let I: u32>(_x: I) { }
                                ^ Expected type, found numeric generic
@@ -1625,7 +1617,6 @@ fn numeric_generic_as_unused_param_type() {
 
 #[test]
 fn numeric_generic_as_unused_trait_fn_param_type() {
-    // TODO: improve the error message
     let src = r#"
     trait Foo {
           ^^^ unused trait Foo
@@ -1640,7 +1631,6 @@ fn numeric_generic_as_unused_trait_fn_param_type() {
 
 #[test]
 fn numeric_generic_as_return_type() {
-    // TODO: improve the error message
     let src = r#"
     // std::mem::zeroed() without stdlib
     trait Zeroed {
@@ -1662,7 +1652,6 @@ fn numeric_generic_as_return_type() {
 
 #[test]
 fn numeric_generic_used_in_nested_type_fails() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<let N: u32> {
         a: Field,
@@ -1679,7 +1668,6 @@ fn numeric_generic_used_in_nested_type_fails() {
 
 #[test]
 fn normal_generic_used_in_nested_array_length_fail() {
-    // TODO: improve the error message
     let src = r#"
     pub struct Foo<N> {
         a: Field,
@@ -2479,7 +2467,6 @@ fn bit_not_on_untyped_integer() {
 
 #[test]
 fn duplicate_struct_field() {
-    // TODO: the primary error location should be on the second field
     let src = r#"
     pub struct Foo {
         x: i32,

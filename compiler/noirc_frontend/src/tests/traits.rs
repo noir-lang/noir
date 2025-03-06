@@ -102,7 +102,6 @@ fn trait_inheritance_with_generics_4() {
 
 #[test]
 fn trait_inheritance_dependency_cycle() {
-    // TODO: maybe the error location should be just on Foo
     let src = r#"
         trait Foo: Bar {}
               ^^^ Dependency cycle found
@@ -115,7 +114,6 @@ fn trait_inheritance_dependency_cycle() {
 
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
-    // TODO: the secondary errors are missing a closing backtick
     let src = r#"
         pub trait Foo {}
 
