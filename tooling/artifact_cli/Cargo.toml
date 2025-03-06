@@ -17,8 +17,8 @@ workspace = true
 path = "src/lib.rs"
 
 [[bin]]
-name = "noir-execute"
-path = "src/bin/execute.rs"
+name = "noir-executor"
+path = "src/bin/executor.rs"
 
 [dependencies]
 clap.workspace = true

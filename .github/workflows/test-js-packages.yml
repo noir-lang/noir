@@ -78,7 +78,7 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-  build-noir-execute:
+  build-noir-executor:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
 
@@ -95,19 +95,19 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build noir-execute
+      - name: Build noir-executor
         run: cargo build --package noir_artifact_cli --release
 
       - name: Package artifacts
         run: |
           mkdir dist
-          cp ./target/release/noir-execute ./dist/noir-execute
-          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-execute-x86_64-unknown-linux-gnu.tar.gz
+          cp ./target/release/noir-executor ./dist/noir-executor
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-executor-x86_64-unknown-linux-gnu.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: noir-execute
+          name: noir-executor
           path: ./dist/*
           retention-days: 3
 
@@ -491,7 +491,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute]
+    needs: [build-nargo, build-noir-executor]
     timeout-minutes: 30
 
     steps:
@@ -512,8 +512,8 @@ jobs:
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
-      - name: Download noir-execute binary
-        uses: ./.github/actions/download-noir-execute
+      - name: Download noir-executor binary
+        uses: ./.github/actions/download-noir-executor
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
