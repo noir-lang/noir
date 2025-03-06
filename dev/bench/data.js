@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741264593186,
+  "lastUpdate": 1741264598888,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8335,70 +8335,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "69e901f8f4e8c88c9964d832f331f881b70d2d35",
-          "message": "fix: issue duplicate error on impl function without self (#7490)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-02-24T18:39:18Z",
-          "tree_id": "e946752afbb1b241b8c8638be6d05dc6be96db16",
-          "url": "https://github.com/noir-lang/noir/commit/69e901f8f4e8c88c9964d832f331f881b70d2d35"
-        },
-        "date": 1740423639232,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.294,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.429,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.181,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.039,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aghiglia@manas.tech",
             "name": "Ana Perez Ghiglia",
             "username": "anaPerezGhiglia"
@@ -11518,6 +11454,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a6e5526851f717c88799926796e36d6b6225be90",
+          "message": "fix(LSP): references/rename only when underlying span has the correct… (#7598)",
+          "timestamp": "2025-03-06T12:15:01Z",
+          "tree_id": "d89faf5f20188d2b426e7585ec71468a27303cf0",
+          "url": "https://github.com/noir-lang/noir/commit/a6e5526851f717c88799926796e36d6b6225be90"
+        },
+        "date": 1741264595945,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.293,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.506,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.9,
             "unit": "s"
           },
           {
