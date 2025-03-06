@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741291142183,
+  "lastUpdate": 1741291515406,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8305,70 +8305,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fdc742369c4f0cda307b5b1904260133d1add64",
-          "message": "feat: let all compiler errors carry a Location instead of a Span (#7486)\n\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-02-25T19:49:03Z",
-          "tree_id": "5bae5dff581fd8c385f830b9a295c29dc4a24575",
-          "url": "https://github.com/noir-lang/noir/commit/4fdc742369c4f0cda307b5b1904260133d1add64"
-        },
-        "date": 1740514439732,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.072,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.296,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.431,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.181,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 35.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.039,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -11488,6 +11424,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83d7e6a074118ea081011b95e2406e7863eb583c",
+          "message": "feat: relate errors to macro built-ins errors (#7609)",
+          "timestamp": "2025-03-06T19:46:22Z",
+          "tree_id": "ee9b219006c7f2fde72f83cd069f8e96e4cbd085",
+          "url": "https://github.com/noir-lang/noir/commit/83d7e6a074118ea081011b95e2406e7863eb583c"
+        },
+        "date": 1741291512507,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.07,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.29,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.503,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.4,
             "unit": "s"
           },
           {
