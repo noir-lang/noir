@@ -38,7 +38,7 @@ pub(crate) struct ExecuteCommand {
     #[clap(long, short, action)]
     print: bool,
 
-    /// JSON RPC url to solve oracle calls
+    /// JSON RPC url to resolve oracle calls
     #[clap(long)]
     oracle_resolver: Option<String>,
 
