@@ -6,10 +6,7 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
-use noirc_frontend::hir::{
-    Context, ParsedFiles,
-    def_map::{CrateDefMap, ModuleId},
-};
+use noirc_frontend::hir::{ParsedFiles, def_map::ModuleId};
 use printer::Printer;
 
 use crate::errors::CliError;

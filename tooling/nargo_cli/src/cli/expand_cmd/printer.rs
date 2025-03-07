@@ -1,9 +1,10 @@
+use noirc_errors::Location;
 use noirc_frontend::{
     DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
     hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
     hir_def::{expr::HirExpression, stmt::HirPattern},
-    node_interner::{FuncId, NodeInterner, TypeId},
+    node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
@@ -37,18 +38,28 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         let module_data = &self.def_map.modules()[module_id.local_id.0];
         let definitions = module_data.definitions();
 
-        let mut first = true;
-        for (_name, scope) in definitions.types().iter().chain(definitions.values()) {
-            for (_trait_id, (module_def_id, visibility, _is_prelude)) in scope {
-                if first {
-                    self.push_str("\n");
-                    first = false;
-                } else {
-                    self.push_str("\n\n");
-                }
-                self.write_indent();
-                self.show_module_def_id(*module_def_id, *visibility);
+        let mut definitions = definitions
+            .types()
+            .iter()
+            .chain(definitions.values())
+            .flat_map(|(_name, scope)| scope.values())
+            .map(|(module_def_id, visibility, _is_prelude)| {
+                let location = self.module_def_id_location(*module_def_id);
+                (*module_def_id, *visibility, location)
+            })
+            .collect::<Vec<_>>();
+
+        // Make sure definitions are sorted according to location so the output is more similar to the original code
+        definitions.sort_by_key(|(_module_def_id, _visibility, location)| *location);
+
+        for (index, (module_def_id, visibility, _location)) in definitions.iter().enumerate() {
+            if index == 0 {
+                self.push_str("\n");
+            } else {
+                self.push_str("\n\n");
             }
+            self.write_indent();
+            self.show_module_def_id(*module_def_id, *visibility);
         }
 
         if name.is_some() {
@@ -246,6 +257,19 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
+    }
+
+    fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
+        // We already have logic to go from a ReferenceId to a location, so we use that here
+        let reference_id = match module_def_id {
+            ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
+            ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
+            ModuleDefId::TypeId(type_id) => ReferenceId::Type(type_id),
+            ModuleDefId::TypeAliasId(type_alias_id) => ReferenceId::Alias(type_alias_id),
+            ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
+            ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
+        };
+        self.interner.reference_location(reference_id)
     }
 
     fn increase_indent(&mut self) {
