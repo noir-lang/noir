@@ -322,7 +322,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             .filter_map(|trait_impl_id| {
                 let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
                 let trait_impl = trait_impl.borrow();
-                if trait_impl.trait_id == trait_id && type_has_primitives_only(&trait_impl.typ) {
+                if trait_impl.trait_id == trait_id
+                    && self.type_only_mention_types_outside_current_crate(&trait_impl.typ)
+                {
                     Some((*trait_impl_id, trait_impl.location))
                 } else {
                     None
@@ -771,6 +773,69 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.interner.reference_location(reference_id)
     }
 
+    fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {
+        match typ {
+            Type::Array(length, typ) => {
+                self.type_only_mention_types_outside_current_crate(&length)
+                    && self.type_only_mention_types_outside_current_crate(&typ)
+            }
+            Type::Slice(typ) => self.type_only_mention_types_outside_current_crate(typ),
+            Type::FmtString(length, typ) => {
+                self.type_only_mention_types_outside_current_crate(&length)
+                    && self.type_only_mention_types_outside_current_crate(typ)
+            }
+            Type::Tuple(types) => {
+                types.iter().all(|typ| self.type_only_mention_types_outside_current_crate(typ))
+            }
+            Type::DataType(data_type, generics) => {
+                let data_type = data_type.borrow();
+                data_type.id.krate() != self.crate_id
+                    && generics
+                        .iter()
+                        .all(|typ| self.type_only_mention_types_outside_current_crate(typ))
+            }
+            Type::Alias(_type_alias, generics) => {
+                // TODO: check _type_alias
+                generics.iter().all(|typ| self.type_only_mention_types_outside_current_crate(typ))
+            }
+            Type::TraitAsType(trait_id, _, generics) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+                trait_.id.0.krate != self.crate_id
+                    && generics
+                        .ordered
+                        .iter()
+                        .all(|typ| self.type_only_mention_types_outside_current_crate(typ))
+                    && generics.named.iter().all(|named_type| {
+                        self.type_only_mention_types_outside_current_crate(&named_type.typ)
+                    })
+            }
+            Type::CheckedCast { from, to: _ } => {
+                self.type_only_mention_types_outside_current_crate(from)
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().all(|typ| self.type_only_mention_types_outside_current_crate(typ))
+                    && self.type_only_mention_types_outside_current_crate(ret)
+                    && self.type_only_mention_types_outside_current_crate(env)
+            }
+            Type::Reference(typ, _) => self.type_only_mention_types_outside_current_crate(typ),
+            Type::Forall(_, typ) => self.type_only_mention_types_outside_current_crate(typ),
+            Type::InfixExpr(lhs, _, rhs, _) => {
+                self.type_only_mention_types_outside_current_crate(lhs)
+                    && self.type_only_mention_types_outside_current_crate(rhs)
+            }
+            Type::Unit
+            | Type::Bool
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::String(_)
+            | Type::Quoted(_)
+            | Type::Constant(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Error => true,
+        }
+    }
+
     fn increase_indent(&mut self) {
         self.indent += 1;
     }
@@ -879,40 +944,5 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
         | Type::Constant(..)
         | Type::TypeVariable(_)
         | Type::Error => (),
-    }
-}
-
-fn type_has_primitives_only(typ: &Type) -> bool {
-    match typ {
-        Type::Array(length, typ) => {
-            type_has_primitives_only(&length) && type_has_primitives_only(&typ)
-        }
-        Type::Slice(typ) => type_has_primitives_only(typ),
-        Type::FmtString(length, typ) => {
-            type_has_primitives_only(&length) && type_has_primitives_only(typ)
-        }
-        Type::Tuple(types) => types.iter().all(type_has_primitives_only),
-        Type::DataType(..) | Type::Alias(..) | Type::TraitAsType(..) => false,
-        Type::CheckedCast { from, to: _ } => type_has_primitives_only(from),
-        Type::Function(args, ret, env, _) => {
-            args.iter().all(type_has_primitives_only)
-                && type_has_primitives_only(ret)
-                && type_has_primitives_only(env)
-        }
-        Type::Reference(typ, _) => type_has_primitives_only(typ),
-        Type::Forall(_, typ) => type_has_primitives_only(typ),
-        Type::InfixExpr(lhs, _, rhs, _) => {
-            type_has_primitives_only(lhs) && type_has_primitives_only(rhs)
-        }
-        Type::Unit
-        | Type::Bool
-        | Type::Integer(..)
-        | Type::FieldElement
-        | Type::String(_)
-        | Type::Quoted(_)
-        | Type::Constant(..)
-        | Type::TypeVariable(..)
-        | Type::NamedGeneric(..)
-        | Type::Error => true,
     }
 }
