@@ -164,13 +164,43 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push_str(" {\n");
         self.increase_indent();
 
+        let mut printed_type_or_function = false;
+
         for associated_type in &trait_.associated_types {
+            if printed_type_or_function {
+                self.push_str("\n\n");
+            }
+
             self.write_indent();
             self.push_str("type ");
             self.push_str(&associated_type.name);
-            self.push_str(";\n");
+            self.push_str(";");
+            printed_type_or_function = true;
         }
 
+        let mut func_ids = trait_
+            .method_ids
+            .iter()
+            .map(|(_, func_id)| {
+                let location = self.interner.function_meta(func_id).location;
+                (func_id, location)
+            })
+            .collect::<Vec<_>>();
+
+        // Make sure functions are shown in the same order they were defined
+        func_ids.sort_by_key(|(_func_id, location)| *location);
+
+        for (func_id, _location) in func_ids {
+            if printed_type_or_function {
+                self.push_str("\n\n");
+            }
+
+            self.write_indent();
+            self.show_function(*func_id);
+            printed_type_or_function = true;
+        }
+
+        self.push('\n');
         self.decrease_indent();
         self.write_indent();
         self.push('}');
@@ -254,15 +284,18 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
         }
 
-        self.push(' ');
-
         let hir_function = self.interner.function(&func_id);
-        let block = hir_function.block(self.interner);
-        let block = HirExpression::Block(block);
-        let block = block.to_display_ast(self.interner, func_meta.location);
-        let block_str = block.to_string();
-        let block_str = indent_lines(block_str, self.indent);
-        self.push_str(&block_str);
+        if hir_function.try_as_expr().is_some() {
+            let block = hir_function.block(self.interner);
+            let block = HirExpression::Block(block);
+            let block = block.to_display_ast(self.interner, func_meta.location);
+            let block_str = block.to_string();
+            let block_str = indent_lines(block_str, self.indent);
+            self.push(' ');
+            self.push_str(&block_str);
+        } else {
+            self.push(';');
+        }
     }
 
     fn show_generics(&mut self, generics: &Generics) {
