@@ -781,7 +781,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push_str(&format!("{std}::mem::zeroed()"));
             }
             Value::Closure(_)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
