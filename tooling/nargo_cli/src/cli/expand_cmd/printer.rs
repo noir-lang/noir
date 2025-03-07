@@ -2,9 +2,15 @@ use noirc_errors::Location;
 use noirc_frontend::{
     DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
-    hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    hir_def::{expr::HirExpression, stmt::HirPattern},
-    node_interner::{FuncId, NodeInterner, ReferenceId, TypeId},
+    hir::{
+        comptime::Value,
+        def_map::{CrateDefMap, ModuleDefId, ModuleId},
+    },
+    hir_def::{
+        expr::HirExpression,
+        stmt::{HirLetStatement, HirPattern},
+    },
+    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeId},
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
@@ -83,7 +89,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             ModuleDefId::TypeId(type_id) => self.show_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => todo!("Show type aliases"),
             ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
-            ModuleDefId::GlobalId(global_id) => todo!("Show globals"),
+            ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
         }
     }
@@ -119,6 +125,31 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
     fn show_enum(&mut self, data_type: &DataType) {
         todo!("Show enums")
+    }
+
+    fn show_global(&mut self, global_id: GlobalId) {
+        let global_info = self.interner.get_global(global_id);
+        let definition_id = global_info.definition_id;
+        let definition = self.interner.definition(definition_id);
+        let typ = self.interner.definition_type(definition_id);
+
+        if let Some(HirLetStatement { comptime: true, .. }) =
+            self.interner.get_global_let_statement(global_id)
+        {
+            self.push_str("comptime ");
+        }
+        if definition.mutable {
+            self.push_str("mut ");
+        }
+        self.push_str("global ");
+        self.push_str(&global_info.ident.to_string());
+        self.push_str(": ");
+        self.push_str(&typ.to_string());
+        if let GlobalValue::Resolved(value) = &global_info.value {
+            self.push_str(" = ");
+            self.show_value(value);
+        };
+        self.push_str(";");
     }
 
     fn show_function(&mut self, func_id: FuncId) {
@@ -244,6 +275,51 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             HirPattern::Tuple(..) | HirPattern::Struct(..) => {
                 self.push('_');
+            }
+        }
+    }
+
+    fn show_value(&mut self, value: &Value) {
+        match value {
+            Value::Unit => self.push_str("()"),
+            Value::Bool(bool) => self.push_str(&bool.to_string()),
+            Value::Field(value) => self.push_str(&value.to_string()),
+            Value::I8(value) => self.push_str(&value.to_string()),
+            Value::I16(value) => self.push_str(&value.to_string()),
+            Value::I32(value) => self.push_str(&value.to_string()),
+            Value::I64(value) => self.push_str(&value.to_string()),
+            Value::U1(value) => self.push_str(&value.to_string()),
+            Value::U8(value) => self.push_str(&value.to_string()),
+            Value::U16(value) => self.push_str(&value.to_string()),
+            Value::U32(value) => self.push_str(&value.to_string()),
+            Value::U64(value) => self.push_str(&value.to_string()),
+            Value::U128(value) => self.push_str(&value.to_string()),
+            Value::String(string) => self.push_str(&format!("{:?}", string)),
+            Value::FormatString(_, _) => todo!("Show format string"),
+            Value::CtString(_) => todo!("Show CtString"),
+            Value::Function(func_id, _, hash_map) => todo!("Show function"),
+            Value::Tuple(values) => todo!("Show tuple"),
+            Value::Struct(hash_map, _) => todo!("Show struct"),
+            Value::Enum(_, values, _) => todo!("Show enum"),
+            Value::Array(vector, _) => todo!("Show array"),
+            Value::Slice(vector, _) => todo!("Show slice"),
+            Value::Quoted(located_tokens) => todo!("Show quoted"),
+            Value::Pointer(value, ..) => {
+                self.show_value(&value.borrow());
+            }
+            Value::Closure(_)
+            | Value::StructDefinition(_)
+            | Value::TraitConstraint(..)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Zeroed(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_) => {
+                panic!("Theis value shouldn't be held by globals: {:?}", value)
             }
         }
     }
