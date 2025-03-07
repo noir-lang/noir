@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741307067791,
+  "lastUpdate": 1741307068574,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f0c1c7ba3feaaa28905bb0813d14acc6673ca797",
-          "message": "chore: bump external pinned commits (#7515)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-02-25T20:31:29Z",
-          "tree_id": "2e349d2bf548e7056888106f21f9ee889a0aef05",
-          "url": "https://github.com/noir-lang/noir/commit/f0c1c7ba3feaaa28905bb0813d14acc6673ca797"
-        },
-        "date": 1740516642757,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.08,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.743,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.8,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.521,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.026,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.458,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.993,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 9.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.044,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.959,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 94.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 99.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.996,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.488,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8291,6 +8197,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.452,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9bdd7444e41c1b9001f77efd7977ea16a2f0b898",
+          "message": "chore: bump external pinned commits (#7618)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-03-07T00:02:53Z",
+          "tree_id": "98857e282e48679e0f699d924ac292969f93e033",
+          "url": "https://github.com/noir-lang/noir/commit/9bdd7444e41c1b9001f77efd7977ea16a2f0b898"
+        },
+        "date": 1741307065384,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.662,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.481,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.318,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.882,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 11.76,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.942,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.943,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.46,
             "unit": "s"
           }
         ]
