@@ -454,7 +454,25 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::CtString(_) => todo!("Show CtString"),
             Value::Function(..) => todo!("Show function"),
             Value::Tuple(..) => todo!("Show tuple"),
-            Value::Struct(..) => todo!("Show struct"),
+            Value::Struct(fields, typ) => {
+                self.show_type(typ);
+                if fields.is_empty() {
+                    self.push_str(" {}");
+                } else {
+                    self.push_str(" {\n");
+                    self.increase_indent();
+                    for (name, value) in fields {
+                        self.write_indent();
+                        self.push_str(name);
+                        self.push_str(": ");
+                        self.show_value(value);
+                        self.push_str(",\n");
+                    }
+                    self.decrease_indent();
+                    self.write_indent();
+                    self.push('}');
+                }
+            }
             Value::Enum(..) => todo!("Show enum"),
             Value::Array(..) => todo!("Show array"),
             Value::Slice(..) => todo!("Show slice"),
