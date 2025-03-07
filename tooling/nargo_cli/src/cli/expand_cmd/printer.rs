@@ -1,26 +1,43 @@
 use noirc_frontend::{
     DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
-    hir::def_map::ModuleDefId,
+    hir::def_map::{CrateDefMap, ModuleDefId, ModuleId},
     hir_def::{expr::HirExpression, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner, TypeId},
 };
 
-pub(super) struct Printer<'interner, 'string> {
+pub(super) struct Printer<'interner, 'def_map, 'string> {
     interner: &'interner NodeInterner,
+    def_map: &'def_map CrateDefMap,
     string: &'string mut String,
+    indent: usize,
 }
 
-impl<'interner, 'string> Printer<'interner, 'string> {
-    pub(super) fn new(interner: &'interner NodeInterner, string: &'string mut String) -> Self {
-        Self { interner, string }
+impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
+    pub(super) fn new(
+        interner: &'interner NodeInterner,
+        def_map: &'def_map CrateDefMap,
+        string: &'string mut String,
+    ) -> Self {
+        Self { interner, def_map, string, indent: 0 }
     }
 
-    pub(super) fn show_module_def_id(
-        &mut self,
-        module_def_id: ModuleDefId,
-        visibility: ItemVisibility,
-    ) {
+    pub(super) fn show_module(&mut self, module_id: ModuleId) {
+        let attributes = self.interner.try_module_attributes(&module_id);
+        let name =
+            attributes.map(|attributes| attributes.name.clone()).unwrap_or_else(|| String::new());
+
+        let module_data = &self.def_map.modules()[module_id.local_id.0];
+        let definitions = module_data.definitions();
+
+        for (name, scope) in definitions.types().iter().chain(definitions.values()) {
+            for (_trait_id, (module_def_id, visibility, _is_prelude)) in scope {
+                self.show_module_def_id(*module_def_id, *visibility);
+            }
+        }
+    }
+
+    fn show_module_def_id(&mut self, module_def_id: ModuleDefId, visibility: ItemVisibility) {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
@@ -38,8 +55,8 @@ impl<'interner, 'string> Printer<'interner, 'string> {
     }
 
     fn show_type(&mut self, type_id: TypeId) {
-        let data_type = self.interner.get_type(type_id);
-        let data_type = data_type.borrow();
+        let shared_data_type = self.interner.get_type(type_id);
+        let data_type = shared_data_type.borrow();
         if data_type.is_struct() {
             self.show_struct(&data_type);
         } else if data_type.is_enum() {
@@ -54,13 +71,15 @@ impl<'interner, 'string> Printer<'interner, 'string> {
         self.push_str(&data_type.name.to_string());
         self.show_generics(&data_type.generics);
         self.push_str(" {\n");
+        self.increase_indent();
         for field in data_type.get_fields_as_written().unwrap() {
-            self.push_str("    ");
+            self.write_indent();
             self.push_str(&field.name.to_string());
             self.push_str(": ");
             self.push_str(&field.typ.to_string());
             self.push_str(",\n");
         }
+        self.decrease_indent();
         self.push('}');
     }
 
@@ -201,6 +220,20 @@ impl<'interner, 'string> Printer<'interner, 'string> {
             }
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
+    }
+
+    fn increase_indent(&mut self) {
+        self.indent += 1;
+    }
+
+    fn decrease_indent(&mut self) {
+        self.indent -= 1;
+    }
+
+    fn write_indent(&mut self) {
+        for _ in 0..self.indent {
+            self.push_str("    ");
         }
     }
 

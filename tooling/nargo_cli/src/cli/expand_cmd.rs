@@ -65,24 +65,9 @@ fn check_package(
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
     let mut string = String::new();
-    show_module(module_id, &context, def_map, &mut string);
+    let mut printer = Printer::new(&context.def_interner, def_map, &mut string);
+    printer.show_module(module_id);
     println!("{}", string);
 
     Ok(())
-}
-
-fn show_module(module_id: ModuleId, context: &Context, def_map: &CrateDefMap, string: &mut String) {
-    let attributes = context.def_interner.try_module_attributes(&module_id);
-    let name =
-        attributes.map(|attributes| attributes.name.clone()).unwrap_or_else(|| String::new());
-
-    let module_data = &def_map.modules()[module_id.local_id.0];
-    let definitions = module_data.definitions();
-
-    for (name, scope) in definitions.types().iter().chain(definitions.values()) {
-        for (_trait_id, (module_def_id, visibility, _is_prelude)) in scope {
-            let mut printer = Printer::new(&context.def_interner, string);
-            printer.show_module_def_id(*module_def_id, *visibility);
-        }
-    }
 }
