@@ -13,9 +13,8 @@ use crate::proto::brillig::{
 
 use super::ProtoSchema;
 
-impl<F> ProtoCodec<circuit::brillig::BrilligBytecode<F>, BrilligBytecode> for ProtoSchema<F>
-where
-    F: AcirField,
+impl<F: AcirField> ProtoCodec<circuit::brillig::BrilligBytecode<F>, BrilligBytecode>
+    for ProtoSchema<F>
 {
     fn encode(value: &circuit::brillig::BrilligBytecode<F>) -> BrilligBytecode {
         BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
@@ -28,10 +27,7 @@ where
     }
 }
 
-impl<F> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema<F>
-where
-    F: AcirField,
-{
+impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema<F> {
     fn encode(value: &brillig::Opcode<F>) -> BrilligOpcode {
         use brillig_opcode::*;
 
