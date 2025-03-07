@@ -16,9 +16,7 @@ fn main() {
     borrow_mut_two_separate(&mut array, &mut u32_array, rc1, rc2);
 
     // Safety: test
-    unsafe {
-        regression_7297();
-    }
+    regression_7297();
 }
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
@@ -46,8 +44,10 @@ fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
 /// Borrow the same array mutably through both parameters, inc_rc is necessary here, although
 /// only one is needed to bring the rc from 1 to 2.
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
-    assert_refcount(*array1, rc_before_call + 1);
-    assert_refcount(*array2, rc_before_call + 1);
+    // With an inliner value of 0, `borrow_mut_two` is inlined and the mutation below is optimized
+    // out. Afterward, the rc inc+dec gets removed since there is no longer a mutation in between.
+    assert_refcount(*array1, rc_before_call + 0);
+    assert_refcount(*array2, rc_before_call + 0);
     array1[0] = 5;
     array2[0] = 6;
     println(array1[0]); // array1 & 2 alias, so this should also print 6
@@ -85,8 +85,7 @@ fn assert_refcount<T>(array: [T; 3], expected: u32) {
     }
 }
 
-unconstrained fn regression_7297() {
-    println("regression_7297");
+fn regression_7297() {
     let mut array = [0, 1, 2];
 
     let refcount_0 = array_refcount(array);
@@ -101,17 +100,20 @@ unconstrained fn regression_7297() {
     // For this to come out we have to run the test with `--inliner-aggressiveness -9223372036854775808`
     assert_eq(array[0], 6, "the original should not be mutated by copy_mut, only borrow_mut_two");
     assert_eq(array_2[0], 4, "the copy should have the expected content");
-    // Double decrementing the RC could occur if we don't realize that array mutation made a copy,
-    // which decreases the RC of the original and sets the new one to 1.
-    // This assertion is redundant with the one following it, but it's here because `assert_eq` doesn't print
-    // what actual values that cause it to fail, so this is a way to highlight the bug about the refcount of
-    // still live arrays going to zero, without any doubt that it's just not 1, as it should be.
-    assert(refcount_1 != 0, "borrow_mut_two should create a fresh array and not decrease its RC");
-    assert_eq(refcount_1, 1, "borrow_mut_two should create a fresh array with an RC of 1");
-    // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
-    assert_eq(
-        refcount_2,
-        refcount_1 + 1,
-        "not ideal, but original RC permanently increased by copy_mut",
-    );
+
+    if std::runtime::is_unconstrained() {
+        // Double decrementing the RC could occur if we don't realize that array mutation made a copy,
+        // which decreases the RC of the original and sets the new one to 1.
+        // This assertion is redundant with the one following it, but it's here because `assert_eq` doesn't print
+        // what actual values that cause it to fail, so this is a way to highlight the bug about the refcount of
+        // still live arrays going to zero, without any doubt that it's just not 1, as it should be.
+        assert(refcount_1 != 0, "borrow_mut_two should create a fresh array and not decrease its RC");
+        assert_eq(refcount_1, 1, "borrow_mut_two should create a fresh array with an RC of 1");
+        // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
+        assert_eq(
+            refcount_2,
+            refcount_1 + 1,
+            "not ideal, but original RC permanently increased by copy_mut",
+        );
+    }
 }
