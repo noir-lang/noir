@@ -776,6 +776,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
             }
+            Value::Zeroed(_) => {
+                let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
+                self.push_str(&format!("{std}::mem::zeroed()"));
+            }
             Value::Closure(_)
             | Value::StructDefinition(_)
             | Value::TraitConstraint(..)
@@ -784,11 +788,18 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             | Value::FunctionDefinition(_)
             | Value::ModuleDefinition(_)
             | Value::Type(_)
-            | Value::Zeroed(_)
             | Value::Expr(_)
             | Value::TypedExpr(_)
             | Value::UnresolvedType(_) => {
-                panic!("Theis value shouldn't be held by globals: {:?}", value)
+                if self.crate_id.is_stdlib() {
+                    self.push_str(
+                        "crate::panic(f\"comptime value that cannot be represented with code\")",
+                    );
+                } else {
+                    self.push_str(
+                        "panic(f\"comptime value that cannot be represented with code\")",
+                    );
+                }
             }
         }
     }
