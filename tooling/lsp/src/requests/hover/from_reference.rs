@@ -498,7 +498,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let is_self = pattern_is_self(pattern, args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::MutableReference(..)) {
+        if is_self && matches!(typ, Type::Reference(..)) {
             string.push_str("&mut ");
         }
 
@@ -814,7 +814,7 @@ impl TypeLinksGatherer<'_> {
                 self.gather_type_links(return_type);
                 self.gather_type_links(env);
             }
-            Type::MutableReference(typ) => self.gather_type_links(typ),
+            Type::Reference(typ, _) => self.gather_type_links(typ),
             Type::InfixExpr(lhs, _, rhs, _) => {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);

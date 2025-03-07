@@ -437,8 +437,8 @@ impl Elaborator<'_> {
                 let (mut lvalue, mut lvalue_type, mut mutable) = self.elaborate_lvalue(*array);
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
-                // as needed to unwrap any &mut wrappers.
-                while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
+                // as needed to unwrap any `&` or `&mut` wrappers.
+                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue =
                         HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
@@ -482,7 +482,9 @@ impl Elaborator<'_> {
                 let lvalue = Box::new(lvalue);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
-                let expected_type = Type::MutableReference(Box::new(element_type.clone()));
+
+                // Always expect a mutable reference here since we're storing to it
+                let expected_type = Type::Reference(Box::new(element_type.clone()), true);
 
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
@@ -539,9 +541,8 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            // If the lhs is a mutable reference we automatically transform
-            // lhs.field into (*lhs).field
-            Type::MutableReference(element) => {
+            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
                     dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
                     return self.check_field_access(
@@ -553,7 +554,7 @@ impl Elaborator<'_> {
                 } else {
                     let (element, index) =
                         self.check_field_access(element, field_name, location, dereference_lhs)?;
-                    return Some((Type::MutableReference(Box::new(element)), index));
+                    return Some((Type::Reference(Box::new(element), *mutable), index));
                 }
             }
             _ => (),

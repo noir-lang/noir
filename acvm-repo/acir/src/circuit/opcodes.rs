@@ -15,7 +15,8 @@ pub use black_box_function_call::{
 };
 pub use memory_operation::{BlockId, MemOp};
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlockType {
     Memory,
     CallData(u32),
@@ -30,7 +31,8 @@ impl BlockType {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub enum Opcode<F> {
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+pub enum Opcode<F: AcirField> {
     /// An `AssertZero` opcode adds the constraint that `P(w) = 0`, where
     /// `w=(w_1,..w_n)` is a tuple of `n` witnesses, and `P` is a multi-variate
     /// polynomial of total degree at most `2`.

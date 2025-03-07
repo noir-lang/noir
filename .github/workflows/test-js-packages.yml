@@ -64,6 +64,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -75,6 +77,39 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  build-noir-execute:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build noir-execute
+        run: cargo build --package noir_artifact_cli --release
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/noir-execute ./dist/noir-execute
+          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-execute-x86_64-unknown-linux-gnu.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-execute
           path: ./dist/*
           retention-days: 3
 
@@ -361,7 +396,7 @@ jobs:
 
   test-integration-node:
     name: Integration Tests (Node)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
 
@@ -373,6 +408,7 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -456,8 +492,8 @@ jobs:
 
   test-examples:
     name: Example scripts
-    runs-on: ubuntu-22.04
-    needs: [build-nargo]
+    runs-on: ubuntu-24.04
+    needs: [build-nargo, build-noir-execute]
     timeout-minutes: 30
 
     steps:
@@ -473,9 +509,13 @@ jobs:
         run: |
           ./scripts/install_bb.sh
           echo "$HOME/.bb/" >> $GITHUB_PATH
+          sudo apt-get install libc6 libstdc++6 -y
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
+
+      - name: Download noir-execute binary
+        uses: ./.github/actions/download-noir-execute
 
       - name: Run `prove_and_verify`
         working-directory: ./examples/prove_and_verify
@@ -483,6 +523,10 @@ jobs:
 
       - name: Run `codegen_verifier`
         working-directory: ./examples/codegen_verifier
+        run: ./test.sh
+
+      - name: Run `oracle_transcript`
+        working-directory: ./examples/oracle_transcript
         run: ./test.sh
 
   external-repo-checks:

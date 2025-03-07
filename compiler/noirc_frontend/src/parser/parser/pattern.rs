@@ -66,14 +66,12 @@ impl Parser<'_> {
             }
         }
 
-        if self.at(Token::Ampersand) && self.next_is(Token::Keyword(Keyword::Mut)) {
+        if self.at(Token::Ampersand) {
             self.bump();
-            self.bump();
+
+            let mutable = self.eat_keyword(Keyword::Mut);
             if !self.next_is_colon() && self.eat_self() {
-                return Some(PatternOrSelf::SelfPattern(SelfPattern {
-                    reference: true,
-                    mutable: true,
-                }));
+                return Some(PatternOrSelf::SelfPattern(SelfPattern { reference: true, mutable }));
             } else {
                 self.push_error(
                     ParserErrorReason::RefMutCanOnlyBeUsedWithSelf,

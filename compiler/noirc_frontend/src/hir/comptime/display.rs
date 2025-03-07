@@ -86,6 +86,9 @@ pub(super) fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner)
 struct TokenPrettyPrinter<'interner> {
     interner: &'interner NodeInterner,
     indent: usize,
+    /// Determines whether the last outputted byte was alphanumeric.
+    /// This is used to add a space after the last token and before another token
+    /// that starts with an alphanumeric byte.
     last_was_alphanumeric: bool,
     last_was_right_brace: bool,
     last_was_semicolon: bool,
@@ -169,30 +172,33 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         }
 
         match token {
-            Token::QuotedType(id) => write!(f, "{}", self.interner.get_quoted_type(*id)),
+            Token::QuotedType(id) => {
+                let value = Value::Type(self.interner.get_quoted_type(*id).clone());
+                self.print_value(&value, last_was_alphanumeric, f)
+            }
             Token::InternedExpr(id) => {
                 let value = Value::expression(ExpressionKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedStatement(id) => {
                 let value = Value::statement(StatementKind::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedLValue(id) => {
                 let value = Value::lvalue(LValue::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedUnresolvedTypeData(id) => {
                 let value = Value::UnresolvedType(UnresolvedTypeData::Interned(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::InternedPattern(id) => {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
-                self.print_value(&value, f)
+                self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::Keyword(..)
             | Token::Ident(..)
@@ -254,6 +260,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Slash
             | Token::Percent
             | Token::Ampersand
+            | Token::SliceStart
             | Token::ShiftLeft
             | Token::ShiftRight => {
                 self.last_was_op = true;
@@ -291,8 +298,21 @@ impl<'interner> TokenPrettyPrinter<'interner> {
         }
     }
 
-    fn print_value(&mut self, value: &Value, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn print_value(
+        &mut self,
+        value: &Value,
+        last_was_alphanumeric: bool,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         let string = value.display(self.interner).to_string();
+        if string.is_empty() {
+            return Ok(());
+        }
+
+        if last_was_alphanumeric && string.bytes().next().unwrap().is_ascii_alphanumeric() {
+            write!(f, " ")?;
+        }
+
         for (index, line) in string.lines().enumerate() {
             if index > 0 {
                 writeln!(f)?;
@@ -301,7 +321,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             line.fmt(f)?;
         }
 
-        self.last_was_alphanumeric = string.bytes().all(|byte| byte.is_ascii_alphanumeric());
+        self.last_was_alphanumeric = string.bytes().last().unwrap().is_ascii_alphanumeric();
         self.last_was_right_brace = string.ends_with('}');
         self.last_was_semicolon = string.ends_with(';');
 
@@ -381,7 +401,13 @@ impl Display for ValuePrinter<'_, '_> {
                     other => write!(f, "{other}(args)"),
                 }
             }
-            Value::Pointer(value, _) => write!(f, "&mut {}", value.borrow().display(self.interner)),
+            Value::Pointer(value, _, mutable) => {
+                if *mutable {
+                    write!(f, "&mut {}", value.borrow().display(self.interner))
+                } else {
+                    write!(f, "&{}", value.borrow().display(self.interner))
+                }
+            }
             Value::Array(values, _) => {
                 let values = vecmap(values, |value| value.display(self.interner).to_string());
                 write!(f, "[{}]", values.join(", "))
@@ -856,8 +882,9 @@ fn remove_interned_in_unresolved_type_data(
                 remove_interned_in_generic_type_args(interner, generic_type_args),
             )
         }
-        UnresolvedTypeData::MutableReference(typ) => UnresolvedTypeData::MutableReference(
+        UnresolvedTypeData::Reference(typ, mutable) => UnresolvedTypeData::Reference(
             Box::new(remove_interned_in_unresolved_type(interner, *typ)),
+            mutable,
         ),
         UnresolvedTypeData::Tuple(types) => UnresolvedTypeData::Tuple(vecmap(types, |typ| {
             remove_interned_in_unresolved_type(interner, typ)

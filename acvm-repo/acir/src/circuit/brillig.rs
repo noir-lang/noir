@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Inputs for the Brillig VM. These are the initial inputs
 /// that the Brillig VM will use to start.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligInputs<F> {
     Single(Expression<F>),
     Array(Vec<Expression<F>>),
@@ -15,6 +16,7 @@ pub enum BrilligInputs<F> {
 /// Outputs for the Brillig VM. Once the VM has completed
 /// execution, this will be the object that is returned.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOutputs {
     Simple(Witness),
     Array(Vec<Witness>),
@@ -24,6 +26,7 @@ pub enum BrilligOutputs {
 /// a full Brillig function to be executed by the Brillig VM.
 /// This is stored separately on a program and accessed through a [BrilligPointer].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BrilligBytecode<F> {
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
@@ -32,6 +35,7 @@ pub struct BrilligBytecode<F> {
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, Copy, Default, PartialOrd, Ord,
 )]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 #[serde(transparent)]
 pub struct BrilligFunctionId(pub u32);
 

@@ -37,8 +37,8 @@ pub enum DefCollectorErrorKind {
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { location: Location },
-    #[error("Cannot implement trait on a mutable reference type")]
-    MutableReferenceInTraitImpl { location: Location },
+    #[error("Cannot implement trait on a reference type")]
+    ReferenceInTraitImpl { location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
     OverlappingImpl { typ: crate::Type, location: Location, prev_location: Location },
     #[error("Cannot `impl` a type defined outside the current crate")]
@@ -97,7 +97,7 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
             | DefCollectorErrorKind::NonStructTypeInImpl { location }
-            | DefCollectorErrorKind::MutableReferenceInTraitImpl { location }
+            | DefCollectorErrorKind::ReferenceInTraitImpl { location }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
@@ -199,8 +199,8 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 *location,
             ),
-            DefCollectorErrorKind::MutableReferenceInTraitImpl { location } => Diagnostic::simple_error(
-                "Trait impls are not allowed on mutable reference types".into(),
+            DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
+                "Trait impls are not allowed on reference types".into(),
                 "Try using a struct type here instead".into(),
                 *location,
             ),
