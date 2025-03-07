@@ -124,11 +124,34 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.push_str(",\n");
         }
         self.decrease_indent();
+        self.write_indent();
         self.push('}');
     }
 
     fn show_enum(&mut self, data_type: &DataType) {
-        todo!("Show enums")
+        self.push_str("enum ");
+        self.push_str(&data_type.name.to_string());
+        self.show_generics(&data_type.generics);
+        self.push_str(" {\n");
+        self.increase_indent();
+        for variant in data_type.get_variants_as_written().unwrap() {
+            self.write_indent();
+            self.push_str(&variant.name.to_string());
+            if variant.is_function {
+                self.push('(');
+                for (index, typ) in variant.params.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_type(typ);
+                }
+                self.push(')');
+            }
+            self.push_str(",\n");
+        }
+        self.decrease_indent();
+        self.write_indent();
+        self.push('}');
     }
 
     fn show_type_alias(&mut self, type_alias_id: TypeAliasId) {
