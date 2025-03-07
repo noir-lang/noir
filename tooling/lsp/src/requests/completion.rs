@@ -579,7 +579,7 @@ impl<'a> NodeFinder<'a> {
             Type::DataType(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix, self_prefix);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 return self.complete_type_fields_and_methods(
                     typ,
                     prefix,

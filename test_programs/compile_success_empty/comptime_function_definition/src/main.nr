@@ -208,3 +208,33 @@ mod test_as_typed_expr_4 {
         }
     }
 }
+
+mod test_as_typed_expr_5 {
+    trait Trait {}
+
+    impl Trait for i32 {}
+
+    trait Packable<let N: u32> {
+        fn pack(self);
+    }
+
+    pub struct Foo<T> {}
+
+    impl<T> Packable<10> for Foo<T>
+    where
+        T: Trait,
+    {
+        fn pack(self) {}
+    }
+
+    fn foo() {
+        comptime {
+            let foo = quote { Foo<i32> }.as_type();
+            let t = quote { Packable<10> }.as_trait_constraint();
+            let _ = foo.get_trait_impl(t).unwrap().methods().filter(|method| {
+                method.name() == quote { pack }
+            })[0]
+                .as_typed_expr();
+        }
+    }
+}

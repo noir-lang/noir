@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, HashSet};
 ///
 /// This optimization pass will keep the 16-bit range constraint
 /// and remove the 32-bit range constraint opcode.
-pub(crate) struct RangeOptimizer<F> {
+pub(crate) struct RangeOptimizer<F: AcirField> {
     /// Maps witnesses to their lowest known bit sizes.
     lists: BTreeMap<Witness, u32>,
     circuit: Circuit<F>,
