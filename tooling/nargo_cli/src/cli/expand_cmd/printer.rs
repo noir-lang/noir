@@ -493,7 +493,16 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 }
                 self.push(']');
             }
-            Value::Slice(..) => todo!("Show slice"),
+            Value::Slice(values, _) => {
+                self.push_str("&[");
+                for (index, value) in values.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_value(value);
+                }
+                self.push(']');
+            }
             Value::Quoted(..) => todo!("Show quoted"),
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
