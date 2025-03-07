@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741308411959,
+  "lastUpdate": 1741308507897,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c438547837a0ab153253d7fbdcc044313781e386",
-          "message": "fix: correctly format trait function with multiple where clauses (#7531)",
-          "timestamp": "2025-02-26T14:24:28Z",
-          "tree_id": "2cb5553a981ebf5a158bd5f9bf4c34f2de59b273",
-          "url": "https://github.com/noir-lang/noir/commit/c438547837a0ab153253d7fbdcc044313781e386"
-        },
-        "date": 1740581149888,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.955,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.711,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 21,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.495,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.166,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.394,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.034,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.742,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 5.176,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 0.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 94.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.966,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.522,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8281,6 +8187,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.5,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37be49fd081f33dc7256d23cee8ccc0719c50a82",
+          "message": "chore!: convert `TraitMethodNotInScope` to error (#7427)",
+          "timestamp": "2025-03-07T00:29:01Z",
+          "tree_id": "f05c3883d43ab8654675dd849c36510d2dc6d302",
+          "url": "https://github.com/noir-lang/noir/commit/37be49fd081f33dc7256d23cee8ccc0719c50a82"
+        },
+        "date": 1741308505455,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.683,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.4,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.483,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.266,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.986,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.092,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 10.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.947,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.916,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.57,
             "unit": "s"
           }
         ]
