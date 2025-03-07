@@ -1,7 +1,10 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, ItemVisibility, NoirTypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{
+        Ident, ItemVisibility, NoirTypeAlias, NormalTypeAlias, NumericTypeAlias, UnresolvedType,
+        UnresolvedTypeData,
+    },
     token::Token,
 };
 
@@ -16,39 +19,49 @@ impl Parser<'_> {
     ) -> NoirTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return NoirTypeAlias {
+            return NoirTypeAlias::NormalTypeAlias(NormalTypeAlias {
                 visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
                 location: start_location,
-            };
+            });
+        };
+        // Optional numeric type for alias over numeric generics
+        let mut num_typ = None;
+        let generics = self.parse_generics();
+        if self.eat_colon() {
+            // To specify a type alias on a numeric generic expression, we need to specify the type of the expression
+            // It must be a numeric type
+            num_typ = Some(self.parse_type_or_error());
+        }
+        let location = self.location_since(start_location);
+        let typ = if !self.eat_assign() {
+            self.expected_token(Token::Assign);
+            self.eat_semicolons();
+            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+        } else {
+            let typ = self.parse_type_or_type_expression().unwrap();
+            if !self.eat_semicolons() {
+                self.expected_token(Token::Semicolon);
+            }
+            typ
         };
 
-        let generics = self.parse_generics();
-
-        if !self.eat_assign() {
-            self.expected_token(Token::Assign);
-
-            let location = self.location_since(start_location);
-            self.eat_semicolons();
-
-            return NoirTypeAlias {
+        if let Some(num_type) = num_typ {
+            NoirTypeAlias::NumericTypeAlias(NumericTypeAlias {
+                type_alias: NormalTypeAlias { visibility, name, generics, typ, location },
+                numeric_type: num_type,
+            })
+        } else {
+            NoirTypeAlias::NormalTypeAlias(NormalTypeAlias {
                 visibility,
                 name,
                 generics,
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ,
                 location,
-            };
+            })
         }
-
-        let typ = self.parse_type_or_error();
-        let location = self.location_since(start_location);
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
-
-        NoirTypeAlias { visibility, name, generics, typ, location }
     }
 }
 
@@ -75,16 +88,24 @@ mod tests {
     fn parse_type_alias_no_generics() {
         let src = "type Foo = Field;";
         let alias = parse_type_alias_no_errors(src);
-        assert_eq!("Foo", alias.name.to_string());
-        assert!(alias.generics.is_empty());
-        assert_eq!(alias.typ.typ, UnresolvedTypeData::FieldElement);
+        assert_eq!("Foo", alias.name().to_string());
+        assert!(alias.generics().is_empty());
+        assert_eq!(alias.type_alias().typ.typ, UnresolvedTypeData::FieldElement);
     }
 
     #[test]
     fn parse_type_alias_with_generics() {
         let src = "type Foo<A> = Field;";
         let alias = parse_type_alias_no_errors(src);
-        assert_eq!("Foo", alias.name.to_string());
-        assert_eq!(alias.generics.len(), 1);
+        assert_eq!("Foo", alias.name().to_string());
+        assert_eq!(alias.generics().len(), 1);
+    }
+
+    #[test]
+    fn parse_numeric_generic_type_alias() {
+        let src = "type Double<let N: u32>: u32 = N * 2;";
+        let alias = parse_type_alias_no_errors(src);
+        assert_eq!("Double", alias.name().to_string());
+        assert_eq!(alias.generics().len(), 1);
     }
 }

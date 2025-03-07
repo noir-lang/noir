@@ -360,9 +360,9 @@ impl ModCollector<'_> {
         for type_alias in type_aliases {
             let doc_comments = type_alias.doc_comments;
             let type_alias = type_alias.item;
-            let name = type_alias.name.clone();
+            let name = type_alias.name();
             let location = Location::new(name.span(), self.file_id);
-            let visibility = type_alias.visibility;
+            let visibility = type_alias.visibility();
 
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedTypeAlias {
@@ -373,7 +373,7 @@ impl ModCollector<'_> {
 
             let resolved_generics = Context::resolve_generics(
                 &context.def_interner,
-                &unresolved.type_alias_def.generics,
+                unresolved.type_alias_def.generics(),
                 &mut errors,
             );
 
