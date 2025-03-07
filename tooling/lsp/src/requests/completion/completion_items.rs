@@ -62,8 +62,8 @@ impl NodeFinder<'_> {
             if let RequestedItems::OnlyAttributeFunctions(target) = requested_items {
                 match target {
                     AttributeTarget::Module => Some(Type::Quoted(QuotedType::Module)),
-                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::StructDefinition)),
-                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::EnumDefinition)),
+                    AttributeTarget::Struct => Some(Type::Quoted(QuotedType::TypeDefinition)),
+                    AttributeTarget::Enum => Some(Type::Quoted(QuotedType::TypeDefinition)),
                     AttributeTarget::Trait => Some(Type::Quoted(QuotedType::TraitDefinition)),
                     AttributeTarget::Function => Some(Type::Quoted(QuotedType::FunctionDefinition)),
                     AttributeTarget::Let => {

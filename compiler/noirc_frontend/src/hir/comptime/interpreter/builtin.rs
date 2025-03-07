@@ -5,8 +5,8 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32, get_unresolved_type,
+    get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_trait_impl,
+    get_tuple, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
     has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
     replace_func_meta_parameters, replace_func_meta_return_type,
 };
@@ -182,24 +182,6 @@ impl Interpreter<'_, '_> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
-            "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
-            "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
-            "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
-            "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
-            "struct_def_fields_as_written" => {
-                struct_def_fields_as_written(interner, arguments, location)
-            }
-            "struct_def_generics" => {
-                struct_def_generics(interner, arguments, return_type, location)
-            }
-            "struct_def_has_named_attribute" => {
-                struct_def_has_named_attribute(interner, arguments, location)
-            }
-            "struct_def_hash" => struct_def_hash(arguments, location),
-            "struct_def_module" => struct_def_module(self, arguments, location),
-            "struct_def_name" => struct_def_name(interner, arguments, location),
-            "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "to_be_bits" => to_be_bits(arguments, return_type, location),
@@ -223,8 +205,24 @@ impl Interpreter<'_, '_> {
             }
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
-            "type_as_struct" => type_as_struct(arguments, return_type, location),
+            "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
+            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_as_type" => type_def_as_type(interner, arguments, location),
+            "type_def_eq" => type_def_eq(arguments, location),
+            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
+            "type_def_fields_as_written" => {
+                type_def_fields_as_written(interner, arguments, location)
+            }
+            "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
+            "type_def_has_named_attribute" => {
+                type_def_has_named_attribute(interner, arguments, location)
+            }
+            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_module" => type_def_module(self, arguments, location),
+            "type_def_name" => type_def_name(interner, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(interner, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -379,7 +377,7 @@ fn str_as_ctstring(
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn struct_def_add_attribute(
+fn type_def_add_attribute(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -396,8 +394,8 @@ fn struct_def_add_attribute(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
-    interner.update_type_attributes(struct_id, |attributes| {
+    let type_id = get_type_id(self_argument)?;
+    interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -405,7 +403,7 @@ fn struct_def_add_attribute(
 }
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn struct_def_add_generic(
+fn type_def_add_generic(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -429,7 +427,7 @@ fn struct_def_add_generic(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
@@ -455,35 +453,35 @@ fn struct_def_add_generic(
 }
 
 /// fn as_type(self) -> Type
-fn struct_def_as_type(
+fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def_rc = interner.get_type(struct_id);
-    let struct_def = struct_def_rc.borrow();
+    let struct_id = get_type_id(argument)?;
+    let type_def_rc = interner.get_type(struct_id);
+    let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&struct_def.generics, |generic| {
+    let generics = vecmap(&type_def.generics, |generic| {
         Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
     });
 
-    drop(struct_def);
-    Ok(Value::Type(Type::DataType(struct_def_rc, generics)))
+    drop(type_def);
+    Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
 /// fn generics(self) -> [(Type, Option<Type>)]
-fn struct_def_generics(
+fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def = interner.get_type(struct_id);
-    let struct_def = struct_def.borrow();
+    let type_id = get_type_id(argument)?;
+    let type_def = interner.get_type(type_id);
+    let type_def = type_def.borrow();
 
     let expected = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Type),
@@ -502,7 +500,7 @@ fn struct_def_generics(
         _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
     };
 
-    let generics = struct_def
+    let generics = type_def
         .generics
         .iter()
         .map(|generic| {
@@ -519,39 +517,39 @@ fn struct_def_generics(
     Ok(Value::Slice(generics, slice_item_type))
 }
 
-fn struct_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_struct)
+fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    hash_item(arguments, location, get_type_id)
 }
 
-fn struct_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_struct)
+fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    eq_item(arguments, location, get_type_id)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn struct_def_has_named_attribute(
+fn type_def_has_named_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let type_id = get_type_id(self_argument)?;
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&struct_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id))))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Returns (name, type) pairs of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
-fn struct_def_fields(
+fn type_def_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(typ)?;
+    let struct_id = get_type_id(typ)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -565,7 +563,7 @@ fn struct_def_fields(
         let s = if expected == 1 { "" } else { "s" };
         let was_were = if actual == 1 { "was" } else { "were" };
         let message = Some(format!(
-            "`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
+            "`TypeDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
             struct_def.name
         ));
         let location = args_location;
@@ -591,16 +589,16 @@ fn struct_def_fields(
 }
 
 /// fn fields_as_written(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Returns (name, type) pairs of each field of this TypeDefinition.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
-fn struct_def_fields_as_written(
+fn type_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
+    let struct_id = get_type_id(argument)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -623,25 +621,25 @@ fn struct_def_fields_as_written(
 }
 
 // fn module(self) -> Module
-fn struct_def_module(
+fn type_def_module(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
 }
 
 // fn name(self) -> Quoted
-fn struct_def_name(
+fn type_def_name(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
@@ -650,14 +648,14 @@ fn struct_def_name(
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
-/// Returns (name, type) pairs of each field of this StructDefinition
-fn struct_def_set_fields(
+/// Returns (name, type) pairs of each field of this TypeDefinition
+fn type_def_set_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(the_struct)?;
+    let struct_id = get_type_id(the_struct)?;
 
     let struct_def = interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
@@ -1076,8 +1074,8 @@ fn type_as_str(
     })
 }
 
-// fn as_struct(self) -> Option<(StructDefinition, [Type])>
-fn type_as_struct(
+// fn as_data_type(self) -> Option<(TypeDefinition, [Type])>
+fn type_as_data_type(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1085,7 +1083,7 @@ fn type_as_struct(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Value::StructDefinition(struct_type.borrow().id),
+                Value::TypeDefinition(struct_type.borrow().id),
                 Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
@@ -2841,7 +2839,7 @@ fn module_functions(
     Ok(Value::Slice(func_ids, slice_type))
 }
 
-// fn structs(self) -> [StructDefinition]
+// fn structs(self) -> [TypeDefinition]
 fn module_structs(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
@@ -2856,14 +2854,14 @@ fn module_structs(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::StructDefinition(*id))
+                Some(Value::TypeDefinition(*id))
             } else {
                 None
             }
         })
         .collect();
 
-    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::StructDefinition)));
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::TypeDefinition)));
     Ok(Value::Slice(struct_ids, slice_type))
 }
 
