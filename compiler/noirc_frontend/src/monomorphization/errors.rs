@@ -16,6 +16,7 @@ pub enum MonomorphizationError {
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
     CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    RecursiveType { typ: Type, location: Location },
 }
 
 impl MonomorphizationError {
@@ -28,6 +29,7 @@ impl MonomorphizationError {
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
+            | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
@@ -65,6 +67,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::RecursiveType { typ, location } => {
+                let message = format!("Type `{typ}` is recursive");
+                let secondary = "All types in Noir must have a known size at compile-time".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

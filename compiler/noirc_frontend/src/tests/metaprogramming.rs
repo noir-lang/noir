@@ -96,7 +96,7 @@ fn unquoted_integer_as_integer_token() {
 #[test]
 fn allows_references_to_structs_generated_by_macros() {
     let src = r#"
-    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+    comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
         quote { struct Bar {} }
     }
 
@@ -117,7 +117,7 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     // This can't be tested using `check_errors` right now because the two secondary
     // errors land on the same span.
     let src = r#"
-    comptime fn make_colliding_functions(_s: StructDefinition) -> Quoted {
+    comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
         quote { 
             fn foo() {}
         }

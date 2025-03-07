@@ -27,7 +27,7 @@ use crate::{
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, While};
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
@@ -48,6 +48,7 @@ mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
+pub mod tests;
 
 struct LambdaContext {
     env_ident: ast::Ident,
@@ -378,7 +379,10 @@ impl<'interner> Monomorphizer<'interner> {
             other => other,
         };
 
-        let return_type = Self::convert_type(return_type, meta.location)?;
+        // If `convert_type` fails here it is most likely because of generics at the
+        // call site after instantiating this function's type. So show the error there
+        // instead of at the function definition.
+        let return_type = Self::convert_type(return_type, location)?;
         let unconstrained = self.in_unconstrained_function;
 
         let attributes = self.interner.function_attributes(&f);
@@ -1120,6 +1124,14 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType, location: Location) -> Result<ast::Type, MonomorphizationError> {
+        Self::convert_type_helper(typ, location, &mut HashSet::default())
+    }
+
+    fn convert_type_helper(
+        typ: &HirType,
+        location: Location,
+        seen_types: &mut HashSet<Type>,
+    ) -> Result<ast::Type, MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
             HirType::FieldElement => ast::Type::Field,
@@ -1155,12 +1167,14 @@ impl<'interner> Monomorphizer<'interner> {
                         });
                     }
                 };
-                let fields = Box::new(Self::convert_type(fields.as_ref(), location)?);
+                let fields =
+                    Box::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
             HirType::Array(length, element) => {
-                let element = Box::new(Self::convert_type(element.as_ref(), location)?);
+                let element =
+                    Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
@@ -1175,7 +1189,8 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Array(length, element)
             }
             HirType::Slice(element) => {
-                let element = Box::new(Self::convert_type(element.as_ref(), location)?);
+                let element =
+                    Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Slice(element)
             }
             HirType::TraitAsType(..) => {
@@ -1183,7 +1198,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return Self::convert_type(binding, location);
+                    return Self::convert_type_helper(binding, location, seen_types);
                 }
 
                 // Default any remaining unbound type variables.
@@ -1195,13 +1210,21 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
-                Self::convert_type(to, location)?
+                Self::convert_type_helper(to, location, seen_types)?
             }
 
             HirType::TypeVariable(binding) => {
+                let input_type = typ.as_ref().clone();
+                if !seen_types.insert(input_type.clone()) {
+                    let typ = input_type;
+                    return Err(MonomorphizationError::RecursiveType { typ, location });
+                }
+
                 let type_var_kind = match &*binding.borrow() {
                     TypeBinding::Bound(binding) => {
-                        return Self::convert_type(binding, location);
+                        let typ = Self::convert_type_helper(binding, location, seen_types);
+                        seen_types.remove(&input_type);
+                        return typ;
                     }
                     TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
                 };
@@ -1214,7 +1237,8 @@ impl<'interner> Monomorphizer<'interner> {
                     None => return Err(MonomorphizationError::NoDefaultType { location }),
                 };
 
-                let monomorphized_default = Self::convert_type(&default, location)?;
+                let monomorphized_default =
+                    Self::convert_type_helper(&default, location, seen_types)?;
                 binding.bind(default);
                 monomorphized_default
             }
@@ -1226,19 +1250,30 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
+                let input_type = typ.as_ref().clone();
+                if !seen_types.insert(input_type.clone()) {
+                    let typ = input_type;
+                    return Err(MonomorphizationError::RecursiveType { typ, location });
+                }
+
                 let def = def.borrow();
                 if let Some(fields) = def.get_fields(args) {
-                    let fields =
-                        try_vecmap(fields, |(_, field)| Self::convert_type(&field, location))?;
+                    let fields = try_vecmap(fields, |(_, field)| {
+                        Self::convert_type_helper(&field, location, seen_types)
+                    })?;
+
+                    seen_types.remove(&input_type);
                     ast::Type::Tuple(fields)
                 } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
                     let mut fields = vec![ast::Type::Field];
                     for (_, variant_fields) in variants {
-                        let variant_fields =
-                            try_vecmap(variant_fields, |typ| Self::convert_type(&typ, location))?;
+                        let variant_fields = try_vecmap(variant_fields, |typ| {
+                            Self::convert_type_helper(&typ, location, seen_types)
+                        })?;
                         fields.push(ast::Type::Tuple(variant_fields));
                     }
+                    seen_types.remove(&input_type);
                     ast::Type::Tuple(fields)
                 } else {
                     unreachable!("Data type has no body")
@@ -1252,18 +1287,20 @@ impl<'interner> Monomorphizer<'interner> {
                     Self::check_type(arg, location)?;
                 }
 
-                Self::convert_type(&def.borrow().get_type(args), location)?
+                Self::convert_type_helper(&def.borrow().get_type(args), location, seen_types)?
             }
 
             HirType::Tuple(fields) => {
-                let fields = try_vecmap(fields, |x| Self::convert_type(x, location))?;
+                let fields =
+                    try_vecmap(fields, |x| Self::convert_type_helper(x, location, seen_types))?;
                 ast::Type::Tuple(fields)
             }
 
             HirType::Function(args, ret, env, unconstrained) => {
-                let args = try_vecmap(args, |x| Self::convert_type(x, location))?;
-                let ret = Box::new(Self::convert_type(ret, location)?);
-                let env = Self::convert_type(env, location)?;
+                let args =
+                    try_vecmap(args, |x| Self::convert_type_helper(x, location, seen_types))?;
+                let ret = Box::new(Self::convert_type_helper(ret, location, seen_types)?);
+                let env = Self::convert_type_helper(env, location, seen_types)?;
                 match &env {
                     ast::Type::Unit => {
                         ast::Type::Function(args, ret, Box::new(env), *unconstrained)
@@ -1282,7 +1319,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             // Lower both mutable & immutable references to the same reference type
             HirType::Reference(element, _mutable) => {
-                let element = Self::convert_type(element, location)?;
+                let element = Self::convert_type_helper(element, location, seen_types)?;
                 ast::Type::MutableReference(Box::new(element))
             }
 
