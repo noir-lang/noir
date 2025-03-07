@@ -903,3 +903,27 @@ Here we've just printed out the three DIE passes as they all match the pattern w
 This can be very useful if you want to just see the final SSA for the program before ACIR generation.
 
 ## Reading SSA output
+
+```
+After Initial SSA:
+acir(inline) fn main f0 {
+  b0(v0: u1, v1: [u32; 30]):
+    v2 = allocate -> &mut [u32; 30]
+    store v1 at v2
+    jmpif v0 then: b1, else: b2
+  b1():
+    v3 = load v2 -> [u32; 30]
+    v6 = array_set v3, index u32 0, value u32 1
+    store v6 at v2
+    jmp b2()
+  b2():
+    v7 = load v2 -> [u32; 30]
+    v8 = array_get v7, index u32 0 -> u32
+    v9 = load v2 -> [u32; 30]
+    v10 = array_get v9, index u32 1 -> u32
+    v11 = add v8, v10
+    v12 = eq v11, u32 1
+    constrain v11 == u32 1
+    return
+}
+```
