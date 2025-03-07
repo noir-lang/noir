@@ -1007,7 +1007,7 @@ impl<'a> FunctionContext<'a> {
 
         for (parameter, original) in incremented_params {
             if self.builder.current_function.dfg.value_is_reference(parameter) {
-                self.builder.decrement_array_reference_count(original, original);
+                self.builder.decrement_array_reference_count(original);
             }
         }
     }
