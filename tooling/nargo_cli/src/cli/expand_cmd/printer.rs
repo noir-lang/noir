@@ -515,14 +515,26 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_where_clause(&func_meta.trait_constraints);
 
         let hir_function = self.interner.function(&func_id);
-        if hir_function.try_as_expr().is_some() {
-            let block = hir_function.block(self.interner);
-            let block = HirExpression::Block(block);
-            let block = block.to_display_ast(self.interner, func_meta.location);
-            let block_str = block.to_string();
-            let block_str = indent_lines(block_str, self.indent);
-            self.push(' ');
-            self.push_str(&block_str);
+        if let Some(expr) = hir_function.try_as_expr() {
+            let hir_expr = self.interner.expression(&expr);
+            if let HirExpression::Block(block) = hir_expr {
+                let block = HirExpression::Block(block);
+                let block = block.to_display_ast(self.interner, func_meta.location);
+                let block_str = block.to_string();
+                let block_str = indent_lines(block_str, self.indent);
+                self.push(' ');
+                self.push_str(&block_str);
+            } else {
+                self.push_str("{\n");
+                self.increase_indent();
+                self.push_str(
+                    &hir_expr.to_display_ast(self.interner, func_meta.location).to_string(),
+                );
+                self.push('\n');
+                self.decrease_indent();
+                self.write_indent();
+                self.push('}');
+            }
         } else {
             self.push(';');
         }
