@@ -34,13 +34,15 @@ use crate::{
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
         function::FunctionBody,
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, LocatedToken, Token},
 };
@@ -834,8 +836,9 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
-        let module = interpreter
-            .elaborate_in_function(interpreter.current_function, |elaborator| {
+        let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
+        let module =
+            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
                 elaborator.resolve_module_by_path(path)
             });
         module.map(Value::ModuleDefinition)
@@ -857,8 +860,10 @@ fn quoted_as_trait_constraint(
         Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
+    let reason =
+        Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, |elaborator| {
+        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -874,8 +879,11 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
-    let typ = interpreter
-        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.resolve_type(typ)
+        });
     Ok(Value::Type(typ))
 }
 
@@ -2297,7 +2305,9 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
+    {
         ExprValue::Expression(expression_kind) => {
             let expr = Expression { kind: expression_kind, location: self_argument_location };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
@@ -2425,13 +2435,39 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
+    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
-    let hir_ident = HirIdent::non_trait_method(definition_id, location);
+    let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
+        let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let ordered = trait_impl.trait_generics.clone();
+        let named =
+            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+        let trait_generics = TraitGenerics { ordered, named };
+        let trait_bound =
+            ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
+        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
+        let method_index = method_index.expect("Expected to find the method");
+        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
+        let trait_method = TraitMethod { method_id, constraint, assumed: true };
+        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
+        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+    } else {
+        HirIdent::non_trait_method(definition_id, location)
+    };
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
     interpreter.elaborator.interner.push_expr_location(expr_id, location);
-    let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall(
+        "FunctionDefinition::as_typed_expr",
+        location,
+    ));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.type_check_variable(hir_ident, expr_id, generics)
+        });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2637,7 +2673,10 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
+        let reason =
+            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
+        let reason = Some(reason);
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
@@ -2752,10 +2791,8 @@ fn module_add_item(
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
-    interpreter.elaborate_in_module(module_id, |elaborator| {
-        let previous_errors = elaborator
-            .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
-
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
+    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
@@ -2765,8 +2802,6 @@ fn module_add_item(
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
         }
-
-        elaborator.pop_elaborate_reason(previous_errors);
     });
 
     Ok(Value::Unit)

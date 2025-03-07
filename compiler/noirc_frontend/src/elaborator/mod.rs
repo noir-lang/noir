@@ -199,25 +199,26 @@ pub struct Elaborator<'context> {
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+    pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
 }
 
 #[derive(Copy, Clone)]
 pub enum ElaborateReason {
     /// A function attribute generated an item that's being elaborated.
-    RunningAttribute,
-    /// Evaluating `Module::add_item`
-    AddingItemToModule,
+    RunningAttribute(Location),
+    /// Evaluating a comptime call like `Module::add_item`
+    EvaluatingComptimeCall(&'static str, Location),
 }
 
 impl ElaborateReason {
-    fn to_macro_error(self, error: CompilationError, location: Location) -> ComptimeError {
+    fn to_macro_error(self, error: CompilationError) -> ComptimeError {
         match self {
-            ElaborateReason::RunningAttribute => {
+            ElaborateReason::RunningAttribute(location) => {
                 ComptimeError::ErrorRunningAttribute { error: Box::new(error), location }
             }
-            ElaborateReason::AddingItemToModule => {
-                ComptimeError::ErrorAddingItemToModule { error: Box::new(error), location }
+            ElaborateReason::EvaluatingComptimeCall(method_name, location) => {
+                let error = Box::new(error);
+                ComptimeError::ErrorEvaluatingComptimeCall { method_name, error, location }
             }
         }
     }
@@ -251,7 +252,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: im::Vector<(ElaborateReason, Location)>,
+        elaborate_reasons: im::Vector<ElaborateReason>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
