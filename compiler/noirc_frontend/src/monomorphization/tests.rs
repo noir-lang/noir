@@ -47,6 +47,19 @@ fn bounded_recursive_type_errors() {
 fn recursive_type_with_alias_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
     // disallowed because they cause a panic in convert_type during monomorphization.
+    //
+    // In the future we could lower this type to:
+    // struct OptOptUnit {
+    //     is_some: Field,
+    //     some: OptUnit,
+    //     none: (),
+    // }
+    //
+    // struct OptUnit {
+    //     is_some: Field,
+    //     some: (),
+    //     none: (),
+    // }
     let src = "
         fn main() {
             let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
@@ -65,8 +78,6 @@ fn recursive_type_with_alias_errors() {
 
 #[test]
 fn mutually_recursive_types_error() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
     let src = "
         fn main() {
             let _zero = Even::Zero;
