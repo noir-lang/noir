@@ -505,7 +505,40 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     self.push('}');
                 }
             }
-            Value::Enum(..) => todo!("Show enum"),
+            Value::Enum(index, args, typ) => {
+                let Type::DataType(data_type, generics) = typ else {
+                    panic!("Expected typ to be a data type");
+                };
+                let data_type = data_type.borrow();
+
+                // TODO: we might need to fully-qualify this enum
+                self.push_str(&data_type.name.to_string());
+
+                if !generics.is_empty() {
+                    self.push_str("::<");
+                    for (index, generic) in generics.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_type(generic);
+                    }
+                    self.push('>');
+                }
+
+                let variant = data_type.variant_at(*index);
+                self.push_str("::");
+                self.push_str(&variant.name.to_string());
+                if variant.is_function {
+                    self.push('(');
+                    for (index, arg) in args.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_value(arg);
+                    }
+                    self.push(')');
+                }
+            }
             Value::Array(values, _) => {
                 self.push('[');
                 for (index, value) in values.iter().enumerate() {
