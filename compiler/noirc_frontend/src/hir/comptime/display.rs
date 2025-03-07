@@ -63,7 +63,7 @@ impl Display for TokensPrettyPrinter<'_, '_> {
     }
 }
 
-pub(super) fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
+pub fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
     TokensPrettyPrinter { tokens, interner, indent: 0 }.to_string()
 }
 

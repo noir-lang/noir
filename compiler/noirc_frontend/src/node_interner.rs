@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
@@ -1448,6 +1449,14 @@ impl NodeInterner {
 
     pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
         self.trait_implementations[&id].clone()
+    }
+
+    pub fn get_trait_implementations_in_crate(&self, crate_id: CrateId) -> HashSet<TraitImplId> {
+        let trait_impls = self.trait_implementations.iter();
+        let trait_impls = trait_impls.filter_map(|(id, trait_impl)| {
+            if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
+        });
+        trait_impls.collect()
     }
 
     /// If the given function belongs to a trait impl, return its trait method id.
