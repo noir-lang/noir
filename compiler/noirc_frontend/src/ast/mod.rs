@@ -43,8 +43,11 @@ use crate::{
 use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
+
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Ord, PartialOrd, EnumIter)]
 pub enum IntegerBitSize {
     One,
     Eight,
@@ -69,7 +72,7 @@ impl IntegerBitSize {
 
 impl IntegerBitSize {
     pub fn allowed_sizes() -> Vec<Self> {
-        vec![Self::One, Self::Eight, Self::ThirtyTwo, Self::SixtyFour]
+        IntegerBitSize::iter().collect()
     }
 }
 
