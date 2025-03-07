@@ -29,7 +29,7 @@ that are not used in function signatures.
 
 Example:
 
-#include_code add-generic-example test_programs/compile_success_empty/comptime_type_definition/src/main.nr rust
+#include_code add-generic-example test_programs/compile_success_empty/comptime_struct_definition/src/main.nr rust
 
 ### as_type
 
