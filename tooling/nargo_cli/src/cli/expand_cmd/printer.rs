@@ -36,16 +36,21 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
         let attributes = self.interner.try_module_attributes(&module_id);
         let name = attributes.map(|attributes| &attributes.name);
+        let module_data = &self.def_map.modules()[module_id.local_id.0];
+        let is_contract = module_data.is_contract;
 
         if let Some(name) = name {
             self.write_indent();
-            self.push_str("mod ");
+            if is_contract {
+                self.push_str("contract ");
+            } else {
+                self.push_str("mod ");
+            }
             self.push_str(name);
             self.push_str(" {");
             self.increase_indent();
         }
 
-        let module_data = &self.def_map.modules()[module_id.local_id.0];
         let definitions = module_data.definitions();
 
         let mut definitions = definitions
