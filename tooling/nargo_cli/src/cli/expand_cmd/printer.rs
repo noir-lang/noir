@@ -284,6 +284,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
         }
 
+        self.show_where_clause(&func_meta.trait_constraints);
+
         let hir_function = self.interner.function(&func_id);
         if hir_function.try_as_expr().is_some() {
             let block = hir_function.block(self.interner);
