@@ -4146,3 +4146,15 @@ fn immutable_references_without_ownership_feature() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_invalid_integer_bit_size() {
+    let src = r#"
+    fn main() {
+        let _: u42 = 4;
+               ^^^ Use of invalid bit size 42
+               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
+    }
+    "#;
+    check_errors(src);
+}
