@@ -24,16 +24,38 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
         let attributes = self.interner.try_module_attributes(&module_id);
-        let name =
-            attributes.map(|attributes| attributes.name.clone()).unwrap_or_else(|| String::new());
+        let name = attributes.map(|attributes| &attributes.name);
+
+        if let Some(name) = name {
+            self.write_indent();
+            self.push_str("mod ");
+            self.push_str(name);
+            self.push_str(" {");
+            self.increase_indent();
+        }
 
         let module_data = &self.def_map.modules()[module_id.local_id.0];
         let definitions = module_data.definitions();
 
-        for (name, scope) in definitions.types().iter().chain(definitions.values()) {
+        let mut first = true;
+        for (_name, scope) in definitions.types().iter().chain(definitions.values()) {
             for (_trait_id, (module_def_id, visibility, _is_prelude)) in scope {
+                if first {
+                    self.push_str("\n");
+                    first = false;
+                } else {
+                    self.push_str("\n\n");
+                }
+                self.write_indent();
                 self.show_module_def_id(*module_def_id, *visibility);
             }
+        }
+
+        if name.is_some() {
+            self.push('\n');
+            self.decrease_indent();
+            self.write_indent();
+            self.push_str("}");
         }
     }
 
@@ -44,14 +66,15 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         };
 
         match module_def_id {
-            ModuleDefId::ModuleId(module_id) => todo!("Show modules"),
+            ModuleDefId::ModuleId(module_id) => {
+                self.show_module(module_id);
+            }
             ModuleDefId::TypeId(type_id) => self.show_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => todo!("Show type aliases"),
             ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
             ModuleDefId::GlobalId(global_id) => todo!("Show globals"),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
         }
-        self.push_str("\n\n");
     }
 
     fn show_type(&mut self, type_id: TypeId) {
@@ -146,7 +169,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         let block = hir_function.block(self.interner);
         let block = HirExpression::Block(block);
         let block = block.to_display_ast(self.interner, func_meta.location);
-        self.push_str(&block.to_string());
+        let block_str = block.to_string();
+        let block_str = indent_lines(block_str, self.indent);
+        self.push_str(&block_str);
     }
 
     fn show_generics(&mut self, generics: &Generics) {
@@ -244,4 +269,26 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn push(&mut self, char: char) {
         self.string.push(char);
     }
+}
+
+fn indent_lines(string: String, indent: usize) -> String {
+    if indent == 0 {
+        return string;
+    }
+
+    let lines = string.lines();
+    let lines_count = lines.clone().count();
+
+    lines
+        .enumerate()
+        .map(|(index, line)| {
+            if index == lines_count - 1 {
+                format!("{}{}", "    ".repeat(indent), line)
+            } else if index == 0 {
+                format!("{}\n", line)
+            } else {
+                format!("{}{}\n", "    ".repeat(indent), line)
+            }
+        })
+        .collect()
 }
