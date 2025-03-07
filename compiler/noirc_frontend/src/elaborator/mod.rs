@@ -1511,10 +1511,12 @@ impl<'context> Elaborator<'context> {
 
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
+                location,
                 typ: self_type.clone(),
                 trait_id,
                 trait_generics,
                 file: trait_impl.file_id,
+                crate_id: self.crate_id,
                 where_clause,
                 methods,
             });

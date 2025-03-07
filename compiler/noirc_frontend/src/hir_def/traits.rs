@@ -83,6 +83,7 @@ pub struct Trait {
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
+    pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
 
@@ -95,6 +96,7 @@ pub struct TraitImpl {
     pub trait_generics: Vec<Type>,
 
     pub file: FileId,
+    pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
 
     /// The where clause, if present, contains each trait requirement which must

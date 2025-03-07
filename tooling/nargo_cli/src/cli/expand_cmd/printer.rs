@@ -17,7 +17,7 @@ use noirc_frontend::{
     },
     node_interner::{
         FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId, TraitId,
-        TypeAliasId, TypeId,
+        TraitImplId, TypeAliasId, TypeId,
     },
 };
 
@@ -27,6 +27,7 @@ pub(super) struct Printer<'interner, 'def_map, 'string> {
     def_map: &'def_map CrateDefMap,
     string: &'string mut String,
     indent: usize,
+    trait_impls: HashSet<TraitImplId>,
 }
 
 impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
@@ -36,7 +37,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         def_map: &'def_map CrateDefMap,
         string: &'string mut String,
     ) -> Self {
-        Self { crate_id, interner, def_map, string, indent: 0 }
+        let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
+        Self { crate_id, interner, def_map, string, indent: 0, trait_impls }
     }
 
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
@@ -103,7 +105,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             ModuleDefId::TypeId(type_id) => self.show_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => self.show_type_alias(type_alias_id),
-            ModuleDefId::TraitId(trait_id) => self.show_trait(trait_id),
+            ModuleDefId::TraitId(trait_id) => {
+                self.show_trait(trait_id);
+                self.show_trait_impls_for_trait(trait_id);
+            }
             ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
         }
@@ -200,12 +205,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) {
         self.push_str("impl");
 
-        let mut type_vars = HashSet::new();
-        gather_named_type_vars(&typ, &mut type_vars);
+        let mut type_var_names = HashSet::new();
+        gather_named_type_vars(&typ, &mut type_var_names);
 
-        if !type_vars.is_empty() {
+        if !type_var_names.is_empty() {
             self.push('<');
-            for (index, name) in type_vars.iter().enumerate() {
+            for (index, name) in type_var_names.iter().enumerate() {
                 if index != 0 {
                     self.push_str(", ");
                 }
@@ -300,6 +305,91 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             printed_type_or_function = true;
         }
 
+        self.push('\n');
+        self.decrease_indent();
+        self.write_indent();
+        self.push('}');
+    }
+
+    /// Shows trait impls for traits, but only when those impls are
+    /// only for primitive types, or combination of primitive types
+    /// (like `[Field; 3]`, [T; 2], etc.) as they are likely defined next
+    /// to the trait.
+    fn show_trait_impls_for_trait(&mut self, trait_id: TraitId) {
+        let mut trait_impls = self
+            .trait_impls
+            .iter()
+            .filter_map(|trait_impl_id| {
+                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if trait_impl.trait_id == trait_id && type_has_primitives_only(&trait_impl.typ) {
+                    Some((*trait_impl_id, trait_impl.location))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
+
+        for (trait_impl, _) in trait_impls {
+            self.push_str("\n\n");
+            self.write_indent();
+            self.show_trait_impl(trait_impl);
+        }
+    }
+
+    fn show_trait_impl(&mut self, trait_impl_id: TraitImplId) {
+        // Remove the trait impl from the set so we don't show it again
+        self.trait_impls.remove(&trait_impl_id);
+
+        let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let trait_ = self.interner.get_trait(trait_impl.trait_id);
+
+        self.push_str("impl");
+
+        let mut type_var_names = HashSet::new();
+        for generic in &trait_impl.trait_generics {
+            gather_named_type_vars(generic, &mut type_var_names);
+        }
+        gather_named_type_vars(&trait_impl.typ, &mut type_var_names);
+
+        if !type_var_names.is_empty() {
+            self.push('<');
+            for (index, name) in type_var_names.iter().enumerate() {
+                if index != 0 {
+                    self.push_str(", ");
+                }
+                self.push_str(&name);
+            }
+            self.push('>');
+        }
+
+        self.push(' ');
+        self.push_str(&trait_.name.to_string());
+        if !trait_impl.trait_generics.is_empty() {
+            self.push('<');
+            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+                if index != 0 {
+                    self.push_str(", ");
+                }
+                self.show_type(generic);
+            }
+            self.push('>');
+        }
+        self.push_str(" for ");
+        self.show_type(&trait_impl.typ);
+        self.show_where_clause(&trait_impl.where_clause);
+        self.push_str(" {\n");
+        self.increase_indent();
+        for (index, method) in trait_impl.methods.iter().enumerate() {
+            if index != 0 {
+                self.push_str("\n\n");
+            }
+            self.write_indent();
+            self.show_function(*method);
+        }
         self.push('\n');
         self.decrease_indent();
         self.write_indent();
@@ -789,5 +879,40 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
         | Type::Constant(..)
         | Type::TypeVariable(_)
         | Type::Error => (),
+    }
+}
+
+fn type_has_primitives_only(typ: &Type) -> bool {
+    match typ {
+        Type::Array(length, typ) => {
+            type_has_primitives_only(&length) && type_has_primitives_only(&typ)
+        }
+        Type::Slice(typ) => type_has_primitives_only(typ),
+        Type::FmtString(length, typ) => {
+            type_has_primitives_only(&length) && type_has_primitives_only(typ)
+        }
+        Type::Tuple(types) => types.iter().all(type_has_primitives_only),
+        Type::DataType(..) | Type::Alias(..) | Type::TraitAsType(..) => false,
+        Type::CheckedCast { from, to: _ } => type_has_primitives_only(from),
+        Type::Function(args, ret, env, _) => {
+            args.iter().all(type_has_primitives_only)
+                && type_has_primitives_only(ret)
+                && type_has_primitives_only(env)
+        }
+        Type::Reference(typ, _) => type_has_primitives_only(typ),
+        Type::Forall(_, typ) => type_has_primitives_only(typ),
+        Type::InfixExpr(lhs, _, rhs, _) => {
+            type_has_primitives_only(lhs) && type_has_primitives_only(rhs)
+        }
+        Type::Unit
+        | Type::Bool
+        | Type::Integer(..)
+        | Type::FieldElement
+        | Type::String(_)
+        | Type::Quoted(_)
+        | Type::Constant(..)
+        | Type::TypeVariable(..)
+        | Type::NamedGeneric(..)
+        | Type::Error => true,
     }
 }
