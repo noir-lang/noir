@@ -453,7 +453,16 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::FormatString(_, _) => todo!("Show format string"),
             Value::CtString(_) => todo!("Show CtString"),
             Value::Function(..) => todo!("Show function"),
-            Value::Tuple(..) => todo!("Show tuple"),
+            Value::Tuple(values) => {
+                self.push('(');
+                for (index, value) in values.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_value(value);
+                }
+                self.push(')');
+            }
             Value::Struct(fields, typ) => {
                 self.show_type(typ);
                 if fields.is_empty() {
