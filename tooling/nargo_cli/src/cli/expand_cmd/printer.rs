@@ -86,7 +86,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             ModuleDefId::ModuleId(module_id) => {
                 self.show_module(module_id);
             }
-            ModuleDefId::TypeId(type_id) => self.show_type(type_id),
+            ModuleDefId::TypeId(type_id) => self.show_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => todo!("Show type aliases"),
             ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
             ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
@@ -94,7 +94,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
-    fn show_type(&mut self, type_id: TypeId) {
+    fn show_data_type(&mut self, type_id: TypeId) {
         let shared_data_type = self.interner.get_type(type_id);
         let data_type = shared_data_type.borrow();
         if data_type.is_struct() {
@@ -116,7 +116,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.write_indent();
             self.push_str(&field.name.to_string());
             self.push_str(": ");
-            self.push_str(&field.typ.to_string());
+            self.show_type(&field.typ);
             self.push_str(",\n");
         }
         self.decrease_indent();
@@ -144,7 +144,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push_str("global ");
         self.push_str(&global_info.ident.to_string());
         self.push_str(": ");
-        self.push_str(&typ.to_string());
+        self.show_type(&typ);
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);
@@ -187,7 +187,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 if matches!(visibility, Visibility::Public) {
                     self.push_str("pub ");
                 }
-                self.push_str(&format!("{}", typ));
+                self.show_type(typ);
             }
 
             if index != parameters.len() - 1 {
@@ -201,7 +201,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Type::Unit => (),
             _ => {
                 self.push_str(" -> ");
-                self.push_str(&format!("{}", return_type));
+                self.show_type(return_type);
             }
         }
 
@@ -255,7 +255,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                         self.push_str("let ");
                         self.push_str(&generic.name);
                         self.push_str(": ");
-                        self.push_str(&typ.to_string());
+                        self.show_type(&typ);
                     }
                 }
             }
@@ -322,6 +322,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 panic!("Theis value shouldn't be held by globals: {:?}", value)
             }
         }
+    }
+
+    fn show_type(&mut self, typ: &Type) {
+        self.push_str(&typ.to_string());
     }
 
     fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
