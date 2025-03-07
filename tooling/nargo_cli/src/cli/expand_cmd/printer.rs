@@ -10,7 +10,9 @@ use noirc_frontend::{
         expr::HirExpression,
         stmt::{HirLetStatement, HirPattern},
     },
-    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeId},
+    node_interner::{
+        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId,
+    },
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
@@ -87,7 +89,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_module(module_id);
             }
             ModuleDefId::TypeId(type_id) => self.show_data_type(type_id),
-            ModuleDefId::TypeAliasId(type_alias_id) => todo!("Show type aliases"),
+            ModuleDefId::TypeAliasId(type_alias_id) => self.show_type_alias(type_alias_id),
             ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
             ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
@@ -125,6 +127,18 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
     fn show_enum(&mut self, data_type: &DataType) {
         todo!("Show enums")
+    }
+
+    fn show_type_alias(&mut self, type_alias_id: TypeAliasId) {
+        let type_alias = self.interner.get_type_alias(type_alias_id);
+        let type_alias = type_alias.borrow();
+
+        self.push_str("type ");
+        self.push_str(&type_alias.name.to_string());
+        self.show_generics(&type_alias.generics);
+        self.push_str(" = ");
+        self.show_type(&type_alias.typ);
+        self.push(';');
     }
 
     fn show_global(&mut self, global_id: GlobalId) {
