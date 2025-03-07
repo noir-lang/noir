@@ -185,13 +185,14 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
 
-        for (_, methods) in methods {
+        for methods in methods.values() {
             impl_methods.extend(methods.direct.clone());
         }
 
         // Split them by the impl type. For example here we'll group
         // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
         // all of `Foo<T>` in another one.
+        #[allow(clippy::mutable_key_type)]
         let mut impl_methods_by_type: HashMap<Type, Vec<ImplMethod>> = HashMap::new();
         for method in impl_methods {
             impl_methods_by_type.entry(method.typ.clone()).or_default().push(method);
@@ -398,7 +399,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 if index != 0 {
                     self.push_str(", ");
                 }
-                self.push_str(&name);
+                self.push_str(name);
             }
             self.push('>');
         }
@@ -811,12 +812,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {
         match typ {
             Type::Array(length, typ) => {
-                self.type_only_mention_types_outside_current_crate(&length)
-                    && self.type_only_mention_types_outside_current_crate(&typ)
+                self.type_only_mention_types_outside_current_crate(length)
+                    && self.type_only_mention_types_outside_current_crate(typ)
             }
             Type::Slice(typ) => self.type_only_mention_types_outside_current_crate(typ),
             Type::FmtString(length, typ) => {
-                self.type_only_mention_types_outside_current_crate(&length)
+                self.type_only_mention_types_outside_current_crate(length)
                     && self.type_only_mention_types_outside_current_crate(typ)
             }
             Type::Tuple(types) => {
@@ -926,8 +927,8 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
             gather_named_type_vars(typ, type_vars);
         }
         Type::FmtString(length, typ) => {
-            gather_named_type_vars(&length, type_vars);
-            gather_named_type_vars(&typ, type_vars);
+            gather_named_type_vars(length, type_vars);
+            gather_named_type_vars(typ, type_vars);
         }
         Type::Tuple(types) => {
             for typ in types {
@@ -941,7 +942,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
         }
         Type::TraitAsType(_, _, trait_generics) => {
             for typ in &trait_generics.ordered {
-                gather_named_type_vars(&typ, type_vars);
+                gather_named_type_vars(typ, type_vars);
             }
             for named_type in &trait_generics.named {
                 gather_named_type_vars(&named_type.typ, type_vars);
@@ -951,7 +952,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
             type_vars.insert(name.to_string());
         }
         Type::CheckedCast { from, to: _ } => {
-            gather_named_type_vars(&from, type_vars);
+            gather_named_type_vars(from, type_vars);
         }
         Type::Function(args, ret, env, _) => {
             for typ in args {
@@ -985,11 +986,11 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
 fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool {
     match typ {
         Type::Array(length, typ) => {
-            type_mentions_data_type(&length, data_type) && type_mentions_data_type(&typ, data_type)
+            type_mentions_data_type(length, data_type) && type_mentions_data_type(typ, data_type)
         }
         Type::Slice(typ) => type_mentions_data_type(typ, data_type),
         Type::FmtString(length, typ) => {
-            type_mentions_data_type(&length, data_type) || type_mentions_data_type(typ, data_type)
+            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
         Type::Tuple(types) => types.iter().any(|typ| type_mentions_data_type(typ, data_type)),
         Type::DataType(other_data_type, generics) => {
