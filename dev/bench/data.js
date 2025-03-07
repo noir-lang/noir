@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741365721604,
+  "lastUpdate": 1741365722795,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8265,70 +8265,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d118e170a33d1307ccc1240374e22d86180216ed",
-          "message": "fix(experimental): Replace most remaining match panics with errors (#7536)",
-          "timestamp": "2025-02-26T19:15:13Z",
-          "tree_id": "ac85cb7caa824af84aad35d93628c347dfcf5aae",
-          "url": "https://github.com/noir-lang/noir/commit/d118e170a33d1307ccc1240374e22d86180216ed"
-        },
-        "date": 1740598525726,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.288,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.428,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11458,6 +11394,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.027,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jake@aztecprotocol.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba5beb68945d5f0e4455cdb79513aad081ace318",
+          "message": "fix: Error on infinitely recursive types (#7579)",
+          "timestamp": "2025-03-07T16:21:07Z",
+          "tree_id": "52f7b7d8a9707cb2159befecdea22fb71b459230",
+          "url": "https://github.com/noir-lang/noir/commit/ba5beb68945d5f0e4455cdb79513aad081ace318"
+        },
+        "date": 1741365720138,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.071,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.293,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.504,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
             "unit": "s"
           }
         ]
