@@ -203,8 +203,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
         let mut func_ids = trait_
             .method_ids
-            .iter()
-            .map(|(_, func_id)| {
+            .values()
+            .map(|func_id| {
                 let location = self.interner.function_meta(func_id).location;
                 (func_id, location)
             })
@@ -326,12 +326,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_generics(&mut self, generics: &Generics) {
         self.show_generics_impl(
             generics, false, // only show names
-        );
-    }
-
-    fn show_generic_names(&mut self, generics: &Generics) {
-        self.show_generics_impl(
-            generics, true, // only show names
         );
     }
 
@@ -458,13 +452,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::String(string) => self.push_str(&format!("{:?}", string)),
             Value::FormatString(_, _) => todo!("Show format string"),
             Value::CtString(_) => todo!("Show CtString"),
-            Value::Function(func_id, _, hash_map) => todo!("Show function"),
-            Value::Tuple(values) => todo!("Show tuple"),
-            Value::Struct(hash_map, _) => todo!("Show struct"),
-            Value::Enum(_, values, _) => todo!("Show enum"),
-            Value::Array(vector, _) => todo!("Show array"),
-            Value::Slice(vector, _) => todo!("Show slice"),
-            Value::Quoted(located_tokens) => todo!("Show quoted"),
+            Value::Function(..) => todo!("Show function"),
+            Value::Tuple(..) => todo!("Show tuple"),
+            Value::Struct(..) => todo!("Show struct"),
+            Value::Enum(..) => todo!("Show enum"),
+            Value::Array(..) => todo!("Show array"),
+            Value::Slice(..) => todo!("Show slice"),
+            Value::Quoted(..) => todo!("Show quoted"),
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
             }
