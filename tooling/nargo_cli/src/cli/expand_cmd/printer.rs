@@ -458,7 +458,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::U64(value) => self.push_str(&value.to_string()),
             Value::U128(value) => self.push_str(&value.to_string()),
             Value::String(string) => self.push_str(&format!("{:?}", string)),
-            Value::FormatString(_, _) => todo!("Show format string"),
+            Value::FormatString(string, _typ) => {
+                // Note: at this point the format string was already expanded so we can't recover the original
+                // interpolation and this will result in a compile-error. But... the expanded code is meant
+                // to be browsed, not compiled.
+                self.push_str(&format!("f{:?}", string));
+            }
             Value::CtString(string) => {
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
