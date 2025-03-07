@@ -1,5 +1,5 @@
 [package]
-name = "reference_counts"
+name = "reference_counts_inliner_0"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.35.0"

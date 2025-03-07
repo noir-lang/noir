@@ -60,10 +60,20 @@ const IGNORED_BRILLIG_TESTS: [&str; 10] = [
     "is_unconstrained",
 ];
 
-/// Tests which aren't expected to work with the default inliner cases.
-const INLINER_MIN_OVERRIDES: [(&str, i64); 1] = [
+/// Tests which aren't expected to work with the default minimum inliner cases.
+const INLINER_MIN_OVERRIDES: [(&str, i64); 4] = [
     // 0 works if PoseidonHasher::write is tagged as `inline_always`, otherwise 22.
     ("eddsa", 0),
+    ("reference_counts_inliner_0", 0),
+    ("reference_counts_inliner_min", i64::MIN),
+    ("reference_counts_inliner_max", i64::MAX),
+];
+
+/// Tests which aren't expected to work with the default maximum inliner cases.
+const INLINER_MAX_OVERRIDES: [(&str, i64); 3] = [
+    ("reference_counts_inliner_0", 0),
+    ("reference_counts_inliner_min", i64::MIN),
+    ("reference_counts_inliner_max", i64::MAX),
 ];
 
 /// Some tests are expected to have warnings
@@ -113,6 +123,8 @@ struct MatrixConfig {
     vary_inliner: bool,
     // If there is a non-default minimum inliner aggressiveness to use with the brillig tests.
     min_inliner: i64,
+    // If there is a non-default maximum inliner aggressiveness to use with the brillig tests.
+    max_inliner: i64,
 }
 
 // Enum to be able to preserve readable test labels and also compare to numbers.
@@ -161,6 +173,9 @@ fn generate_test_cases(
         if !cases.iter().any(|c| c.value() == matrix_config.min_inliner) {
             cases.push(Inliner::Custom(matrix_config.min_inliner));
         }
+        if !cases.iter().any(|c| c.value() == matrix_config.max_inliner) {
+            cases.push(Inliner::Custom(matrix_config.max_inliner));
+        }
         cases
     } else {
         vec![Inliner::Default]
@@ -171,7 +186,8 @@ fn generate_test_cases(
     let mut test_cases = Vec::new();
     for brillig in &brillig_cases {
         for inliner in &inliner_cases {
-            if *brillig && inliner.value() < matrix_config.min_inliner {
+            let inliner_range = matrix_config.min_inliner..=matrix_config.max_inliner;
+            if *brillig && !inliner_range.contains(&inliner.value()) {
                 continue;
             }
             test_cases.push(format!(
@@ -246,6 +262,11 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
                     .find(|(n, _)| *n == test_name.as_str())
                     .map(|(_, i)| *i)
                     .unwrap_or(i64::MIN),
+                max_inliner: INLINER_MAX_OVERRIDES
+                    .iter()
+                    .find(|(n, _)| *n == test_name.as_str())
+                    .map(|(_, i)| *i)
+                    .unwrap_or(i64::MAX),
             },
         );
     }

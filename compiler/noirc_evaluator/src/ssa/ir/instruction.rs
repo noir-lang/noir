@@ -325,9 +325,7 @@ pub(crate) enum Instruction {
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
     /// implemented via reference counting. In ACIR code this is done with im::Vector and these
     /// DecrementRc instructions are ignored.
-    ///
-    /// The `original` contains the value of the array which was incremented by the pair of this decrement.
-    DecrementRc { value: ValueId, original: ValueId },
+    DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
     ///
@@ -724,9 +722,7 @@ impl Instruction {
                 mutable: *mutable,
             },
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
-            Instruction::DecrementRc { value, original } => {
-                Instruction::DecrementRc { value: f(*value), original: f(*original) }
-            }
+            Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 Instruction::RangeCheck {
                     value: f(*value),
@@ -797,9 +793,8 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value, original } => {
+            Instruction::DecrementRc { value } => {
                 *value = f(*value);
-                *original = f(*original);
             }
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
@@ -866,12 +861,10 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 f(*condition);
             }
-            Instruction::IncrementRc { value } | Instruction::RangeCheck { value, .. } => {
+            Instruction::IncrementRc { value }
+            | Instruction::DecrementRc { value }
+            | Instruction::RangeCheck { value, .. } => {
                 f(*value);
-            }
-            Instruction::DecrementRc { value, original } => {
-                f(*value);
-                f(*original);
             }
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
                 f(*then_condition);

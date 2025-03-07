@@ -838,7 +838,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_get v0, index u32 0 -> Field
-                dec_rc v0 v0
+                dec_rc v0
                 return v2
             }
             ";
@@ -862,7 +862,7 @@ mod test {
               b0(v0: [Field; 2]):
                 inc_rc v0
                 v2 = array_set v0, index u32 0, value u32 0
-                dec_rc v0 v0
+                dec_rc v0
                 return v2
             }
             ";
@@ -970,7 +970,7 @@ mod test {
                 v3 = load v0 -> [Field; 3]
                 v6 = array_set v3, index u32 0, value Field 5
                 store v6 at v0
-                dec_rc v6 v1
+                dec_rc v6
                 return
             }
             ";
