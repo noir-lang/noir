@@ -44,10 +44,8 @@ fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
 /// Borrow the same array mutably through both parameters, inc_rc is necessary here, although
 /// only one is needed to bring the rc from 1 to 2.
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
-    // With an inliner value of 0, `borrow_mut_two` is inlined and the mutation below is optimized
-    // out. Afterward, the rc inc+dec gets removed since there is no longer a mutation in between.
-    assert_refcount(*array1, rc_before_call + 0);
-    assert_refcount(*array2, rc_before_call + 0);
+    assert_refcount(*array1, rc_before_call + 1);
+    assert_refcount(*array2, rc_before_call + 1);
     array1[0] = 5;
     array2[0] = 6;
     println(array1[0]); // array1 & 2 alias, so this should also print 6
