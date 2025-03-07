@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
-    DataType, Generics, Shared, Type,
+    DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
     hir::{
         comptime::{Value, tokens_to_string},
@@ -124,7 +124,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         if let Some(methods) =
             self.interner.get_type_methods(&Type::DataType(shared_data_type.clone(), vec![]))
         {
-            self.show_data_type_methods(shared_data_type, methods);
+            self.show_data_type_methods(methods);
         }
     }
 
@@ -172,11 +172,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_methods(
-        &mut self,
-        data_type: Shared<DataType>,
-        methods: &rustc_hash::FxHashMap<String, Methods>,
-    ) {
+    fn show_data_type_methods(&mut self, methods: &rustc_hash::FxHashMap<String, Methods>) {
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
         let mut trait_impl_methods = Vec::new();
