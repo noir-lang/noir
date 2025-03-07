@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
-    DataType, Generics, Type,
+    DataType, Generics, Shared, Type,
     ast::{ItemVisibility, Visibility},
     hir::{
         comptime::{Value, tokens_to_string},
@@ -14,7 +16,8 @@ use noirc_frontend::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
+        FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId, TraitId,
+        TypeAliasId, TypeId,
     },
 };
 
@@ -116,6 +119,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         } else {
             unreachable!("DataType should either be a struct or an enum")
         }
+        drop(data_type);
+
+        if let Some(methods) =
+            self.interner.get_type_methods(&Type::DataType(shared_data_type.clone(), vec![]))
+        {
+            self.show_data_type_methods(shared_data_type, methods);
+        }
     }
 
     fn show_struct(&mut self, data_type: &DataType) {
@@ -157,6 +167,55 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             self.push_str(",\n");
         }
+        self.decrease_indent();
+        self.write_indent();
+        self.push('}');
+    }
+
+    fn show_data_type_methods(
+        &mut self,
+        data_type: Shared<DataType>,
+        methods: &rustc_hash::FxHashMap<String, Methods>,
+    ) {
+        // First split methods by impl methods and trait impl methods
+        let mut impl_methods = Vec::new();
+        let mut trait_impl_methods = Vec::new();
+
+        for (_, methods) in methods {
+            impl_methods.extend(methods.direct.clone());
+            trait_impl_methods.extend(methods.trait_impl_methods.clone());
+        }
+
+        // For impl methods, split them by the impl type. For example here we'll group
+        // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
+        // all of `Foo<T>` in another one.
+        let mut impl_methods_by_type: HashMap<Type, Vec<ImplMethod>> = HashMap::new();
+        for method in impl_methods {
+            impl_methods_by_type.entry(method.typ.clone()).or_default().push(method);
+        }
+
+        for (typ, methods) in impl_methods_by_type {
+            self.push_str("\n\n");
+            self.write_indent();
+            self.show_impl(typ, methods);
+        }
+    }
+
+    fn show_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) {
+        self.push_str("impl ");
+        // TODO: figure out impl generics
+        self.show_type(&typ);
+        // TODO: figure out where clause
+        self.push_str(" {\n");
+        self.increase_indent();
+        for (index, method) in methods.iter().enumerate() {
+            if index != 0 {
+                self.push_str("\n\n");
+            }
+            self.write_indent();
+            self.show_function(method.method);
+        }
+        self.push('\n');
         self.decrease_indent();
         self.write_indent();
         self.push('}');
