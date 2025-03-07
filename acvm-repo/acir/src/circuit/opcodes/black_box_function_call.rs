@@ -216,7 +216,7 @@ pub enum BlackBoxFuncCall<F> {
     },
 }
 
-impl<F: Copy> BlackBoxFuncCall<F> {
+impl<F> BlackBoxFuncCall<F> {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
             BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
@@ -246,6 +246,41 @@ impl<F: Copy> BlackBoxFuncCall<F> {
         self.get_black_box_func().name()
     }
 
+    pub fn get_outputs_vec(&self) -> Vec<Witness> {
+        match self {
+            BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake3 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::AND { output, .. }
+            | BlackBoxFuncCall::XOR { output, .. }
+            | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
+            BlackBoxFuncCall::MultiScalarMul { outputs, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
+                vec![outputs.0, outputs.1, outputs.2]
+            }
+            BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::RecursiveAggregation { .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
+            | BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntSub { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. } => {
+                vec![]
+            }
+            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
+        }
+    }
+}
+
+impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, .. }
@@ -330,39 +365,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.push(*key_hash);
                 inputs
             }
-        }
-    }
-
-    pub fn get_outputs_vec(&self) -> Vec<Witness> {
-        match self {
-            BlackBoxFuncCall::Blake2s { outputs, .. }
-            | BlackBoxFuncCall::Blake3 { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::AND { output, .. }
-            | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
-            | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
-            BlackBoxFuncCall::MultiScalarMul { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
-                vec![outputs.0, outputs.1, outputs.2]
-            }
-            BlackBoxFuncCall::RANGE { .. }
-            | BlackBoxFuncCall::RecursiveAggregation { .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
-            | BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } => {
-                vec![]
-            }
-            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
         }
     }
 
