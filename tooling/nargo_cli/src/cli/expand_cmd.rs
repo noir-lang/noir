@@ -6,20 +6,17 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
-use noirc_frontend::{
-    Generics, Type,
-    ast::{ItemVisibility, Visibility},
-    hir::{
-        Context, ParsedFiles,
-        def_map::{CrateDefMap, ModuleDefId, ModuleId},
-    },
-    hir_def::{expr::HirExpression, stmt::HirPattern},
-    node_interner::{FuncId, NodeInterner},
+use noirc_frontend::hir::{
+    Context, ParsedFiles,
+    def_map::{CrateDefMap, ModuleId},
 };
+use printer::Printer;
 
 use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand, check_cmd::check_crate_and_report_errors};
+
+mod printer;
 
 /// Expands macros
 #[derive(Debug, Clone, Args)]
@@ -84,168 +81,8 @@ fn show_module(module_id: ModuleId, context: &Context, def_map: &CrateDefMap, st
 
     for (name, scope) in definitions.types().iter().chain(definitions.values()) {
         for (_trait_id, (module_def_id, visibility, _is_prelude)) in scope {
-            show_module_def_id(*module_def_id, *visibility, &context.def_interner, string);
+            let mut printer = Printer::new(&context.def_interner, string);
+            printer.show_module_def_id(*module_def_id, *visibility);
         }
-    }
-}
-
-fn show_module_def_id(
-    module_def_id: ModuleDefId,
-    visibility: ItemVisibility,
-    interner: &NodeInterner,
-    string: &mut String,
-) {
-    if visibility != ItemVisibility::Private {
-        string.push_str(&visibility.to_string());
-        string.push(' ');
-    };
-
-    match module_def_id {
-        ModuleDefId::ModuleId(module_id) => todo!("Show modules"),
-        ModuleDefId::FunctionId(func_id) => show_function(func_id, interner, string),
-        ModuleDefId::TypeId(_) => todo!("Show types"),
-        ModuleDefId::TypeAliasId(type_alias_id) => todo!("Show type aliases"),
-        ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
-        ModuleDefId::GlobalId(global_id) => todo!("Show globals"),
-    }
-
-    string.push_str("\n\n");
-}
-
-fn show_function(func_id: FuncId, interner: &NodeInterner, string: &mut String) {
-    let modifiers = interner.function_modifiers(&func_id);
-    let func_meta = interner.function_meta(&func_id);
-    let name = &modifiers.name;
-
-    if modifiers.is_unconstrained {
-        string.push_str("unconstrained ");
-    }
-    if modifiers.is_comptime {
-        string.push_str("comptime ");
-    }
-
-    string.push_str("fn ");
-    string.push_str(name);
-
-    show_generics(&func_meta.direct_generics, string);
-
-    string.push('(');
-    let parameters = &func_meta.parameters;
-    for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        let is_self = pattern_is_self(pattern, interner);
-
-        // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
-        }
-
-        show_pattern(pattern, interner, string);
-
-        // Don't add type for `self` param
-        if !is_self {
-            string.push_str(": ");
-            if matches!(visibility, Visibility::Public) {
-                string.push_str("pub ");
-            }
-            string.push_str(&format!("{}", typ));
-        }
-
-        if index != parameters.len() - 1 {
-            string.push_str(", ");
-        }
-    }
-    string.push(')');
-
-    let return_type = func_meta.return_type();
-    match return_type {
-        Type::Unit => (),
-        _ => {
-            string.push_str(" -> ");
-            string.push_str(&format!("{}", return_type));
-        }
-    }
-
-    string.push(' ');
-
-    let hir_function = interner.function(&func_id);
-    let block = hir_function.block(interner);
-    let block = HirExpression::Block(block);
-    let block = block.to_display_ast(interner, func_meta.location);
-    string.push_str(&block.to_string());
-}
-
-fn show_generics(generics: &Generics, string: &mut String) {
-    show_generics_impl(
-        generics, false, // only show names
-        string,
-    );
-}
-
-fn show_generic_names(generics: &Generics, string: &mut String) {
-    show_generics_impl(
-        generics, true, // only show names
-        string,
-    );
-}
-
-fn show_generics_impl(generics: &Generics, only_show_names: bool, string: &mut String) {
-    if generics.is_empty() {
-        return;
-    }
-
-    string.push('<');
-    for (index, generic) in generics.iter().enumerate() {
-        if index > 0 {
-            string.push_str(", ");
-        }
-
-        if only_show_names {
-            string.push_str(&generic.name);
-        } else {
-            match generic.kind() {
-                noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
-                    string.push_str(&generic.name);
-                }
-                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
-                    string.push_str("let ");
-                    string.push_str(&generic.name);
-                    string.push_str(": u32");
-                }
-                noirc_frontend::Kind::Numeric(typ) => {
-                    string.push_str("let ");
-                    string.push_str(&generic.name);
-                    string.push_str(": ");
-                    string.push_str(&typ.to_string());
-                }
-            }
-        }
-    }
-    string.push('>');
-}
-
-fn show_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut String) {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            string.push_str(&definition.name);
-        }
-        HirPattern::Mutable(pattern, _) => {
-            string.push_str("mut ");
-            show_pattern(pattern, interner, string);
-        }
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => {
-            string.push('_');
-        }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
