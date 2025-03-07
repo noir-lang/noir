@@ -62,7 +62,7 @@ fn check_package(
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
     let mut string = String::new();
-    let mut printer = Printer::new(&context.def_interner, def_map, &mut string);
+    let mut printer = Printer::new(crate_id, &context.def_interner, def_map, &mut string);
     printer.show_module(module_id);
     println!("{}", string);
 

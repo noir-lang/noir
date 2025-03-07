@@ -1,3 +1,4 @@
+use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
     DataType, Generics, Type,
@@ -18,6 +19,7 @@ use noirc_frontend::{
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
+    crate_id: CrateId,
     interner: &'interner NodeInterner,
     def_map: &'def_map CrateDefMap,
     string: &'string mut String,
@@ -26,11 +28,12 @@ pub(super) struct Printer<'interner, 'def_map, 'string> {
 
 impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     pub(super) fn new(
+        crate_id: CrateId,
         interner: &'interner NodeInterner,
         def_map: &'def_map CrateDefMap,
         string: &'string mut String,
     ) -> Self {
-        Self { interner, def_map, string, indent: 0 }
+        Self { crate_id, interner, def_map, string, indent: 0 }
     }
 
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
@@ -456,7 +459,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Value::U128(value) => self.push_str(&value.to_string()),
             Value::String(string) => self.push_str(&format!("{:?}", string)),
             Value::FormatString(_, _) => todo!("Show format string"),
-            Value::CtString(_) => todo!("Show CtString"),
+            Value::CtString(string) => {
+                let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
+                self.push_str(&format!(
+                    "{}::meta::ctstring::AsCtString::as_ctstring({:?})",
+                    std, string
+                ));
+            }
             Value::Function(..) => todo!("Show function"),
             Value::Tuple(values) => {
                 self.push('(');
