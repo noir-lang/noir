@@ -4,7 +4,7 @@ use noirc_frontend::{
     DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
     hir::{
-        comptime::Value,
+        comptime::{Value, tokens_to_string},
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
@@ -517,7 +517,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 }
                 self.push(']');
             }
-            Value::Quoted(..) => todo!("Show quoted"),
+            Value::Quoted(tokens) => {
+                self.push_str("quote { ");
+                self.push_str(&tokens_to_string(tokens, self.interner));
+                self.push_str(" }");
+            }
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
             }
