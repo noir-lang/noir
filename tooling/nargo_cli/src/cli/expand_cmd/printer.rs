@@ -27,7 +27,7 @@ pub(super) struct Printer<'interner, 'def_map, 'string> {
     def_map: &'def_map CrateDefMap,
     string: &'string mut String,
     indent: usize,
-    trait_impls: HashSet<TraitImplId>,
+    pub(super) trait_impls: HashSet<TraitImplId>,
 }
 
 impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
@@ -129,8 +129,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         if let Some(methods) =
             self.interner.get_type_methods(&Type::DataType(shared_data_type.clone(), vec![]))
         {
-            self.show_data_type_methods(methods);
+            self.show_data_type_impls(methods);
         }
+
+        let data_type = shared_data_type.borrow();
+        self.show_data_type_trait_impls(&data_type);
     }
 
     fn show_struct(&mut self, data_type: &DataType) {
@@ -177,17 +180,16 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_methods(&mut self, methods: &rustc_hash::FxHashMap<String, Methods>) {
+    fn show_data_type_impls(&mut self, methods: &rustc_hash::FxHashMap<String, Methods>) {
+        // Gather all impl methods
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
-        let mut trait_impl_methods = Vec::new();
 
         for (_, methods) in methods {
             impl_methods.extend(methods.direct.clone());
-            trait_impl_methods.extend(methods.trait_impl_methods.clone());
         }
 
-        // For impl methods, split them by the impl type. For example here we'll group
+        // Split them by the impl type. For example here we'll group
         // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
         // all of `Foo<T>` in another one.
         let mut impl_methods_by_type: HashMap<Type, Vec<ImplMethod>> = HashMap::new();
@@ -234,6 +236,30 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.decrease_indent();
         self.write_indent();
         self.push('}');
+    }
+
+    fn show_data_type_trait_impls(&mut self, data_type: &DataType) {
+        let mut trait_impls = self
+            .trait_impls
+            .iter()
+            .filter_map(|trait_impl_id| {
+                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if type_mentions_data_type(&trait_impl.typ, data_type) {
+                    Some((*trait_impl_id, trait_impl.location))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
+
+        for (trait_impl, _) in trait_impls {
+            self.push_str("\n\n");
+            self.write_indent();
+            self.show_trait_impl(trait_impl);
+        }
     }
 
     fn show_type_alias(&mut self, type_alias_id: TypeAliasId) {
@@ -335,6 +361,15 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
 
         for (trait_impl, _) in trait_impls {
+            self.push_str("\n\n");
+            self.write_indent();
+            self.show_trait_impl(trait_impl);
+        }
+    }
+
+    pub(super) fn show_stray_trait_impls(&mut self) {
+        let trait_impls = std::mem::take(&mut self.trait_impls);
+        for trait_impl in trait_impls {
             self.push_str("\n\n");
             self.write_indent();
             self.show_trait_impl(trait_impl);
@@ -944,5 +979,55 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
         | Type::Constant(..)
         | Type::TypeVariable(_)
         | Type::Error => (),
+    }
+}
+
+fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool {
+    match typ {
+        Type::Array(length, typ) => {
+            type_mentions_data_type(&length, data_type) && type_mentions_data_type(&typ, data_type)
+        }
+        Type::Slice(typ) => type_mentions_data_type(typ, data_type),
+        Type::FmtString(length, typ) => {
+            type_mentions_data_type(&length, data_type) || type_mentions_data_type(typ, data_type)
+        }
+        Type::Tuple(types) => types.iter().any(|typ| type_mentions_data_type(typ, data_type)),
+        Type::DataType(other_data_type, generics) => {
+            let other_data_type = other_data_type.borrow();
+            data_type.id == other_data_type.id
+                || generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
+        }
+        Type::Alias(_type_alias, generics) => {
+            // TODO: check _type_alias
+            generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
+        }
+        Type::TraitAsType(_, _, generics) => {
+            generics.ordered.iter().any(|typ| type_mentions_data_type(typ, data_type))
+                || generics
+                    .named
+                    .iter()
+                    .any(|named_type| type_mentions_data_type(&named_type.typ, data_type))
+        }
+        Type::CheckedCast { from, to: _ } => type_mentions_data_type(from, data_type),
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(|typ| type_mentions_data_type(typ, data_type))
+                || type_mentions_data_type(ret, data_type)
+                || type_mentions_data_type(env, data_type)
+        }
+        Type::Reference(typ, _) => type_mentions_data_type(typ, data_type),
+        Type::Forall(_, typ) => type_mentions_data_type(typ, data_type),
+        Type::InfixExpr(lhs, _, rhs, _) => {
+            type_mentions_data_type(lhs, data_type) || type_mentions_data_type(rhs, data_type)
+        }
+        Type::Unit
+        | Type::Bool
+        | Type::Integer(..)
+        | Type::FieldElement
+        | Type::String(_)
+        | Type::Quoted(_)
+        | Type::Constant(..)
+        | Type::TypeVariable(..)
+        | Type::NamedGeneric(..)
+        | Type::Error => true,
     }
 }

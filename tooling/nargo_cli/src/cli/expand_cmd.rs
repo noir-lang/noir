@@ -64,6 +64,7 @@ fn expand_package(
     let mut string = String::new();
     let mut printer = Printer::new(crate_id, &context.def_interner, def_map, &mut string);
     printer.show_module(module_id);
+    printer.show_stray_trait_impls();
     println!("{}", string);
 
     Ok(())
