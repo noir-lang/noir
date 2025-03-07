@@ -44,6 +44,49 @@ fn bounded_recursive_type_errors() {
 }
 
 #[test]
+fn recursive_type_with_alias_errors() {
+    // We want to eventually allow bounded recursive types like this, but for now they are
+    // disallowed because they cause a panic in convert_type during monomorphization.
+    let src = "
+        fn main() {
+            let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
+        }
+
+        type OptAlias<T> = Opt<T>;
+
+        enum Opt<T> {
+            Some(T),
+            None,
+        }";
+
+    let error = get_monomorphized(src).unwrap_err();
+    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
+}
+
+#[test]
+fn mutually_recursive_types_error() {
+    // We want to eventually allow bounded recursive types like this, but for now they are
+    // disallowed because they cause a panic in convert_type during monomorphization.
+    let src = "
+        fn main() {
+            let _zero = Even::Zero;
+        }
+
+        enum Even {
+            Zero,
+            Succ(Odd),
+        }
+
+        enum Odd {
+            One,
+            Succ(Even),
+        }";
+
+    let error = get_monomorphized(src).unwrap_err();
+    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
+}
+
+#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main() -> pub Field {
