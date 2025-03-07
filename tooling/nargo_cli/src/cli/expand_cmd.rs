@@ -42,13 +42,13 @@ pub(crate) fn run(args: ExpandCommand, workspace: Workspace) -> Result<(), CliEr
     let parsed_files = parse_all(&workspace_file_manager);
 
     for package in &workspace {
-        check_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
+        expand_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
     }
 
     Ok(())
 }
 
-fn check_package(
+fn expand_package(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
     package: &Package,
