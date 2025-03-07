@@ -188,6 +188,10 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
+    /// & followed immediately by '['
+    /// This is a lexer hack to distinguish slices
+    /// from taking a reference to an array
+    SliceStart,
     /// ^
     Caret,
     /// <<
@@ -287,6 +291,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
+        Token::SliceStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -522,6 +527,7 @@ impl fmt::Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
+            Token::SliceStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),

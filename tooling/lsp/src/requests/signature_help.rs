@@ -146,11 +146,13 @@ impl<'a> SignatureFinder<'a> {
             }
 
             if has_self && index == 0 {
-                if let Type::MutableReference(..) = typ {
-                    label.push_str("&mut self");
-                } else {
-                    label.push_str("self");
+                if let Type::Reference(_, mutable) = typ {
+                    label.push('&');
+                    if *mutable {
+                        label.push_str("mut ");
+                    }
                 }
+                label.push_str("self");
             } else {
                 let parameter_start = label.chars().count();
 

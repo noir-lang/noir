@@ -111,8 +111,8 @@ pub enum Type {
         /*unconstrained*/ bool,
     ),
 
-    /// &mut T
-    MutableReference(Box<Type>),
+    /// &T
+    Reference(Box<Type>, /*mutable*/ bool),
 
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
@@ -1047,8 +1047,11 @@ impl std::fmt::Display for Type {
 
                 write!(f, "fn{closure_env_text}({}) -> {ret}", args.join(", "))
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, mutable) if *mutable => {
                 write!(f, "&mut {element}")
+            }
+            Type::Reference(element, _) => {
+                write!(f, "&{element}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
             Type::InfixExpr(lhs, op, rhs, _) => {
@@ -1221,7 +1224,7 @@ impl Type {
             Type::Alias(alias_type, generics) => {
                 alias_type.borrow().get_type(&generics).is_primitive()
             }
-            Type::MutableReference(typ) => typ.is_primitive(),
+            Type::Reference(typ, _) => typ.is_primitive(),
             Type::DataType(..)
             | Type::TypeVariable(..)
             | Type::TraitAsType(..)
@@ -1244,7 +1247,7 @@ impl Type {
     }
 
     pub(crate) fn is_mutable_ref(&self) -> bool {
-        matches!(self.follow_bindings_shallow().as_ref(), Type::MutableReference(_))
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, true))
     }
 
     /// True if this type can be used as a parameter to `main` or a contract function.
@@ -1269,7 +1272,7 @@ impl Type {
             | Type::TypeVariable(_)
             | Type::NamedGeneric(_, _)
             | Type::Function(_, _, _, _)
-            | Type::MutableReference(_)
+            | Type::Reference(..)
             | Type::Forall(_, _)
             | Type::Quoted(_)
             | Type::Slice(_)
@@ -1327,7 +1330,7 @@ impl Type {
             // This is possible as long as the output size is not dependent upon a witness condition.
             | Type::Function(_, _, _, _)
             | Type::Slice(_)
-            | Type::MutableReference(_)
+            | Type::Reference(..)
             | Type::Forall(_, _)
             // TODO: probably can allow code as it is all compile time
             | Type::Quoted(_)
@@ -1385,7 +1388,7 @@ impl Type {
             // environment is the interpreter. In this environment, they are valid.
             Type::Quoted(_) => true,
 
-            Type::MutableReference(_) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
+            Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
                 let alias = alias.borrow();
@@ -1477,7 +1480,7 @@ impl Type {
             | Type::DataType(..)
             | Type::TraitAsType(..)
             | Type::Function(..)
-            | Type::MutableReference(..)
+            | Type::Reference(..)
             | Type::Forall(..)
             | Type::Quoted(..) => Kind::Normal,
             Type::Error => Kind::Any,
@@ -1574,7 +1577,7 @@ impl Type {
             | Type::TraitAsType(..)
             | Type::NamedGeneric(_, _)
             | Type::Function(_, _, _, _)
-            | Type::MutableReference(_)
+            | Type::Reference(..)
             | Type::Forall(_, _)
             | Type::Constant(_, _)
             | Type::Quoted(_)
@@ -1908,8 +1911,12 @@ impl Type {
                 }
             }
 
-            (MutableReference(elem_a), MutableReference(elem_b)) => {
-                elem_a.try_unify(elem_b, bindings)
+            (Reference(elem_a, mutable_a), Reference(elem_b, mutable_b)) => {
+                if mutable_a == mutable_b {
+                    elem_a.try_unify(elem_b, bindings)
+                } else {
+                    Err(UnificationError)
+                }
             }
 
             (InfixExpr(lhs_a, op_a, rhs_a, _), InfixExpr(lhs_b, op_b, rhs_b, _)) => {
@@ -2026,6 +2033,10 @@ impl Type {
             return;
         }
 
+        if self.try_reference_coercion(expected) {
+            return;
+        }
+
         // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
         match self.try_fn_to_unconstrained_fn_coercion(expected) {
             FunctionCoercionResult::NoCoercion => errors.push(make_error()),
@@ -2089,6 +2100,25 @@ impl Type {
                     Self::apply_type_bindings(bindings);
                     return true;
                 }
+            }
+        }
+        false
+    }
+
+    /// Attempt to coerce `&mut T` to `&T`, returning true if this is possible.
+    pub fn try_reference_coercion(&self, target: &Type) -> bool {
+        let this = self.follow_bindings();
+        let target = target.follow_bindings();
+
+        if let (Type::Reference(this_elem, true), Type::Reference(target_elem, false)) =
+            (&this, &target)
+        {
+            // Still have to ensure the element types match.
+            // Don't need to issue an error here if not, it will be done in unify_with_coercions
+            let mut bindings = TypeBindings::new();
+            if this_elem.try_unify(target_elem, &mut bindings).is_ok() {
+                Self::apply_type_bindings(bindings);
+                return true;
             }
         }
         false
@@ -2453,9 +2483,10 @@ impl Type {
                 let env = Box::new(env.substitute_helper(type_bindings, substitute_bound_typevars));
                 Type::Function(args, ret, env, *unconstrained)
             }
-            Type::MutableReference(element) => Type::MutableReference(Box::new(
-                element.substitute_helper(type_bindings, substitute_bound_typevars),
-            )),
+            Type::Reference(element, mutable) => Type::Reference(
+                Box::new(element.substitute_helper(type_bindings, substitute_bound_typevars)),
+                *mutable,
+            ),
 
             Type::TraitAsType(s, name, generics) => {
                 let ordered = vecmap(&generics.ordered, |arg| {
@@ -2519,7 +2550,7 @@ impl Type {
                     || ret.occurs(target_id)
                     || env.occurs(target_id)
             }
-            Type::MutableReference(element) => element.occurs(target_id),
+            Type::Reference(element, _) => element.occurs(target_id),
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
             Type::FieldElement
@@ -2579,7 +2610,7 @@ impl Type {
                 Function(args, ret, env, *unconstrained)
             }
 
-            MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
+            Reference(element, mutable) => Reference(Box::new(element.follow_bindings()), *mutable),
 
             TraitAsType(s, name, args) => {
                 let ordered = vecmap(&args.ordered, |arg| arg.follow_bindings());
@@ -2704,7 +2735,7 @@ impl Type {
                 ret.replace_named_generics_with_type_variables();
                 env.replace_named_generics_with_type_variables();
             }
-            Type::MutableReference(elem) => elem.replace_named_generics_with_type_variables(),
+            Type::Reference(elem, _) => elem.replace_named_generics_with_type_variables(),
             Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
             Type::InfixExpr(lhs, _op, rhs, _) => {
                 lhs.replace_named_generics_with_type_variables();
@@ -2748,7 +2779,7 @@ impl Type {
                 TypeBinding::Bound(typ) => typ.integral_maximum_size(),
                 TypeBinding::Unbound(_, kind) => kind.integral_maximum_size(),
             },
-            Type::MutableReference(typ) => typ.integral_maximum_size(),
+            Type::Reference(typ, _) => typ.integral_maximum_size(),
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs).integral_maximum_size(),
             Type::Constant(_, kind) => kind.integral_maximum_size(),
 
@@ -2975,8 +3006,8 @@ impl From<&Type> for PrintableType {
                 env: Box::new(env.as_ref().into()),
                 unconstrained: *unconstrained,
             },
-            Type::MutableReference(typ) => {
-                PrintableType::MutableReference { typ: Box::new(typ.as_ref().into()) }
+            Type::Reference(typ, mutable) => {
+                PrintableType::Reference { typ: Box::new(typ.as_ref().into()), mutable: *mutable }
             }
             Type::Quoted(_) => unreachable!(),
             Type::InfixExpr(..) => unreachable!(),
@@ -3069,7 +3100,10 @@ impl std::fmt::Debug for Type {
 
                 write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, false) => {
+                write!(f, "&{element:?}")
+            }
+            Type::Reference(element, true) => {
                 write!(f, "&mut {element:?}")
             }
             Type::Quoted(quoted) => write!(f, "{}", quoted),
@@ -3151,7 +3185,10 @@ impl std::hash::Hash for Type {
                 env.hash(state);
                 is_unconstrained.hash(state);
             }
-            Type::MutableReference(elem) => elem.hash(state),
+            Type::Reference(elem, mutable) => {
+                elem.hash(state);
+                mutable.hash(state);
+            }
             Type::Forall(vars, typ) => {
                 vars.hash(state);
                 typ.hash(state);
@@ -3219,7 +3256,9 @@ impl PartialEq for Type {
                 let args_and_ret_eq = lhs_args == rhs_args && lhs_ret == rhs_ret;
                 args_and_ret_eq && lhs_env == rhs_env && lhs_unconstrained == rhs_unconstrained
             }
-            (MutableReference(lhs_elem), MutableReference(rhs_elem)) => lhs_elem == rhs_elem,
+            (Reference(lhs_elem, lhs_mut), Reference(rhs_elem, rhs_mut)) => {
+                lhs_elem == rhs_elem && lhs_mut == rhs_mut
+            }
             (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) => {
                 lhs_vars == rhs_vars && lhs_type == rhs_type
             }
