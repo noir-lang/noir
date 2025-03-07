@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use noirc_driver::CrateId;
 use noirc_errors::Location;
@@ -202,10 +202,24 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     }
 
     fn show_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) {
-        self.push_str("impl ");
-        // TODO: figure out impl generics
+        self.push_str("impl");
+
+        let mut type_vars = HashSet::new();
+        gather_named_type_vars(&typ, &mut type_vars);
+
+        if !type_vars.is_empty() {
+            self.push('<');
+            for (index, name) in type_vars.iter().enumerate() {
+                if index != 0 {
+                    self.push_str(", ");
+                }
+                self.push_str(name);
+            }
+            self.push('>');
+        }
+
+        self.push(' ');
         self.show_type(&typ);
-        // TODO: figure out where clause
         self.push_str(" {\n");
         self.increase_indent();
         for (index, method) in methods.iter().enumerate() {
@@ -714,4 +728,70 @@ fn indent_lines(string: String, indent: usize) -> String {
             }
         })
         .collect()
+}
+
+fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
+    match typ {
+        Type::Array(length, typ) => {
+            gather_named_type_vars(length, type_vars);
+            gather_named_type_vars(typ, type_vars);
+        }
+        Type::Slice(typ) => {
+            gather_named_type_vars(typ, type_vars);
+        }
+        Type::FmtString(length, typ) => {
+            gather_named_type_vars(&length, type_vars);
+            gather_named_type_vars(&typ, type_vars);
+        }
+        Type::Tuple(types) => {
+            for typ in types {
+                gather_named_type_vars(typ, type_vars);
+            }
+        }
+        Type::DataType(_, generics) | Type::Alias(_, generics) => {
+            for typ in generics {
+                gather_named_type_vars(typ, type_vars);
+            }
+        }
+        Type::TraitAsType(_, _, trait_generics) => {
+            for typ in &trait_generics.ordered {
+                gather_named_type_vars(&typ, type_vars);
+            }
+            for named_type in &trait_generics.named {
+                gather_named_type_vars(&named_type.typ, type_vars);
+            }
+        }
+        Type::NamedGeneric(_, name) => {
+            type_vars.insert(name.to_string());
+        }
+        Type::CheckedCast { from, to: _ } => {
+            gather_named_type_vars(&from, type_vars);
+        }
+        Type::Function(args, ret, env, _) => {
+            for typ in args {
+                gather_named_type_vars(typ, type_vars);
+            }
+            gather_named_type_vars(ret, type_vars);
+            gather_named_type_vars(env, type_vars);
+        }
+        Type::Reference(typ, _) => {
+            gather_named_type_vars(typ, type_vars);
+        }
+        Type::Forall(_, typ) => {
+            gather_named_type_vars(typ, type_vars);
+        }
+        Type::InfixExpr(lhs, _, rhs, _) => {
+            gather_named_type_vars(lhs, type_vars);
+            gather_named_type_vars(rhs, type_vars);
+        }
+        Type::Unit
+        | Type::FieldElement
+        | Type::Integer(..)
+        | Type::Bool
+        | Type::String(_)
+        | Type::Quoted(_)
+        | Type::Constant(..)
+        | Type::TypeVariable(_)
+        | Type::Error => (),
+    }
 }
