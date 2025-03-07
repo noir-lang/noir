@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741358519205,
+  "lastUpdate": 1741358520469,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11472,70 +11472,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "45e7a7dd68318064437b5f055d9ef904af17e721",
-          "message": "chore: bump external pinned commits (#7537)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-02-26T18:14:29Z",
-          "tree_id": "ae340d7b9fca4b7dcc56fe5f7c329f592c5b2a26",
-          "url": "https://github.com/noir-lang/noir/commit/45e7a7dd68318064437b5f055d9ef904af17e721"
-        },
-        "date": 1740595051364,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.28,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 280.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 215.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 469.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 411,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 350.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 357,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jake@aztecprotocol.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14625,6 +14561,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9029652200a0cac607bdb197cde61a1e6171629d"
         },
         "date": 1741356019180,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.83,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.22,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.91,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4916a53bf1a50aaca9876ad6b61e93d86fff114",
+          "message": "fix: update error message to display 128 bits as valid bit size (#7626)",
+          "timestamp": "2025-03-07T14:18:08Z",
+          "tree_id": "b3d404ed3387e3dbcdcd0465af379bbf5dc62af7",
+          "url": "https://github.com/noir-lang/noir/commit/b4916a53bf1a50aaca9876ad6b61e93d86fff114"
+        },
+        "date": 1741358517728,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
