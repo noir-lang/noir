@@ -89,15 +89,15 @@ fn regression_7297() {
     let refcount_0 = array_refcount(array);
     borrow_mut_two(&mut array, &mut array, refcount_0);
     let refcount_1 = array_refcount(array);
-    // let array_2 = copy_mut(array, refcount_1);
-    // let refcount_2 = array_refcount(array);
+    let array_2 = copy_mut(array, refcount_1);
+    let refcount_2 = array_refcount(array);
 
-    // println([refcount_0, refcount_1, refcount_2]);
+    println([refcount_0, refcount_1, refcount_2]);
 
     // Mutation of the original could occur if we double decremented the RC and then went back to 1 by accident.
     // For this to come out we have to run the test with `--inliner-aggressiveness -9223372036854775808`
     assert_eq(array[0], 6, "the original should not be mutated by copy_mut, only borrow_mut_two");
-    // assert_eq(array_2[0], 4, "the copy should have the expected content");
+    assert_eq(array_2[0], 4, "the copy should have the expected content");
 
     if std::runtime::is_unconstrained() {
         // Double decrementing the RC could occur if we don't realize that array mutation made a copy,
@@ -114,10 +114,10 @@ fn regression_7297() {
         assert_eq(refcount_1, 2);
 
         // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
-        // assert_eq(
-        //     refcount_2,
-        //     refcount_1 + 1,
-        //     "not ideal, but original RC permanently increased by copy_mut",
-        // );
+        assert_eq(
+            refcount_2,
+            refcount_1 + 1,
+            "not ideal, but original RC permanently increased by copy_mut",
+        );
     }
 }
