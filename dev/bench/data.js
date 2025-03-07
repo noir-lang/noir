@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741308767880,
+  "lastUpdate": 1741346796585,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6",
-          "message": "fix: No longer error on INT_MIN globals (#7519)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-02-26T14:27:59Z",
-          "tree_id": "80376e153ade79349b08210ff3a8012112fb9846",
-          "url": "https://github.com/noir-lang/noir/commit/0c0c397a5a1e02fcddcddeb7cf70512de21f2ce6"
-        },
-        "date": 1740581412437,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 0.94,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.681,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.5,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.517,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 6.368,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.009,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 8.684,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 4.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 94.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 96.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.936,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.528,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8276,6 +8182,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.57,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mike@aztecprotocol.com",
+            "name": "Michael Connor",
+            "username": "iAmMichaelConnor"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5b725bb77b852f812073be2b7cb51130505d22b6",
+          "message": "feat: array concat method (#7199)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-03-07T11:08:11Z",
+          "tree_id": "fc7662f4a4c595d8fbd42f7800415521d161c007",
+          "url": "https://github.com/noir-lang/noir/commit/5b725bb77b852f812073be2b7cb51130505d22b6"
+        },
+        "date": 1741346793951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.736,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.9,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.505,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.242,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.878,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.112,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 11.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.942,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 129,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.922,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.482,
             "unit": "s"
           }
         ]
