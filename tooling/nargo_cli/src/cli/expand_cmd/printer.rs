@@ -471,7 +471,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     std, string
                 ));
             }
-            Value::Function(..) => todo!("Show function"),
+            Value::Function(func_id, ..) => {
+                // TODO: the name might need to be fully-qualified
+                let name = self.interner.function_name(func_id);
+                self.push_str(name);
+            }
             Value::Tuple(values) => {
                 self.push('(');
                 for (index, value) in values.iter().enumerate() {
