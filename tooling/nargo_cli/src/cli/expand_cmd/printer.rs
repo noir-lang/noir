@@ -5,13 +5,15 @@ use noirc_frontend::{
     hir::{
         comptime::Value,
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         expr::HirExpression,
         stmt::{HirLetStatement, HirPattern},
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId,
+        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
     },
 };
 
@@ -90,7 +92,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             ModuleDefId::TypeId(type_id) => self.show_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => self.show_type_alias(type_alias_id),
-            ModuleDefId::TraitId(trait_id) => todo!("Show traits"),
+            ModuleDefId::TraitId(trait_id) => self.show_trait(trait_id),
             ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
         }
@@ -139,6 +141,39 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push_str(" = ");
         self.show_type(&type_alias.typ);
         self.push(';');
+    }
+
+    fn show_trait(&mut self, trait_id: TraitId) {
+        let trait_ = self.interner.get_trait(trait_id);
+
+        self.push_str("trait ");
+        self.push_str(&trait_.name.to_string());
+        self.show_generics(&trait_.generics);
+
+        if !trait_.trait_bounds.is_empty() {
+            self.push_str(": ");
+            for (index, trait_bound) in trait_.trait_bounds.iter().enumerate() {
+                if index != 0 {
+                    self.push_str(", ");
+                }
+                self.show_trait_bound(trait_bound);
+            }
+        }
+
+        self.show_where_clause(&trait_.where_clause);
+        self.push_str(" {\n");
+        self.increase_indent();
+
+        for associated_type in &trait_.associated_types {
+            self.write_indent();
+            self.push_str("type ");
+            self.push_str(&associated_type.name);
+            self.push_str(";\n");
+        }
+
+        self.decrease_indent();
+        self.write_indent();
+        self.push('}');
     }
 
     fn show_global(&mut self, global_id: GlobalId) {
@@ -275,6 +310,60 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
         }
         self.push('>');
+    }
+
+    fn show_trait_generics(&mut self, generics: &TraitGenerics) {
+        if generics.is_empty() {
+            return;
+        }
+
+        let mut printed_type = false;
+
+        self.push('<');
+
+        for typ in &generics.ordered {
+            if printed_type {
+                self.push_str(", ");
+            }
+
+            self.show_type(typ);
+            printed_type = true;
+        }
+
+        for named_type in &generics.named {
+            if printed_type {
+                self.push_str(", ");
+            }
+
+            self.push_str(&named_type.name.to_string());
+            self.push_str(" = ");
+            self.show_type(&named_type.typ);
+            printed_type = true;
+        }
+
+        self.push('>');
+    }
+
+    fn show_where_clause(&mut self, constraints: &[TraitConstraint]) {
+        if constraints.is_empty() {
+            return;
+        }
+
+        self.push_str(" where ");
+        for (index, constraint) in constraints.iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            self.show_type(&constraint.typ);
+            self.push_str(": ");
+            self.show_trait_bound(&constraint.trait_bound);
+        }
+    }
+
+    fn show_trait_bound(&mut self, bound: &ResolvedTraitBound) {
+        let trait_ = self.interner.get_trait(bound.trait_id);
+        self.push_str(&trait_.name.to_string());
+        self.show_trait_generics(&bound.trait_generics);
     }
 
     fn show_pattern(&mut self, pattern: &HirPattern) {
