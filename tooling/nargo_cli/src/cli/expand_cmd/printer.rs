@@ -51,7 +51,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         let is_contract = module_data.is_contract;
 
         if let Some(name) = name {
-            self.write_indent();
             if is_contract {
                 self.push_str("contract ");
             } else {
