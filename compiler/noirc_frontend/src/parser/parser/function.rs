@@ -570,4 +570,16 @@ mod tests {
             UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::SixtyFour)
         );
     }
+
+    #[test]
+    fn parses_block_followed_by_call() {
+        let src = "fn foo() { { 1 }.bar() }";
+        let _ = parse_function_no_error(src);
+    }
+
+    #[test]
+    fn parses_if_followed_by_call() {
+        let src = "fn foo() { if 1 { 2 } else { 3 }.bar() }";
+        let _ = parse_function_no_error(src);
+    }
 }
