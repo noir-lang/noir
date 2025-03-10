@@ -419,7 +419,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.push_str(": ");
             for (index, trait_bound) in trait_.trait_bounds.iter().enumerate() {
                 if index != 0 {
-                    self.push_str(", ");
+                    self.push_str(" + ");
                 }
                 self.show_trait_bound(trait_bound);
             }
