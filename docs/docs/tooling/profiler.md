@@ -15,7 +15,7 @@ sidebar_position: 0
 
 Let's start by creating a simple Noir program. All this program aims to do is zero out an array past some dynamic index.
 
-```rust
+```noir
 fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
     for i in 0..32 {
         if i > ptr {
@@ -53,7 +53,7 @@ We can see that the majority of opcodes come from the write to `array[i]`. Now t
 We can improve our circuit's efficiency using [unconstrained functions](../noir/concepts/unconstrained.md).
 
 Let's replace expensive array writes with array gets with the new code below:
-```rust
+```noir
 fn main(ptr: pub u32, array: [u32; 32]) -> pub [u32; 32] {
     // Safety: Sets all elements after `ptr` in `array` to zero.
     let zeroed_array = unsafe { zero_out_array(ptr, array) };

@@ -47,7 +47,7 @@ This differs from the operations such as `+` where the operands are used in _com
 
 ### Bitwise Operations Example
 
-```rust
+```noir
 fn main(x : Field) {
     let y = x as u32;
     let z = y & y;
@@ -66,7 +66,7 @@ short-circuiting that these operators require can be inefficient for Noir's back
 use the bitwise operators `|` and `&` which operate identically for booleans, just without the
 short-circuiting.
 
-```rust
+```noir
 let my_val = 5;
 
 let mut flag = 1;
@@ -85,14 +85,14 @@ assert(flag == 0);
 
 Noir shorthand operators for most of the above operators, namely `+=, -=, *=, /=, %=, &=, |=, ^=, <<=`, and `>>=`. These allow for more concise syntax. For example:
 
-```rust
+```noir
 let mut i = 0;
 i = i + 1;
 ```
 
 could be written as:
 
-```rust
+```noir
 let mut i = 0;
 i += 1;
 ```

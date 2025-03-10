@@ -26,7 +26,7 @@ Points represented as x and y coordinates [x1, y1, x2, y2, ...], scalars as low 
 
 example
 
-```rust
+```noir
 fn main(point_x: Field, point_y: Field, scalar_low: Field, scalar_high: Field) {
     let point = std::embedded_curve_ops::multi_scalar_mul([point_x, point_y], [scalar_low, scalar_high]);
     println(point);
@@ -42,7 +42,7 @@ The function accepts a single scalar on the input represented as 2 fields.
 
 example
 
-```rust
+```noir
 fn main(scalar_low: Field, scalar_high: Field) {
     let point = std::embedded_curve_ops::fixed_base_scalar_mul(scalar_low, scalar_high);
     println(point);
@@ -65,7 +65,7 @@ This function takes two `EmbeddedCurvePoint` structures as parameters, represent
 
 example
 
-```rust
+```noir
 fn main() {
     let point1 = EmbeddedCurvePoint { x: 1, y: 2 };
     let point2 = EmbeddedCurvePoint { x: 3, y: 4 };

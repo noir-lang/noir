@@ -33,7 +33,7 @@ Just like in The Matrix, Oracles are powerful. But with great power, comes great
 
 To give a concrete example, Alice wants to login to the [NounsDAO](https://nouns.wtf/) forum with her username "noir_nouner" by proving she owns a noun without revealing her ethereum address. Her Noir program could have an oracle call like this:
 
-```rust
+```noir
 #[oracle(getNoun)]
 unconstrained fn get_noun(address: Field) -> Field
 ```

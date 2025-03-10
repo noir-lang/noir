@@ -26,7 +26,7 @@ It is recommended to use `nargo execute` if you want to debug failing constraint
 
 Both `print` and `println` are generic functions which can work on integers, fields, strings, and even structs or expressions. Note however, that slices are currently unsupported. For example:
 
-```rust
+```noir
 struct Person {
     age: Field,
     height: Field,
@@ -45,11 +45,11 @@ fn main(age: Field, height: Field) {
 
 You can print different types in the same statement (including strings) with a type called `fmtstr`. It can be specified in the same way as a normal string, just prepended with an "f" character:
 
-```rust
+```noir
   let fmt_str = f"i: {i}, j: {j}";
   println(fmt_str);
 
-  let s = myStruct { y: x, x: y };
+  let s = MyStruct { y: x, x: y };
   println(s);
 
   println(f"i: {i}, s: {s}");
@@ -67,7 +67,7 @@ You can print different types in the same statement (including strings) with a t
 
 Examples shown above are interchangeable between the two `print` statements:
 
-```rust
+```noir
 let person = Person { age : age, height : height };
 
 println(person);

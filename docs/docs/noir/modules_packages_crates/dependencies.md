@@ -69,21 +69,21 @@ lib_a = { path = "../lib_a" }
 You can import a dependency to a Noir file using the following syntax. For example, to import the
 ecrecover-noir library and local lib_a referenced above:
 
-```rust
+```noir
 use ecrecover;
 use lib_a;
 ```
 
 You can also import only the specific parts of dependency that you want to use, like so:
 
-```rust
+```noir
 use std::hash::blake3;
 use std::scalar_mul::fixed_base_embedded_curve;
 ```
 
 Lastly, You can import multiple items in the same line by enclosing them in curly braces:
 
-```rust
+```noir
 use std::hash::{blake2s, blake3};
 ```
 
@@ -97,7 +97,7 @@ Note that when you import a dependency, you also get access to all of the depend
 
 For example, the [phy_vector](https://github.com/resurgencelabs/phy_vector) library imports an [fraction](https://github.com/resurgencelabs/fraction) library. If you're importing the phy_vector library, then you can access the functions in fractions library like so:
 
-```rust
+```noir
 use phy_vector;
 
 fn main(x : Field, y : pub Field) {

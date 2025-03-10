@@ -21,7 +21,7 @@ name each field.
 
 Defining a struct requires giving it a name and listing each field within as `<Key>: <Type>` pairs:
 
-```rust
+```noir
 struct Animal {
     hands: Field,
     legs: Field,
@@ -32,7 +32,7 @@ struct Animal {
 An instance of a struct can then be created with actual values in `<Key>: <Value>` pairs in any
 order. Struct fields are accessible using their given names:
 
-```rust
+```noir
 fn main() {
     let legs = 4;
 
@@ -48,7 +48,7 @@ fn main() {
 
 Structs can also be destructured in a pattern, binding each field to a new variable:
 
-```rust
+```noir
 fn main() {
     let Animal { hands, legs: feet, eyes } = get_octopus();
 
@@ -74,7 +74,7 @@ showcased in the `legs --> feet` binding in the example above.
 By default, like functions, structs are private to the module they exist in. You can use `pub`
 to make the struct public or `pub(crate)` to make it public to just its crate:
 
-```rust
+```noir
 // This struct is now public
 pub struct Animal {
     hands: Field,
@@ -86,7 +86,7 @@ pub struct Animal {
 The same applies to struct fields: by default they are private to the module they exist in,
 but they can be made `pub` or `pub(crate)`:
 
-```rust
+```noir
 // This struct is now public
 pub struct Animal {
     hands: Field,           // private to its module

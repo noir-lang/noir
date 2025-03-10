@@ -14,7 +14,7 @@ be proven. As of v1.0.0-beta.2, assert statements are expressions and can be use
 
 Example:
 
-```rust
+```noir
 fn main(x : Field, y : Field) {
     assert(x == y);
 }
@@ -24,31 +24,31 @@ fn main(x : Field, y : Field) {
 
 You can optionally provide a message to be logged when the assertion fails:
 
-```rust
+```noir
 assert(x == y, "x and y are not equal");
 ```
 
 Aside string literals, the optional message can be a format string or any other type supported as input for Noir's [print](../standard_library/logging.md) functions. This feature lets you incorporate runtime variables into your failed assertion logs:
 
-```rust
+```noir
 assert(x == y, f"Expected x == y, but got {x} == {y}");
 ```
 
 Using a variable as an assertion message directly:
 
-```rust
-struct myStruct {
+```noir
+struct MyStruct {
   myField: Field
 }
 
-let s = myStruct { myField: y };
+let s = MyStruct { myField: y };
 assert(s.myField == x, s);
 ```
 
 There is also a special `static_assert` function that behaves like `assert`,
 but that runs at compile-time.
 
-```rust
+```noir
 fn main(xs: [Field; 3]) {
     let x = 2 + 2;
     let y = 4;
@@ -61,7 +61,7 @@ fn main(xs: [Field; 3]) {
 
 This function fails when passed a dynamic (run-time) argument:
 
-```rust
+```noir
 fn main(x : Field, y : Field) {
     // this fails because `x` is not known at compile-time
     static_assert(x == 2, "expected x to be known at compile-time and equal to 2");

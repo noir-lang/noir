@@ -11,7 +11,7 @@ import Experimental from '@site/src/components/Notes/_experimental.mdx';
 
 A slice is a dynamically-sized view into a sequence of elements. They can be resized at runtime, but because they don't own the data, they cannot be returned from a circuit. You can treat slices as arrays without a constrained size.
 
-```rust
+```noir
 fn main() -> pub u32 {
     let mut slice: [Field] = &[0; 2];
 
@@ -38,13 +38,13 @@ For convenience, the STD provides some ready-to-use, common methods for slices:
 
 Pushes a new element to the end of the slice, returning a new slice with a length one greater than the original unmodified slice.
 
-```rust
+```noir
 fn push_back<T>(_self: [T], _elem: T) -> [T]
 ```
 
 example:
 
-```rust
+```noir
 fn main() -> pub Field {
     let mut slice: [Field] = &[0; 2];
 
@@ -59,13 +59,13 @@ View the corresponding test file [here][test-file].
 
 Returns a new slice with the specified element inserted at index 0. The existing elements indexes are incremented by 1.
 
-```rust
+```noir
 fn push_front(_self: Self, _elem: T) -> Self
 ```
 
 Example:
 
-```rust
+```noir
 let mut new_slice: [Field] = &[];
 new_slice = new_slice.push_front(20);
 assert(new_slice[0] == 20); // returns true
@@ -77,13 +77,13 @@ View the corresponding test file [here][test-file].
 
 Returns a tuple of two items, the first element of the slice and the rest of the slice.
 
-```rust
+```noir
 fn pop_front(_self: Self) -> (T, Self)
 ```
 
 Example:
 
-```rust
+```noir
 let (first_elem, rest_of_slice) = slice.pop_front();
 ```
 
@@ -93,13 +93,13 @@ View the corresponding test file [here][test-file].
 
 Returns a tuple of two items, the beginning of the slice with the last element omitted and the last element.
 
-```rust
+```noir
 fn pop_back(_self: Self) -> (Self, T)
 ```
 
 Example:
 
-```rust
+```noir
 let (popped_slice, last_elem) = slice.pop_back();
 ```
 
@@ -109,13 +109,13 @@ View the corresponding test file [here][test-file].
 
 Loops over a slice and adds it to the end of another.
 
-```rust
+```noir
 fn append(mut self, other: Self) -> Self
 ```
 
 Example:
 
-```rust
+```noir
 let append = &[1, 2].append(&[3, 4, 5]);
 ```
 
@@ -123,13 +123,13 @@ let append = &[1, 2].append(&[3, 4, 5]);
 
 Inserts an element at a specified index and shifts all following elements by 1.
 
-```rust
+```noir
 fn insert(_self: Self, _index: Field, _elem: T) -> Self
 ```
 
 Example:
 
-```rust
+```noir
 new_slice = rest_of_slice.insert(2, 100);
 assert(new_slice[2] == 100);
 ```
@@ -140,13 +140,13 @@ View the corresponding test file [here][test-file].
 
 Remove an element at a specified index, shifting all elements after it to the left, returning the altered slice and the removed element.
 
-```rust
+```noir
 fn remove(_self: Self, _index: Field) -> (Self, T)
 ```
 
 Example:
 
-```rust
+```noir
 let (remove_slice, removed_elem) = slice.remove(3);
 ```
 
@@ -154,13 +154,13 @@ let (remove_slice, removed_elem) = slice.remove(3);
 
 Returns the length of a slice
 
-```rust
+```noir
 fn len(self) -> Field
 ```
 
 Example:
 
-```rust
+```noir
 fn main() {
     let slice = &[42, 42];
     assert(slice.len() == 2);
@@ -174,13 +174,13 @@ Converts this slice into an array.
 Make sure to specify the size of the resulting array.
 Panics if the resulting array length is different than the slice's length.
 
-```rust
+```noir
 fn as_array<let N: u32>(self) -> [T; N]
 ```
 
 Example:
 
-```rust
+```noir
 fn main() {
     let slice = &[5, 6];
 
@@ -196,13 +196,13 @@ fn main() {
 
 Applies a function to each element of the slice, returning a new slice containing the mapped elements.
 
-```rust
+```noir
 fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U]
 ```
 
 example
 
-```rust
+```noir
 let a = &[1, 2, 3];
 let b = a.map(|a| a * 2); // b is now &[2, 4, 6]
 ```
@@ -212,14 +212,14 @@ let b = a.map(|a| a * 2); // b is now &[2, 4, 6]
 Applies a function to each element of the slice, returning the final accumulated value. The first
 parameter is the initial value.
 
-```rust
+```noir
 fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U
 ```
 
 This is a left fold, so the given function will be applied to the accumulator and first element of
 the slice, then the second, and so on. For a given call the expected result would be equivalent to:
 
-```rust
+```noir
 let a1 = &[1];
 let a2 = &[1, 2];
 let a3 = &[1, 2, 3];
@@ -232,7 +232,7 @@ a3.fold(10, f)  //=> f(f(f(10, 1), 2), 3)
 
 example:
 
-```rust
+```noir
 
 fn main() {
     let slice = &[2, 2, 2, 2, 2];
@@ -246,13 +246,13 @@ fn main() {
 
 Same as fold, but uses the first element as the starting element.
 
-```rust
+```noir
 fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T
 ```
 
 example:
 
-```rust
+```noir
 fn main() {
     let slice = &[2, 2, 2, 2, 2];
     let reduced = slice.reduce(|a, b| a + b);
@@ -264,13 +264,13 @@ fn main() {
 
 Returns a new slice containing only elements for which the given predicate returns true.
 
-```rust
+```noir
 fn filter<Env>(self, f: fn[Env](T) -> bool) -> Self
 ```
 
 example:
 
-```rust
+```noir
 fn main() {
     let slice = &[1, 2, 3, 4, 5];
     let odds = slice.filter(|x| x % 2 == 1);
@@ -285,13 +285,13 @@ Flatten each element in the slice into one value, separated by `separator`.
 Note that although slices implement `Append`, `join` cannot be used on slice
 elements since nested slices are prohibited.
 
-```rust
+```noir
 fn join(self, separator: T) -> T where T: Append
 ```
 
 example:
 
-```rust
+```noir
 struct Accumulator {
     total: Field,
 }
@@ -324,13 +324,13 @@ fn main() {
 
 Returns true if all the elements satisfy the given predicate
 
-```rust
+```noir
 fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 example:
 
-```rust
+```noir
 fn main() {
     let slice = &[2, 2, 2, 2, 2];
     let all = slice.all(|a| a == 2);
@@ -342,13 +342,13 @@ fn main() {
 
 Returns true if any of the elements satisfy the given predicate
 
-```rust
+```noir
 fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 
 example:
 
-```rust
+```noir
 fn main() {
     let slice = &[2, 2, 2, 2, 5];
     let any = slice.any(|a| a == 5);

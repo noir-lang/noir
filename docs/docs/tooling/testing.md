@@ -12,7 +12,7 @@ you run `nargo test`.
 
 For example if you have a program like:
 
-```rust
+```noir
 fn add(x: u64, y: u64) -> u64 {
     x + y
 }
@@ -32,7 +32,7 @@ have any arguments currently.
 
 You can write tests that are expected to fail by using the decorator `#[test(should_fail)]`. For example:
 
-```rust
+```noir
 fn add(x: u64, y: u64) -> u64 {
     x + y
 }
@@ -44,7 +44,7 @@ fn test_add() {
 
 You can be more specific and make it fail with a specific reason by using `should_fail_with = "<the reason for failure>"`:
 
-```rust
+```noir
 fn main(african_swallow_avg_speed : Field) {
     assert(african_swallow_avg_speed == 65, "What is the airspeed velocity of an unladen swallow");
 }
@@ -62,7 +62,7 @@ fn test_bridgekeeper() {
 
 The string given to `should_fail_with` doesn't need to exactly match the failure reason, it just needs to be a substring of it:
 
-```rust
+```noir
 fn main(african_swallow_avg_speed : Field) {
     assert(african_swallow_avg_speed == 65, "What is the airspeed velocity of an unladen swallow");
 }

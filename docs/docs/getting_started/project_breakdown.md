@@ -81,7 +81,7 @@ The _main.nr_ file contains a `main` method, this method is the entry point into
 
 In our sample program, _main.nr_ looks like this:
 
-```rust
+```noir
 fn main(x : Field, y : Field) {
     assert(x != y);
 }
@@ -112,7 +112,7 @@ If an output name is specified such as `nargo execute foo`, the witness generate
 
 The following code shows how to pass an array of structs to a Noir program to generate a proof.
 
-```rust
+```noir
 // main.nr
 struct Foo {
     bar: Field,

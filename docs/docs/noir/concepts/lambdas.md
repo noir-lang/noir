@@ -9,14 +9,14 @@ sidebar_position: 9
 
 Lambdas are anonymous functions. The syntax is `|arg1, arg2, ..., argN| return_expression`.
 
-```rust
+```noir
 let add_50 = |val| val + 50;
 assert(add_50(100) == 150);
 ```
 
 A block can be used as the body of a lambda, allowing you to declare local variables inside it:
 
-```rust
+```noir
 let cool = || {
   let x = 100;
   let y = 100;
@@ -30,7 +30,7 @@ assert(cool() == 200);
 
 Inside the body of a lambda, you can use variables defined in the enclosing function. Such lambdas are called **closures**. In this example `x` is defined inside `main` and is accessed from within the lambda:
 
-```rust
+```noir
 fn main() {
   let x = 100;
   let closure = || x + 150;
@@ -42,7 +42,7 @@ fn main() {
 
 It may catch you by surprise that the following code fails to compile:
 
-```rust
+```noir
 fn foo(f: fn () -> Field) -> Field {
  f()
 }
@@ -68,7 +68,7 @@ in this example that's `(Field, Field)`.
 The best solution in our case is to make `foo` generic over the environment type of its parameter, so that it can be called
 with closures with any environment, as well as with regular functions:
 
-```rust
+```noir
 fn foo<Env>(f: fn[Env]() -> Field) -> Field {
  f()
 }

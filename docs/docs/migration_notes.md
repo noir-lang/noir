@@ -32,7 +32,7 @@ To update, please make sure this field in `Nargo.toml` matches the output of `na
 
 The index of the [for loops](noir/concepts/control_flow.md#loops) is now of type `u64` instead of `Field`. An example refactor would be:
 
-```rust
+```noir
 for i in 0..10 {
     let i = i as Field;
 }

@@ -22,7 +22,7 @@ Converts an object into a compile-time string.
 
 Implementations:
 
-```rust
+```noir
 impl<let N: u32> AsCtString for str<N> { ... }
 impl<let N: u32, T> AsCtString for fmtstr<N, T> { ... }
 ```
@@ -64,7 +64,7 @@ Example:
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for CtString
 impl Hash for CtString
 impl Append for CtString

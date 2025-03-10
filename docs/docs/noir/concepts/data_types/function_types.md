@@ -5,13 +5,13 @@ sidebar_position: 10
 
 Noir supports higher-order functions. The syntax for a function type is as follows:
 
-```rust
+```noir
 fn(arg1_type, arg2_type, ...) -> return_type
 ```
 
 Example:
 
-```rust
+```noir
 fn assert_returns_100(f: fn() -> Field) { // f takes no args and returns a Field
     assert(f() == 100);
 }

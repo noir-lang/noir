@@ -21,7 +21,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 Returns this function as a `TypedExpr`, which can be unquoted. For example:
 
-```rust
+```noir
 let typed_expr = some_function.as_typed_expr();
 let _ = quote { $typed_expr(1, 2, 3); };
 ```
@@ -115,7 +115,7 @@ This means any functions called at compile-time are invalid targets for this met
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for FunctionDefinition
 impl Hash for FunctionDefinition
 ```

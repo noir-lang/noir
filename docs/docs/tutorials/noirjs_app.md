@@ -59,7 +59,7 @@ touch circuit/src/main.nr circuit/Nargo.toml
 
 To make our program interesting, let's give it a real use-case scenario: Bob wants to prove he is older than 18, without disclosing his age. Open `main.nr` and write:
 
-```rust
+```noir
 fn main(age: u8) {
   assert(age >= 18);
 }

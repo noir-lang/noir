@@ -21,7 +21,7 @@ must be done explicitly by the developer.
 
 Filename : `src/main.nr`
 
-```rust
+```noir
 mod foo;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
 
 Filename : `src/foo.nr`
 
-```rust
+```noir
 fn from_foo() {}
 ```
 
@@ -49,12 +49,12 @@ crate
 
 ```
 
-The module filename may also be the name of the module as a directory with the contents in a 
+The module filename may also be the name of the module as a directory with the contents in a
 file named `mod.nr` within that directory. The above example can alternatively be expressed like this:
 
 Filename : `src/main.nr`
 
-```rust
+```noir
 mod foo;
 
 fn main() {
@@ -64,7 +64,7 @@ fn main() {
 
 Filename : `src/foo/mod.nr`
 
-```rust
+```noir
 fn from_foo() {}
 ```
 
@@ -88,7 +88,7 @@ In the above snippet, if `bar` would like to use functions in `foo`, it can do s
 
 Filename : `src/main.nr`
 
-```rust
+```noir
 mod foo;
 
 fn main() {
@@ -98,14 +98,14 @@ fn main() {
 
 Filename : `src/foo.nr`
 
-```rust
+```noir
 mod bar;
 fn from_foo() {}
 ```
 
 Filename : `src/foo/bar.nr`
 
-```rust
+```noir
 fn from_bar() {}
 ```
 
@@ -129,7 +129,7 @@ Similar to importing a module in the crate root, modules can be placed in a `mod
 
 Filename : `src/main.nr`
 
-```rust
+```noir
 mod foo;
 
 fn main() {
@@ -139,24 +139,24 @@ fn main() {
 
 Filename : `src/foo/mod.nr`
 
-```rust
+```noir
 mod bar;
 fn from_foo() {}
 ```
 
 Filename : `src/foo/bar/mod.nr`
 
-```rust
+```noir
 fn from_bar() {}
 ```
 
-### Referencing a parent module 
+### Referencing a parent module
 
 Given a submodule, you can refer to its parent module using the `super` keyword.
 
 Filename : `src/main.nr`
 
-```rust
+```noir
 mod foo;
 
 fn main() {
@@ -166,7 +166,7 @@ fn main() {
 
 Filename : `src/foo.nr`
 
-```rust
+```noir
 mod bar;
 
 fn from_foo() {}
@@ -174,9 +174,9 @@ fn from_foo() {}
 
 Filename : `src/foo/bar.nr`
 
-```rust
+```noir
 // Same as bar::from_foo
-use super::from_foo; 
+use super::from_foo;
 
 fn from_bar() {
     from_foo();        // invokes super::from_foo(), which is bar::from_foo()
@@ -186,14 +186,14 @@ fn from_bar() {
 
 ### `use` visibility
 
-`use` declarations are private to the containing module, by default. However, like functions, 
-they can be marked as `pub` or `pub(crate)`. Such a use declaration serves to _re-export_ a name. 
-A public `use` declaration can therefore redirect some public name to a different target definition: 
+`use` declarations are private to the containing module, by default. However, like functions,
+they can be marked as `pub` or `pub(crate)`. Such a use declaration serves to _re-export_ a name.
+A public `use` declaration can therefore redirect some public name to a different target definition:
 even a definition with a private canonical path, inside a different module.
 
 An example of re-exporting:
 
-```rust
+```noir
 mod some_module {
     pub use foo::{bar, baz};
     mod foo {
@@ -215,7 +215,7 @@ In this example, the module `some_module` re-exports two public names defined in
 By default, like functions, modules are private to the module (or crate) they exist in. You can use `pub`
 to make the module public or `pub(crate)` to make it public to just its crate:
 
-```rust
+```noir
 // This module is now public and can be seen by other crates.
 pub mod foo;
 ```

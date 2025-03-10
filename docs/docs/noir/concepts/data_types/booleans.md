@@ -16,7 +16,7 @@ sidebar_position: 2
 
 The `bool` type in Noir has two possible values: `true` and `false`:
 
-```rust
+```noir
 fn main() {
     let t = true;
     let f: bool = false;

@@ -24,7 +24,7 @@ An in depth example might help drive the point home. This example comes from the
 
 Let's look at how we can optimize a function to turn a `u72` into an array of `u8`s.
 
-```rust
+```noir
 fn main(num: u72) -> pub [u8; 8] {
     let mut out: [u8; 8] = [0; 8];
     for i in 0..8 {
@@ -42,7 +42,7 @@ Backend circuit size: 3619
 
 A lot of the operations in this function are optimized away by the compiler (all the bit-shifts turn into divisions by constants). However we can save a bunch of gates by casting to u8 a bit earlier. This automatically truncates the bit-shifted value to fit in a u8 which allows us to remove the AND against 0xff. This saves us ~480 gates in total.
 
-```rust
+```noir
 fn main(num: u72) -> pub [u8; 8] {
     let mut out: [u8; 8] = [0; 8];
     for i in 0..8 {
@@ -64,7 +64,7 @@ It turns out that truncating a u72 into a u8 is hard to do inside a snark, each 
 
 We can then run `u72_to_u8` as unconstrained brillig code in order to calculate out, then use that result in our constrained function and assert that if we were to do the reverse calculation we'd get back num. This looks a little like the below:
 
-```rust
+```noir
 fn main(num: u72) -> pub [u8; 8] {
     // Safety: 'out' is properly constrained below in 'assert(num == reconstructed_num);'
     let out = unsafe { u72_to_u8(num) };

@@ -13,7 +13,7 @@ keywords: [traits, trait, interface, protocol, default, add, eq]
 Constructs a default value of a type.
 
 Implementations:
-```rust
+```noir
 impl Default for Field { .. }
 
 impl Default for i8 { .. }
@@ -98,7 +98,7 @@ Returns `true` if `self` is equal to `other`. Implementing this trait on a type
 allows the type to be used with `==` and `!=`.
 
 Implementations:
-```rust
+```noir
 impl Eq for Field { .. }
 
 impl Eq for i8 { .. }
@@ -146,7 +146,7 @@ used on values of the type.
 
 Implementations:
 
-```rust
+```noir
 impl Ord for u8 { .. }
 impl Ord for u16 { .. }
 impl Ord for u32 { .. }
@@ -199,7 +199,7 @@ The implementations block below is given for the `Add` trait, but the same types
 `Add` also implement `Sub`, `Mul`, and `Div`.
 
 Implementations:
-```rust
+```noir
 impl Add for Field { .. }
 
 impl Add for i8 { .. }
@@ -224,7 +224,7 @@ to be used with the implementation type.
 Unlike other numeric traits, `Rem` is not implemented for `Field`.
 
 Implementations:
-```rust
+```noir
 impl Rem for u8 { fn rem(self, other: u8) -> u8 { self % other } }
 impl Rem for u16 { fn rem(self, other: u16) -> u16 { self % other } }
 impl Rem for u32 { fn rem(self, other: u32) -> u32 { self % other } }
@@ -269,7 +269,7 @@ The implementations block below is given for the `BitOr` trait, but the same typ
 `BitOr` also implement `BitAnd` and `BitXor`.
 
 Implementations:
-```rust
+```noir
 impl BitOr for bool { fn bitor(self, other: bool) -> bool { self | other } }
 
 impl BitOr for u8 { fn bitor(self, other: u8) -> u8 { self | other } }
@@ -299,7 +299,7 @@ The implementations block below is given for the `Shl` trait, but the same types
 `Shl` also implement `Shr`.
 
 Implementations:
-```rust
+```noir
 impl Shl for u8 { fn shl(self, other: u8) -> u8 { self << other } }
 impl Shl for u16 { fn shl(self, other: u16) -> u16 { self << other } }
 impl Shl for u32 { fn shl(self, other: u32) -> u32 { self << other } }
@@ -327,7 +327,7 @@ Additionally, it is expected that for any implementation:
 - `x.append(T::empty()) == x`
 
 Implementations:
-```rust
+```noir
 impl<T> Append for [T]
 impl Append for Quoted
 ```

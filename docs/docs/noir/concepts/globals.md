@@ -12,7 +12,7 @@ sidebar_position: 8
 
 Noir supports global variables. The global's type must be specified by the user:
 
-```rust
+```noir
 global N: Field = 5;
 
 global TUPLE: (Field, Field) = (3, 2);
@@ -27,7 +27,7 @@ fn main() {
 
 Globals can be defined as any expression, so long as they don't depend on themselves - otherwise there would be a dependency cycle! For example:
 
-```rust
+```noir
 global T: u32 = foo(T); // dependency error
 ```
 
@@ -36,7 +36,7 @@ global T: u32 = foo(T); // dependency error
 
 If they are initialized to a literal integer, globals can be used to specify an array's length:
 
-```rust
+```noir
 global N: u32 = 2;
 
 fn main(y : [Field; N]) {
@@ -46,7 +46,7 @@ fn main(y : [Field; N]) {
 
 A global from another module can be imported or referenced externally like any other name:
 
-```rust
+```noir
 global N: Field = 20;
 
 fn main() {
@@ -61,7 +61,7 @@ mod my_submodule {
 When a global is used, Noir replaces the name with its definition on each occurrence.
 This means globals defined using function calls will repeat the call each time they're used:
 
-```rust
+```noir
 global RESULT: [Field; 100] = foo();
 
 fn foo() -> [Field; 100] { ... }
@@ -76,7 +76,7 @@ function performs side-effects like `println`, as these will still occur on each
 By default, like functions, globals are private to the module they exist in. You can use `pub`
 to make the global public or `pub(crate)` to make it public to just its crate:
 
-```rust
+```noir
 // This global is now public
 pub global N: u32 = 5;
 ```

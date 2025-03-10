@@ -215,7 +215,7 @@ Under the hood, the return value is passed as an input to the circuit and is che
 
 For example, if you have Noir program like this:
 
-```rust
+```noir
 fn main(
     // Public inputs
     pubkey_x: pub Field,
@@ -239,7 +239,7 @@ You can pass structs to the verifier contract. They will be flattened so that th
 
 For example, consider the following program:
 
-```rust
+```noir
 struct Type1 {
   val1: Field,
   val2: Field,

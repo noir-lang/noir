@@ -44,7 +44,7 @@ Evaluation rules of `comptime` follows the normal unconstrained evaluation rules
 - Evaluation order of `comptime {}` blocks within global items is currently unspecified. For example, given the following two functions we can't guarantee
 which `println` will execute first. The ordering of the two printouts will be arbitrary, but should be stable across multiple compilations with the same `nargo` version as long as the program is also unchanged.
 
-```rust
+```noir
 fn one() {
     comptime { println("one"); }
 }
@@ -69,7 +69,7 @@ For example, using globals to generate unique ids should be fine but relying on 
 
 When a `comptime` value is used in runtime code it must be lowered into a runtime value. This means replacing the expression with the literal that it evaluated to. For example, the code:
 
-```rust
+```noir
 struct Foo { array: [Field; 2], len: u32 }
 
 fn main() {
@@ -84,7 +84,7 @@ fn main() {
 
 will be converted to the following after `comptime` expressions are evaluated:
 
-```rust
+```noir
 struct Foo { array: [Field; 2], len: u32 }
 
 fn main() {
@@ -94,7 +94,7 @@ fn main() {
 
 Not all types of values can be lowered. For example, references, `Type`s, and `TypeDefinition`s (among other types) cannot be lowered at all.
 
-```rust
+```noir
 fn main() {
     // There's nothing we could inline here to create a Type value at runtime
     // let _ = get_type!();
@@ -106,7 +106,7 @@ comptime fn get_type() -> Type { ... }
 Values of certain types may also change type when they are lowered. For example, a comptime format string will already be
 formatted, and thus lowers into a runtime string instead:
 
-```rust
+```noir
 fn main() {
     let foo = comptime {
         let i = 2;
@@ -139,7 +139,7 @@ This means we can escape the quoting by using the unquote operator to splice val
 
 In addition to curly braces, you can also use square braces for the quote operator:
 
-```rust
+```noir
 comptime {
     let q1 = quote { 1 };
     let q2 = quote [ 2 ];
@@ -157,7 +157,7 @@ comptime {
 The unquote operator `$` is usable within a `quote` expression.
 It takes a variable as an argument, evaluates the variable, and splices the resulting value into the quoted token stream at that point. For example,
 
-```rust
+```noir
 comptime {
     let x = 1 + 2;
     let y = quote { $x + 4 };
@@ -166,7 +166,7 @@ comptime {
 
 The value of `y` above will be the token stream containing `3`, `+`, and `4`. We can also use this to combine `Quoted` values into larger token streams:
 
-```rust
+```noir
 comptime {
     let x = quote { 1 + 2 };
     let y = quote { $x + 4 };
@@ -180,7 +180,7 @@ If it is an expression (even a parenthesized one), it will do nothing. Most like
 
 Unquoting can also be avoided by escaping the `$` with a backslash:
 
-```rust
+```noir
 comptime {
     let x = quote { 1 + 2 };
 
@@ -194,7 +194,7 @@ comptime {
 Note that `Quoted` is internally a series of separate tokens, and that all unquoting does is combine these token vectors.
 This means that code which appears to append like a string actually appends like a vector internally:
 
-```rust
+```noir
 comptime {
     let x = 3;
     let q = quote { foo$x }; // This is [foo, 3], not [foo3]
@@ -218,7 +218,7 @@ over each token of a larger quoted value with `.tokens()`:
 Attributes provide a way to run a `comptime` function on an item in the program.
 When you use an attribute, the function with the same name will be called with that item as an argument:
 
-```rust
+```noir
 #[my_struct_attribute]
 struct Foo {}
 
@@ -259,7 +259,7 @@ order. Within a module, attributes are evaluated top to bottom. Between modules,
 first. Attributes in sibling modules are resolved following the `mod foo; mod bar;` declaration order within their parent
 modules.
 
-```rust
+```noir
 mod foo; // attributes in foo are run first
 mod bar; // followed by attributes in bar
 
@@ -271,7 +271,7 @@ struct Baz {}
 Note that because of this evaluation order, you may get an error trying to derive a trait for a struct whose fields
 have not yet had the trait derived already:
 
-```rust
+```noir
 // Error! `Bar` field of `Foo` does not (yet) implement Eq!
 #[derive(Eq)]
 struct Foo {
@@ -341,7 +341,7 @@ your attribute function and a helper function it calls use it, then they can bot
 Using all of the above, we can write a `derive` macro that behaves similarly to Rust's but is not built into the language.
 From the user's perspective it will look like this:
 
-```rust
+```noir
 // Example usage
 #[derive(Default, Eq, Ord)]
 struct MyStruct { my_field: u32 }

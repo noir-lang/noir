@@ -42,7 +42,7 @@ any generics, the generics are also included as-is.
 
 #include_code generics noir_stdlib/src/meta/type_def.nr rust
 
-Returns each generic on this type definition. Each generic is represented as a tuple containing the type, 
+Returns each generic on this type definition. Each generic is represented as a tuple containing the type,
 and an optional containing the numeric type if it's a numeric generic.
 
 Example:
@@ -117,7 +117,7 @@ current fields on the struct type and append the new fields from there.
 
 Example:
 
-```rust
+```noir
 // Change this struct to:
 // struct Foo {
 //     a: u32,
@@ -136,7 +136,7 @@ comptime fn mangle_fields(s: TypeDefinition) {
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for TypeDefinition
 impl Hash for TypeDefinition
 ```

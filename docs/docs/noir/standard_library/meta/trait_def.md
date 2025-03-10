@@ -16,7 +16,7 @@ trait, they will be kept as-is without instantiating or replacing them.
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for TraitDefinition
 impl Hash for TraitDefinition
 ```

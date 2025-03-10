@@ -53,7 +53,7 @@ _Private values_ are also referred to as _witnesses_ sometimes.
 All data types in Noir are private by default. Types are explicitly declared as public using the
 `pub` modifier:
 
-```rust
+```noir
 fn main(x : Field, y : pub Field) -> pub Field {
     x + y
 }
@@ -69,7 +69,7 @@ private and another that is public.
 
 A type alias is a new name for an existing type. Type aliases are declared with the keyword `type`:
 
-```rust
+```noir
 type Id = u8;
 
 fn main() {
@@ -81,7 +81,7 @@ fn main() {
 
 Type aliases can also be used with [generics](../generics.md):
 
-```rust
+```noir
 type Id<Size> = Size;
 
 fn main() {
@@ -93,7 +93,7 @@ fn main() {
 
 Type aliases can even refer to other aliases. An error will be issued if they form a cycle:
 
-```rust
+```noir
 // Ok!
 type A = B;
 type B = Field;
@@ -108,7 +108,7 @@ type Bad2 = Bad1;
 By default, like functions, type aliases are private to the module they exist in. You can use `pub`
 to make the type alias public or `pub(crate)` to make it public to just its crate:
 
-```rust
+```noir
 // This type alias is now public
 pub type Id = u8;
 ```
@@ -116,10 +116,10 @@ pub type Id = u8;
 ## Wildcard Type
 Noir can usually infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially when it has multiple generic arguments. Often some of the generic types can be inferred from the context, and Noir only needs a hint to properly infer the other types. We can partially specify a variable's type by using `_` as a marker, indicating where we still want the compiler to infer the type.
 
-```rust
+```noir
 let a: [_; 4] = foo(b);
 ```
- 
+
 
 ### BigInt
 

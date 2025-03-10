@@ -10,7 +10,7 @@ keywords:
 
 # `std::mem::zeroed`
 
-```rust
+```noir
 fn zeroed<T>() -> T
 ```
 
@@ -30,13 +30,13 @@ This function currently supports the following types:
 - String
 - Tuple
 - Functions
-  
+
 Using it on other types could result in unexpected behavior.
 
 # `std::mem::checked_transmute`
 
-```rust
-fn checked_transmute<T, U>(value: T) -> U
+```noir
+fn checked_transmute<T, U>(value: T) -> U {}
 ```
 
 Transmutes a value of one type into the same value but with a new type `U`.
@@ -53,7 +53,7 @@ containing `checked_transmute` is never called.
 
 # `std::mem::array_refcount`
 
-```rust
+```noir
 fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
 ```
 
@@ -68,7 +68,7 @@ mutations.
 
 # `std::mem::slice_refcount`
 
-```rust
+```noir
 fn slice_refcount<T>(slice: [T]) -> u32 {}
 ```
 

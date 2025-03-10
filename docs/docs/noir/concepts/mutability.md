@@ -10,7 +10,7 @@ sidebar_position: 8
 Variables in noir can be declared mutable via the `mut` keyword. Mutable variables can be reassigned
 to via an assignment expression.
 
-```rust
+```noir
 let x = 2;
 x = 3; // error: x must be mutable to be assigned to
 
@@ -20,7 +20,7 @@ let y = 4; // OK
 
 The `mut` modifier can also apply to patterns:
 
-```rust
+```noir
 let (a, mut b) = (1, 2);
 a = 11; // error: a must be mutable to be assigned to
 b = 12; // OK
@@ -37,7 +37,7 @@ let MyStruct { x: mut y } = MyStruct { x: a };
 Note that mutability in noir is local and everything is passed by value, so if a called function
 mutates its parameters then the parent function will keep the old value of the parameters.
 
-```rust
+```noir
 fn main() -> pub Field {
     let x = 3;
     helper(x);
@@ -53,7 +53,7 @@ fn helper(mut x: i32) {
 
 Non-local mutability can be achieved through the mutable reference type `&mut T`:
 
-```rust
+```noir
 fn set_to_zero(x: &mut Field) {
     *x = 0;
 }
@@ -71,7 +71,7 @@ be explicitly dereferenced via `*` to retrieve the underlying value. Note that t
 a copy of the value, so mutating this copy will not change the original value behind the
 reference:
 
-```rust
+```noir
 fn main() {
     let mut x = 1;
     let x_ref = &mut x;
@@ -99,7 +99,7 @@ Mutable references can also be stored within structs. Note that there is also
 no lifetime parameter on these unlike rust. This is because the allocated memory
 always lasts the entire program - as if it were an array of one element.
 
-```rust
+```noir
 struct Foo {
     x: &mut Field
 }

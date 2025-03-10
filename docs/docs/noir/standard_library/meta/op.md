@@ -45,7 +45,7 @@ Returns this operator as a `Quoted` value.
 
 ### Trait Implementations
 
-```rust
+```noir
 impl Eq for UnaryOp
 impl Hash for UnaryOp
 ```
@@ -154,7 +154,7 @@ Returns this operator as a `Quoted` value.
 
 ### Trait Implementations
 
-```rust
+```noir
 impl Eq for BinaryOp
 impl Hash for BinaryOp
 ```

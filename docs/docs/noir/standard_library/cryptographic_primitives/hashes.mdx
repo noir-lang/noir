@@ -25,7 +25,7 @@ Given an array of bytes, returns an array with the Blake2 hash
 
 example:
 
-```rust
+```noir
 fn main() {
     let x = [163, 117, 178, 149]; // some random bytes
     let hash = std::hash::blake2s(x);
@@ -42,7 +42,7 @@ Given an array of bytes, returns an array with the Blake3 hash
 
 example:
 
-```rust
+```noir
 fn main() {
     let x = [163, 117, 178, 149]; // some random bytes
     let hash = std::hash::blake3(x);
@@ -88,7 +88,7 @@ Given an initial `[u64; 25]` state, returns the state resulting from applying a 
 Given an array of Fields, returns a new Field with the Poseidon Hash. Mind that you need to specify
 how many inputs are there to your Poseidon function.
 
-```rust
+```noir
 // example for hash_1, hash_2 accepts an array of length 2, etc
 fn hash_1(input: [Field; 1]) -> Field
 ```
@@ -103,7 +103,7 @@ Given an array of Fields, returns a new Field with the Poseidon2 Hash. Contrary 
 function, there is only one hash and you can specify a message_size to hash only the first 
 `message_size` bytes of the input,
 
-```rust
+```noir
 // example for hashing the first three elements of the input
 Poseidon2::hash(input, 3);
 ```
@@ -114,7 +114,7 @@ example:
 
 ## hash_to_field
 
-```rust
+```noir
 fn hash_to_field(_input : [Field]) -> Field {}
 ```
 

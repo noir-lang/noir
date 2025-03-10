@@ -16,7 +16,7 @@ sidebar_position: 7
 A tuple collects multiple values like an array, but with the added ability to collect values of
 different types:
 
-```rust
+```noir
 fn main() {
     let tup: (u8, u64, Field) = (255, 500, 1000);
 }
@@ -24,7 +24,7 @@ fn main() {
 
 One way to access tuple elements is via destructuring using pattern matching:
 
-```rust
+```noir
 fn main() {
     let tup = (1, 2);
 
@@ -38,7 +38,7 @@ Another way to access tuple elements is via direct member access, using a period
 the index of the element we want to access. Index `0` corresponds to the first tuple element, `1` to
 the second and so on:
 
-```rust
+```noir
 fn main() {
     let tup = (5, 6, 7, 8);
 

@@ -21,7 +21,7 @@ The one exception is for loop indices which default to `u32` since comparisons o
 
 An unsigned integer type is specified first with the letter `u` (indicating its unsigned nature) followed by its bit size (e.g. `8`):
 
-```rust
+```noir
 fn main() {
     let x: u8 = 1;
     let y: u8 = 1;
@@ -36,7 +36,7 @@ The bit size determines the maximum value the integer type can store. For exampl
 
 A signed integer type is specified first with the letter `i` (which stands for integer) followed by its bit size (e.g. `8`):
 
-```rust
+```noir
 fn main() {
     let x: i8 = -1;
     let y: i8 = -1;
@@ -48,7 +48,7 @@ fn main() {
 The bit size determines the maximum and minimum range of value the integer type can store. For example, an `i8` variable can store a value in the range of -128 to 127 (i.e. $\\-2^{7}\\$ to $\\2^{7}-1\\$).
 
 
-```rust
+```noir
 fn main(x: i16, y: i16) {
     // modulo
     let c = x % y;
@@ -62,7 +62,7 @@ Modulo operation is defined for negative integers thanks to integer division, so
 
 Computations that exceed the type boundaries will result in overflow errors. This happens with both signed and unsigned integers. For example, attempting to prove:
 
-```rust
+```noir
 fn main(x: u8, y: u8) -> pub u8 {
     let z = x + y;
     z
@@ -92,7 +92,7 @@ error: Assertion failed: 'attempt to add with overflow'
 
 A similar error would happen with signed integers:
 
-```rust
+```noir
 fn main() -> i8 {
     let x: i8 = -118;
     let y: i8 = -11;
@@ -103,7 +103,7 @@ fn main() -> i8 {
 
 Note that if a computation ends up being unused the compiler might remove it and it won't end up producing an overflow:
 
-```rust
+```noir
 fn main() {
     // "255 + 1" would overflow, but `z` is unused so no computation happens
     let z: u8 = 255 + 1;
@@ -114,7 +114,7 @@ fn main() {
 
 Although integer overflow is expected to error, some use-cases rely on wrapping. For these use-cases, the standard library provides `wrapping` variants of certain common operations:
 
-```rust
+```noir
 fn wrapping_add<T>(x: T, y: T) -> T;
 fn wrapping_sub<T>(x: T, y: T) -> T;
 fn wrapping_mul<T>(x: T, y: T) -> T;
@@ -122,7 +122,7 @@ fn wrapping_mul<T>(x: T, y: T) -> T;
 
 Example of how it is used:
 
-```rust
+```noir
 
 fn main(x: u8, y: u8) -> pub u8 {
     std::wrapping_add(x, y)

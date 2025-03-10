@@ -4,7 +4,7 @@ title: Option<T> Type
 
 The `Option<T>` type is a way to express that a value might be present (`Some(T))` or absent (`None`). It's a safer way to handle potential absence of values, compared to using nulls in many other languages.
 
-```rust
+```noir
 struct Option<T> {
     None,
     Some(T),
@@ -13,7 +13,7 @@ struct Option<T> {
 
 The `Option` type, already imported into your Noir program, can be used directly:
 
-```rust
+```noir
 fn main() {
     let none = Option::none();
     let some = Option::some(3);

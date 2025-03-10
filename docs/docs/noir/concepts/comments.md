@@ -13,7 +13,7 @@ programmers.
 
 Here is a single line comment:
 
-```rust
+```noir
 // This is a comment and is ignored
 ```
 
@@ -23,7 +23,7 @@ Noir also supports multi-line block comments. Start a block comment with `/*` an
 
 Noir does not natively support doc comments. You may be able to use [Rust doc comments](https://doc.rust-lang.org/reference/comments.html) in your code to leverage some Rust documentation build tools with Noir code.
 
-```rust
+```noir
 /*
   This is a block comment describing a complex function.
 */

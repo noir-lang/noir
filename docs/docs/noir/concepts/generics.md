@@ -12,7 +12,7 @@ read more about the concept of generics in the Rust documentation
 Here is a trivial example showing the identity function that supports any type. In Rust, it is
 common to refer to the most general type as `T`. We follow the same convention in Noir.
 
-```rust
+```noir
 fn id<T>(x: T) -> T  {
     x
 }
@@ -26,7 +26,7 @@ requires declaring them with `let MyGenericName: IntegerType`. This can be done 
 generic is declared. Instead of types, these generics resolve to integers at compile-time.
 Here's an example of a struct that is generic over the size of the array it contains internally:
 
-```rust
+```noir
 struct BigInt<let N: u32> {
     limbs: [u32; N],
 }
@@ -50,7 +50,7 @@ impl<let N: u32> BigInt<N> {
 Generics are useful for specifying types in structs. For example, we can specify that a field in a
 struct will be of a certain generic type. In this case `value` is of type `T`.
 
-```rust
+```noir
 struct RepeatedValue<T> {
     value: T,
     count: Field,
@@ -80,8 +80,8 @@ In other words, how can we go from "any type `T`" to "any type `T` that has cert
 This is what [traits](../concepts/traits.md) are for in Noir. Here's an example of a function generic over
 any type `T` that implements the `Eq` trait for equality:
 
-```rust
-fn first_element_is_equal<T, let N: u32>(array1: [T; N], array2: [T; N]) -> bool 
+```noir
+fn first_element_is_equal<T, let N: u32>(array1: [T; N], array2: [T; N]) -> bool
     where T: Eq
 {
     if (array1.len() == 0) | (array2.len() == 0) {
@@ -127,7 +127,7 @@ The `::<>` operator can follow a variable or path and can be used to manually sp
 The name "turbofish" comes from that `::<>` looks like a little fish.
 
 Examples:
-```rust
+```noir
 fn main() {
     let mut slice = [];
     slice = slice.push_back(1);
@@ -138,7 +138,7 @@ fn main() {
 ```
 
 
-```rust
+```noir
 trait MyTrait {
     fn ten() -> Self;
 }
@@ -150,20 +150,20 @@ impl MyTrait for Field {
 struct Foo<T> {
     inner: T
 }
-        
+
 impl<T> Foo<T> {
     fn generic_method<U>(_self: Self) -> U where U: MyTrait {
         U::ten()
     }
 }
-        
+
 fn example() {
     let foo: Foo<Field> = Foo { inner: 1 };
-    // Using a type other than `Field` here (e.g. u32) would fail as 
-    // there is no matching impl for `u32: MyTrait`. 
+    // Using a type other than `Field` here (e.g. u32) would fail as
+    // there is no matching impl for `u32: MyTrait`.
     //
     // Substituting the `10` on the left hand side of this assert
-    // with `10 as u32` would fail with a type mismatch as we 
+    // with `10 as u32` would fail with a type mismatch as we
     // are expecting a `Field` from the right hand side.
     assert(10 == foo.generic_method::<Field>());
 }
@@ -182,7 +182,7 @@ apply the distributive law and thus sees these as different types.
 
 Even with this limitation though, the compiler can handle common cases decently well:
 
-```rust
+```noir
 trait Serialize<let N: u32> {
     fn serialize(self) -> [Field; N];
 }

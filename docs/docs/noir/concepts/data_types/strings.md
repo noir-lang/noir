@@ -19,7 +19,7 @@ The string type is a fixed length value defined with `str<N>`.
 You can use strings in `assert()` functions or print them with
 `println()`. See more about [Logging](../../standard_library/logging.md).
 
-```rust
+```noir
 
 fn main(message : pub str<11>, hex_as_string : str<4>) {
     println(message);
@@ -31,7 +31,7 @@ fn main(message : pub str<11>, hex_as_string : str<4>) {
 You can convert a `str<N>` to a byte array by calling `as_bytes()`
 or a vector by calling `as_bytes_vec()`.
 
-```rust
+```noir
 fn main() {
     let message = "hello world";
     let message_bytes = message.as_bytes();
@@ -57,7 +57,7 @@ You can use escape characters for your strings:
 
 Example:
 
-```rust
+```noir
 let s = "Hello \"world" // prints "Hello "world"
 let s = "hey \tyou"; // prints "hey   you"
 ```
@@ -70,12 +70,12 @@ Escape characters are *not* processed within raw strings. All contents are inter
 
 Example:
 
-```rust
+```noir
 let s = r"Hello world";
 let s = r#"Simon says "hello world""#;
 
 // Any number of hashes may be used (>= 1) as long as the string also terminates with the same number of hashes
-let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####; 
+let s = r#####"One "#, Two "##, Three "###, Four "####, Five will end the string."#####;
 ```
 
 ## Format strings
@@ -84,7 +84,7 @@ A format string begins with the letter `f` and allows inserting the value of loc
 
 Example:
 
-```rust
+```noir
 let four = 2 + 2;
 let s = f"Two plus two is: {four}";
 println(s);
@@ -100,7 +100,7 @@ To insert the value of a local or global variable, put it inside `{...}` in the 
 
 If you need to write the `{` or `}` characters, use `{{` and `}}` respectively:
 
-```rust
+```noir
 let four = 2 + 2;
 
 // Prints "This is not expanded: {four}"
@@ -109,6 +109,6 @@ println(f"This is not expanded: {{four}}");
 
 More complex expressions are not allowed inside `{...}`:
 
-```rust
+```noir
 let s = f"Two plus two is: {2 + 2}" // Error: invalid format string
 ```

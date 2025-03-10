@@ -58,7 +58,7 @@ Returns a slice of the individual tokens that form this token stream.
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for Quoted
 impl Hash for Quoted
 ```

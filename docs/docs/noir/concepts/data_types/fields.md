@@ -21,8 +21,8 @@ spans the Grumpkin curve.
 
 Fields support integer arithmetic and are often used as the default numeric type in Noir:
 
-```rust
-fn main(x : Field, y : Field)  {
+```noir
+fn main(x: Field, y: Field)  {
     let z = x + y;
 }
 ```
@@ -107,13 +107,13 @@ example:
 
 Returns the value to the power of the specified exponent
 
-```rust
+```noir
 fn pow_32(self, exponent: Field) -> Field
 ```
 
 example:
 
-```rust
+```noir
 fn main() {
     let field = 2
     let pow = field.pow_32(4);
@@ -129,7 +129,7 @@ Adds a constraint to specify that the field can be represented with `bit_size` n
 
 example:
 
-```rust
+```noir
 fn main() {
     let field = 2
     field.assert_max_bit_size::<32>();
@@ -140,7 +140,7 @@ fn main() {
 
 Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ \{0, ..., p-1\} is even, otherwise sgn0(x mod p) = 1.
 
-```rust
+```noir
 fn sgn0(self) -> u1
 ```
 
@@ -149,6 +149,6 @@ fn sgn0(self) -> u1
 
 Returns true if the field is less than the other field
 
-```rust
+```noir
 pub fn lt(self, another: Field) -> bool
 ```

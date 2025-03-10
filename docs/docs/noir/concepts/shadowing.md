@@ -7,7 +7,7 @@ Noir allows for inheriting variables' values and re-declaring them with the same
 
 For example, the following function is valid in Noir:
 
-```rust
+```noir
 fn main() {
     let x = 5;
 
@@ -30,7 +30,7 @@ When we return to the main scope, x once again refers to just the original x, wh
 
 One way that shadowing is useful, in addition to ergonomics across scopes, is for temporarily mutating variables.
 
-```rust
+```noir
 fn main() {
     let age = 30;
     // age = age + 5; // Would error as `age` is immutable by default.

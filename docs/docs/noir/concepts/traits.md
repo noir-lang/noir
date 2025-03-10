@@ -13,7 +13,7 @@ Traits in Noir are a useful abstraction similar to interfaces or protocols in ot
 the interface of several methods contained within the trait. Types can then implement this trait by providing
 implementations for these methods. For example in the program:
 
-```rust
+```noir
 struct Rectangle {
     width: Field,
     height: Field,
@@ -33,7 +33,7 @@ fn log_area(r: Rectangle) {
 We have a function `log_area` to log the area of a `Rectangle`. Now how should we change the program if we want this
 function to work on `Triangle`s as well?:
 
-```rust
+```noir
 struct Triangle {
     width: Field,
     height: Field,
@@ -49,7 +49,7 @@ impl Triangle {
 Making `log_area` generic over all types `T` would be invalid since not all types have an `area` method. Instead, we can
 introduce a new `Area` trait and make `log_area` generic over all types `T` that implement `Area`:
 
-```rust
+```noir
 trait Area {
     fn area(self) -> Field;
 }
@@ -63,7 +63,7 @@ We also need to explicitly implement `Area` for `Rectangle` and `Triangle`. We c
 impls slightly. Note that the parameter types and return type of each of our `area` methods must match those defined
 by the `Area` trait.
 
-```rust
+```noir
 impl Area for Rectangle {
     fn area(self) -> Field {
         self.width * self.height
@@ -85,7 +85,7 @@ as a library with their own types - such as `Circle` - as long as they also impl
 As seen in `log_area` above, when we want to create a function or method that is generic over any type that implements
 a trait, we can add a where clause to the generic function.
 
-```rust
+```noir
 fn log_area<T>(shape: T) where T: Area {
     println(shape.area());
 }
@@ -94,7 +94,7 @@ fn log_area<T>(shape: T) where T: Area {
 It is also possible to apply multiple trait constraints on the same variable at once by combining traits with the `+`
 operator. Similarly, we can have multiple trait constraints by separating each with a comma:
 
-```rust
+```noir
 fn foo<T, U>(elements: [T], thing: U) where
     T: Default + Add + Eq,
     U: Bar,
@@ -117,7 +117,7 @@ As seen in the previous section, the `area` method was invoked on a type `T` tha
 
 To invoke `area` on a type that directly implements the trait `Area`, the trait must be in scope (imported):
 
-```rust
+```noir
 use geometry::Rectangle;
 
 fn main() {
@@ -131,7 +131,7 @@ by `Rectangle`, and it's not clear which one should be used.
 
 To make the above program compile, the trait must be imported:
 
-```rust
+```noir
 use geometry::Rectangle;
 use geometry::Area; // Bring the Area trait into scope
 
@@ -144,7 +144,7 @@ fn main() {
 An error will also be produced if multiple traits with an `area` method are in scope. If both traits
 are needed in a file you can use the fully-qualified path to the trait:
 
-```rust
+```noir
 use geometry::Rectangle;
 
 fn main() {
@@ -159,7 +159,7 @@ Rarely to call a method it may not be sufficient to use the general method call 
 One case where this may happen is if there are two traits in scope which both define a method with the same name.
 For example:
 
-```rust
+```noir
 trait Foo  { fn bar(); }
 trait Foo2 { fn bar(); }
 
@@ -175,7 +175,7 @@ this would be to use the static method syntax `Foo::bar(object)` but there is no
 `Self` does not appear in the type signature of `bar` at all so we would not know which impl to choose.
 For these situations there is the "as trait" syntax: `<Type as Trait>::method(object, args...)`
 
-```rust
+```noir
 fn example<T>()
     where T: Foo + Foo2
 {
@@ -188,7 +188,7 @@ fn example<T>()
 
 You can add generics to a trait implementation by adding the generic list after the `impl` keyword:
 
-```rust
+```noir
 trait Second {
     fn second(self) -> Field;
 }
@@ -202,7 +202,7 @@ impl<T> Second for (T, Field) {
 
 You can also implement a trait for every type this way:
 
-```rust
+```noir
 trait Debug {
     fn debug(self);
 }
@@ -225,7 +225,7 @@ For example, while `impl<T> Foo for T` implements the trait `Foo` for every type
 will implement `Foo` only for types that also implement `Bar`. This is often used for implementing generic types.
 For example, here is the implementation for array equality:
 
-```rust
+```noir
 impl<T, let N: u32> Eq for [T; let N: u32] where T: Eq {
     // Test if two arrays have the same elements.
     // Because both arrays must have length N, we know their lengths already match.
@@ -242,10 +242,10 @@ impl<T, let N: u32> Eq for [T; let N: u32] where T: Eq {
 }
 ```
 
-Where clauses can also be placed on struct implementations. 
+Where clauses can also be placed on struct implementations.
 For example, here is a method utilizing a generic type that implements the equality trait.
 
-```rust
+```noir
 struct Foo<T> {
     a: u32,
     b: T,
@@ -263,7 +263,7 @@ impl<T> Foo<T> where T: Eq {
 Traits themselves can also be generic by placing the generic arguments after the trait name. These generics are in
 scope of every item within the trait.
 
-```rust
+```noir
 trait Into<T> {
     // Convert `self` to type `T`
     fn into(self) -> T;
@@ -273,7 +273,7 @@ trait Into<T> {
 When implementing generic traits the generic arguments of the trait must be specified. This is also true anytime
 when referencing a generic trait (e.g. in a `where` clause).
 
-```rust
+```noir
 struct MyStruct {
     array: [Field; 2],
 }
@@ -284,7 +284,7 @@ impl Into<[Field; 2]> for MyStruct {
     }
 }
 
-fn as_array<T>(x: T) -> [Field; 2] 
+fn as_array<T>(x: T) -> [Field; 2]
     where T: Into<[Field; 2]>
 {
     x.into()
@@ -304,7 +304,7 @@ Traits also support associated types and constraints which can be thought of as 
 
 Here's an example of a trait with an associated type `Foo` and a constant `Bar`:
 
-```rust
+```noir
 trait MyTrait {
     type Foo;
 
@@ -314,7 +314,7 @@ trait MyTrait {
 
 Now when we're implementing `MyTrait` we also have to provide values for `Foo` and `Bar`:
 
-```rust
+```noir
 impl MyTrait for Field {
     type Foo = i32;
 
@@ -328,7 +328,7 @@ expression kinds allowed in numeric generics.
 When writing a trait constraint, you can specify all associated types and constants explicitly if
 you wish:
 
-```rust
+```noir
 fn foo<T>(x: T) where T: MyTrait<Foo = i32, Bar = 11> {
     ...
 }
@@ -337,7 +337,7 @@ fn foo<T>(x: T) where T: MyTrait<Foo = i32, Bar = 11> {
 Or you can also elide them since there should only be one `Foo` and `Bar` for a given implementation
 of `MyTrait` for a type:
 
-```rust
+```noir
 fn foo<T>(x: T) where T: MyTrait {
     ...
 }
@@ -345,7 +345,7 @@ fn foo<T>(x: T) where T: MyTrait {
 
 If you elide associated types, you can still refer to them via the type as trait syntax `<T as MyTrait>`:
 
-```rust
+```noir
 fn foo<T>(x: T) where
     T: MyTrait,
     <T as MyTrait>::Foo: Default + Eq
@@ -362,7 +362,7 @@ that eventually implements the trait. Similarly, the `self` variable is availabl
 For example, we can define a trait to create a default value for a type. This trait will need to return the `Self` type
 but doesn't need to take any parameters:
 
-```rust
+```noir
 trait Default {
     fn default() -> Self;
 }
@@ -370,7 +370,7 @@ trait Default {
 
 Implementing this trait can be done similarly to any other trait:
 
-```rust
+```noir
 impl Default for Field {
     fn default() -> Field {
         0
@@ -391,7 +391,7 @@ Instead, we'll need to refer to the function directly. This can be done either b
 specific impl `MyType::default()` or referring to the trait itself `Default::default()`. In the later
 case, type inference determines the impl that is selected.
 
-```rust
+```noir
 let my_struct = MyStruct::default();
 
 let x: Field = Default::default();
@@ -404,7 +404,7 @@ A trait can also have default implementations of its methods by giving a body to
 Note that this body must be valid for all types that may implement the trait. As a result, the only
 valid operations on `self` will be operations valid for any type or other operations on the trait itself.
 
-```rust
+```noir
 trait Numeric {
     fn add(self, other: Self) -> Self;
 
@@ -417,7 +417,7 @@ trait Numeric {
 
 When implementing a trait with default functions, a type may choose to implement only the required functions:
 
-```rust
+```noir
 impl Numeric for Field {
     fn add(self, other: Field) -> Field {
         self + other
@@ -427,7 +427,7 @@ impl Numeric for Field {
 
 Or it may implement the optional methods as well:
 
-```rust
+```noir
 impl Numeric for u32 {
     fn add(self, other: u32) -> u32 {
         self + other
@@ -444,7 +444,7 @@ impl Numeric for u32 {
 When implementing traits for a generic type it is possible to implement the trait for only a certain combination
 of generics. This can be either as an optimization or because those specific generics are required to implement the trait.
 
-```rust
+```noir
 trait Sub {
     fn sub(self, other: Self) -> Self;
 }
@@ -471,7 +471,7 @@ type argument). Similarly, if there is an impl for all `T` such as `impl<T> Debu
 any more impls to `Debug` for other types since it would be ambiguous which impl to choose for any given
 method call.
 
-```rust
+```noir
 trait Trait {}
 
 // Previous impl defined here
@@ -502,7 +502,7 @@ The newtype pattern gets around the coherence restriction by creating a new wrap
 that we cannot create `impl`s for. Since the new wrapper type is defined in our current crate, we can create
 impls for any trait we need on it.
 
-```rust
+```noir
 struct Wrapper {
     foo: some_library::Foo,
 }
@@ -524,7 +524,7 @@ unwrapping of values when converting to and from the `Wrapper` and `Foo` types.
 
 Sometimes, you might need one trait to use another trait’s functionality (like "inheritance" in some other languages). In this case, you can specify this relationship by listing any child traits after the parent trait's name and a colon. Now, whenever the parent trait is implemented it will require the child traits to be implemented as well. A parent trait is also called a "super trait."
 
-```rust
+```noir
 trait Person {
     fn name(self) -> String;
 }
@@ -539,7 +539,7 @@ trait Programmer {
     fn fav_language(self) -> String;
 }
 
-// CompSciStudent (computer science student) is a subtrait of both Programmer 
+// CompSciStudent (computer science student) is a subtrait of both Programmer
 // and Student. Implementing CompSciStudent requires you to impl both supertraits.
 trait CompSciStudent: Programmer + Student {
     fn git_username(self) -> String;
@@ -552,7 +552,7 @@ Similar to the proposed Rust feature for [trait aliases](https://github.com/rust
 Noir supports aliasing one or more traits and using those aliases wherever
 traits would normally be used.
 
-```rust
+```noir
 trait Foo {
     fn foo(self) -> Self;
 }
@@ -578,7 +578,7 @@ fn baz<T>(x: T) -> T where T: Baz {
 Trait aliases can also be generic by placing the generic arguments after the
 trait name. These generics are in scope of every item within the trait alias.
 
-```rust
+```noir
 trait Foo {
     fn foo(self) -> Self;
 }
@@ -599,7 +599,7 @@ trait Baz<T> = Foo + Bar<T>;
 Trait aliases support where clauses to add trait constraints to any of their
 generic arguments, e.g. ensuring `T: Baz` for a trait alias `Qux<T>`.
 
-```rust
+```noir
 trait Foo {
     fn foo(self) -> Self;
 }
@@ -631,7 +631,7 @@ By default, like functions, traits and trait aliases are private to the module
 they exist in. You can use `pub` to make the trait public or `pub(crate)` to make
 it public to just its crate:
 
-```rust
+```noir
 // This trait is now public
 pub trait Trait {}
 

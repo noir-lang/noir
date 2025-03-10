@@ -12,7 +12,7 @@ sidebar_position: 2
 Noir supports `if-else` statements. The syntax is most similar to Rust's where it is not required
 for the statement's conditional to be surrounded by parentheses.
 
-```rust
+```noir
 let a = 0;
 let mut x: u32 = 0;
 
@@ -35,7 +35,7 @@ assert(x == 2);
 
 The following block of code between the braces is run 10 times.
 
-```rust
+```noir
 for i in 0..10 {
     // do something
 }
@@ -51,7 +51,7 @@ In unconstrained code, `break` and `continue` are also allowed in `for` and `loo
 in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have. `break` and `continue` can be used like so:
 
-```rust
+```noir
 for i in 0 .. 10 {
     println("Iteration start")
 
@@ -84,7 +84,7 @@ A `loop` must contain at least one `break` statement that is reachable during ex
 This is only allowed in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have.
 
-```rust
+```noir
 let mut i = 10;
 loop {
     println(i);
@@ -98,11 +98,11 @@ loop {
 
 ## While loops
 
-In unconstrained code, `while` is allowed for loops that end when a given condition is met. 
+In unconstrained code, `while` is allowed for loops that end when a given condition is met.
 This is only allowed in unconstrained code since normal constrained code requires that Noir knows exactly how many iterations
 a loop may have.
 
-```rust
+```noir
 let mut i = 0
 while i < 10 {
     println(i);

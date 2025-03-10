@@ -11,7 +11,7 @@ This type currently has no public methods but it can be used alongside `Type` in
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for TraitConstraint
 impl Hash for TraitConstraint
 ```

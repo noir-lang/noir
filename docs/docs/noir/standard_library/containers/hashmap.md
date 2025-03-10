@@ -13,7 +13,7 @@ every hash value will be performed modulo `MaxLen`.
 
 Example:
 
-```rust
+```noir
 // Create a mapping from Fields to u32s with a maximum length of 12
 // using a poseidon2 hasher
 use std::hash::poseidon2::Poseidon2Hasher;

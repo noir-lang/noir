@@ -16,7 +16,7 @@ and types used for inspecting and modifying Noir programs.
 Returns the type of a variable at compile-time.
 
 Example:
-```rust
+```noir
 comptime {
     let x: i32 = 1;
     let x_type: Type = std::meta::type_of(x);
@@ -32,7 +32,7 @@ comptime {
 Unquotes the passed-in token stream where this function was called.
 
 Example:
-```rust
+```noir
 comptime {
     let code = quote { 1 + 2 };
 
@@ -53,7 +53,7 @@ with `derive_via` beforehand. The traits in the stdlib that
 can be derived this way are `Eq`, `Ord`, `Default`, and `Hash`.
 
 Example:
-```rust
+```noir
 #[derive(Eq, Default)]
 struct Foo<T> {
     x: i32,
@@ -84,7 +84,7 @@ it helpful to use a function like `std::meta::make_trait_impl` to
 help creating these impls.
 
 Example:
-```rust
+```noir
 #[derive_via(derive_do_nothing)]
 trait DoNothing {
     fn do_nothing(self);

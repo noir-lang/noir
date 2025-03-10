@@ -18,7 +18,7 @@ is a reasonable maximum bound that can be placed on the vector.
 
 Example:
 
-```rust
+```noir
 let mut vector: BoundedVec<Field, 10> = BoundedVec::new();
 for i in 0..5 {
     vector.push(i);
@@ -31,7 +31,7 @@ assert(vector.max_len() == 10);
 
 ### new
 
-```rust
+```noir
 pub fn new() -> Self
 ```
 
@@ -43,7 +43,7 @@ is guaranteed to be inaccessible unless `get_unchecked` is used.
 
 Example:
 
-```rust
+```noir
 let empty_vector: BoundedVec<Field, 10> = BoundedVec::new();
 assert(empty_vector.len() == 0);
 ```
@@ -58,7 +58,7 @@ but for now make sure to use type annotations when using bounded vectors. Otherw
 
 ### get
 
-```rust
+```noir
 pub fn get(self, index: u64) -> T {
 ```
 
@@ -69,7 +69,7 @@ will issue a constraint failure.
 
 Example:
 
-```rust
+```noir
 fn foo<N>(v: BoundedVec<u32, N>) {
     let first = v.get(0);
     let last = v.get(v.len() - 1);
@@ -79,7 +79,7 @@ fn foo<N>(v: BoundedVec<u32, N>) {
 
 ### get_unchecked
 
-```rust
+```noir
 pub fn get_unchecked(self, index: u64) -> T {
 ```
 
@@ -95,7 +95,7 @@ Example:
 
 ### set
 
-```rust
+```noir
 pub fn set(&mut self: Self, index: u64, value: T) {
 ```
 
@@ -105,7 +105,7 @@ If the given index is equal to or greater than the length of the vector, this wi
 
 Example:
 
-```rust
+```noir
 fn foo<N>(v: BoundedVec<u32, N>) {
     let first = v.get(0);
     assert(first != 42);
@@ -117,7 +117,7 @@ fn foo<N>(v: BoundedVec<u32, N>) {
 
 ### set_unchecked
 
-```rust
+```noir
 pub fn set_unchecked(&mut self: Self, index: u64, value: T) -> T {
 ```
 
@@ -132,7 +132,7 @@ Example:
 
 ### push
 
-```rust
+```noir
 pub fn push(&mut self, elem: T) {
 ```
 
@@ -147,7 +147,7 @@ Example:
 
 ### pop
 
-```rust
+```noir
 pub fn pop(&mut self) -> T
 ```
 
@@ -162,7 +162,7 @@ Example:
 
 ### len
 
-```rust
+```noir
 pub fn len(self) -> u64 {
 ```
 
@@ -174,7 +174,7 @@ Example:
 
 ### max_len
 
-```rust
+```noir
 pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u64 {
 ```
 
@@ -187,7 +187,7 @@ Example:
 
 ### storage
 
-```rust
+```noir
 pub fn storage(self) -> [T; MaxLen] {
 ```
 
@@ -203,7 +203,7 @@ Example:
 
 ### extend_from_array
 
-```rust
+```noir
 pub fn extend_from_array<Len>(&mut self, array: [T; Len])
 ```
 
@@ -218,7 +218,7 @@ Example:
 
 ### extend_from_bounded_vec
 
-```rust
+```noir
 pub fn extend_from_bounded_vec<Len>(&mut self, vec: BoundedVec<T, Len>)
 ```
 
@@ -234,21 +234,21 @@ Example:
 
 ### from_array
 
-```rust
+```noir
 pub fn from_array<Len>(array: [T; Len]) -> Self
 ```
 
-Creates a new vector, populating it with values derived from an array input. 
+Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.
 
 Example:
-```rust
+```noir
 let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
 ```
 
 ### from_parts
 
-```rust
+```noir
 pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self
 ```
 
@@ -265,7 +265,7 @@ Example:
 
 ### from_parts_unchecked
 
-```rust
+```noir
 pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self
 ```
 
@@ -284,11 +284,11 @@ Example:
 
 ### map
 
-```rust
+```noir
 pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
-Creates a new vector of equal size by calling a closure on each element in this vector.  
+Creates a new vector of equal size by calling a closure on each element in this vector.
 
 Example:
 
@@ -296,7 +296,7 @@ Example:
 
 ### any
 
-```rust
+```noir
 pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool
 ```
 

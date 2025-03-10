@@ -7,7 +7,7 @@ Noir supports first-class references. References are a bit like pointers: they p
 
 Example:
 
-```rust
+```noir
 fn main() {
     let mut x = 2;
 

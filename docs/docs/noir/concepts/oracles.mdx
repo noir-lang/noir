@@ -21,7 +21,7 @@ Since Oracles are not resolved by Noir, they are [`unconstrained` functions](./u
 
 You can declare an Oracle through the `#[oracle(<name>)]` flag. Example:
 
-```rust
+```noir
 #[oracle(get_number_sequence)]
 unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
 ```

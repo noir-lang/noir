@@ -39,7 +39,7 @@ If this type is an array, return a pair of (element type, size type).
 
 Example:
 
-```rust
+```noir
 comptime {
     let array_type = quote { [Field; 3] }.as_type();
     let (field_type, three_type) = array_type.as_array().unwrap();
@@ -107,7 +107,7 @@ whether a type implements a trait, use `implements` instead.
 
 Example:
 
-```rust
+```noir
 comptime {
     let field_type = quote { Field }.as_type();
     let default = quote { Default }.as_trait_constraint();
@@ -127,7 +127,7 @@ in scope.
 
 Example:
 
-```rust
+```noir
 fn foo<T>() where T: Default {
     comptime {
         let field_type = quote { Field }.as_type();
@@ -160,7 +160,7 @@ fn foo<T>() where T: Default {
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for Type
 impl Hash for Type
 ```

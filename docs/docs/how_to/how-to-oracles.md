@@ -35,7 +35,7 @@ An oracle is defined in a Noir program by defining two methods:
 
 An example of an oracle that returns a `Field` would be:
 
-```rust
+```noir
 #[oracle(getSqrt)]
 unconstrained fn sqrt(number: Field) -> Field { }
 
@@ -46,7 +46,7 @@ unconstrained fn get_sqrt(number: Field) -> Field {
 
 In this example, we're wrapping our oracle function in an unconstrained method, and decorating it with `oracle(getSqrt)`. We can then call the unconstrained function as we would call any other function:
 
-```rust
+```noir
 fn main(input: Field) {
     let sqrt = get_sqrt(input);
 }
@@ -58,7 +58,7 @@ In the next section, we will make this `getSqrt` (defined on the `sqrt` decorato
 
 As explained in the [Oracle Explainer](../explainers/explainer-oracle.md), this `main` function is unsafe unless you constrain its return value. For example:
 
-```rust
+```noir
 fn main(input: Field) {
     let sqrt = get_sqrt(input);
     assert(sqrt.pow_32(2) as u64 == input as u64); // <---- constrain the return of an oracle!
@@ -71,7 +71,7 @@ fn main(input: Field) {
 
 Currently, oracles only work with single params or array params. For example:
 
-```rust
+```noir
 #[oracle(getSqrt)]
 unconstrained fn sqrt([Field; 2]) -> [Field; 2] { }
 ```
@@ -84,7 +84,7 @@ Brillig will call *one* RPC server. Most likely you will have to write your own,
 
 Let's use the above example of an oracle that consumes an array with two `Field` and returns their square roots:
 
-```rust
+```noir
 #[oracle(getSqrt)]
 unconstrained fn sqrt(input: [Field; 2]) -> [Field; 2] { }
 

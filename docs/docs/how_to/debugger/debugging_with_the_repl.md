@@ -1,7 +1,7 @@
 ---
 title: Using the REPL Debugger
 description:
-  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger. 
+  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger.
 keywords:
   [
     Nargo,
@@ -14,13 +14,13 @@ sidebar_position: 1
 
 #### Pre-requisites
 
-In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir. 
+In order to use the REPL debugger, first you need to install recent enough versions of Nargo and vscode-noir.
 
 ## Debugging a simple circuit
 
 Let's debug a simple circuit:
 
-```rust
+```noir
 fn main(x : Field, y : pub Field) {
     assert(x != y);
 }
@@ -38,7 +38,7 @@ At ~/noir-examples/recursion/circuits/main/src/main.nr:1:9
   1 -> fn main(x : Field, y : pub Field) {
   2        assert(x != y);
   3    }
-> 
+>
 ```
 
 The debugger displays the current Noir code location, and it is now waiting for us to drive it.
@@ -84,7 +84,7 @@ Some commands operate only for unconstrained functions, such as `memory` and `me
 ```
 > memory
 Unconstrained VM memory not available
-> 
+>
 ```
 
 Before continuing, we can take a look at the initial witness map:
@@ -115,7 +115,7 @@ _1 = 2
 >
 ```
 
-Now we can inspect the current state of local variables. For that we use the `vars` command. 
+Now we can inspect the current state of local variables. For that we use the `vars` command.
 
 ```
 > vars

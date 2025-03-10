@@ -53,7 +53,7 @@ Two files will be created.
 
 Glancing at _main.nr_ , we can see that inputs in Noir are private by default, but can be labeled public using the keyword `pub`. This means that we will _assert_ that we know a value `x` which is different from `y` without revealing `x`:
 
-```rust
+```noir
 fn main(x : Field, y : pub Field) {
     assert(x != y);
 }

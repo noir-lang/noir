@@ -15,7 +15,7 @@ Given a plaintext as an array of bytes, returns the corresponding aes128 ciphert
 
 #include_code aes128 noir_stdlib/src/aes128.nr rust
 
-```rust
+```noir
 fn main() {
     let input: [u8; 4] = [0, 12, 3, 15] // Random bytes, will be padded to 16 bytes.
     let iv: [u8; 16] = [0; 16]; // Initialisation vector

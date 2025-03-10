@@ -12,8 +12,8 @@ declarations in the source program.
 
 #include_code add_item noir_stdlib/src/meta/module.nr rust
 
-Adds a top-level item (a function, a struct, a global, etc.) to the module. 
-Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.  
+Adds a top-level item (a function, a struct, a global, etc.) to the module.
+Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
 Note that the items are type-checked as if they are inside the module they are being added to.
 
 ### functions
@@ -48,7 +48,7 @@ Returns each struct defined in the module.
 
 ## Trait Implementations
 
-```rust
+```noir
 impl Eq for Module
 impl Hash for Module
 ```
