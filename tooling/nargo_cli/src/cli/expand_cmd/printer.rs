@@ -96,6 +96,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     }
 
     fn show_module_def_id(&mut self, module_def_id: ModuleDefId, visibility: ItemVisibility) {
+        let reference_id = module_def_id_to_reference_id(module_def_id);
+        self.show_doc_comments(reference_id);
+
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
@@ -113,6 +116,25 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
             ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
+        }
+    }
+
+    fn show_doc_comments(&mut self, reference_id: ReferenceId) {
+        let Some(doc_comments) = self.interner.doc_comments(reference_id) else {
+            return;
+        };
+
+        for comment in doc_comments {
+            if comment.contains('\n') {
+                self.push_str("/**");
+                self.push_str(comment);
+                self.push_str("*/");
+            } else {
+                self.push_str("///");
+                self.push_str(comment);
+            }
+            self.push('\n');
+            self.write_indent();
         }
     }
 
@@ -144,8 +166,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_generics(&data_type.generics);
         self.push_str(" {\n");
         self.increase_indent();
-        for field in data_type.get_fields_as_written().unwrap() {
+        for (index, field) in data_type.get_fields_as_written().unwrap().into_iter().enumerate() {
             self.write_indent();
+            self.show_doc_comments(ReferenceId::StructMember(data_type.id, index));
             self.push_str(&field.name.to_string());
             self.push_str(": ");
             self.show_type(&field.typ);
@@ -162,8 +185,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_generics(&data_type.generics);
         self.push_str(" {\n");
         self.increase_indent();
-        for variant in data_type.get_variants_as_written().unwrap() {
+        for (index, variant) in data_type.get_variants_as_written().unwrap().into_iter().enumerate()
+        {
             self.write_indent();
+            self.show_doc_comments(ReferenceId::EnumVariant(data_type.id, index));
             self.push_str(&variant.name.to_string());
             if variant.is_function {
                 self.push('(');
@@ -1219,14 +1244,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
     fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
         // We already have logic to go from a ReferenceId to a location, so we use that here
-        let reference_id = match module_def_id {
-            ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
-            ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
-            ModuleDefId::TypeId(type_id) => ReferenceId::Type(type_id),
-            ModuleDefId::TypeAliasId(type_alias_id) => ReferenceId::Alias(type_alias_id),
-            ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
-            ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
-        };
+        let reference_id = module_def_id_to_reference_id(module_def_id);
         self.interner.reference_location(reference_id)
     }
 
@@ -1429,5 +1447,16 @@ fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool {
         | Type::TypeVariable(..)
         | Type::NamedGeneric(..)
         | Type::Error => true,
+    }
+}
+
+fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
+    match module_def_id {
+        ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
+        ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
+        ModuleDefId::TypeId(type_id) => ReferenceId::Type(type_id),
+        ModuleDefId::TypeAliasId(type_alias_id) => ReferenceId::Alias(type_alias_id),
+        ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
+        ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
     }
 }
