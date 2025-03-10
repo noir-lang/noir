@@ -931,23 +931,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             HirExpression::If(hir_if_expression) => {
                 self.push_str("if ");
                 self.show_hir_expression_id(hir_if_expression.condition);
-                self.push_str(" {\n");
-                self.increase_indent();
-                self.write_indent();
+                self.push(' ');
                 self.show_hir_expression_id(hir_if_expression.consequence);
-                self.push('\n');
-                self.decrease_indent();
-                self.write_indent();
-                self.push('}');
                 if let Some(alternative) = hir_if_expression.alternative {
-                    self.push_str(" else {\n");
-                    self.increase_indent();
-                    self.write_indent();
+                    self.push_str(" else ");
                     self.show_hir_expression_id(alternative);
-                    self.push('\n');
-                    self.decrease_indent();
-                    self.write_indent();
-                    self.push('}');
                 }
             }
             HirExpression::Match(hir_match) => match hir_match {
