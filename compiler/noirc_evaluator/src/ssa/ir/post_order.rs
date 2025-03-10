@@ -10,6 +10,7 @@ use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 use super::cfg::ControlFlowGraph;
 
 /// Depth-first traversal stack state marker for computing the cfg post-order.
+#[derive(Clone, Copy, Debug)]
 enum Visit {
     First,
     Last,
@@ -54,14 +55,13 @@ impl PostOrder {
         while let Some((visit, block_id)) = stack.pop() {
             match visit {
                 Visit::First => {
-                    if !visited.contains(&block_id) {
+                    if visited.insert(block_id) {
                         // This is the first time we pop the block, so we need to scan its
                         // successors and then revisit it.
-                        visited.insert(block_id);
                         stack.push((Visit::Last, block_id));
                         // Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
-                        for successor_id in cfg.successors(block_id) {
+                        for successor_id in cfg.successors(block_id).rev() {
                             if !visited.contains(&successor_id) {
                                 // This not visited check would also be covered by the next
                                 // iteration, but checking here too saves an iteration per successor.
@@ -157,6 +157,7 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         let block_a_id = func.entry_block();
+
         assert_eq!(post_order.0, [block_d_id, block_f_id, block_e_id, block_b_id, block_a_id]);
     }
 }

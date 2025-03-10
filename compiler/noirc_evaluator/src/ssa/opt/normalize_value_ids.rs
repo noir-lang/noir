@@ -76,13 +76,14 @@ impl Context {
             new_function.dfg.make_global(value.get_type().into_owned());
         }
 
-        let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
-        reachable_blocks.reverse();
-
+        let reachable_blocks = old_function.reachable_blocks().into_iter().collect::<Vec<_>>();
         self.new_ids.populate_blocks(&reachable_blocks, old_function, new_function);
 
+        let mut rpo = PostOrder::with_function(old_function).into_vec();
+        rpo.reverse();
+
         // Map each parameter, instruction, and terminator
-        for old_block_id in reachable_blocks {
+        for old_block_id in rpo {
             let new_block_id = self.new_ids.blocks[&old_block_id];
 
             let old_block = &mut old_function.dfg[old_block_id];
