@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
-    DataType, Generics, Type, TypeBindings,
+    DataType, Generics, Type, TypeBinding, TypeBindings,
     ast::{Ident, ItemVisibility, UnaryOp, Visibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
@@ -539,16 +539,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
         self.push(' ');
         self.push_str(&trait_.name.to_string());
-        if !trait_impl.trait_generics.is_empty() {
-            self.push('<');
-            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(", ");
-                }
-                self.show_type(generic);
-            }
-            self.push('>');
-        }
+
+        let use_colons = false;
+        self.show_generic_types(&trait_impl.trait_generics, use_colons);
+
         self.push_str(" for ");
         self.show_type(&trait_impl.typ);
         self.show_where_clause(&trait_impl.where_clause);
@@ -685,6 +679,18 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
+    fn show_generic_types(&mut self, types: &[Type], use_colons: bool) {
+        if types.is_empty() {
+            return;
+        }
+        if use_colons {
+            self.push_str("::");
+        }
+        self.push('<');
+        self.show_types_separated_by_comma(types);
+        self.push('>');
+    }
+
     fn show_generics(&mut self, generics: &Generics) {
         if generics.is_empty() {
             return;
@@ -816,9 +822,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 ));
             }
             Value::Function(func_id, ..) => {
-                // TODO: the name might need to be fully-qualified
-                let name = self.interner.function_name(func_id);
-                self.push_str(name);
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::FunctionId(*func_id), use_import);
             }
             Value::Tuple(values) => {
                 self.push('(');
@@ -851,24 +856,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 }
             }
             Value::Enum(index, args, typ) => {
-                let Type::DataType(data_type, generics) = typ else {
+                self.show_type_name_as_data_type(typ);
+
+                let Type::DataType(data_type, _generics) = typ.follow_bindings() else {
                     panic!("Expected typ to be a data type");
                 };
                 let data_type = data_type.borrow();
-
-                // TODO: we might need to fully-qualify this enum
-                self.push_str(&data_type.name.to_string());
-
-                if !generics.is_empty() {
-                    self.push_str("::<");
-                    for (index, generic) in generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
-                    self.push('>');
-                }
 
                 let variant = data_type.variant_at(*index);
                 self.push_str("::");
@@ -949,20 +942,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             panic!("Expected a data type, got: {typ:?}");
         };
 
-        // TODO: we might need to fully-qualify this name
         let data_type = data_type.borrow();
-        self.push_str(&data_type.name.to_string());
+        let use_import = true;
+        self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
 
-        if !generics.is_empty() {
-            self.push_str("::<");
-            for (index, generic) in generics.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(", ");
-                }
-                self.show_type(generic);
-            }
-            self.push('>');
-        }
+        let use_colons = true;
+        self.show_generic_types(&generics, use_colons);
     }
 
     fn show_imports(
@@ -1010,16 +995,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     ModuleDefId::TraitId(trait_impl.trait_id),
                     use_import,
                 );
-                if !trait_impl.trait_generics.is_empty() {
-                    self.push_str("::<");
-                    for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
-                    self.push('>');
-                }
+
+                let use_colons = true;
+                self.show_generic_types(&trait_impl.trait_generics, use_colons);
 
                 self.push_str("::");
 
@@ -1073,8 +1051,152 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         name
     }
 
+    fn show_types_separated_by_comma(&mut self, types: &[Type]) {
+        for (index, typ) in types.iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            self.show_type(typ);
+        }
+    }
+
     fn show_type(&mut self, typ: &Type) {
-        self.push_str(&typ.to_string());
+        match typ {
+            Type::Array(length, typ) => {
+                self.push('[');
+                self.show_type(typ);
+                self.push_str("; ");
+                self.show_type(length);
+                self.push(']');
+            }
+            Type::Slice(typ) => {
+                self.push('[');
+                self.show_type(typ);
+                self.push(']');
+            }
+            Type::FmtString(length, typ) => {
+                self.push_str("fmtstr<");
+                self.show_type(length);
+                self.push_str(", ");
+                self.show_type(typ);
+                self.push('>');
+            }
+            Type::Tuple(types) => {
+                let len = types.len();
+                self.push('(');
+                for (index, typ) in types.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_type(typ);
+                }
+                if len == 1 {
+                    self.push(',');
+                }
+                self.push(')');
+            }
+            Type::DataType(data_type, generics) => {
+                let data_type = data_type.borrow();
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                if !generics.is_empty() {
+                    self.push_str("<");
+                    for (index, generic) in generics.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_type(generic);
+                    }
+                    self.push('>');
+                }
+            }
+            Type::Alias(type_alias, generics) => {
+                let type_alias = type_alias.borrow();
+                let use_import = true;
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TypeAliasId(type_alias.id),
+                    use_import,
+                );
+                if !generics.is_empty() {
+                    self.push_str("<");
+                    for (index, generic) in generics.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_type(generic);
+                    }
+                    self.push('>');
+                }
+            }
+            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+                TypeBinding::Bound(typ) => {
+                    self.show_type(&typ);
+                }
+                TypeBinding::Unbound(..) => {
+                    self.push('_');
+                }
+            },
+            Type::TraitAsType(..) => {
+                panic!("Trait as type should not happen")
+            }
+            Type::NamedGeneric(_type_variable, name) => {
+                self.push_str(name);
+            }
+            Type::CheckedCast { from: _, to } => {
+                self.show_type(to);
+            }
+            Type::Function(args, ret, env, unconstrained) => {
+                if *unconstrained {
+                    self.push_str("unconstrained ");
+                }
+                self.push_str("fn");
+                if **env != Type::Unit {
+                    self.push('[');
+                    self.show_type(env);
+                    self.push(']');
+                }
+                self.push('(');
+                for (index, arg) in args.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_type(arg);
+                }
+                self.push_str(")");
+                if **ret != Type::Unit {
+                    self.push_str(" -> ");
+                    self.show_type(ret);
+                }
+            }
+            Type::Reference(typ, mutable) => {
+                if *mutable {
+                    self.push_str("&mut ");
+                } else {
+                    self.push('&');
+                }
+                self.show_type(typ);
+            }
+            Type::Forall(..) => {
+                panic!("Should not need to print Type::Forall")
+            }
+            Type::Constant(field_element, _) => {
+                self.push_str(&field_element.to_string());
+            }
+            Type::InfixExpr(lhs, op, rhs, _) => {
+                self.show_type(lhs);
+                self.push(' ');
+                self.push_str(&op.to_string());
+                self.push(' ');
+                self.show_type(rhs);
+            }
+            Type::Unit
+            | Type::Bool
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::String(_)
+            | Type::Quoted(..)
+            | Type::Error => self.push_str(&typ.to_string()),
+        }
     }
 
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
@@ -1104,14 +1226,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             HirExpression::Ident(hir_ident, generics) => {
                 self.show_hir_ident(hir_ident);
                 if let Some(generics) = generics {
-                    self.push_str("::<");
-                    for (index, generic) in generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
-                    self.push('>');
+                    let use_colons = true;
+                    self.show_generic_types(&generics, use_colons);
                 }
             }
             HirExpression::Literal(hir_literal) => {
@@ -1157,23 +1273,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(']');
             }
             HirExpression::Constructor(hir_constructor_expression) => {
-                // TODO: we might need to fully-qualify this name
-                let typ = hir_constructor_expression.r#type.borrow();
-                let name = typ.name.to_string();
-                self.push_str(&name);
+                let data_type = hir_constructor_expression.r#type.borrow();
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
 
-                if !hir_constructor_expression.struct_generics.is_empty() {
-                    self.push_str("::<");
-                    for (index, typ) in
-                        hir_constructor_expression.struct_generics.iter().enumerate()
-                    {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(typ);
-                    }
-                    self.push('>');
-                }
+                let use_colons = true;
+                self.show_generic_types(&hir_constructor_expression.struct_generics, use_colons);
 
                 self.push_str(" { ");
                 for (index, (name, value)) in hir_constructor_expression.fields.iter().enumerate() {
@@ -1187,12 +1292,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push('}');
             }
             HirExpression::EnumConstructor(constructor) => {
-                // TODO: we might need to fully-qualify this name
-                let typ = constructor.r#type.borrow();
-                let name = typ.name.to_string();
-                self.push_str(&name);
+                let data_type = constructor.r#type.borrow();
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
 
-                let variant = typ.variant_at(constructor.variant_index);
+                let variant = data_type.variant_at(constructor.variant_index);
                 self.push_str("::");
                 self.push_str(&variant.name.to_string());
                 if variant.is_function {
