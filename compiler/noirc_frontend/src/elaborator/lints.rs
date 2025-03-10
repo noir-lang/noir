@@ -322,7 +322,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
     }
 }

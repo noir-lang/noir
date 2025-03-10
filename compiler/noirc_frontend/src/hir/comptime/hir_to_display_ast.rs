@@ -185,9 +185,6 @@ impl HirExpression {
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::Comptime(block) => {
-                ExpressionKind::Comptime(block.to_display_ast(interner), location)
-            }
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
                 block: block.to_display_ast(interner),
                 unsafe_keyword_location: location,

@@ -611,9 +611,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
             }
-            HirExpression::Comptime(_) => {
-                unreachable!("comptime expression remaining in runtime code")
-            }
             HirExpression::EnumConstructor(constructor) => {
                 self.enum_constructor(constructor, expr)?
             }

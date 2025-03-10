@@ -42,7 +42,6 @@ pub enum HirExpression {
     Lambda(HirLambda),
     Quote(Tokens),
     Unquote(Tokens),
-    Comptime(HirBlockExpression),
     Unsafe(HirBlockExpression),
     Error,
 }
