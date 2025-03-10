@@ -130,7 +130,7 @@ pub struct DefaultForeignCallExecutor;
 #[cfg(feature = "rpc")]
 impl DefaultForeignCallExecutor {
     #[allow(clippy::new_ret_no_self)]
-    pub fn  new<'a, F>(
+    pub fn new<'a, F>(
         output: PrintOutput<'a>,
         resolver_url: Option<&str>,
         root_path: Option<std::path::PathBuf>,
