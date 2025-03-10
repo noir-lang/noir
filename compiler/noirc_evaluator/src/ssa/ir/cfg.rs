@@ -115,7 +115,7 @@ impl ControlFlowGraph {
     pub(crate) fn successors(
         &self,
         basic_block_id: BasicBlockId,
-    ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
+    ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator + '_ {
         self.data
             .get(&basic_block_id)
             .expect("ICE: Attempted to iterate successors of block not found within cfg.")
