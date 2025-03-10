@@ -34,7 +34,6 @@ pub enum HirExpression {
     EnumConstructor(HirEnumConstructorExpression),
     MemberAccess(HirMemberAccess),
     Call(HirCallExpression),
-    MethodCall(HirMethodCallExpression),
     Constrain(HirConstrainExpression),
     Cast(HirCastExpression),
     If(HirIfExpression),
