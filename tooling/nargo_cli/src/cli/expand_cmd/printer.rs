@@ -22,7 +22,7 @@ use noirc_frontend::{
         ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId,
         StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
-    token::FmtStrFragment,
+    token::{FmtStrFragment, FunctionAttribute},
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
@@ -630,7 +630,24 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push('}');
             }
         } else {
-            self.push(';');
+            match &modifiers.attributes.function {
+                Some((attribute, _)) => match attribute {
+                    FunctionAttribute::Foreign(_)
+                    | FunctionAttribute::Builtin(_)
+                    | FunctionAttribute::Oracle(_) => {
+                        self.push_str(" {}");
+                    }
+                    FunctionAttribute::Test(..)
+                    | FunctionAttribute::Fold
+                    | FunctionAttribute::NoPredicates
+                    | FunctionAttribute::InlineAlways => {
+                        self.push(';');
+                    }
+                },
+                None => {
+                    self.push(';');
+                }
+            }
         }
     }
 
@@ -780,7 +797,25 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(')');
             }
             Value::Struct(fields, typ) => {
-                self.show_type(typ);
+                let Type::DataType(data_type, generics) = typ else {
+                    panic!("Expected a data type");
+                };
+
+                // TODO: we might need to fully-qualify this name
+                let data_type = data_type.borrow();
+                self.push_str(&data_type.name.to_string());
+
+                if !generics.is_empty() {
+                    self.push_str("::<");
+                    for (index, generic) in generics.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_type(generic);
+                    }
+                    self.push('>');
+                }
+
                 if fields.is_empty() {
                     self.push_str(" {}");
                 } else {
@@ -1126,6 +1161,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_hir_block_expression(hir_block_expression);
             }
             HirExpression::Unsafe(hir_block_expression) => {
+                // TODO: show the original comment
+                self.push_str("// Safety: TODO\n");
+                self.write_indent();
                 self.push_str("unsafe ");
                 self.show_hir_block_expression(hir_block_expression);
             }
@@ -1344,7 +1382,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_hir_ident(&mut self, ident: HirIdent) {
         // TODO: we might need to fully-qualify this name
         let name = self.interner.definition_name(ident.id);
-        self.push_str(name);
+
+        // The compiler uses '$' for some internal identifiers.
+        // We replace them with "___" to make sure they have valid syntax, even though
+        // there's a tiny change they might collide with user code (unlikely, really).
+        let name = name.replace('$', "___");
+        self.push_str(&name);
     }
 
     fn pattern_is_self(&self, pattern: &HirPattern) -> bool {
