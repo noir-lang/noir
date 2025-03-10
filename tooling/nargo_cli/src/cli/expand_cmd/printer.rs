@@ -6,7 +6,7 @@ use noirc_frontend::{
     DataType, Generics, Type,
     ast::{ItemVisibility, Visibility},
     hir::{
-        comptime::{Value, tokens_to_string},
+        comptime::{Value, tokens_to_string_with_indent},
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
@@ -773,7 +773,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             Value::Quoted(tokens) => {
                 self.push_str("quote {");
-                self.push_str(&tokens_to_string(tokens, self.interner));
+                self.push_str(&tokens_to_string_with_indent(
+                    tokens,
+                    self.indent + 1,
+                    self.interner,
+                ));
                 self.push_str("}");
             }
             Value::Pointer(value, ..) => {
@@ -974,7 +978,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             HirExpression::Quote(tokens) => {
                 self.push_str("quote {");
-                self.push_str(&tokens_to_string(&tokens.0, self.interner));
+                self.push_str(&tokens_to_string_with_indent(&tokens.0, self.indent, self.interner));
                 self.push_str("}");
             }
             HirExpression::Comptime(hir_block_expression) => {
