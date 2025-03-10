@@ -10,3 +10,7 @@ cargo install cargo-fuzz
 3) branching
 ## fuzz
 `cargo fuzz run uint --fuzz-dir .`
+
+OR in 5 threads
+
+`nohup cargo-fuzz run fuzz_target_1 -- -jobs=5 -workers=5 &`
