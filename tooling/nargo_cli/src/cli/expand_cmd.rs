@@ -4,6 +4,7 @@ use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
     parse_all, prepare_package, workspace::Workspace,
 };
+use nargo_fmt::ImportsGranularity;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
 use noirc_frontend::{
@@ -76,10 +77,16 @@ fn expand_package(
 
     let (parsed_module, errors) = parse_program_with_dummy_file(&string);
     if errors.is_empty() {
-        let code = nargo_fmt::format(&string, parsed_module, &nargo_fmt::Config::default());
+        let mut config = nargo_fmt::Config::default();
+        config.reorder_imports = true;
+        config.imports_granularity = ImportsGranularity::Crate;
+
+        let code = nargo_fmt::format(&string, parsed_module, &config);
         println!("{code}");
     } else {
         println!("{string}");
+        println!();
+        println!("// Warning: the generated code has syntax errors")
     }
 
     Ok(())
