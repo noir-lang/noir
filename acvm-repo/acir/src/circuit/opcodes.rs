@@ -134,20 +134,8 @@ pub enum Opcode<F: AcirField> {
 impl<F: AcirField> std::fmt::Display for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::AssertZero(expr) => {
-                write!(f, "EXPR [ ")?;
-                for i in &expr.mul_terms {
-                    write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
-                }
-                for i in &expr.linear_combinations {
-                    write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
-                }
-                write!(f, "{}", expr.q_c)?;
-
-                write!(f, " ]")
-            }
-
-            Opcode::BlackBoxFuncCall(g) => write!(f, "{g}"),
+            Opcode::AssertZero(expr) => expr.fmt(f),
+            Opcode::BlackBoxFuncCall(g) => g.fmt(f),
             Opcode::MemoryOp { block_id, op, predicate } => {
                 write!(f, "MEM ")?;
                 if let Some(pred) = predicate {

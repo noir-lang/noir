@@ -82,7 +82,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-pub enum BlackBoxFuncCall<F: AcirField> {
+pub enum BlackBoxFuncCall<F> {
     AES128Encrypt {
         inputs: Vec<FunctionInput<F>>,
         iv: Box<[FunctionInput<F>; 16]>,
@@ -216,7 +216,7 @@ pub enum BlackBoxFuncCall<F: AcirField> {
     },
 }
 
-impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
+impl<F> BlackBoxFuncCall<F> {
     pub fn get_black_box_func(&self) -> BlackBoxFunc {
         match self {
             BlackBoxFuncCall::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
@@ -246,6 +246,41 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
         self.get_black_box_func().name()
     }
 
+    pub fn get_outputs_vec(&self) -> Vec<Witness> {
+        match self {
+            BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake3 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+
+            BlackBoxFuncCall::AND { output, .. }
+            | BlackBoxFuncCall::XOR { output, .. }
+            | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
+            BlackBoxFuncCall::MultiScalarMul { outputs, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
+                vec![outputs.0, outputs.1, outputs.2]
+            }
+            BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::RecursiveAggregation { .. }
+            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
+            | BlackBoxFuncCall::BigIntAdd { .. }
+            | BlackBoxFuncCall::BigIntSub { .. }
+            | BlackBoxFuncCall::BigIntMul { .. }
+            | BlackBoxFuncCall::BigIntDiv { .. } => {
+                vec![]
+            }
+            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
+        }
+    }
+}
+
+impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, .. }
@@ -333,39 +368,6 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
         }
     }
 
-    pub fn get_outputs_vec(&self) -> Vec<Witness> {
-        match self {
-            BlackBoxFuncCall::Blake2s { outputs, .. }
-            | BlackBoxFuncCall::Blake3 { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::AES128Encrypt { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
-
-            BlackBoxFuncCall::AND { output, .. }
-            | BlackBoxFuncCall::XOR { output, .. }
-            | BlackBoxFuncCall::EcdsaSecp256k1 { output, .. }
-            | BlackBoxFuncCall::EcdsaSecp256r1 { output, .. } => vec![*output],
-            BlackBoxFuncCall::MultiScalarMul { outputs, .. }
-            | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
-                vec![outputs.0, outputs.1, outputs.2]
-            }
-            BlackBoxFuncCall::RANGE { .. }
-            | BlackBoxFuncCall::RecursiveAggregation { .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
-            | BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } => {
-                vec![]
-            }
-            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
-        }
-    }
-
     pub fn get_input_witnesses(&self) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
         for input in self.get_inputs_vec() {
@@ -429,7 +431,7 @@ fn get_outputs_string(outputs: &[Witness]) -> String {
     }
 }
 
-impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Display for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let uppercase_name = self.name().to_uppercase();
         write!(f, "BLACKBOX::{uppercase_name} ")?;
@@ -454,7 +456,7 @@ impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Display for BlackBoxFunc
     }
 }
 
-impl<F: std::fmt::Display + Copy + AcirField> std::fmt::Debug for BlackBoxFuncCall<F> {
+impl<F: std::fmt::Display + Copy> std::fmt::Debug for BlackBoxFuncCall<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }
