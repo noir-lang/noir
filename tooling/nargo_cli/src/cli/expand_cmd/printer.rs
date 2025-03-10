@@ -196,6 +196,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         };
     }
 
+    fn show_visibility(&mut self, visibility: Visibility) {
+        if visibility != Visibility::Private {
+            self.push_str(&visibility.to_string());
+            self.push(' ');
+        }
+    }
+
     fn show_data_type(&mut self, type_id: TypeId) {
         let shared_data_type = self.interner.get_type(type_id);
         let data_type = shared_data_type.borrow();
@@ -599,6 +606,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             Type::Unit => (),
             _ => {
                 self.push_str(" -> ");
+                self.show_visibility(func_meta.return_visibility);
                 self.show_type(return_type);
             }
         }
@@ -627,12 +635,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     }
 
     fn show_generics(&mut self, generics: &Generics) {
-        self.show_generics_impl(
-            generics, false, // only show names
-        );
-    }
-
-    fn show_generics_impl(&mut self, generics: &Generics, only_show_names: bool) {
         if generics.is_empty() {
             return;
         }
@@ -643,24 +645,20 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push_str(", ");
             }
 
-            if only_show_names {
-                self.push_str(&generic.name);
-            } else {
-                match generic.kind() {
-                    noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
-                        self.push_str(&generic.name);
-                    }
-                    noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
-                        self.push_str("let ");
-                        self.push_str(&generic.name);
-                        self.push_str(": u32");
-                    }
-                    noirc_frontend::Kind::Numeric(typ) => {
-                        self.push_str("let ");
-                        self.push_str(&generic.name);
-                        self.push_str(": ");
-                        self.show_type(&typ);
-                    }
+            match generic.kind() {
+                noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
+                    self.push_str(&generic.name);
+                }
+                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
+                    self.push_str("let ");
+                    self.push_str(&generic.name);
+                    self.push_str(": u32");
+                }
+                noirc_frontend::Kind::Numeric(typ) => {
+                    self.push_str("let ");
+                    self.push_str(&generic.name);
+                    self.push_str(": ");
+                    self.show_type(&typ);
                 }
             }
         }
@@ -967,7 +965,24 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_hir_block_expression(hir_block_expression);
             }
             HirExpression::Prefix(hir_prefix_expression) => {
-                self.push_str(&hir_prefix_expression.operator.to_string());
+                match hir_prefix_expression.operator {
+                    noirc_frontend::ast::UnaryOp::Minus => {
+                        self.push('-');
+                    }
+                    noirc_frontend::ast::UnaryOp::Not => {
+                        self.push('!');
+                    }
+                    noirc_frontend::ast::UnaryOp::Reference { mutable } => {
+                        if mutable {
+                            self.push_str("&mut ");
+                        } else {
+                            self.push_str("&");
+                        }
+                    }
+                    noirc_frontend::ast::UnaryOp::Dereference { .. } => {
+                        self.push('*');
+                    }
+                }
                 self.show_hir_expression_id(hir_prefix_expression.rhs);
             }
             HirExpression::Infix(hir_infix_expression) => {
@@ -1008,7 +1023,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                         self.push_str(", ");
                     }
                     self.push_str(&name.to_string());
-                    self.push_str(" = ");
+                    self.push_str(": ");
                     self.show_hir_expression_id(*value);
                 }
                 self.push('}');
@@ -1164,6 +1179,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_hir_lvalue(hir_assign_statement.lvalue);
                 self.push_str(" = ");
                 self.show_hir_expression_id(hir_assign_statement.expression);
+                self.push(';');
             }
             HirStatement::For(hir_for_statement) => {
                 self.push_str("for ");
