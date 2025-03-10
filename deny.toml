@@ -7,8 +7,6 @@ yanked = "warn"
 
 ignore = [
     "RUSTSEC-2024-0388", # derivative unmaintained
-    "RUSTSEC-2024-0384", # instant unmaintained
-    "RUSTSEC-2020-0016", # net2 unmaintained
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -49,7 +47,6 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "0BSD",
-    "Unicode-DFS-2016",
     "Unicode-3.0",
     "Unlicense",
     "Zlib",
@@ -65,19 +62,11 @@ exceptions = [
     # CC0 is a permissive license but somewhat unclear status for source code
     # so we prefer to not have dependencies using it
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
-    { allow = ["CC0-1.0"], name = "more-asserts" },
     { allow = ["CC0-1.0"], name = "notify" },
-    { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["MPL-2.0"], name = "sized-chunks" },
     { allow = ["MPL-2.0"], name = "webpki-roots" },
     { allow = ["CDDL-1.0"], name = "inferno" },
-    { allow = ["OpenSSL"], name = "ring" },
 ]
-
-[[licenses.clarify]]
-crate = "ring"
-expression = "ISC"
-license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

@@ -75,10 +75,12 @@ impl Formatter<'_> {
                 self.format_path(path);
                 self.format_generic_type_args(generic_type_args);
             }
-            UnresolvedTypeData::MutableReference(typ) => {
+            UnresolvedTypeData::Reference(typ, mutable) => {
                 self.write_token(Token::Ampersand);
-                self.write_keyword(Keyword::Mut);
-                self.write_space();
+                if mutable {
+                    self.write_keyword(Keyword::Mut);
+                    self.write_space();
+                }
                 self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(types) => {

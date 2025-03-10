@@ -1737,7 +1737,7 @@ mod tests {
     ) -> VM<'a, F, StubbedBlackBoxSolver> {
         let mut vm = VM::new(calldata, opcodes, solver, false);
         brillig_execute(&mut vm);
-        assert_eq!(vm.call_stack, vec![]);
+        assert!(vm.call_stack.is_empty());
         vm
     }
 

@@ -188,6 +188,10 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
+    /// & followed immediately by '['
+    /// This is a lexer hack to distinguish slices
+    /// from taking a reference to an array
+    SliceStart,
     /// ^
     Caret,
     /// <<
@@ -287,6 +291,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::Slash => BorrowedToken::Slash,
         Token::Percent => BorrowedToken::Percent,
         Token::Ampersand => BorrowedToken::Ampersand,
+        Token::SliceStart => BorrowedToken::Ampersand,
         Token::Caret => BorrowedToken::Caret,
         Token::ShiftLeft => BorrowedToken::ShiftLeft,
         Token::ShiftRight => BorrowedToken::ShiftRight,
@@ -522,6 +527,7 @@ impl fmt::Display for Token {
             Token::Slash => write!(f, "/"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
+            Token::SliceStart => write!(f, "&"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
             Token::ShiftRight => write!(f, ">>"),
@@ -1183,6 +1189,7 @@ pub enum Keyword {
     TraitDefinition,
     TraitImpl,
     Type,
+    TypeDefinition,
     TypedExpr,
     TypeType,
     Unchecked,
@@ -1244,6 +1251,7 @@ impl fmt::Display for Keyword {
             Keyword::TraitDefinition => write!(f, "TraitDefinition"),
             Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
+            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
             Keyword::TypedExpr => write!(f, "TypedExpr"),
             Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
@@ -1308,6 +1316,7 @@ impl Keyword {
             "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
             "Type" => Keyword::TypeType,
+            "TypeDefinition" => Keyword::TypeDefinition,
             "TypedExpr" => Keyword::TypedExpr,
             "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,

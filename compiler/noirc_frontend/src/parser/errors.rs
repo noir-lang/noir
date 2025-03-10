@@ -76,8 +76,6 @@ pub enum ParserErrorReason {
     TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
     TraitImplVisibilityIgnored,
-    #[error("comptime keyword is deprecated")]
-    ComptimeDeprecated,
     #[error(
         "Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}"
     )]
@@ -121,6 +119,8 @@ pub enum ParserErrorReason {
     MissingSafetyComment,
     #[error("Missing parameters for function definition")]
     MissingParametersForFunctionDefinition,
+    #[error("`StructDefinition` is deprecated. It has been renamed to `TypeDefinition`")]
+    StructDefinitionDeprecated,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -260,15 +260,6 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     diagnostic.deprecated = true;
                     diagnostic
                 }
-                ParserErrorReason::ComptimeDeprecated => {
-                    let mut diagnostic = Diagnostic::simple_warning(
-                        "Use of deprecated keyword 'comptime'".into(),
-                        "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.location(),
-                    ) ;
-                    diagnostic.deprecated = true;
-                    diagnostic
-                }
                 ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
                     format!("Use of invalid bit size {}", bit_size),
                     format!(
@@ -320,6 +311,9 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
                     Diagnostic::simple_warning(primary, secondary, error.location())
+                }
+                ParserErrorReason::StructDefinitionDeprecated => {
+                    Diagnostic::simple_warning(format!("{reason}"), String::new(), error.location())
                 }
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())

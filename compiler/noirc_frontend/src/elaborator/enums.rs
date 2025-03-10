@@ -938,7 +938,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::NamedGeneric(_, _)
             | Type::CheckedCast { .. }
             | Type::Function(_, _, _, _)
-            | Type::MutableReference(_)
+            | Type::Reference(..)
             | Type::Forall(_, _)
             | Type::Constant(_, _)
             | Type::Quoted(_)
