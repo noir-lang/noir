@@ -1289,7 +1289,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             HirExpression::Unsafe(hir_block_expression) => {
                 // TODO: show the original comment
-                self.push_str("// Safety: TODO\n");
+                self.push_str("/* Safety: TODO */\n");
                 self.write_indent();
                 self.push_str("unsafe ");
                 self.show_hir_block_expression(hir_block_expression);
@@ -1393,7 +1393,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     self.interner.expression(&hir_let_statement.expression)
                 {
                     // TODO: show the original comment
-                    self.push_str("// Safety: TODO\n");
+                    self.push_str("/* Safety: TODO */\n");
                     self.write_indent();
                 }
 
