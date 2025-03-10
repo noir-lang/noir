@@ -6,23 +6,14 @@ version = 4
 name = "acir"
 version = "1.0.0-beta.3"
 dependencies = [
- "acir",
  "acir_field",
  "base64 0.21.7",
  "bincode",
  "brillig",
- "color-eyre",
  "criterion",
  "flate2",
  "fxhash",
- "noir_protobuf",
- "num-bigint",
  "pprof",
- "proptest",
- "proptest-derive",
- "prost",
- "prost-build",
- "protoc-prebuilt",
  "serde",
  "serde-big-array",
  "serde-generate",
@@ -798,8 +789,6 @@ name = "brillig"
 version = "1.0.0-beta.3"
 dependencies = [
  "acir_field",
- "proptest",
- "proptest-derive",
  "serde",
 ]
 
@@ -2839,12 +2828,12 @@ dependencies = [
 
 [[package]]
 name = "light-poseidon"
-version = "0.3.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39e3d87542063daaccbfecd78b60f988079b6ec4e089249658b9455075c78d42"
+checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
 dependencies = [
- "ark-bn254 0.5.0",
- "ark-ff 0.5.0",
+ "ark-bn254 0.4.0",
+ "ark-ff 0.4.2",
  "num-bigint",
  "thiserror",
 ]
@@ -3012,12 +3001,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multimap"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "defc4c55412d89136f966bbb339008b474350e5e6e78d2714439c386b3137a03"
-
-[[package]]
 name = "nargo"
 version = "1.0.0-beta.3"
 dependencies = [
@@ -3047,7 +3030,9 @@ name = "nargo_cli"
 version = "1.0.0-beta.3"
 dependencies = [
  "acvm",
+ "ark-bn254 0.4.0",
  "ark-bn254 0.5.0",
+ "ark-ff 0.4.2",
  "assert_cmd",
  "assert_fs",
  "async-lsp",
@@ -3315,14 +3300,6 @@ dependencies = [
  "thiserror",
  "tracing-appender",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "noir_protobuf"
-version = "1.0.0-beta.3"
-dependencies = [
- "color-eyre",
- "prost",
 ]
 
 [[package]]
@@ -3993,7 +3970,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1ccf34da56fc294e7d4ccf69a85992b7dfb826b7cf57bac6a70bba3494cc08a"
 dependencies = [
  "proc-macro2",
- "syn 2.0.96",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4062,8 +4039,7 @@ checksum = "4ee1c9ac207483d5e7db4940700de86a9aae46ef90c48b57f99fe7edb8345e49"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.96",
-<<<<<<< HEAD
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4083,16 +4059,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "once_cell",
- "petgraph",
+ "petgraph 0.7.1",
  "prettyplease",
  "prost",
  "prost-types",
  "regex",
- "syn 2.0.96",
+ "syn 2.0.100",
  "tempfile",
 ]
 
@@ -4103,10 +4079,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
- "syn 2.0.96",
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -4126,8 +4102,6 @@ checksum = "4d85d4641fe3b8c6e853dfd09fe35379bc6b6e66bd692ac29ed4f7087de69ed5"
 dependencies = [
  "ureq",
  "zip",
-=======
->>>>>>> fda1a9edc8 (do not rev successors)
 ]
 
 [[package]]
@@ -5649,21 +5623,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
-name = "ureq"
-version = "2.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02d1a66277ed75f640d608235660df48c8e3c19f3b4edb6a263315626cc3c01d"
-dependencies = [
- "base64 0.22.1",
- "log",
- "once_cell",
- "rustls",
- "rustls-pki-types",
- "url",
- "webpki-roots",
-]
-
-[[package]]
 name = "url"
 version = "2.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6242,8 +6201,7 @@ checksum = "6eafa6dfb17584ea3e2bd6e76e0cc15ad7af12b09abdd1ca55961bed9b1063c6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.96",
-<<<<<<< HEAD
+ "syn 2.0.100",
 ]
 
 [[package]]
@@ -6256,8 +6214,6 @@ dependencies = [
  "crc32fast",
  "crossbeam-utils",
  "flate2",
-=======
->>>>>>> fda1a9edc8 (do not rev successors)
 ]
 
 [[package]]
