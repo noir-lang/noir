@@ -1183,11 +1183,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push_str(&field_element.to_string());
             }
             Type::InfixExpr(lhs, op, rhs, _) => {
+                self.push('(');
                 self.show_type(lhs);
                 self.push(' ');
                 self.push_str(&op.to_string());
                 self.push(' ');
                 self.show_type(rhs);
+                self.push(')');
             }
             Type::Unit
             | Type::Bool
@@ -1236,35 +1238,40 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             HirExpression::Block(hir_block_expression) => {
                 self.show_hir_block_expression(hir_block_expression);
             }
-            HirExpression::Prefix(hir_prefix_expression) => {
-                match hir_prefix_expression.operator {
-                    UnaryOp::Minus => {
-                        self.push('-');
-                    }
-                    UnaryOp::Not => {
-                        self.push('!');
-                    }
-                    UnaryOp::Reference { mutable } => {
-                        if mutable {
-                            self.push_str("&mut ");
-                        } else {
-                            self.push_str("&");
-                        }
-                    }
-                    UnaryOp::Dereference { implicitly_added } => {
-                        if !implicitly_added {
-                            self.push('*');
-                        }
-                    }
+            HirExpression::Prefix(hir_prefix_expression) => match hir_prefix_expression.operator {
+                UnaryOp::Minus => {
+                    self.push_str("-(");
+                    self.show_hir_expression_id(hir_prefix_expression.rhs);
+                    self.push(')');
                 }
-                self.show_hir_expression_id(hir_prefix_expression.rhs);
-            }
+                UnaryOp::Not => {
+                    self.push_str("!(");
+                    self.show_hir_expression_id(hir_prefix_expression.rhs);
+                    self.push(')');
+                }
+                UnaryOp::Reference { mutable } => {
+                    if mutable {
+                        self.push_str("&mut ");
+                    } else {
+                        self.push_str("&");
+                    }
+                    self.show_hir_expression_id(hir_prefix_expression.rhs);
+                }
+                UnaryOp::Dereference { implicitly_added } => {
+                    if !implicitly_added {
+                        self.push('*');
+                    }
+                    self.show_hir_expression_id(hir_prefix_expression.rhs);
+                }
+            },
             HirExpression::Infix(hir_infix_expression) => {
+                self.push('(');
                 self.show_hir_expression_id(hir_infix_expression.lhs);
                 self.push(' ');
                 self.push_str(&hir_infix_expression.operator.kind.to_string());
                 self.push(' ');
                 self.show_hir_expression_id(hir_infix_expression.rhs);
+                self.push(')');
             }
             HirExpression::Index(hir_index_expression) => {
                 self.show_hir_expression_id(hir_index_expression.collection);
