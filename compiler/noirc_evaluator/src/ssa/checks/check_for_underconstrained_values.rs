@@ -1442,8 +1442,6 @@ mod test {
         }
         brillig(inline) fn print_unconstrained f2 {
           b0(v0: u1, v1: Field):
-            v14 = make_array b"{\"kind\":\"field\"}"
-            call print(v0, v1, v14, u1 0)
             return
         }
         "#;
