@@ -16,10 +16,7 @@ use noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 use super::ProtoSchema;
 
-impl<F> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F>
-where
-    F: AcirField,
-{
+impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
     fn encode(value: &circuit::Circuit<F>) -> Circuit {
         Circuit {
             current_witness_index: value.current_witness_index,
