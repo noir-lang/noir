@@ -1,4 +1,5 @@
 ## setup
+!!!delete or rename `rust-toolchain.toml` from root
 ```
 rustup install nightly
 rustup default nightly

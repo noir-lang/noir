@@ -165,7 +165,10 @@ pub(crate) fn optimize_into_acir(
 }
 
 /// Run all SSA passes.
-pub fn optimize_all(builder: SsaBuilder, options: &SsaEvaluatorOptions) -> Result<Ssa, RuntimeError> {
+pub fn optimize_all(
+    builder: SsaBuilder,
+    options: &SsaEvaluatorOptions,
+) -> Result<Ssa, RuntimeError> {
     Ok(builder
         .run_pass(Ssa::remove_unreachable_functions, "Removing Unreachable Functions (1st)")
         .run_pass(Ssa::defunctionalize, "Defunctionalization")
@@ -322,8 +325,7 @@ pub fn create_program(
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let error_types = 
-    error_types
+    let error_types = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
@@ -384,8 +386,6 @@ pub fn convert_generated_acir_into_circuit(
 
     let (public_parameter_witnesses, private_parameters) =
         split_public_and_private_inputs(&func_sig, &input_witnesses);
-    println!("public_parameter_witnesses: {:?}", public_parameter_witnesses);
-    println!("private_parameters: {:?}", private_parameters);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());

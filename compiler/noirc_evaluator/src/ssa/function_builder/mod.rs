@@ -85,7 +85,11 @@ impl FunctionBuilder {
     /// This should only be used immediately following construction of a FunctionBuilder
     /// and will panic if there are any already finished functions.
     pub fn set_runtime(&mut self, runtime: RuntimeType) {
-        assert_eq!(self.finished_functions.len(), 0, "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function");
+        assert_eq!(
+            self.finished_functions.len(),
+            0,
+            "Attempted to set runtime on a FunctionBuilder with finished functions. A FunctionBuilder's runtime should only be set on its initial function"
+        );
         self.current_function.set_runtime(runtime);
     }
 
@@ -132,12 +136,7 @@ impl FunctionBuilder {
     }
 
     /// Finish the current function and create a new ACIR function.
-    pub fn new_function(
-        &mut self,
-        name: String,
-        function_id: FunctionId,
-        inline_type: InlineType,
-    ) {
+    pub fn new_function(&mut self, name: String, function_id: FunctionId, inline_type: InlineType) {
         self.new_function_with_type(name, function_id, RuntimeType::Acir(inline_type));
     }
 
@@ -245,7 +244,7 @@ impl FunctionBuilder {
     pub fn get_current_block_index(&mut self) -> BasicBlockId {
         return self.current_block();
     }
-    
+
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
@@ -285,12 +284,7 @@ impl FunctionBuilder {
 
     /// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    pub fn insert_binary(
-        &mut self,
-        lhs: ValueId,
-        operator: BinaryOp,
-        rhs: ValueId,
-    ) -> ValueId {
+    pub fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.insert_instruction(instruction, None).first()
     }
@@ -309,12 +303,7 @@ impl FunctionBuilder {
 
     /// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
-    pub fn insert_truncate(
-        &mut self,
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    ) -> ValueId {
+    pub fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
         self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
@@ -365,12 +354,7 @@ impl FunctionBuilder {
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
-    pub fn insert_array_set(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        value: ValueId,
-    ) -> ValueId {
+    pub fn insert_array_set(&mut self, array: ValueId, index: ValueId, value: ValueId) -> ValueId {
         self.insert_instruction(Instruction::ArraySet { array, index, value, mutable: false }, None)
             .first()
     }
@@ -406,11 +390,7 @@ impl FunctionBuilder {
 
     /// Insert a `make_array` instruction to create a new array or slice.
     /// Returns the new array value. Expects `typ` to be an array or slice type.
-    pub fn insert_make_array(
-        &mut self,
-        elements: im::Vector<ValueId>,
-        typ: Type,
-    ) -> ValueId {
+    pub fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
         self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }
@@ -425,11 +405,7 @@ impl FunctionBuilder {
 
     /// Terminate the current block with a jmp instruction to jmp to the given
     /// block with the given arguments.
-    pub fn terminate_with_jmp(
-        &mut self,
-        destination: BasicBlockId,
-        arguments: Vec<ValueId>,
-    ) {
+    pub fn terminate_with_jmp(&mut self, destination: BasicBlockId, arguments: Vec<ValueId>) {
         let call_stack = self.call_stack;
         self.terminate_block_with(TerminatorInstruction::Jmp {
             destination,
