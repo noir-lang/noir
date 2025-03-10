@@ -4063,6 +4063,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
+<<<<<<< HEAD
 ]
 
 [[package]]
@@ -4125,6 +4126,8 @@ checksum = "4d85d4641fe3b8c6e853dfd09fe35379bc6b6e66bd692ac29ed4f7087de69ed5"
 dependencies = [
  "ureq",
  "zip",
+=======
+>>>>>>> fda1a9edc8 (do not rev successors)
 ]
 
 [[package]]
@@ -6240,6 +6243,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
+<<<<<<< HEAD
 ]
 
 [[package]]
@@ -6252,6 +6256,8 @@ dependencies = [
  "crc32fast",
  "crossbeam-utils",
  "flate2",
+=======
+>>>>>>> fda1a9edc8 (do not rev successors)
 ]
 
 [[package]]
