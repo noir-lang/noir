@@ -1,4 +1,5 @@
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::Shared;
@@ -358,15 +359,13 @@ pub enum HirMatch {
     /// Jump directly to ExprId
     Success(ExprId),
 
-    Failure,
+    /// A Failure node in the match. `missing_case` is true if this node is the result of a missing
+    /// case of the match for which we should later reconstruct an example of.
+    Failure { missing_case: bool },
 
     /// Run `body` if the given expression is true.
     /// Otherwise continue with the given decision tree.
-    Guard {
-        cond: ExprId,
-        body: ExprId,
-        otherwise: Box<HirMatch>,
-    },
+    Guard { cond: ExprId, body: ExprId, otherwise: Box<HirMatch> },
 
     /// Switch on the given variable with the given cases to test.
     /// The final argument is an optional match-all case to take if
@@ -387,7 +386,7 @@ impl Case {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Constructor {
     True,
     False,
@@ -435,6 +434,41 @@ impl Constructor {
                 _ => false,
             },
             _ => false,
+        }
+    }
+
+    /// Return all the constructors of this type from one constructor. Intended to be used
+    /// for error reporting in cases where there are at least 2 constructors.
+    pub(crate) fn all_constructors(&self) -> Vec<(Constructor, /*arg count:*/ usize)> {
+        match self {
+            Constructor::True | Constructor::False => {
+                vec![(Constructor::True, 0), (Constructor::False, 0)]
+            }
+            Constructor::Unit => vec![(Constructor::Unit, 0)],
+            Constructor::Tuple(args) => vec![(self.clone(), args.len())],
+            Constructor::Variant(typ, _) => {
+                let typ = typ.follow_bindings();
+                let Type::DataType(def, generics) = &typ else {
+                    unreachable!(
+                        "Constructor::Variant should have a DataType type, but found {typ:?}"
+                    );
+                };
+
+                let def_ref = def.borrow();
+                if let Some(variants) = def_ref.get_variants(generics) {
+                    vecmap(variants.into_iter().enumerate(), |(i, (_, fields))| {
+                        (Constructor::Variant(typ.clone(), i), fields.len())
+                    })
+                } else
+                /* def is a struct */
+                {
+                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    vec![(Constructor::Variant(typ.clone(), 0), field_count)]
+                }
+            }
+
+            // Nothing great to return for these
+            Constructor::Int(_) | Constructor::Range(..) => Vec::new(),
         }
     }
 }

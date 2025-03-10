@@ -579,7 +579,7 @@ impl<'a> NodeFinder<'a> {
             Type::DataType(struct_type, generics) => {
                 self.complete_struct_fields(&struct_type.borrow(), generics, prefix, self_prefix);
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, _) => {
                 return self.complete_type_fields_and_methods(
                     typ,
                     prefix,
@@ -1448,7 +1448,7 @@ impl Visitor for NodeFinder<'_> {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     prefix,
                     FunctionCompletionKind::Name,
                     self_prefix,
@@ -1481,7 +1481,7 @@ impl Visitor for NodeFinder<'_> {
                 let prefix = prefix[0..offset].to_string();
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     &prefix,
                     FunctionCompletionKind::Name,
                     self_prefix,
@@ -1658,7 +1658,7 @@ impl Visitor for NodeFinder<'_> {
                 let prefix = "";
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     prefix,
                     FunctionCompletionKind::NameAndParameters,
                     self_prefix,
@@ -1731,7 +1731,7 @@ impl Visitor for NodeFinder<'_> {
                 let prefix = ident.to_string().to_case(Case::Snake);
                 let self_prefix = false;
                 self.complete_type_fields_and_methods(
-                    &typ,
+                    typ,
                     &prefix,
                     FunctionCompletionKind::NameAndParameters,
                     self_prefix,

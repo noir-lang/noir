@@ -26,7 +26,8 @@ use crate::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
-            HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind, TraitMethod,
+            HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
+            TraitMethod,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -37,7 +38,7 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
+use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -343,8 +344,12 @@ impl Elaborator<'_> {
 
         let operator = prefix.operator;
 
-        if let UnaryOp::MutableReference = operator {
-            self.check_can_mutate(rhs, rhs_location);
+        if let UnaryOp::Reference { mutable } = operator {
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            } else {
+                self.use_unstable_feature(UnstableFeature::Ownership, location);
+            }
         }
 
         let expr =
@@ -1078,11 +1083,22 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         self.use_unstable_feature(super::UnstableFeature::Enums, location);
 
+        let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
-        let (let_, variable) = self.wrap_in_let(expression, typ);
+        let (let_, variable) = self.wrap_in_let(expression, typ.clone());
 
-        let (rows, result_type) = self.elaborate_match_rules(variable, match_expr.rules);
-        let tree = HirExpression::Match(self.elaborate_match_rows(rows));
+        let (errored, (rows, result_type)) =
+            self.errors_occurred_in(|this| this.elaborate_match_rules(variable, match_expr.rules));
+
+        // Avoid calling `elaborate_match_rows` if there were errors while constructing
+        // the match rows - it'll just lead to extra errors like `unreachable pattern`
+        // warnings on branches which previously had type errors.
+        let tree = HirExpression::Match(if !errored {
+            self.elaborate_match_rows(rows, &typ, expr_location)
+        } else {
+            HirMatch::Failure { missing_case: false }
+        });
+
         let tree = self.interner.push_expr(tree);
         self.interner.push_expr_type(tree, result_type.clone());
         self.interner.push_expr_location(tree, location);

@@ -233,7 +233,7 @@ impl HirMatch {
     fn to_display_ast(&self, interner: &NodeInterner, location: Location) -> ExpressionKind {
         match self {
             HirMatch::Success(expr) => expr.to_display_ast(interner).kind,
-            HirMatch::Failure => ExpressionKind::Error,
+            HirMatch::Failure { .. } => ExpressionKind::Error,
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = cond.to_display_ast(interner);
                 let consequence = body.to_display_ast(interner);
@@ -465,9 +465,9 @@ impl Type {
                 let env = Box::new(env.to_display_ast());
                 UnresolvedTypeData::Function(args, ret, env, *unconstrained)
             }
-            Type::MutableReference(element) => {
+            Type::Reference(element, mutable) => {
                 let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::MutableReference(element)
+                UnresolvedTypeData::Reference(element, *mutable)
             }
             // Type::Forall is only for generic functions which don't store a type
             // in their Ast so they don't need to call to_display_ast for their Forall type.

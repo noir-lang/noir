@@ -69,7 +69,7 @@ pub fn decode_value<F: AcirField>(
             decode_value(field_iterator, env);
             func_ref
         }
-        PrintableType::MutableReference { typ } => {
+        PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing
             decode_value(field_iterator, typ)
         }

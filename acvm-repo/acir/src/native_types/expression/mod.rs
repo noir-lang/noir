@@ -13,6 +13,7 @@ mod ordering;
 // In the multiplication polynomial
 // XXX: If we allow the degree of the quotient polynomial to be arbitrary, then we will need a vector of wire values
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Expression<F> {
     // To avoid having to create intermediate variables pre-optimization
     // We collect all of the multiplication terms in the assert-zero opcode
@@ -32,13 +33,18 @@ impl<F: AcirField> Default for Expression<F> {
     }
 }
 
-impl<F: AcirField> std::fmt::Display for Expression<F> {
+impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if let Some(witness) = self.to_witness() {
-            write!(f, "x{}", witness.witness_index())
-        } else {
-            write!(f, "%{:?}%", crate::circuit::opcodes::Opcode::AssertZero(self.clone()))
+        write!(f, "EXPR [ ")?;
+        for i in &self.mul_terms {
+            write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
         }
+        for i in &self.linear_combinations {
+            write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
+        }
+        write!(f, "{}", self.q_c)?;
+
+        write!(f, " ]")
     }
 }
 

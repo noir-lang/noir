@@ -1,4 +1,4 @@
-define: &AZ_COMMIT cca90e5e655ed9a2d2bb969f034e42ac15f87439
+define: &AZ_COMMIT f15942770bc391a4d66fe9c23262b755de77f71d
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -44,6 +44,12 @@ libraries:
     timeout: 12
   sha256:
     repo: noir-lang/sha256
+    timeout: 3
+  sha512:
+    repo: noir-lang/sha512
+    timeout: 30
+  keccak256:
+    repo: noir-lang/keccak256
     timeout: 3
   aztec_nr:
     repo: AztecProtocol/aztec-packages
