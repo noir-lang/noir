@@ -39,7 +39,6 @@ smallvec = { version = "1.13.2", features = ["serde"] }
 vec-collections = "0.4.3"
 env_logger = "0.11.6"
 log = "0.4"
-libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 
 [dev-dependencies]
 proptest.workspace = true

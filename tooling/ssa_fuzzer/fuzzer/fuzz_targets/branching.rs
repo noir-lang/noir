@@ -1,19 +1,20 @@
+// TODO(sn): refactor this it seems like it is not working 
+// do not read it
+
 #![no_main]
 
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use ssa_fuzzer::builder::FuzzerBuilder;
-use ssa_fuzzer::config;
-use ssa_fuzzer::config::NUMBER_OF_VARIABLES_INITIAL;
-use ssa_fuzzer::helpers::id_to_int;
-use ssa_fuzzer::helpers::u32_to_id_value;
-use ssa_fuzzer::helpers::u32_to_id_basic_block;
-use ssa_fuzzer::runner::{run_and_compare, execute_single};
+use ssa_fuzzer::{
+    builder::FuzzerBuilder,
+    config,
+    config::NUMBER_OF_VARIABLES_INITIAL,
+    helpers::{id_to_int, u32_to_id_value, u32_to_id_basic_block},
+    runner::{run_and_compare, execute_single},
+};
 use noirc_evaluator::ssa::ir::types::Type;
-use acvm::acir::native_types::Witness;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::FieldElement;
-use std::fmt::Debug;
 use log;
 use env_logger;
 use noirc_evaluator::ssa::ir::map::Id;
@@ -136,11 +137,6 @@ fn insert_instruction_with_single_arg(
     brillig_vars.push(brillig_result);
 }
 
-struct Array {
-    id: Id<Value>,
-    length: u32,
-}
-
 struct FuzzerContext {
     acir_builder: FuzzerBuilder,
     brillig_builder: FuzzerBuilder,
@@ -234,9 +230,6 @@ impl FuzzerContext {
                 let brillig_result = self.brillig_builder.insert_eq_instruction(lhs, rhs);
                 self.block_acir_boolean_variables_indices.push(id_to_int(acir_result));
                 self.block_brillig_boolean_variables_indices.push(id_to_int(brillig_result));
-            }
-            _ => {
-                return;
             }
         }
     }
@@ -344,9 +337,7 @@ impl FuzzerContext {
             Terminator::JmpIf { condition_index, then_destination_block_index, else_destination_block_index } => {
                 // logic if or field if
                 if !index_presented(condition_index, &mut self.block_acir_boolean_variables_indices, &mut self.block_brillig_boolean_variables_indices) {
-                    if !index_presented(condition_index, &mut self.acir_current_block_variables_indices, &mut self.brillig_current_block_variables_indices) {
-                        return;
-                    }
+                    return;
                 }
                 if !both_indices_presented(then_destination_block_index, else_destination_block_index, &mut self.acir_blocks_indices, &mut self.brillig_blocks_indices) {
                     return;
@@ -429,15 +420,8 @@ impl FuzzerContext {
     }
 
     fn get_return_witnesses(&mut self) -> (Witness, Witness) {
-        let acir_result_index = *self.acir_variables_indices.last().unwrap();
-        let brillig_result_index = *self.brillig_variables_indices.last().unwrap();
-        let mut acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-        let mut brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-
-        if self.acir_variables_indices.len() as u32 != config::NUMBER_OF_VARIABLES_INITIAL {
-            acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-            brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-        }
+        let acir_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
+        let brillig_result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
         (acir_result_witness, brillig_result_witness)
     }
 
@@ -543,7 +527,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but brillig compilation failed. Execution result of 
                     acir only {:?}. Brillig compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if acir compiled, but didnt execute and brillig didnt compile, it's ok
                     return;
                 }
@@ -558,7 +542,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but acir compilation failed. Execution result of 
                     brillig only {:?}. Acir compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if brillig compiled, but didnt execute and acir didnt compile, it's ok
                     return;
                 }

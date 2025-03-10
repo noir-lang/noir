@@ -272,7 +272,7 @@ impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
 ///
 /// This type wraps an AtomicUsize so it can safely be used across threads.
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct AtomicCounter<T> {
+pub struct AtomicCounter<T> {
     next: AtomicU32,
     _marker: std::marker::PhantomData<T>,
 }

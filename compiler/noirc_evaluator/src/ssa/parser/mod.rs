@@ -63,7 +63,7 @@ impl Ssa {
     }
 }
 
-pub(crate) struct SsaErrorWithSource {
+pub struct SsaErrorWithSource {
     src: String,
     error: SsaError,
 }

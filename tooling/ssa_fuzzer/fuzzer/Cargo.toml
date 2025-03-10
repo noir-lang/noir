@@ -1,6 +1,6 @@
 [package]
 name = "ssa_fuzzer-fuzz"
-version = "0.0.0"
+version = "0.0.1"
 publish = false
 edition = "2021"
 
@@ -8,21 +8,19 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-noirc_evaluator = { path = "../" }
+libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
+noirc_evaluator.workspace = true
 noirc_driver.workspace = true
-acvm = { path = "../../../acvm-repo/acvm" }
+acvm.workspace = true
 log = "0.4"
 env_logger = "0.11.6"
-fxhash = "0.2.1"
-fastrand = "2.3.0"
 
 [dependencies.ssa_fuzzer]
-path = "../ssa_fuzzer"
+path = "../"
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "uint"
+path = "fuzz_targets/uint.rs"
 test = false
 doc = false
 bench = false

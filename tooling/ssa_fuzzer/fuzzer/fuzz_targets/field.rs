@@ -2,21 +2,18 @@
 
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use ssa_fuzzer::builder::FuzzerBuilder;
-use ssa_fuzzer::config;
-use ssa_fuzzer::config::NUMBER_OF_VARIABLES_INITIAL;
-use ssa_fuzzer::helpers::id_to_int;
-use ssa_fuzzer::helpers::u32_to_id;
-use ssa_fuzzer::runner::{run_and_compare, execute_single};
+use ssa_fuzzer::{
+    builder::FuzzerBuilder,
+    config,
+    config::NUMBER_OF_VARIABLES_INITIAL,
+    helpers::{id_to_int, u32_to_id_value},
+    runner::{run_and_compare, execute_single},
+};
 use noirc_evaluator::ssa::ir::types::Type;
-use acvm::acir::native_types::Witness;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{Witness, WitnessMap};
 use acvm::FieldElement;
-use std::fmt::Debug;
 use log;
 use env_logger;
-use fxhash;
-use fastrand;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_driver::{CompiledProgram, CompileError};
@@ -101,18 +98,6 @@ fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_wi
 
 fn both_indeces_presented(first_index: u32, second_index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
     index_presented(first_index, acir_witnesses_indeces, brillig_witnesses_indeces) && index_presented(second_index, acir_witnesses_indeces, brillig_witnesses_indeces)
-}
-
-fn get_random_witness_map(seed: u64) -> WitnessMap<FieldElement> {
-    let mut witness_map = WitnessMap::new();
-    let rng = fastrand::Rng::with_seed(seed);
-    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
-        let witness = Witness(i);
-        let value = FieldElement::from(i + 1);
-        // let value = FieldElement::from(rng.u64(..));
-        witness_map.insert(witness, value);
-    }
-    witness_map
 }
 
 struct Array {
@@ -200,7 +185,7 @@ impl FuzzerContext {
         if self.brillig_arrays[array_idx as usize].length <= index {
             return;
         }
-        let value = u32_to_id(value);
+        let value = u32_to_id_value(value);
         let acir_array = self.acir_arrays[array_idx as usize].id;
         let brillig_array = self.brillig_arrays[array_idx as usize].id;
         let acir_result = self.acir_builder.insert_array_set(acir_array, index, value);
@@ -213,7 +198,7 @@ impl FuzzerContext {
         if !index_presented(arg, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
             return;
         }
-        let arg = u32_to_id(arg);
+        let arg = u32_to_id_value(arg);
         let acir_result = f(&mut self.acir_builder, arg);
         let brillig_result = f(&mut self.brillig_builder, arg);
         self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -224,8 +209,8 @@ impl FuzzerContext {
         if !both_indeces_presented(lhs, rhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
             return;
         }
-        let lhs = u32_to_id(lhs);
-        let rhs = u32_to_id(rhs);
+        let lhs = u32_to_id_value(lhs);
+        let rhs = u32_to_id_value(rhs);
         let acir_result = f(&mut self.acir_builder, lhs, rhs);
         let brillig_result = f(&mut self.brillig_builder, lhs, rhs);
         self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -290,7 +275,7 @@ impl FuzzerContext {
                 if !index_presented(lhs, &mut self.acir_witnesses_indeces, &mut self.brillig_witnesses_indeces) {
                     return;
                 }
-                let lhs = u32_to_id(lhs);
+                let lhs = u32_to_id_value(lhs);
                 let acir_result = self.acir_builder.insert_cast_bigger_and_back(lhs, size);
                 let brillig_result = self.brillig_builder.insert_cast_bigger_and_back(lhs, size);
                 self.acir_witnesses_indeces.push(id_to_int(acir_result));
@@ -305,8 +290,8 @@ impl FuzzerContext {
     fn finalize_function(&mut self) {
         let acir_result_index = *self.acir_witnesses_indeces.last().unwrap();
         let brillig_result_index = *self.brillig_witnesses_indeces.last().unwrap();
-        self.acir_builder.finalize_function(u32_to_id(acir_result_index));
-        self.brillig_builder.finalize_function(u32_to_id(brillig_result_index));
+        self.acir_builder.finalize_function(u32_to_id_value(acir_result_index));
+        self.brillig_builder.finalize_function(u32_to_id_value(brillig_result_index));
     }
 
     fn get_return_witnesses(&mut self) -> (Witness, Witness) {
@@ -377,7 +362,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but brillig compilation failed. Execution result of 
                     acir only {:?}. Brillig compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if acir compiled, but didnt execute and brillig didnt compile, it's ok
                     return;
                 }
@@ -392,7 +377,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but acir compilation failed. Execution result of 
                     brillig only {:?}. Acir compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if brillig compiled, but didnt execute and acir didnt compile, it's ok
                     return;
                 }

@@ -7,21 +7,23 @@ use acvm::{
 };
 
 use acvm::acir::circuit::PublicInputs;
-use noirc_evaluator::acir::generated_acir::GeneratedAcir;
-use noirc_evaluator::ssa::ssa_gen::Ssa;
-use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::function::Function;
-use noirc_evaluator::ssa::{
-    SsaCircuitArtifact,
-    function_builder::FunctionBuilder,
-    ir::types::Type,
-    BrilligOptions,
+use noirc_evaluator::{
+    ssa::{
+        ssa_gen::Ssa,
+        SsaCircuitArtifact,
+        function_builder::FunctionBuilder,
+        BrilligOptions,
+        SsaBuilder,
+        SsaLogging,
+        optimize_all,
+        ArtifactsAndWarnings,
+        SsaEvaluatorOptions,
+        SsaProgramArtifact,
+        ir::instruction::ErrorType,
+    },
+    errors::RuntimeError,
+    acir::generated_acir::GeneratedAcir,
 };
-use noirc_evaluator::ssa::SsaBuilder;
-use noirc_evaluator::ssa::SsaLogging;
-use noirc_evaluator::ssa::{optimize_all, ArtifactsAndWarnings, SsaEvaluatorOptions, SsaProgramArtifact};
-use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::ir::instruction::ErrorType;
 use noirc_abi::{Abi, AbiReturnType, AbiType, AbiVisibility, AbiParameter};
 use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING, CompileError};
 use noirc_errors::debug_info::{DebugVariables, DebugFunctions, DebugTypes, DebugInfo};

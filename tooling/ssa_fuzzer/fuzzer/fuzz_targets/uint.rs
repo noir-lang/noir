@@ -2,21 +2,19 @@
 
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use ssa_fuzzer::builder::FuzzerBuilder;
-use ssa_fuzzer::config;
-use ssa_fuzzer::config::NUMBER_OF_VARIABLES_INITIAL;
-use ssa_fuzzer::helpers::id_to_int;
-use ssa_fuzzer::helpers::u32_to_id_value;
-use ssa_fuzzer::runner::{run_and_compare, execute_single};
+use ssa_fuzzer::{
+    builder::FuzzerBuilder,
+    config,
+    config::NUMBER_OF_VARIABLES_INITIAL,
+    helpers::{id_to_int, u32_to_id_value},
+    runner::{run_and_compare, execute_single},
+};
 use noirc_evaluator::ssa::ir::types::Type;
 use acvm::acir::native_types::Witness;
 use acvm::acir::native_types::WitnessMap;
 use acvm::FieldElement;
-use std::fmt::Debug;
 use log;
 use env_logger;
-use fxhash;
-use fastrand;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_driver::{CompiledProgram, CompileError};
@@ -101,18 +99,6 @@ fn index_presented(index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_wi
 
 fn both_indeces_presented(first_index: u32, second_index: u32, acir_witnesses_indeces: &mut Vec<u32>, brillig_witnesses_indeces: &mut Vec<u32>) -> bool {
     index_presented(first_index, acir_witnesses_indeces, brillig_witnesses_indeces) && index_presented(second_index, acir_witnesses_indeces, brillig_witnesses_indeces)
-}
-
-fn get_random_witness_map(seed: u64) -> WitnessMap<FieldElement> {
-    let mut witness_map = WitnessMap::new();
-    let mut rng = fastrand::Rng::with_seed(seed);
-    for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
-        let witness = Witness(i);
-        let value = FieldElement::from(i + 1);
-        // let value = FieldElement::from(rng.u64(..));
-        witness_map.insert(witness, value);
-    }
-    witness_map
 }
 
 struct Array {
@@ -335,7 +321,6 @@ struct FuzzerData {
 
 
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
-    // Initialize logger once
     let _ = env_logger::try_init();
     let type_ = Type::unsigned(128);
     let mut witness_map = WitnessMap::new();
@@ -370,7 +355,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but brillig compilation failed. Execution result of 
                     acir only {:?}. Brillig compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if acir compiled, but didnt execute and brillig didnt compile, it's ok
                     return;
                 }
@@ -385,7 +370,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
                     but acir compilation failed. Execution result of 
                     brillig only {:?}. Acir compilation failed with: {:?}", result, e);
                 }
-                Err(e) => {
+                Err(_e) => {
                     // if brillig compiled, but didnt execute and acir didnt compile, it's ok
                     return;
                 }

@@ -91,7 +91,7 @@ pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, Ca
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) enum BrilligStdlibFunc {
+pub enum BrilligStdlibFunc {
     Inverse,
     Quotient,
     ToLeBytes,
