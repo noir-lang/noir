@@ -6,7 +6,10 @@ use nargo::{
 };
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
-use noirc_frontend::hir::{ParsedFiles, def_map::ModuleId};
+use noirc_frontend::{
+    hir::{ParsedFiles, def_map::ModuleId},
+    parse_program_with_dummy_file,
+};
 use printer::Printer;
 
 use crate::errors::CliError;
@@ -70,7 +73,14 @@ fn expand_package(
         Printer::new(crate_id, &context.def_interner, &context.def_maps, def_map, &mut string);
     printer.show_module(module_id);
     printer.show_stray_trait_impls();
-    println!("{}", string);
+
+    let (parsed_module, errors) = parse_program_with_dummy_file(&string);
+    if errors.is_empty() {
+        let code = nargo_fmt::format(&string, parsed_module, &nargo_fmt::Config::default());
+        println!("{code}");
+    } else {
+        println!("{string}");
+    }
 
     Ok(())
 }
