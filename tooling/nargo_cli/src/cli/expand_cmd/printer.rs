@@ -19,8 +19,8 @@ use noirc_frontend::{
     },
     modules::relative_module_full_path,
     node_interner::{
-        ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId,
-        StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DefinitionKind, ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner,
+        ReferenceId, StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::{FmtStrFragment, FunctionAttribute, SecondaryAttribute},
 };
@@ -209,7 +209,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_secondary_attributes(self.interner.global_attributes(&global_id));
             }
             ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) => {
-                ()
             }
         }
     }
@@ -969,8 +968,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         &mut self,
         imports: Vec<(Ident, ModuleDefId, ItemVisibility, bool /* is prelude */)>,
     ) {
-        let current_module_parent_id = self.module_id.parent(self.def_maps);
-
         let mut first = true;
 
         for (alias, module_def_id, visibility, is_prelude) in imports {
@@ -985,18 +982,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.write_indent();
             self.show_item_visibility(visibility);
             self.push_str("use ");
-            if let Some(full_path) = relative_module_full_path(
-                module_def_id,
-                self.module_id,
-                current_module_parent_id,
-                self.interner,
-            ) {
-                self.push_str(&full_path);
-                self.push_str("::");
-            };
-
-            let name = self.module_def_id_name(module_def_id);
-            self.push_str(&name);
+            let use_import = false;
+            let name = self.show_reference_to_module_def_id(module_def_id, use_import);
 
             if name != alias.0.contents {
                 self.push_str(" as ");
@@ -1005,6 +992,84 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.push(';');
             self.push('\n');
         }
+    }
+
+    fn show_reference_to_module_def_id(
+        &mut self,
+        module_def_id: ModuleDefId,
+        use_import: bool,
+    ) -> String {
+        if let ModuleDefId::FunctionId(func_id) = module_def_id {
+            let func_meta = self.interner.function_meta(&func_id);
+
+            if let Some(trait_impl_id) = func_meta.trait_impl {
+                let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::TraitId(trait_impl.trait_id),
+                    use_import,
+                );
+                if !trait_impl.trait_generics.is_empty() {
+                    self.push_str("::<");
+                    for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+                        if index != 0 {
+                            self.push_str(", ");
+                        }
+                        self.show_type(generic);
+                    }
+                    self.push('>');
+                }
+
+                self.push_str("::");
+
+                let name = self.interner.function_name(&func_id).to_string();
+                self.push_str(&name);
+                return name;
+            }
+
+            if let Some(trait_id) = func_meta.trait_id {
+                self.show_reference_to_module_def_id(ModuleDefId::TraitId(trait_id), use_import);
+                self.push_str("::");
+
+                let name = self.interner.function_name(&func_id).to_string();
+                self.push_str(&name);
+                return name;
+            }
+
+            if let Some(type_id) = func_meta.type_id {
+                self.show_reference_to_module_def_id(ModuleDefId::TypeId(type_id), use_import);
+                self.push_str("::");
+
+                let name = self.interner.function_name(&func_id).to_string();
+                self.push_str(&name);
+                return name;
+            }
+        }
+
+        if use_import {
+            if let Some(name) = self.imports.get(&module_def_id) {
+                let name = name.to_string();
+                self.push_str(&name);
+                return name;
+            }
+        }
+
+        let current_module_parent_id = self.module_id.parent(self.def_maps);
+        if let Some(full_path) = relative_module_full_path(
+            module_def_id,
+            self.module_id,
+            current_module_parent_id,
+            self.interner,
+        ) {
+            if !full_path.is_empty() {
+                self.push_str(&full_path);
+                self.push_str("::");
+            }
+        };
+
+        let name = self.module_def_id_name(module_def_id);
+        self.push_str(&name);
+        name
     }
 
     fn show_type(&mut self, typ: &Type) {
@@ -1436,14 +1501,27 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     }
 
     fn show_hir_ident(&mut self, ident: HirIdent) {
-        // TODO: we might need to fully-qualify this name
-        let name = self.interner.definition_name(ident.id);
+        let definition_id = self.interner.definition(ident.id);
+        match definition_id.kind {
+            DefinitionKind::Function(func_id) => {
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::FunctionId(func_id), use_import);
+            }
+            DefinitionKind::Global(global_id) => {
+                let use_import = true;
+                self.show_reference_to_module_def_id(ModuleDefId::GlobalId(global_id), use_import);
+            }
+            DefinitionKind::Local(..) | DefinitionKind::NumericGeneric(..) => {
+                let name = self.interner.definition_name(ident.id);
 
-        // The compiler uses '$' for some internal identifiers.
-        // We replace them with "___" to make sure they have valid syntax, even though
-        // there's a tiny change they might collide with user code (unlikely, really).
-        let name = name.replace('$', "___");
-        self.push_str(&name);
+                // The compiler uses '$' for some internal identifiers.
+                // We replace them with "___" to make sure they have valid syntax, even though
+                // there's a tiny change they might collide with user code (unlikely, really).
+                let name = name.replace('$', "___");
+
+                self.push_str(&name);
+            }
+        }
     }
 
     fn pattern_is_self(&self, pattern: &HirPattern) -> bool {

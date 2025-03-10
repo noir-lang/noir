@@ -77,16 +77,17 @@ fn expand_package(
 
     let (parsed_module, errors) = parse_program_with_dummy_file(&string);
     if errors.is_empty() {
-        let mut config = nargo_fmt::Config::default();
-        config.reorder_imports = true;
-        config.imports_granularity = ImportsGranularity::Crate;
-
+        let config = nargo_fmt::Config {
+            reorder_imports: true,
+            imports_granularity: ImportsGranularity::Crate,
+            ..Default::default()
+        };
         let code = nargo_fmt::format(&string, parsed_module, &config);
         println!("{code}");
     } else {
         println!("{string}");
         println!();
-        println!("// Warning: the generated code has syntax errors")
+        println!("// Warning: the generated code has syntax errors");
     }
 
     Ok(())

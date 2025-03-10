@@ -41,6 +41,11 @@ pub fn relative_module_full_path(
     } else {
         let parent_module = get_parent_module(interner, module_def_id)?;
 
+        // If module_def_id is contained in the current module, the relative path is empty
+        if current_module_id == parent_module {
+            return None;
+        }
+
         full_path = relative_module_id_path(
             parent_module,
             current_module_id,
