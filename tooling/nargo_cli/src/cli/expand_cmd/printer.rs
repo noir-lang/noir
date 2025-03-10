@@ -189,6 +189,39 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
+    fn show_module_def_id_attributes(&mut self, module_def_id: ModuleDefId) {
+        match module_def_id {
+            ModuleDefId::FunctionId(func_id) => {
+                let modifiers = self.interner.function_modifiers(&func_id);
+                if let Some(attribute) = modifiers.attributes.function() {
+                    self.push_str(&attribute.to_string());
+                    self.push('\n');
+                    self.write_indent();
+                }
+                self.show_secondary_attributes(&modifiers.attributes.secondary);
+            }
+            ModuleDefId::TypeId(type_id) => {
+                self.show_secondary_attributes(self.interner.type_attributes(&type_id));
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                self.show_secondary_attributes(self.interner.global_attributes(&global_id));
+            }
+            ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) => {
+                ()
+            }
+        }
+    }
+
+    fn show_secondary_attributes(&mut self, attributes: &[SecondaryAttribute]) {
+        for attribute in attributes {
+            if !matches!(attribute, SecondaryAttribute::Meta(..)) {
+                self.push_str(&attribute.to_string());
+                self.push('\n');
+                self.write_indent();
+            }
+        }
+    }
+
     fn show_item_visibility(&mut self, visibility: ItemVisibility) {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
@@ -560,7 +593,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_function(&mut self, func_id: FuncId) {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
-        let name = &modifiers.name;
 
         if modifiers.is_unconstrained {
             self.push_str("unconstrained ");
@@ -570,7 +602,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
 
         self.push_str("fn ");
-        self.push_str(name);
+        self.push_str(&modifiers.name);
 
         self.show_generics(&func_meta.direct_generics);
 
