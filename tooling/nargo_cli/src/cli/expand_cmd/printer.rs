@@ -772,9 +772,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(']');
             }
             Value::Quoted(tokens) => {
-                self.push_str("quote { ");
+                self.push_str("quote {");
                 self.push_str(&tokens_to_string(tokens, self.interner));
-                self.push_str(" }");
+                self.push_str("}");
             }
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
@@ -973,9 +973,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.show_hir_expression_id(hir_lambda.body);
             }
             HirExpression::Quote(tokens) => {
-                self.push_str("quote { ");
+                self.push_str("quote {");
                 self.push_str(&tokens_to_string(&tokens.0, self.interner));
-                self.push_str(" }");
+                self.push_str("}");
             }
             HirExpression::Comptime(hir_block_expression) => {
                 self.push_str("comptime ");
