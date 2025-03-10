@@ -797,24 +797,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(')');
             }
             Value::Struct(fields, typ) => {
-                let Type::DataType(data_type, generics) = typ else {
-                    panic!("Expected a data type");
-                };
-
-                // TODO: we might need to fully-qualify this name
-                let data_type = data_type.borrow();
-                self.push_str(&data_type.name.to_string());
-
-                if !generics.is_empty() {
-                    self.push_str("::<");
-                    for (index, generic) in generics.iter().enumerate() {
-                        if index != 0 {
-                            self.push_str(", ");
-                        }
-                        self.show_type(generic);
-                    }
-                    self.push('>');
-                }
+                self.show_type_name_as_data_type(typ);
 
                 if fields.is_empty() {
                     self.push_str(" {}");
@@ -924,6 +907,27 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     );
                 }
             }
+        }
+    }
+
+    fn show_type_name_as_data_type(&mut self, typ: &Type) {
+        let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+            panic!("Expected a data type, got: {typ:?}");
+        };
+
+        // TODO: we might need to fully-qualify this name
+        let data_type = data_type.borrow();
+        self.push_str(&data_type.name.to_string());
+
+        if !generics.is_empty() {
+            self.push_str("::<");
+            for (index, generic) in generics.iter().enumerate() {
+                if index != 0 {
+                    self.push_str(", ");
+                }
+                self.show_type(generic);
+            }
+            self.push('>');
         }
     }
 
@@ -1360,7 +1364,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(')');
             }
             HirPattern::Struct(typ, items, _location) => {
-                self.show_type(&typ);
+                self.show_type_name_as_data_type(&typ);
                 self.push_str(" {\n");
                 self.increase_indent();
                 for (index, (name, pattern)) in items.into_iter().enumerate() {
