@@ -336,6 +336,12 @@ impl DependencyContext {
 
                         if !visited {
                             let results = function.dfg.instruction_results(*instruction);
+
+                            // Calls with no results (e.g. print) shouldn't be checked
+                            if results.is_empty() {
+                                return;
+                            }
+
                             let current_tainted =
                                 BrilligTaintedIds::new(function, arguments, results);
 
@@ -1416,6 +1422,34 @@ mod test {
 
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// No-result calls (e.g. print) shouldn't trigger the check
+    fn test_no_result_brillig_calls() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(Field 1)
+            return Field 1
+        }
+        acir(inline) fn println f1 {
+          b0(v0: Field):
+            call f2(u1 1, v0)
+            return
+        }
+        brillig(inline) fn print_unconstrained f2 {
+          b0(v0: u1, v1: Field):
+            v14 = make_array b"{\"kind\":\"field\"}"
+            call print(v0, v1, v14, u1 0)
+            return
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
