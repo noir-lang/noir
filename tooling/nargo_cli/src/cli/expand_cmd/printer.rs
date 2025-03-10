@@ -22,7 +22,7 @@ use noirc_frontend::{
         ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId,
         StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
-    token::{FmtStrFragment, FunctionAttribute},
+    token::{FmtStrFragment, FunctionAttribute, SecondaryAttribute},
 };
 
 pub(super) struct Printer<'interner, 'def_map, 'string> {
@@ -152,6 +152,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_module_def_id(&mut self, module_def_id: ModuleDefId, visibility: ItemVisibility) {
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.show_doc_comments(reference_id);
+
+        self.show_module_def_id_attributes(module_def_id);
 
         self.show_item_visibility(visibility);
 
@@ -1241,12 +1243,30 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     fn show_hir_statement(&mut self, statement: HirStatement) {
         match statement {
             HirStatement::Let(hir_let_statement) => {
+                // If this is `let ... = unsafe { }` then show the unsafe comment on top of `let`
+                if let HirExpression::Unsafe(_) =
+                    self.interner.expression(&hir_let_statement.expression)
+                {
+                    // TODO: show the original comment
+                    self.push_str("// Safety: TODO\n");
+                    self.write_indent();
+                }
+
                 self.push_str("let ");
                 self.show_hir_pattern(hir_let_statement.pattern);
                 self.push_str(": ");
                 self.show_type(&hir_let_statement.r#type);
                 self.push_str(" = ");
-                self.show_hir_expression_id(hir_let_statement.expression);
+
+                if let HirExpression::Unsafe(block_expression) =
+                    self.interner.expression(&hir_let_statement.expression)
+                {
+                    self.push_str("unsafe ");
+                    self.show_hir_block_expression(block_expression);
+                } else {
+                    self.show_hir_expression_id(hir_let_statement.expression);
+                }
+
                 self.push(';');
             }
             HirStatement::Assign(hir_assign_statement) => {
