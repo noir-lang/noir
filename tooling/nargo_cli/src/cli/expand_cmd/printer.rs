@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
-    DataType, Generics, Type,
-    ast::{Ident, ItemVisibility, Visibility},
+    DataType, Generics, Type, TypeBindings,
+    ast::{Ident, ItemVisibility, UnaryOp, Visibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
         def_map::{CrateDefMap, DefMaps, ModuleDefId, ModuleId},
@@ -12,7 +12,8 @@ use noirc_frontend::{
     },
     hir_def::{
         expr::{
-            HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral, HirMatch,
+            HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression, HirIdent,
+            HirLiteral, HirMatch,
         },
         stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
@@ -1081,6 +1082,23 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_hir_expression(hir_expr);
     }
 
+    fn show_hir_expression_id_dereferencing(&mut self, expr_id: ExprId) {
+        let hir_expr = self.interner.expression(&expr_id);
+        let HirExpression::Prefix(prefix) = &hir_expr else {
+            self.show_hir_expression(hir_expr);
+            return;
+        };
+
+        match prefix.operator {
+            UnaryOp::Reference { .. } | UnaryOp::Dereference { implicitly_added: true } => {
+                self.show_hir_expression_id_dereferencing(prefix.rhs);
+            }
+            UnaryOp::Minus | UnaryOp::Not | UnaryOp::Dereference { implicitly_added: false } => {
+                self.show_hir_expression(hir_expr);
+            }
+        }
+    }
+
     fn show_hir_expression(&mut self, hir_expr: HirExpression) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
@@ -1104,21 +1122,23 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             HirExpression::Prefix(hir_prefix_expression) => {
                 match hir_prefix_expression.operator {
-                    noirc_frontend::ast::UnaryOp::Minus => {
+                    UnaryOp::Minus => {
                         self.push('-');
                     }
-                    noirc_frontend::ast::UnaryOp::Not => {
+                    UnaryOp::Not => {
                         self.push('!');
                     }
-                    noirc_frontend::ast::UnaryOp::Reference { mutable } => {
+                    UnaryOp::Reference { mutable } => {
                         if mutable {
                             self.push_str("&mut ");
                         } else {
                             self.push_str("&");
                         }
                     }
-                    noirc_frontend::ast::UnaryOp::Dereference { .. } => {
-                        self.push('*');
+                    UnaryOp::Dereference { implicitly_added } => {
+                        if !implicitly_added {
+                            self.push('*');
+                        }
                     }
                 }
                 self.show_hir_expression_id(hir_prefix_expression.rhs);
@@ -1187,6 +1207,10 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push_str(&hir_member_access.rhs.to_string());
             }
             HirExpression::Call(hir_call_expression) => {
+                if self.try_show_hir_call_as_method(&hir_call_expression) {
+                    return;
+                }
+
                 self.show_hir_expression_id(hir_call_expression.func);
                 if hir_call_expression.is_macro_call {
                     self.push('!');
@@ -1276,6 +1300,62 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             HirExpression::Unquote(_) => todo!("unquote should not happen"),
         }
+    }
+
+    fn try_show_hir_call_as_method(&mut self, hir_call_expression: &HirCallExpression) -> bool {
+        let arguments = &hir_call_expression.arguments;
+
+        // If there are no arguments this is definitely not a method call
+        if arguments.is_empty() {
+            return false;
+        }
+
+        // A method call must have `func` be a HirIdent
+        let HirExpression::Ident(hir_ident, _generics) =
+            self.interner.expression(&hir_call_expression.func)
+        else {
+            return false;
+        };
+
+        // That HirIdent must be a function reference
+        let definition = self.interner.definition(hir_ident.id);
+        let DefinitionKind::Function(func_id) = definition.kind else {
+            return false;
+        };
+
+        // The function must have a self type
+        let func_meta = self.interner.function_meta(&func_id);
+        let Some(self_type) = &func_meta.self_type else {
+            return false;
+        };
+
+        // And it must have parameters
+        if func_meta.parameters.is_empty() {
+            return false;
+        }
+
+        // The first parameter must unify with the self type (as-is or after removing `&mut`)
+        let param_type = func_meta.parameters.0[0].1.follow_bindings();
+        let param_type = if let Type::Reference(typ, ..) = param_type { *typ } else { param_type };
+
+        let mut bindings = TypeBindings::new();
+        if self_type.try_unify(&param_type, &mut bindings).is_err() {
+            return false;
+        }
+
+        self.show_hir_expression_id_dereferencing(arguments[0]);
+        self.push('.');
+        self.push_str(self.interner.function_name(&func_id));
+        self.push('(');
+        for (index, argument) in arguments[1..].iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            self.show_hir_expression_id(*argument);
+        }
+        self.push(')');
+
+        true
     }
 
     fn show_hir_block_expression(&mut self, block: HirBlockExpression) {
@@ -1501,8 +1581,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     }
 
     fn show_hir_ident(&mut self, ident: HirIdent) {
-        let definition_id = self.interner.definition(ident.id);
-        match definition_id.kind {
+        let definition = self.interner.definition(ident.id);
+        match definition.kind {
             DefinitionKind::Function(func_id) => {
                 let use_import = true;
                 self.show_reference_to_module_def_id(ModuleDefId::FunctionId(func_id), use_import);
