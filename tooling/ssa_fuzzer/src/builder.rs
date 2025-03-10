@@ -1,17 +1,17 @@
-use std::sync::Arc;
 use crate::compiler::compile;
+use crate::config::NUMBER_OF_VARIABLES_INITIAL;
 use crate::helpers;
-use noirc_evaluator::ssa::ir::types::{NumericType, Type};
+use acvm::FieldElement;
+use noirc_driver::{CompileError, CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
-use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::value::Value;
+use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
-use noirc_driver::{CompileOptions, CompiledProgram, CompileError};
+use noirc_evaluator::ssa::ir::map::Id;
+use noirc_evaluator::ssa::ir::types::{NumericType, Type};
+use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
-use crate::config::NUMBER_OF_VARIABLES_INITIAL;
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use acvm::FieldElement;
+use std::sync::Arc;
 
 pub struct FuzzerBuilder {
     builder: FunctionBuilder,
@@ -24,14 +24,22 @@ impl FuzzerBuilder {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
-        return Self { builder, numeric_type: NumericType::NativeField, type_: Type::Numeric(NumericType::NativeField) };
+        return Self {
+            builder,
+            numeric_type: NumericType::NativeField,
+            type_: Type::Numeric(NumericType::NativeField),
+        };
     }
 
     pub fn new_brillig() -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
-        return Self { builder, numeric_type: NumericType::NativeField, type_: Type::Numeric(NumericType::NativeField) };
+        return Self {
+            builder,
+            numeric_type: NumericType::NativeField,
+            type_: Type::Numeric(NumericType::NativeField),
+        };
     }
 
     pub fn compile(self) -> Result<CompiledProgram, CompileError> {
@@ -104,14 +112,14 @@ impl FuzzerBuilder {
                 return result;
             }
             NumericType::Unsigned { bit_size: _ } => {
-                let res1 = self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
+                let res1 =
+                    self.builder.insert_cast(value, NumericType::Unsigned { bit_size: size });
                 let result = self.insert_simple_cast(res1);
                 return result;
             }
             NumericType::NativeField => {
                 return value;
             }
-
         }
     }
 
@@ -143,15 +151,16 @@ impl FuzzerBuilder {
     }
 
     pub fn insert_shl_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
-        // rhs must be 8bit 
+        // rhs must be 8bit
         match self.numeric_type {
-            NumericType::Signed { bit_size: _ }  => {
+            NumericType::Signed { bit_size: _ } => {
                 let rhs_value = self.builder.insert_cast(rhs, NumericType::Signed { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
                 return result;
             }
             NumericType::Unsigned { bit_size: _ } => {
-                let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
+                let rhs_value =
+                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shl, rhs_value);
                 return result;
             }
@@ -164,13 +173,15 @@ impl FuzzerBuilder {
 
     pub fn insert_shr_instruction(&mut self, lhs: Id<Value>, rhs: Id<Value>) -> Id<Value> {
         match self.numeric_type {
-            NumericType::Signed { bit_size: _ }  => {
-                let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
+            NumericType::Signed { bit_size: _ } => {
+                let rhs_value =
+                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
                 return result;
             }
             NumericType::Unsigned { bit_size: _ } => {
-                let rhs_value = self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
+                let rhs_value =
+                    self.builder.insert_cast(rhs, NumericType::Unsigned { bit_size: 8 });
                 let result = self.builder.insert_binary(lhs, BinaryOp::Shr, rhs_value);
                 return result;
             }
@@ -188,20 +199,27 @@ impl FuzzerBuilder {
         }
         let types = vec![self.type_.clone(); elements.len()];
         let result = self.builder.insert_make_array(
-            im::Vector::from(elems), 
-            Type::Array(Arc::new(types), elements.len() as u32)
+            im::Vector::from(elems),
+            Type::Array(Arc::new(types), elements.len() as u32),
         );
         return result;
     }
 
     pub fn insert_array_get(&mut self, array: Id<Value>, index: u32) -> Id<Value> {
-        let index_var = self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
+        let index_var =
+            self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
         let result = self.builder.insert_array_get(array, index_var, self.type_.clone());
         return result;
     }
 
-    pub fn insert_array_set(&mut self, array: Id<Value>, index: u32, value: Id<Value>) -> Id<Value> {
-        let index_var = self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
+    pub fn insert_array_set(
+        &mut self,
+        array: Id<Value>,
+        index: u32,
+        value: Id<Value>,
+    ) -> Id<Value> {
+        let index_var =
+            self.builder.numeric_constant(index, NumericType::Unsigned { bit_size: 32 });
         let result = self.builder.insert_array_set(array, index_var, value);
         return result;
     }
@@ -228,7 +246,12 @@ impl FuzzerBuilder {
         self.builder.terminate_with_jmp(destination, params);
     }
 
-    pub fn insert_jmpif_instruction(&mut self, condition: Id<Value>, then_destination: BasicBlockId, else_destination: BasicBlockId) {
+    pub fn insert_jmpif_instruction(
+        &mut self,
+        condition: Id<Value>,
+        then_destination: BasicBlockId,
+        else_destination: BasicBlockId,
+    ) {
         self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
     }
 

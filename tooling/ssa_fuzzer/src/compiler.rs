@@ -1,40 +1,36 @@
-use std::collections::{BTreeSet, BTreeMap};
 use acvm::{
-    acir::circuit::{
-        Circuit, ExpressionWidth,
-    },
     FieldElement,
+    acir::circuit::{Circuit, ExpressionWidth},
 };
+use std::collections::{BTreeMap, BTreeSet};
 
-use acvm::acir::circuit::PublicInputs;
-use noirc_evaluator::{
-    ssa::{
-        ssa_gen::Ssa,
-        SsaCircuitArtifact,
-        function_builder::FunctionBuilder,
-        BrilligOptions,
-        SsaBuilder,
-        SsaLogging,
-        optimize_all,
-        ArtifactsAndWarnings,
-        SsaEvaluatorOptions,
-        SsaProgramArtifact,
-        ir::instruction::ErrorType,
-    },
-    errors::RuntimeError,
-    acir::generated_acir::GeneratedAcir,
-};
-use noirc_abi::{Abi, AbiReturnType, AbiType, AbiVisibility, AbiParameter};
-use noirc_driver::{CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING, CompileError};
-use noirc_errors::debug_info::{DebugVariables, DebugFunctions, DebugTypes, DebugInfo};
 use crate::config::NUMBER_OF_VARIABLES_INITIAL;
+use acvm::acir::circuit::PublicInputs;
+use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility};
+use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_errors::debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables};
+use noirc_evaluator::{
+    acir::generated_acir::GeneratedAcir,
+    errors::RuntimeError,
+    ssa::{
+        ArtifactsAndWarnings, BrilligOptions, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions,
+        SsaLogging, SsaProgramArtifact, function_builder::FunctionBuilder,
+        ir::instruction::ErrorType, optimize_all, ssa_gen::Ssa,
+    },
+};
 
-fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) -> Result<ArtifactsAndWarnings, RuntimeError> {
-    let builder = SsaBuilder { ssa: builder.finish(), ssa_logging: SsaLogging::None, print_codegen_timings: false };
+fn optimize_into_acir(
+    builder: FunctionBuilder,
+    options: SsaEvaluatorOptions,
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
+    let builder = SsaBuilder {
+        ssa: builder.finish(),
+        ssa_logging: SsaLogging::None,
+        print_codegen_timings: false,
+    };
     let ssa = optimize_all(builder, &options)?;
-    
 
-    let brillig = ssa.to_brillig(&BrilligOptions::default()); 
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let ssa = SsaBuilder {
         ssa,
@@ -48,12 +44,8 @@ fn optimize_into_acir(builder: FunctionBuilder, options: SsaEvaluatorOptions) ->
     //let formatted_ssa = format!("{}", ssa);
     //println!("formatted_ssa: {:?}", formatted_ssa);
     match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
-        Ok(artifacts) => {
-            Ok(ArtifactsAndWarnings(artifacts, vec![]))
-        }
-        Err(e) => {
-            Err(e)
-        }
+        Ok(artifacts) => Ok(ArtifactsAndWarnings(artifacts, vec![])),
+        Err(e) => Err(e),
     }
 }
 
@@ -132,15 +124,18 @@ fn convert_generated_acir_into_circuit_without_signature(
     }
 }
 
-fn create_program(builder: FunctionBuilder, options: SsaEvaluatorOptions) -> Result<SsaProgramArtifact, RuntimeError> {
+fn create_program(
+    builder: FunctionBuilder,
+    options: SsaEvaluatorOptions,
+) -> Result<SsaProgramArtifact, RuntimeError> {
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         _ssa_level_warnings,
     ) = optimize_into_acir(builder, options)?;
     let error_types = error_types
-    .into_iter()
-    .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
-    .collect();
+        .into_iter()
+        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
+        .collect();
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
     let mut is_main = true;
     // without func_sig
@@ -161,19 +156,27 @@ fn create_program(builder: FunctionBuilder, options: SsaEvaluatorOptions) -> Res
 }
 
 // create abi for 10 variables
-// Abi { parameters: [AbiParameter { name: "v0", typ: Field, visibility: Private }, AbiParameter { name: "v1", typ: Field, visibility: Public }], 
+// Abi { parameters: [AbiParameter { name: "v0", typ: Field, visibility: Private }, AbiParameter { name: "v1", typ: Field, visibility: Public }],
 // return_type: Some(AbiReturnType { abi_type: Field, visibility: Public }), error_types: {} }
 fn generate_abi() -> Abi {
     let mut parameters = vec![];
     for i in 0..NUMBER_OF_VARIABLES_INITIAL {
-        parameters.push(AbiParameter { name: format!("v{}", i), typ: AbiType::Field, visibility: AbiVisibility::Private });
+        parameters.push(AbiParameter {
+            name: format!("v{}", i),
+            typ: AbiType::Field,
+            visibility: AbiVisibility::Private,
+        });
     }
-    let return_type = Some(AbiReturnType { abi_type: AbiType::Field, visibility: AbiVisibility::Public });
+    let return_type =
+        Some(AbiReturnType { abi_type: AbiType::Field, visibility: AbiVisibility::Public });
     let error_types = BTreeMap::new();
     Abi { parameters, return_type, error_types }
 }
 
-pub fn compile(builder: FunctionBuilder, options: &CompileOptions) -> Result<CompiledProgram, CompileError> {
+pub fn compile(
+    builder: FunctionBuilder,
+    options: &CompileOptions,
+) -> Result<CompiledProgram, CompileError> {
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: match &options.show_ssa_pass {
             Some(string) => SsaLogging::Contains(string.clone()),

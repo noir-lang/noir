@@ -1,19 +1,19 @@
 use acvm::{
+    BlackBoxFunctionSolver, FieldElement,
     acir::{
-        native_types::{WitnessStack, WitnessMap, Witness},
         circuit::Program,
+        native_types::{Witness, WitnessMap, WitnessStack},
     },
-    FieldElement, BlackBoxFunctionSolver
 };
-use std::time::Instant;
-use thiserror::Error;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::ops::execute::execute_program;
-use nargo::foreign_calls::DefaultForeignCallBuilder;
+use env_logger;
+use log;
 use nargo::PrintOutput;
 use nargo::errors::NargoError;
-use log;
-use env_logger;
+use nargo::foreign_calls::DefaultForeignCallBuilder;
+use nargo::ops::execute::execute_program;
+use std::time::Instant;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RunnerErrors {
@@ -24,43 +24,37 @@ pub enum RunnerErrors {
 }
 
 fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
-    _foreign_call_resolver_url: Option<&str>, 
-    program: &Program<FieldElement>, 
-    initial_witness: WitnessMap<FieldElement>) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> 
-{
+    _foreign_call_resolver_url: Option<&str>,
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
+) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> {
     let result = execute_program(
         program,
         initial_witness.clone(),
         &B::default(),
-        &mut DefaultForeignCallBuilder::default()
-            .with_output(PrintOutput::None)
-            .build()
+        &mut DefaultForeignCallBuilder::default().with_output(PrintOutput::None).build(),
     );
 
     result
 }
 
 pub fn execute_single(
-    program: &Program<FieldElement>, 
+    program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
-    return_witness: Witness
+    return_witness: Witness,
 ) -> Result<FieldElement, RunnerErrors> {
-    let result = std::panic::catch_unwind(|| {
-        execute::<Bn254BlackBoxSolver>(None, program, initial_witness)
-    }).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Execution panicked"));
+    let result =
+        std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(None, program, initial_witness))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Execution panicked"));
 
     match result {
-        Ok(result) => {
-            match result {
-                Ok(result) => {
-                    let witness = result.peek().expect("Should have at least one witness on the stack");
-                    Ok(witness.witness[&return_witness])
-                }
-                Err(e) => {
-                    Err(RunnerErrors::NargoError(e))
-                }
+        Ok(result) => match result {
+            Ok(result) => {
+                let witness = result.peek().expect("Should have at least one witness on the stack");
+                Ok(witness.witness[&return_witness])
             }
-        }
+            Err(e) => Err(RunnerErrors::NargoError(e)),
+        },
         Err(e) => {
             // execution panicked case
             Err(RunnerErrors::ExecutionPanicked(e.to_string()))
@@ -69,22 +63,24 @@ pub fn execute_single(
 }
 
 pub fn run_and_compare(
-    acir_program: &Program<FieldElement>, 
-    brillig_program: &Program<FieldElement>, 
-    initial_witness: WitnessMap<FieldElement>, 
+    acir_program: &Program<FieldElement>,
+    brillig_program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
     return_witness_acir: Witness,
-    return_witness_brillig: Witness
+    return_witness_brillig: Witness,
 ) -> (bool, FieldElement, FieldElement) {
     let acir_start = Instant::now();
     let acir_result = std::panic::catch_unwind(|| {
         execute_single(acir_program, initial_witness.clone(), return_witness_acir)
-    }).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "ACIR execution panicked"));
+    })
+    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "ACIR execution panicked"));
     let _acir_duration = acir_start.elapsed();
     //println!("ACIR execution took: {:?}", acir_duration);
     let brillig_start = Instant::now();
     let brillig_result = std::panic::catch_unwind(|| {
         execute_single(brillig_program, initial_witness, return_witness_brillig)
-    }).map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Brillig execution panicked"));
+    })
+    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Brillig execution panicked"));
     let _brillig_duration = brillig_start.elapsed();
     //println!("Brillig execution took: {:?}", brillig_duration);
     let _ = env_logger::try_init();
@@ -93,15 +89,24 @@ pub fn run_and_compare(
             match (acir_result, brillig_result) {
                 (Ok(acir_result), Ok(brillig_result)) => {
                     if acir_result != brillig_result {
-                        panic!("ACIR and Brillig results do not match. ACIR result: {:?}, Brillig result: {:?}", acir_result, brillig_result);
+                        panic!(
+                            "ACIR and Brillig results do not match. ACIR result: {:?}, Brillig result: {:?}",
+                            acir_result, brillig_result
+                        );
                     }
                     (true, acir_result, brillig_result)
                 }
                 (Err(e), Ok(brillig_result)) => {
-                    panic!("Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}", e, brillig_result);
+                    panic!(
+                        "Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}",
+                        e, brillig_result
+                    );
                 }
                 (Ok(acir_result), Err(e)) => {
-                    panic!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
+                    panic!(
+                        "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
+                        e, acir_result
+                    );
                 }
                 (Err(_e), Err(_e2)) => {
                     // both failed, okay
@@ -110,12 +115,26 @@ pub fn run_and_compare(
             }
         }
         (Ok(acir_result), Err(e)) => {
-            log::debug!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
-            panic!("Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}", e, acir_result);
+            log::debug!(
+                "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
+                e,
+                acir_result
+            );
+            panic!(
+                "Failed to execute brillig program: {:?}, but acir program succeeded with value {:?}",
+                e, acir_result
+            );
         }
         (Err(e), Ok(brillig_result)) => {
-            log::debug!("Failed to execute acir program: {:?}, brillig program succeeded with value {:?}", e, brillig_result);
-            panic!("Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}", e, brillig_result);
+            log::debug!(
+                "Failed to execute acir program: {:?}, brillig program succeeded with value {:?}",
+                e,
+                brillig_result
+            );
+            panic!(
+                "Failed to execute acir program: {:?}, but brillig program succeeded with value {:?}",
+                e, brillig_result
+            );
         }
         (Err(e), Err(e2)) => {
             // both failed, constructed program unsolvable

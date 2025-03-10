@@ -1,16 +1,16 @@
 mod builder;
 mod compiler;
-mod runner;
-mod helpers;
 mod config;
+mod helpers;
+mod runner;
 
+use acvm::{
+    FieldElement,
+    acir::native_types::{Witness, WitnessMap},
+};
+use builder::FuzzerBuilder;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type;
-use builder::FuzzerBuilder;
-use acvm::{
-    acir::native_types::{Witness, WitnessMap},
-    FieldElement
-};
 
 fn main() {
     let type_ = Type::unsigned(128);
@@ -29,7 +29,15 @@ fn main() {
     let brillig_program = brillig_program_builder.compile().unwrap();
 
     let mut initial_witness = WitnessMap::new();
-    let arr:[u64; 7] =  [3170535237180456974, 18446742978502394025, 3946147232088063, 3170534760439087360, 169, 0, 0];
+    let arr: [u64; 7] = [
+        3170535237180456974,
+        18446742978502394025,
+        3946147232088063,
+        3170534760439087360,
+        169,
+        0,
+        0,
+    ];
     for i in 0..config::NUMBER_OF_VARIABLES_INITIAL {
         let witness = Witness(i);
         let value = FieldElement::from(arr[i as usize]);
@@ -41,6 +49,12 @@ fn main() {
 
     println!("{:?}", acir_program);
     //println!("{:?}", brillig_program);
-    let result = runner::run_and_compare(&acir_program.program, &brillig_program.program, initial_witness, acir_result_witness, brillig_result_witness);
+    let result = runner::run_and_compare(
+        &acir_program.program,
+        &brillig_program.program,
+        initial_witness,
+        acir_result_witness,
+        brillig_result_witness,
+    );
     println!("{:?}", result);
 }
