@@ -4,10 +4,10 @@ use noirc_driver::CrateId;
 use noirc_errors::Location;
 use noirc_frontend::{
     DataType, Generics, Type,
-    ast::{ItemVisibility, Visibility},
+    ast::{Ident, ItemVisibility, Visibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
-        def_map::{CrateDefMap, ModuleDefId, ModuleId},
+        def_map::{CrateDefMap, DefMaps, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{
@@ -17,6 +17,7 @@ use noirc_frontend::{
         stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
+    modules::relative_module_full_path,
     node_interner::{
         ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId,
         StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
@@ -27,9 +28,12 @@ use noirc_frontend::{
 pub(super) struct Printer<'interner, 'def_map, 'string> {
     crate_id: CrateId,
     interner: &'interner NodeInterner,
+    def_maps: &'def_map DefMaps,
     def_map: &'def_map CrateDefMap,
     string: &'string mut String,
     indent: usize,
+    module_id: ModuleId,
+    imports: HashMap<ModuleDefId, Ident>,
     pub(super) trait_impls: HashSet<TraitImplId>,
 }
 
@@ -37,11 +41,24 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     pub(super) fn new(
         crate_id: CrateId,
         interner: &'interner NodeInterner,
+        def_maps: &'def_map DefMaps,
         def_map: &'def_map CrateDefMap,
         string: &'string mut String,
     ) -> Self {
+        let module_id = ModuleId { krate: crate_id, local_id: def_map.root() };
         let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
-        Self { crate_id, interner, def_map, string, indent: 0, trait_impls }
+        let imports = HashMap::new();
+        Self {
+            crate_id,
+            interner,
+            def_maps,
+            def_map,
+            string,
+            indent: 0,
+            module_id,
+            imports,
+            trait_impls,
+        }
     }
 
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
@@ -61,6 +78,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.increase_indent();
         }
 
+        let previous_module_id = self.module_id;
+        self.module_id = module_id;
+
+        let previous_imports = std::mem::take(&mut self.imports);
+        self.imports = HashMap::new();
+
         let definitions = module_data.definitions();
 
         let mut definitions = definitions
@@ -77,6 +100,34 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         // Make sure definitions are sorted according to location so the output is more similar to the original code
         definitions.sort_by_key(|(_module_def_id, _visibility, location)| *location);
 
+        // Gather all ModuleDefId's for definitions so we can exclude them when we'll list imports now
+        let definitions_module_def_ids =
+            definitions.iter().map(|(module_def_id, ..)| *module_def_id).collect::<HashSet<_>>();
+
+        let scope = module_data.scope();
+        let mut scope = scope
+            .types()
+            .iter()
+            .chain(scope.values())
+            .flat_map(|(name, scope)| scope.values().map(|value| (name.clone(), value)))
+            .filter_map(|(name, (module_def_id, visibility, is_prelude))| {
+                if !definitions_module_def_ids.contains(module_def_id) {
+                    Some((name, *module_def_id, *visibility, *is_prelude))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        scope.sort_by_key(|(name, ..)| name.location());
+
+        self.imports = scope
+            .iter()
+            .map(|(name, module_def_id, ..)| (*module_def_id, name.clone()))
+            .collect::<HashMap<_, _>>();
+
+        self.show_imports(scope);
+
         for (index, (module_def_id, visibility, _location)) in definitions.iter().enumerate() {
             if index == 0 {
                 self.push_str("\n");
@@ -86,6 +137,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.write_indent();
             self.show_module_def_id(*module_def_id, *visibility);
         }
+
+        self.module_id = previous_module_id;
+        self.imports = previous_imports;
 
         if name.is_some() {
             self.push('\n');
@@ -99,10 +153,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.show_doc_comments(reference_id);
 
-        if visibility != ItemVisibility::Private {
-            self.push_str(&visibility.to_string());
-            self.push(' ');
-        };
+        self.show_item_visibility(visibility);
 
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
@@ -136,6 +187,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             self.push('\n');
             self.write_indent();
         }
+    }
+
+    fn show_item_visibility(&mut self, visibility: ItemVisibility) {
+        if visibility != ItemVisibility::Private {
+            self.push_str(&visibility.to_string());
+            self.push(' ');
+        };
     }
 
     fn show_data_type(&mut self, type_id: TypeId) {
@@ -836,6 +894,48 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
+    fn show_imports(
+        &mut self,
+        imports: Vec<(Ident, ModuleDefId, ItemVisibility, bool /* is prelude */)>,
+    ) {
+        let current_module_parent_id = self.module_id.parent(self.def_maps);
+
+        let mut first = true;
+
+        for (alias, module_def_id, visibility, is_prelude) in imports {
+            if is_prelude {
+                continue;
+            }
+
+            if first {
+                self.push('\n');
+                first = false;
+            }
+            self.write_indent();
+            self.show_item_visibility(visibility);
+            self.push_str("use ");
+            if let Some(full_path) = relative_module_full_path(
+                module_def_id,
+                self.module_id,
+                current_module_parent_id,
+                self.interner,
+            ) {
+                self.push_str(&full_path);
+                self.push_str("::");
+            };
+
+            let name = self.module_def_id_name(module_def_id);
+            self.push_str(&name);
+
+            if name != alias.0.contents {
+                self.push_str(" as ");
+                self.push_str(&alias.to_string());
+            }
+            self.push(';');
+            self.push('\n');
+        }
+    }
+
     fn show_type(&mut self, typ: &Type) {
         self.push_str(&typ.to_string());
     }
@@ -1246,6 +1346,35 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         // We already have logic to go from a ReferenceId to a location, so we use that here
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.interner.reference_location(reference_id)
+    }
+
+    fn module_def_id_name(&self, module_def_id: ModuleDefId) -> String {
+        match module_def_id {
+            ModuleDefId::ModuleId(module_id) => {
+                let attributes = self.interner.try_module_attributes(&module_id);
+                let name = attributes.map(|attributes| &attributes.name);
+                name.cloned().unwrap_or_else(String::new)
+            }
+            ModuleDefId::FunctionId(func_id) => self.interner.function_name(&func_id).to_string(),
+            ModuleDefId::TypeId(type_id) => {
+                let data_type = self.interner.get_type(type_id);
+                let data_type = data_type.borrow();
+                data_type.name.to_string()
+            }
+            ModuleDefId::TypeAliasId(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                type_alias.name.to_string()
+            }
+            ModuleDefId::TraitId(trait_id) => {
+                let trait_ = self.interner.get_trait(trait_id);
+                trait_.name.to_string()
+            }
+            ModuleDefId::GlobalId(global_id) => {
+                let global_info = self.interner.get_global(global_id);
+                global_info.ident.to_string()
+            }
+        }
     }
 
     fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {

@@ -1,7 +1,10 @@
-use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleDefId, node_interner::Reexport};
+use noirc_frontend::{
+    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    node_interner::Reexport,
+};
 
 use crate::{
-    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
+    modules::get_ancestor_module_reexport,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
