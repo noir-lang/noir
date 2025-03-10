@@ -1130,7 +1130,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             }
             Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
                 TypeBinding::Bound(typ) => {
-                    self.show_type(&typ);
+                    self.show_type(typ);
                 }
                 TypeBinding::Unbound(..) => {
                     self.push('_');
