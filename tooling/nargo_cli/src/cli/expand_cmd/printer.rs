@@ -1711,7 +1711,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 // there's a tiny change they might collide with user code (unlikely, really).
                 //
                 // In other cases these internal names have spaces.
-                let name = name.replace('$', "___").replace(' ', "___");
+                let name = name.replace(['$', ' '], "___");
 
                 self.push_str(&name);
             }
