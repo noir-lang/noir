@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741708106402,
+  "lastUpdate": 1741708115202,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11412,70 +11412,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "22c7d9d22709065ce0ad572f1aae67f995abd24c",
-          "message": "fix: fix a few cases where safety comment wasn't correctly identified (#7548)",
-          "timestamp": "2025-02-27T14:48:09Z",
-          "tree_id": "4b382ee1238085be2216d88c67cc0ef8f6a58096",
-          "url": "https://github.com/noir-lang/noir/commit/22c7d9d22709065ce0ad572f1aae67f995abd24c"
-        },
-        "date": 1740669105672,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 244.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 278.76,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 468.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 409.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 348.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.26,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14565,6 +14501,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bdbdb63d7255690e009fedf0e1b038df2d6b15b5"
         },
         "date": 1741706883360,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michaeljklein@users.noreply.github.com",
+            "name": "Michael J Klein",
+            "username": "michaeljklein"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1d92cb7046d5815988549d27ffa5d897805b2255",
+          "message": "chore: add regression tests for PR #7570 from lambda interpreter test (#7638)",
+          "timestamp": "2025-03-11T15:20:30Z",
+          "tree_id": "7655e95796daabfc3599adf6b2141c37f898cbe7",
+          "url": "https://github.com/noir-lang/noir/commit/1d92cb7046d5815988549d27ffa5d897805b2255"
+        },
+        "date": 1741708111949,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
