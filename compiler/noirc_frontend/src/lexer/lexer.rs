@@ -106,6 +106,8 @@ impl<'a> Lexer<'a> {
             // and the next token issued will be the next '&'.
             let span = Span::inclusive(self.position, self.position + 1);
             Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
+        } else if self.peek_char_is('[') {
+            self.single_char_token(Token::SliceStart)
         } else {
             self.single_char_token(Token::Ampersand)
         }

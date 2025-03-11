@@ -328,10 +328,10 @@ pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<Module
     }
 }
 
-pub(crate) fn get_struct((value, location): (Value, Location)) -> IResult<TypeId> {
+pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
     match value {
-        Value::StructDefinition(id) => Ok(id),
-        _ => type_mismatch(value, Type::Quoted(QuotedType::StructDefinition), location),
+        Value::TypeDefinition(id) => Ok(id),
+        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
 }
 

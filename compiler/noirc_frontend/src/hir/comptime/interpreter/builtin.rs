@@ -5,8 +5,8 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_slice, get_struct, get_trait_constraint, get_trait_def,
-    get_trait_impl, get_tuple, get_type, get_typed_expr, get_u32, get_unresolved_type,
+    get_module, get_quoted, get_slice, get_trait_constraint, get_trait_def, get_trait_impl,
+    get_tuple, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type,
     has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, parse, quote_ident,
     replace_func_meta_parameters, replace_func_meta_return_type,
 };
@@ -28,18 +28,21 @@ use crate::{
     hir::{
         comptime::{
             InterpreterError, Value,
+            display::tokens_to_string,
             errors::IResult,
             value::{ExprValue, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
         def_map::ModuleDefId,
+        type_check::generics::TraitGenerics,
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
         function::FunctionBody,
+        traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
     parser::{Parser, StatementOrExpressionOrLValue},
     token::{Attribute, LocatedToken, Token},
 };
@@ -166,7 +169,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_module" => quoted_as_module(self, arguments, return_type, location),
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
-            "quoted_eq" => quoted_eq(arguments, location),
+            "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
             "quoted_hash" => quoted_hash(arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "slice_insert" => slice_insert(interner, arguments, location),
@@ -179,24 +182,6 @@ impl Interpreter<'_, '_> {
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(interner, arguments, location),
             "str_as_ctstring" => str_as_ctstring(interner, arguments, location),
-            "struct_def_add_attribute" => struct_def_add_attribute(interner, arguments, location),
-            "struct_def_add_generic" => struct_def_add_generic(interner, arguments, location),
-            "struct_def_as_type" => struct_def_as_type(interner, arguments, location),
-            "struct_def_eq" => struct_def_eq(arguments, location),
-            "struct_def_fields" => struct_def_fields(interner, arguments, location, call_stack),
-            "struct_def_fields_as_written" => {
-                struct_def_fields_as_written(interner, arguments, location)
-            }
-            "struct_def_generics" => {
-                struct_def_generics(interner, arguments, return_type, location)
-            }
-            "struct_def_has_named_attribute" => {
-                struct_def_has_named_attribute(interner, arguments, location)
-            }
-            "struct_def_hash" => struct_def_hash(arguments, location),
-            "struct_def_module" => struct_def_module(self, arguments, location),
-            "struct_def_name" => struct_def_name(interner, arguments, location),
-            "struct_def_set_fields" => struct_def_set_fields(interner, arguments, location),
             "to_be_radix" => to_be_radix(arguments, return_type, location),
             "to_le_radix" => to_le_radix(arguments, return_type, location),
             "to_be_bits" => to_be_bits(arguments, return_type, location),
@@ -220,8 +205,24 @@ impl Interpreter<'_, '_> {
             }
             "type_as_slice" => type_as_slice(arguments, return_type, location),
             "type_as_str" => type_as_str(arguments, return_type, location),
-            "type_as_struct" => type_as_struct(arguments, return_type, location),
+            "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
+            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_as_type" => type_def_as_type(interner, arguments, location),
+            "type_def_eq" => type_def_eq(arguments, location),
+            "type_def_fields" => type_def_fields(interner, arguments, location, call_stack),
+            "type_def_fields_as_written" => {
+                type_def_fields_as_written(interner, arguments, location)
+            }
+            "type_def_generics" => type_def_generics(interner, arguments, return_type, location),
+            "type_def_has_named_attribute" => {
+                type_def_has_named_attribute(interner, arguments, location)
+            }
+            "type_def_hash" => type_def_hash(arguments, location),
+            "type_def_module" => type_def_module(self, arguments, location),
+            "type_def_name" => type_def_name(interner, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(interner, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -376,7 +377,7 @@ fn str_as_ctstring(
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn struct_def_add_attribute(
+fn type_def_add_attribute(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -393,8 +394,8 @@ fn struct_def_add_attribute(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
-    interner.update_type_attributes(struct_id, |attributes| {
+    let type_id = get_type_id(self_argument)?;
+    interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -402,7 +403,7 @@ fn struct_def_add_attribute(
 }
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn struct_def_add_generic(
+fn type_def_add_generic(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
@@ -426,7 +427,7 @@ fn struct_def_add_generic(
         });
     };
 
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
@@ -452,35 +453,35 @@ fn struct_def_add_generic(
 }
 
 /// fn as_type(self) -> Type
-fn struct_def_as_type(
+fn type_def_as_type(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def_rc = interner.get_type(struct_id);
-    let struct_def = struct_def_rc.borrow();
+    let struct_id = get_type_id(argument)?;
+    let type_def_rc = interner.get_type(struct_id);
+    let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&struct_def.generics, |generic| {
+    let generics = vecmap(&type_def.generics, |generic| {
         Type::NamedGeneric(generic.type_var.clone(), generic.name.clone())
     });
 
-    drop(struct_def);
-    Ok(Value::Type(Type::DataType(struct_def_rc, generics)))
+    drop(type_def);
+    Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
 /// fn generics(self) -> [(Type, Option<Type>)]
-fn struct_def_generics(
+fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
-    let struct_def = interner.get_type(struct_id);
-    let struct_def = struct_def.borrow();
+    let type_id = get_type_id(argument)?;
+    let type_def = interner.get_type(type_id);
+    let type_def = type_def.borrow();
 
     let expected = Type::Slice(Box::new(Type::Tuple(vec![
         Type::Quoted(QuotedType::Type),
@@ -499,7 +500,7 @@ fn struct_def_generics(
         _ => return Err(InterpreterError::TypeMismatch { expected, actual, location }),
     };
 
-    let generics = struct_def
+    let generics = type_def
         .generics
         .iter()
         .map(|generic| {
@@ -516,39 +517,39 @@ fn struct_def_generics(
     Ok(Value::Slice(generics, slice_item_type))
 }
 
-fn struct_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_struct)
+fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    hash_item(arguments, location, get_type_id)
 }
 
-fn struct_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_struct)
+fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
+    eq_item(arguments, location, get_type_id)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
-fn struct_def_has_named_attribute(
+fn type_def_has_named_attribute(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let type_id = get_type_id(self_argument)?;
 
     let name = get_str(interner, name)?;
 
-    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&struct_id))))
+    Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id))))
 }
 
 /// fn fields(self, generic_args: [Type]) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Returns (name, type) pairs of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
-fn struct_def_fields(
+fn type_def_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &im::Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(typ)?;
+    let struct_id = get_type_id(typ)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -562,7 +563,7 @@ fn struct_def_fields(
         let s = if expected == 1 { "" } else { "s" };
         let was_were = if actual == 1 { "was" } else { "were" };
         let message = Some(format!(
-            "`StructDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
+            "`TypeDefinition::fields` expected {expected} generic{s} for `{}` but {actual} {was_were} given",
             struct_def.name
         ));
         let location = args_location;
@@ -588,16 +589,16 @@ fn struct_def_fields(
 }
 
 /// fn fields_as_written(self) -> [(Quoted, Type)]
-/// Returns (name, type) pairs of each field of this StructDefinition.
+/// Returns (name, type) pairs of each field of this TypeDefinition.
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
-fn struct_def_fields_as_written(
+fn type_def_fields_as_written(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(argument)?;
+    let struct_id = get_type_id(argument)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -620,25 +621,25 @@ fn struct_def_fields_as_written(
 }
 
 // fn module(self) -> Module
-fn struct_def_module(
+fn type_def_module(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
     Ok(Value::ModuleDefinition(parent))
 }
 
 // fn name(self) -> Quoted
-fn struct_def_name(
+fn type_def_name(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_struct(self_argument)?;
+    let struct_id = get_type_id(self_argument)?;
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
@@ -647,14 +648,14 @@ fn struct_def_name(
 }
 
 /// fn set_fields(self, new_fields: [(Quoted, Type)]) {}
-/// Returns (name, type) pairs of each field of this StructDefinition
-fn struct_def_set_fields(
+/// Returns (name, type) pairs of each field of this TypeDefinition
+fn type_def_set_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let struct_id = get_struct(the_struct)?;
+    let struct_id = get_type_id(the_struct)?;
 
     let struct_def = interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
@@ -833,8 +834,9 @@ fn quoted_as_module(
         parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, "a path")
             .ok();
     let option_value = path.and_then(|path| {
-        let module = interpreter
-            .elaborate_in_function(interpreter.current_function, |elaborator| {
+        let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
+        let module =
+            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
                 elaborator.resolve_module_by_path(path)
             });
         module.map(Value::ModuleDefinition)
@@ -856,8 +858,10 @@ fn quoted_as_trait_constraint(
         Parser::parse_trait_bound_or_error,
         "a trait constraint",
     )?;
+    let reason =
+        Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, |elaborator| {
+        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
             elaborator.resolve_trait_bound(&trait_bound)
         })
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
@@ -873,8 +877,11 @@ fn quoted_as_type(
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
-    let typ = interpreter
-        .elaborate_in_function(interpreter.current_function, |elab| elab.resolve_type(typ));
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.resolve_type(typ)
+        });
     Ok(Value::Type(typ))
 }
 
@@ -1041,7 +1048,7 @@ fn type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
-        if let Type::MutableReference(typ) = typ { Some(Value::Type(*typ)) } else { None }
+        if let Type::Reference(typ, true) = typ { Some(Value::Type(*typ)) } else { None }
     })
 }
 
@@ -1067,8 +1074,8 @@ fn type_as_str(
     })
 }
 
-// fn as_struct(self) -> Option<(StructDefinition, [Type])>
-fn type_as_struct(
+// fn as_data_type(self) -> Option<(TypeDefinition, [Type])>
+fn type_as_data_type(
     arguments: Vec<(Value, Location)>,
     return_type: Type,
     location: Location,
@@ -1076,7 +1083,7 @@ fn type_as_struct(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Value::StructDefinition(struct_type.borrow().id),
+                Value::TypeDefinition(struct_type.borrow().id),
                 Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
@@ -1321,7 +1328,7 @@ fn unresolved_type_as_mutable_reference(
     location: Location,
 ) -> IResult<Value> {
     unresolved_type_as(interner, arguments, return_type, location, |typ| {
-        if let UnresolvedTypeData::MutableReference(typ) = typ {
+        if let UnresolvedTypeData::Reference(typ, true) = typ {
             Some(Value::UnresolvedType(typ.typ))
         } else {
             None
@@ -1483,9 +1490,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             // Using Value::Zeroed here is probably safer than using FuncId::dummy_id() or similar
             Value::Zeroed(typ)
         }
-        Type::MutableReference(element) => {
+        Type::Reference(element, mutable) => {
             let element = zeroed(*element, location);
-            Value::Pointer(Shared::new(element), false)
+            Value::Pointer(Shared::new(element), false, mutable)
         }
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_)
@@ -2177,7 +2184,11 @@ fn expr_as_unary_op(
             let unary_op_value: u128 = match prefix_expr.operator {
                 UnaryOp::Minus => 0,
                 UnaryOp::Not => 1,
-                UnaryOp::MutableReference => 2,
+                UnaryOp::Reference { mutable: true } => 2,
+                UnaryOp::Reference { mutable: false } => {
+                    // `&` alone is experimental and currently hidden from the comptime API
+                    return None;
+                }
                 UnaryOp::Dereference { .. } => 3,
             };
 
@@ -2292,7 +2303,9 @@ fn expr_resolve(
         interpreter.current_function
     };
 
-    interpreter.elaborate_in_function(function_to_resolve_in, |elaborator| match expr_value {
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
+    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| match expr_value
+    {
         ExprValue::Expression(expression_kind) => {
             let expr = Expression { kind: expression_kind, location: self_argument_location };
             let (expr_id, _) = elaborator.elaborate_expression(expr);
@@ -2420,13 +2433,39 @@ fn function_def_as_typed_expr(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
+    let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
-    let hir_ident = HirIdent::non_trait_method(definition_id, location);
+    let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
+        let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
+        let trait_impl = trait_impl.borrow();
+        let ordered = trait_impl.trait_generics.clone();
+        let named =
+            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+        let trait_generics = TraitGenerics { ordered, named };
+        let trait_bound =
+            ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
+        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
+        let method_index = method_index.expect("Expected to find the method");
+        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
+        let trait_method = TraitMethod { method_id, constraint, assumed: true };
+        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
+        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+    } else {
+        HirIdent::non_trait_method(definition_id, location)
+    };
     let generics = None;
     let hir_expr = HirExpression::Ident(hir_ident.clone(), generics.clone());
     let expr_id = interpreter.elaborator.interner.push_expr(hir_expr);
     interpreter.elaborator.interner.push_expr_location(expr_id, location);
-    let typ = interpreter.elaborator.type_check_variable(hir_ident, expr_id, generics);
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall(
+        "FunctionDefinition::as_typed_expr",
+        location,
+    ));
+    let typ =
+        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+            elaborator.type_check_variable(hir_ident, expr_id, generics)
+        });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2632,7 +2671,10 @@ fn function_def_set_parameters(
             "a pattern",
         )?;
 
-        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), |elaborator| {
+        let reason =
+            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
+        let reason = Some(reason);
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
@@ -2747,10 +2789,8 @@ fn module_add_item(
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
 
-    interpreter.elaborate_in_module(module_id, |elaborator| {
-        let previous_errors = elaborator
-            .push_elaborate_reason_and_take_errors(ElaborateReason::AddingItemToModule, location);
-
+    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
+    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         let mut generated_items = CollectedItems::default();
 
         for top_level_statement in top_level_statements {
@@ -2760,8 +2800,6 @@ fn module_add_item(
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
         }
-
-        elaborator.pop_elaborate_reason(previous_errors);
     });
 
     Ok(Value::Unit)
@@ -2801,7 +2839,7 @@ fn module_functions(
     Ok(Value::Slice(func_ids, slice_type))
 }
 
-// fn structs(self) -> [StructDefinition]
+// fn structs(self) -> [TypeDefinition]
 fn module_structs(
     interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
@@ -2816,14 +2854,14 @@ fn module_structs(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::StructDefinition(*id))
+                Some(Value::TypeDefinition(*id))
             } else {
                 None
             }
         })
         .collect();
 
-    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::StructDefinition)));
+    let slice_type = Type::Slice(Box::new(Type::Quoted(QuotedType::TypeDefinition)));
     Ok(Value::Slice(struct_ids, slice_type))
 }
 
@@ -2913,10 +2951,24 @@ fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IR
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
-fn quoted_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_quoted)
-}
+fn quoted_eq(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let self_arg = get_quoted(self_arg)?;
+    let other_arg = get_quoted(other_arg)?;
 
+    // Comparing tokens one against each other doesn't work in the general case because tokens
+    // might be refer to interned expressions/statements/etc. We'd need to convert those nodes
+    // to tokens and compare the final result, but comparing their string representation works
+    // equally well and, for simplicity, that's what we do here.
+    let self_string = tokens_to_string(&self_arg, interner);
+    let other_string = tokens_to_string(&other_arg, interner);
+
+    Ok(Value::Bool(self_string == other_string))
+}
 fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     hash_item(arguments, location, get_quoted)
 }

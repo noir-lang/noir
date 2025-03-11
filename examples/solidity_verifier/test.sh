@@ -7,7 +7,7 @@ BACKEND=${BACKEND:-bb}
 
 rm -f ./src/contract.sol
 
-./codegen_verifier.sh
+./solidity_verifier.sh
 
 if ! [ -f ./src/contract.sol ]; then 
     printf '%s\n' "Contract not written to file" >&2

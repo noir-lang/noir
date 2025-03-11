@@ -177,7 +177,10 @@ fn fuzz_poseidon_equivalence() {
     // Noir has hashes up to length 16, but the reference library won't work with more than 12.
     for len in 1..light_poseidon::MAX_X5_LEN {
         let source = format!(
-            "fn main(input: [Field; {len}]) -> pub Field {{
+            "
+            use std::hash::{{Hash, Hasher}};
+
+            fn main(input: [Field; {len}]) -> pub Field {{
                 let h1 = std::hash::poseidon::bn254::hash_{len}(input);
                 let h2 = {{
                     let mut hasher = std::hash::poseidon::PoseidonHasher::default();

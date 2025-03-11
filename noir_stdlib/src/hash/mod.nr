@@ -139,7 +139,7 @@ pub trait Hash {
 }
 
 // docs:start:derive_hash
-comptime fn derive_hash(s: StructDefinition) -> Quoted {
+comptime fn derive_hash(s: TypeDefinition) -> Quoted {
     let name = quote { Hash };
     let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: std::hash::Hasher };
     let for_each_field = |name| quote { _self.$name.hash(_state); };

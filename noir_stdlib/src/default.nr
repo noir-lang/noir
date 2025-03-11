@@ -7,7 +7,7 @@ pub trait Default {
 }
 // docs:end:default-trait
 
-comptime fn derive_default(s: StructDefinition) -> Quoted {
+comptime fn derive_default(s: TypeDefinition) -> Quoted {
     let name = quote { Default };
     let signature = quote { fn default() -> Self };
     let for_each_field = |name| quote { $name: Default::default() };
