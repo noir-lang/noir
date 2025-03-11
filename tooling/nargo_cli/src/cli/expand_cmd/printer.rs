@@ -255,7 +255,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_impls<'a, 'b>(&'a mut self, impls: Vec<Impl>) {
+    fn show_data_type_impls(&mut self, impls: Vec<Impl>) {
         for impl_ in impls {
             self.push_str("\n\n");
             self.write_indent();
