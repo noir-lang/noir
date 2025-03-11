@@ -268,7 +268,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         if let Some(methods) =
             self.interner.get_type_methods(&Type::DataType(shared_data_type.clone(), vec![]))
         {
-            self.show_data_type_impls(methods);
+            self.show_data_type_impls(methods.values());
         }
 
         let data_type = shared_data_type.borrow();
@@ -322,12 +322,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_impls(&mut self, methods: &rustc_hash::FxHashMap<String, Methods>) {
+    fn show_data_type_impls<'a, 'b>(&'a mut self, methods: impl Iterator<Item = &'b Methods>) {
         // Gather all impl methods
         // First split methods by impl methods and trait impl methods
         let mut impl_methods = Vec::new();
 
-        for methods in methods.values() {
+        for methods in methods {
             impl_methods.extend(methods.direct.clone());
         }
 
