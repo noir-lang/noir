@@ -146,21 +146,12 @@ impl Parser<'_> {
             return Some(StatementKind::While(while_));
         }
 
-        if let Some(kind) = self.parse_if_expr() {
+        if let Some(kind) = self.parse_block_like() {
             let location = self.location_since(start_location);
-            return Some(StatementKind::Expression(Expression { kind, location }));
-        }
-
-        if let Some(kind) = self.parse_match_expr() {
-            let location = self.location_since(start_location);
-            return Some(StatementKind::Expression(Expression { kind, location }));
-        }
-
-        if let Some(block) = self.parse_block() {
-            return Some(StatementKind::Expression(Expression {
-                kind: ExpressionKind::Block(block),
-                location: self.location_since(start_location),
-            }));
+            let expression = Expression { kind, location };
+            let expression = self
+                .parse_member_accesses_or_method_calls_after_expression(expression, start_location);
+            return Some(StatementKind::Expression(expression));
         }
 
         if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
@@ -212,6 +203,24 @@ impl Parser<'_> {
         }
 
         Some(StatementKind::Expression(expression))
+    }
+
+    /// Parses an expression that looks like a block (ends with '}'):
+    /// `{ ... }`, `if { ... }` and `match { ... }`.
+    fn parse_block_like(&mut self) -> Option<ExpressionKind> {
+        if let Some(kind) = self.parse_if_expr() {
+            return Some(kind);
+        }
+
+        if let Some(kind) = self.parse_match_expr() {
+            return Some(kind);
+        }
+
+        if let Some(block) = self.parse_block() {
+            return Some(ExpressionKind::Block(block));
+        }
+
+        None
     }
 
     fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
