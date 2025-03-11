@@ -35,13 +35,15 @@ impl Parser<'_> {
             // It must be a numeric type
             num_typ = Some(self.parse_type_or_error());
         }
-        let location = self.location_since(start_location);
+        let location;
         let typ = if !self.eat_assign() {
             self.expected_token(Token::Assign);
+            location = self.location_since(start_location);
             self.eat_semicolons();
             UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
         } else {
             let typ = self.parse_type_or_type_expression().unwrap();
+            location = self.location_since(start_location);
             if !self.eat_semicolons() {
                 self.expected_token(Token::Semicolon);
             }
