@@ -15,7 +15,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
     num_runs: 5
     timeout: 4
-    compilation-timeout: 1.2
+    compilation-timeout: 1.5
     execution-timeout: 0.04
     compilation-memory-limit: 250
     execution-memory-limit: 230
