@@ -90,14 +90,25 @@ impl Elaborator<'_> {
             return Ok((self.interner.function_definition_id(function), item));
         }
 
-        if let PathResolutionItem::Global(global) = item {
-            let global = self.interner.get_global(global);
-            return Ok((global.definition_id, item));
-        }
-
         let expected = "global variable";
         let got = "local variable";
-        Err(ResolverError::Expected { location, expected, got })
+        match item {
+            PathResolutionItem::Global(global) => {
+                let global = self.interner.get_global(global);
+                Ok((global.definition_id, item))
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+
+                if type_alias.borrow().numeric_expr.is_some() {
+                    // Type alias to numeric generics are aliases to some global value
+                    // Therefore we allow this case although we cannot provide the value yet
+                    return Ok((DefinitionId::dummy_id(), item));
+                }
+                Err(ResolverError::Expected { location, expected, got })
+            }
+            _ => Err(ResolverError::Expected { location, expected, got }),
+        }
     }
 
     pub fn push_scope(&mut self) {

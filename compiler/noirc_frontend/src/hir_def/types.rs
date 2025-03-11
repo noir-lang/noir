@@ -11,7 +11,7 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility},
+    ast::{ExpressionKind, IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
 };
@@ -682,6 +682,8 @@ pub struct TypeAlias {
     pub typ: Type,
     pub generics: Generics,
     pub location: Location,
+    /// Optional expression, used by type aliases to numeric generics
+    pub numeric_expr: Option<ExpressionKind>,
 }
 
 impl std::hash::Hash for TypeAlias {
@@ -722,13 +724,19 @@ impl TypeAlias {
         typ: Type,
         generics: Generics,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics }
+        TypeAlias { id, typ, name, location, generics, numeric_expr: None }
     }
 
-    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+    pub fn set_type_and_generics(
+        &mut self,
+        new_typ: Type,
+        new_generics: Generics,
+        num_expr: Option<ExpressionKind>,
+    ) {
         assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
         self.generics = new_generics;
+        self.numeric_expr = num_expr;
     }
 
     pub fn get_type(&self, generic_args: &[Type]) -> Type {

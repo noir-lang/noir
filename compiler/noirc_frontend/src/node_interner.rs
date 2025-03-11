@@ -839,9 +839,15 @@ impl NodeInterner {
         f(value);
     }
 
-    pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
+    pub fn set_type_alias(
+        &mut self,
+        type_id: TypeAliasId,
+        typ: Type,
+        generics: Generics,
+        num_expr: Option<ExpressionKind>,
+    ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
-        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics, num_expr);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`

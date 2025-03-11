@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
@@ -34,6 +35,7 @@ pub use structure::*;
 pub use traits::*;
 pub use type_alias::*;
 
+use crate::signed_field::SignedField;
 use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -537,6 +539,38 @@ impl UnresolvedTypeExpression {
             }
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
+        }
+    }
+
+    pub fn to_expression_kind(&self) -> ExpressionKind {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
+            UnresolvedTypeExpression::Constant(int, _) => {
+                ExpressionKind::Literal(Literal::Integer(SignedField {
+                    field: *int,
+                    is_negative: false,
+                }))
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
+                    operator: Located::from(*location, Self::operator_to_binary_op_kind_helper(op)),
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                ExpressionKind::AsTraitPath(*path.clone())
+            }
+        }
+    }
+
+    fn operator_to_binary_op_kind_helper(op: &BinaryTypeOperator) -> BinaryOpKind {
+        match op {
+            BinaryTypeOperator::Addition => BinaryOpKind::Add,
+            BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
+            BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
+            BinaryTypeOperator::Division => BinaryOpKind::Divide,
+            BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
         }
     }
 
