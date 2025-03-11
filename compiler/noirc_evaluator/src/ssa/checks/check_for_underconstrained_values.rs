@@ -316,7 +316,12 @@ impl DependencyContext {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("processing instructions of block {} of function {} {}", block, function.name(), function.id());
+        trace!(
+            "processing instructions of block {} of function {} {}",
+            block,
+            function.name(),
+            function.id()
+        );
 
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
