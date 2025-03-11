@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741687350293,
+  "lastUpdate": 1741687351358,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8250,70 +8250,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ef2302b17a4aaa70c16cd437afc54bfb3d8540f2",
-          "message": "chore: revert bump of base64ct to `v1.6.0` after `v1.7.0` yanked (#7541)",
-          "timestamp": "2025-02-26T22:04:49Z",
-          "tree_id": "3c1a003749b3141cce429003ab7c036e7749f9b7",
-          "url": "https://github.com/noir-lang/noir/commit/ef2302b17a4aaa70c16cd437afc54bfb3d8540f2"
-        },
-        "date": 1740608546741,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.289,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.428,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.179,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "826b18a10630471c19c25ab745f9bfe045813e69",
           "message": "chore!: bump rust edition to 2024 (#7533)",
           "timestamp": "2025-02-26T22:53:01Z",
@@ -11423,6 +11359,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ceb8b355fdcd0335b2d6dd7c340139bf404635f1",
+          "message": "fix(ssa): don't check Brillig calls for coverage if they don't return anything (e.g. println) (#7644)",
+          "timestamp": "2025-03-11T09:42:16Z",
+          "tree_id": "f5f5820f41cde018b4067ae33aa38fdd247adc28",
+          "url": "https://github.com/noir-lang/noir/commit/ceb8b355fdcd0335b2d6dd7c340139bf404635f1"
+        },
+        "date": 1741687348636,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.732,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.491,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.7,
             "unit": "s"
           },
           {
