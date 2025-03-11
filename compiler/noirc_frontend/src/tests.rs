@@ -33,9 +33,6 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId};
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::stmt::HirStatement;
-use crate::monomorphization::ast::Program;
-use crate::monomorphization::errors::MonomorphizationError;
-use crate::monomorphization::monomorphize;
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
@@ -1143,52 +1140,6 @@ fn resolve_fmt_strings() {
         }
     "#;
     check_errors(src);
-}
-
-fn monomorphize_program(src: &str) -> Result<Program, MonomorphizationError> {
-    let (_program, mut context, _errors) = get_program(src);
-    let main_func_id = context.def_interner.find_function("main").unwrap();
-    monomorphize(main_func_id, &mut context.def_interner, false)
-}
-
-fn get_monomorphization_error(src: &str) -> Option<MonomorphizationError> {
-    monomorphize_program(src).err()
-}
-
-fn check_rewrite(src: &str, expected: &str) {
-    let program = monomorphize_program(src).unwrap();
-    assert!(format!("{}", program) == expected);
-}
-
-#[test]
-fn simple_closure_with_no_captured_variables() {
-    let src = r#"
-    fn main() -> pub Field {
-        let x = 1;
-        let closure = || x;
-        closure()
-    }
-    "#;
-
-    let expected_rewrite = r#"fn main$f0() -> Field {
-    let x$0 = 1;
-    let closure$3 = {
-        let closure_variable$2 = {
-            let env$1 = (x$l0);
-            (env$l1, lambda$f1)
-        };
-        closure_variable$l2
-    };
-    {
-        let tmp$4 = closure$l3;
-        tmp$l4.1(tmp$l4.0)
-    }
-}
-fn lambda$f1(mut env$l1: (Field)) -> Field {
-    env$l1.0
-}
-"#;
-    check_rewrite(src, expected_rewrite);
 }
 
 #[test]
@@ -4150,6 +4101,50 @@ fn deny_attaching_mut_ref_to_immutable_object() {
                    ^^^ Cannot mutate immutable variable `foo`
         f();
         assert(foo.value == 2);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn immutable_references_with_ownership_feature() {
+    let src = r#"
+        unconstrained fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+    "#;
+
+    let (_, _, errors) = get_program_using_features(src, &[UnstableFeature::Ownership]);
+    assert_eq!(errors.len(), 0);
+}
+
+#[test]
+fn immutable_references_without_ownership_feature() {
+    let src = r#"
+        fn main() {
+            let mut array = [1, 2, 3];
+            borrow(&array);
+                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+        }
+
+        fn borrow(_array: &[Field; 3]) {}
+                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
+                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_invalid_integer_bit_size() {
+    let src = r#"
+    fn main() {
+        let _: u42 = 4;
+               ^^^ Use of invalid bit size 42
+               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
     }
     "#;
     check_errors(src);

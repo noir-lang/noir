@@ -61,11 +61,11 @@ pub enum Value {
     Tuple(Vec<Value>),
     Struct(HashMap<Rc<String>, Value>, Type),
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
-    Pointer(Shared<Value>, /* auto_deref */ bool),
+    Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
     Slice(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
-    StructDefinition(TypeId),
+    TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
@@ -150,13 +150,13 @@ impl Value {
             Value::Array(_, typ) => return Cow::Borrowed(typ),
             Value::Slice(_, typ) => return Cow::Borrowed(typ),
             Value::Quoted(_) => Type::Quoted(QuotedType::Quoted),
-            Value::StructDefinition(_) => Type::Quoted(QuotedType::StructDefinition),
-            Value::Pointer(element, auto_deref) => {
+            Value::TypeDefinition(_) => Type::Quoted(QuotedType::TypeDefinition),
+            Value::Pointer(element, auto_deref, mutable) => {
                 if *auto_deref {
                     element.borrow().get_type().into_owned()
                 } else {
                     let element = element.borrow().get_type().into_owned();
-                    Type::MutableReference(Box::new(element))
+                    Type::Reference(Box::new(element), *mutable)
                 }
             }
             Value::TraitConstraint { .. } => Type::Quoted(QuotedType::TraitConstraint),
@@ -321,7 +321,7 @@ impl Value {
             }
             Value::TypedExpr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)
@@ -452,14 +452,14 @@ impl Value {
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => interner.expression(&expr_id),
             // Only convert pointers with auto_deref = true. These are mutable variables
             // and we don't need to wrap them in `&mut`.
-            Value::Pointer(element, true) => {
+            Value::Pointer(element, true, _) => {
                 return element.unwrap_or_clone().into_hir_expression(interner, location);
             }
             Value::Closure(closure) => HirExpression::Lambda(closure.lambda.clone()),
             Value::TypedExpr(TypedExpr::StmtId(..))
             | Value::Expr(..)
             | Value::Pointer(..)
-            | Value::StructDefinition(_)
+            | Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)

@@ -79,10 +79,14 @@ impl Parser<'_> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        if self.at(Token::Ampersand) && self.next_is(Token::Keyword(Keyword::Mut)) {
+        if self.at(Token::Ampersand) {
+            let mut mutable = false;
+            if self.next_is(Token::Keyword(Keyword::Mut)) {
+                mutable = true;
+                self.bump();
+            }
             self.bump();
-            self.bump();
-            Some(UnaryOp::MutableReference)
+            Some(UnaryOp::Reference { mutable })
         } else if self.eat(Token::Minus) {
             Some(UnaryOp::Minus)
         } else if self.eat(Token::Bang) {
@@ -738,7 +742,7 @@ impl Parser<'_> {
 
     /// SliceExpression = '&' ArrayLiteral
     fn parse_slice_literal(&mut self) -> Option<ArrayLiteral> {
-        if !(self.at(Token::Ampersand) && self.next_is(Token::LeftBracket)) {
+        if !(self.at(Token::SliceStart) && self.next_is(Token::LeftBracket)) {
             return None;
         }
 
@@ -1257,7 +1261,7 @@ mod tests {
         let ExpressionKind::Prefix(prefix) = expr.kind else {
             panic!("Expected prefix expression");
         };
-        assert!(matches!(prefix.operator, UnaryOp::MutableReference));
+        assert!(matches!(prefix.operator, UnaryOp::Reference { mutable: true }));
 
         let ExpressionKind::Variable(path) = prefix.rhs.kind else {
             panic!("Expected variable");

@@ -519,7 +519,7 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
         bar_inner: Foo,
     }
 
-    comptime fn generate_inner_accessor(_s: StructDefinition) -> Quoted {
+    comptime fn generate_inner_accessor(_s: TypeDefinition) -> Quoted {
         quote {
             fn bar_get_foo_inner(x: Bar) -> Field {
                 x.bar_inner.foo_inner

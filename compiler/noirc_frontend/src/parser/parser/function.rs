@@ -229,7 +229,7 @@ impl Parser<'_> {
         let mut pattern = Pattern::Identifier(ident);
 
         if self_pattern.reference {
-            self_type = UnresolvedTypeData::MutableReference(Box::new(self_type))
+            self_type = UnresolvedTypeData::Reference(Box::new(self_type), self_pattern.mutable)
                 .with_location(ident_location);
         } else if self_pattern.mutable {
             pattern = Pattern::Mutable(Box::new(pattern), ident_location, true);
