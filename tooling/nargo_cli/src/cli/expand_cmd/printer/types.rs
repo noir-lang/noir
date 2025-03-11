@@ -134,12 +134,11 @@ impl Printer<'_, '_, '_> {
                 self.push_str(&field_element.to_string());
             }
             Type::InfixExpr(lhs, op, rhs, _) => {
-                self.push('(');
-                self.show_type(lhs);
+                self.show_type_maybe_in_parentheses(lhs);
                 self.push(' ');
                 self.push_str(&op.to_string());
                 self.push(' ');
-                self.show_type(rhs);
+                self.show_type_maybe_in_parentheses(rhs);
                 self.push(')');
             }
             Type::Unit
@@ -149,6 +148,16 @@ impl Printer<'_, '_, '_> {
             | Type::String(_)
             | Type::Quoted(..)
             | Type::Error => self.push_str(&typ.to_string()),
+        }
+    }
+
+    fn show_type_maybe_in_parentheses(&mut self, typ: &Type) {
+        if type_needs_parentheses(typ) {
+            self.push('(');
+            self.show_type(typ);
+            self.push(')');
+        } else {
+            self.show_type(typ);
         }
     }
 
@@ -327,5 +336,34 @@ pub(super) fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool 
         | Type::TypeVariable(..)
         | Type::NamedGeneric(..)
         | Type::Error => true,
+    }
+}
+
+fn type_needs_parentheses(typ: &Type) -> bool {
+    match typ {
+        Type::InfixExpr(..) | Type::Function(..) => true,
+        Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+            TypeBinding::Bound(typ) => type_needs_parentheses(typ),
+            TypeBinding::Unbound(..) => false,
+        },
+        Type::CheckedCast { from: _, to } => type_needs_parentheses(to),
+        Type::FieldElement
+        | Type::Array(..)
+        | Type::Slice(..)
+        | Type::Integer(..)
+        | Type::Bool
+        | Type::String(..)
+        | Type::FmtString(..)
+        | Type::Unit
+        | Type::Tuple(..)
+        | Type::DataType(..)
+        | Type::Alias(..)
+        | Type::TraitAsType(..)
+        | Type::NamedGeneric(..)
+        | Type::Reference(..)
+        | Type::Forall(..)
+        | Type::Constant(..)
+        | Type::Quoted(..)
+        | Type::Error => false,
     }
 }
