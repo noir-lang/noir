@@ -472,7 +472,7 @@ impl Parser<'_> {
     }
 
     /// Return the unique `CfgAttribute` in the given `attributes` list along
-    /// with its `Span`, if it exists.
+    /// with its `Location`, if it exists.
     ///
     /// Logs an error if multiple `CfgAttribute`'s` are found.
     fn cfg_attribute(&mut self, attributes: &Vec<(Attribute, Location)>) -> Option<CfgAttribute> {
