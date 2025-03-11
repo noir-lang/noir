@@ -142,7 +142,7 @@ impl ControlFlowGraph {
 
     /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
     pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
-        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).cloned().collect()
+        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).copied().collect()
     }
 }
 
