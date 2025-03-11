@@ -60,6 +60,7 @@
         "combinators",
         "compinit",
         "comptime",
+        "concat",
         "cpus",
         "cranelift",
         "critesjosh",

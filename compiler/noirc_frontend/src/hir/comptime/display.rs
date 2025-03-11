@@ -417,7 +417,7 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "&[{}]", values.join(", "))
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
-            Value::StructDefinition(id) => {
+            Value::TypeDefinition(id) => {
                 let def = self.interner.get_type(*id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)

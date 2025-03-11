@@ -109,11 +109,16 @@ impl Type {
     pub comptime fn as_str(self) -> Option<Type> {}
     // docs:end:as_str
 
-    /// If this is a struct type, returns the struct in addition to any generic arguments on this type.
-    #[builtin(type_as_struct)]
-    // docs:start:as_struct
-    pub comptime fn as_struct(self) -> Option<(StructDefinition, [Type])> {}
-    // docs:end:as_struct
+    #[deprecated("This method has been renamed to `as_data_type`")]
+    pub comptime fn as_struct(self) -> Option<(TypeDefinition, [Type])> {
+        self.as_data_type()
+    }
+
+    /// If this is a struct or enum type, returns the type in addition to any generic arguments on this type.
+    #[builtin(type_as_data_type)]
+    // docs:start:as_data_type
+    pub comptime fn as_data_type(self) -> Option<(TypeDefinition, [Type])> {}
+    // docs:end:as_data_type
 
     /// If this is a tuple type, returns each element type of the tuple.
     #[builtin(type_as_tuple)]

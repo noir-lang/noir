@@ -1893,6 +1893,7 @@ impl<'context> Elaborator<'context> {
 
             datatype.borrow_mut().init_variants();
             let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
+            self.resolving_ids.insert(*type_id);
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
@@ -1919,7 +1920,10 @@ impl<'context> Elaborator<'context> {
                 let location = variant.item.name.location();
                 self.interner.add_definition_location(reference_id, location, Some(module_id));
             }
+
+            self.resolving_ids.remove(type_id);
         }
+        self.generics.clear();
     }
 
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
