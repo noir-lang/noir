@@ -178,10 +178,10 @@ impl DominatorTree {
     /// "Simple, Fast Dominator Algorithm."
     fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
         // We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
-        let (entry_block_id, entry_free_post_order) = post_order
-            .as_slice()
-            .split_last()
-            .expect("ICE: functions always have at least one block");
+        let Some((entry_block_id, entry_free_post_order)) = post_order.as_slice().split_last()
+        else {
+            return;
+        };
 
         // Do a first pass where we assign reverse post-order indices to all reachable nodes. The
         // entry block will be the only node with no immediate dominator.

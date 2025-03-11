@@ -19,7 +19,7 @@ fn simple_loop(upper_bound: u32, x: u32, y: u32) {
 fn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {
     for _ in 0..upper_bound {
         if x == 5 {
-            let mut z = U32_MAX * y;
+            let mut z = x * y;
             assert_eq(z, 12);
         }
     }

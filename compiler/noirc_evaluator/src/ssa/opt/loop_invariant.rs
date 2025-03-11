@@ -14,6 +14,8 @@ use crate::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
@@ -103,10 +105,20 @@ struct LoopInvariantContext<'f> {
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
     current_pre_header: Option<BasicBlockId>,
+
+    post_dom: DominatorTree,
+
+    cfg: ControlFlowGraph,
+
+    current_block_control_dependent: bool,
 }
 
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let reversed_cfg = cfg.reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -114,6 +126,9 @@ impl<'f> LoopInvariantContext<'f> {
             current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
             current_pre_header: None,
+            post_dom,
+            cfg,
+            current_block_control_dependent: false,
         }
     }
 
@@ -125,6 +140,23 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
+            let mut all_predecessors =
+                Loop::find_blocks_in_loop(self.pre_header(), *block, &self.cfg).blocks;
+            all_predecessors.remove(block);
+            all_predecessors.remove(&self.pre_header());
+
+            // Need to accurately determine whether the current block is dependent on any blocks between
+            // the current block and the loop header
+            for predecessor in all_predecessors {
+                if predecessor == loop_.header {
+                    continue;
+                }
+                if self.is_control_dependent(predecessor, *block) {
+                    self.current_block_control_dependent = true;
+                    break;
+                }
+            }
+
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 self.transform_to_unchecked_from_loop_bounds(instruction_id);
 
@@ -159,9 +191,32 @@ impl<'f> LoopInvariantContext<'f> {
                 }
                 self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
             }
+
+            self.current_block_control_dependent = false;
         }
 
         self.set_induction_var_bounds(loop_, false);
+    }
+
+    /// Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
+    /// The program dependence graph and its use in optimization. ACM
+    /// Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
+    /// https://doi.org/10.1145/24039.24041
+    ///
+    /// Definition 3 from the linked paper above.
+    fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+        let mut all_predecessors = Loop::find_blocks_in_loop(parent_block, block, &self.cfg).blocks;
+        all_predecessors.remove(&parent_block);
+        all_predecessors.remove(&block);
+
+        let mut first_control_cond = false;
+        for predecessor in all_predecessors {
+            if self.post_dom.dominates(predecessor, block) {
+                first_control_cond = true;
+                break;
+            }
+        }
+        first_control_cond && !self.post_dom.dominates(block, parent_block)
     }
 
     /// Gather the variables declared within the loop
@@ -228,6 +283,8 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
+            // TODO: improve this control dependence check
+            || (!matches!(instruction, Instruction::Call { .. }) && instruction.requires_acir_gen_predicate(&self.inserter.function.dfg) && !self.current_block_control_dependent)
             || self.can_be_deduplicated_from_loop_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
@@ -901,7 +958,7 @@ mod test {
     #[test]
     fn do_not_hoist_unsafe_div() {
         // This test is similar to `nested_loop_invariant_code_motion`, the operation
-        // in question we are trying to hoist is `v9 = div i32 10, v0`.
+        // in question we are trying to hoist is `v7 = div i32 10, v0`.
         // Check that the lower bound of the outer loop it checked and that we not
         // hoist an operation that can potentially error with a division by zero.
         let src = "
@@ -989,6 +1046,84 @@ mod test {
             constrain v6 == i32 6
             v10 = unchecked_add v1, i32 1
             jmp b4(v10)
+        }
+        ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+}
+
+#[cfg(test)]
+mod control_dependence {
+    use crate::ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa};
+
+    #[test]
+    fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: b2, else: b3
+          b2():
+            jmpif v4 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v8 = mul v0, v1
+            constrain v8 == u32 12
+            jmp b5()
+          b5():
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn hoist_safe_mul_that_is_not_control_dependent() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v3 = lt v2, u32 4
+            jmpif v3 then: b2, else: b3
+          b2():
+            v6 = mul v0, v1
+            v7 = mul v6, v0
+            constrain v7 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp b1(v10)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        let expected = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = mul v0, v1
+            v4 = mul v3, v0
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v7 = lt v2, u32 4
+            jmpif v7 then: b2, else: b3
+          b2():
+            constrain v4 == u32 12
+            v10 = unchecked_add v2, u32 1
+            jmp b1(v10)
+          b3():
+            return
         }
         ";
 
