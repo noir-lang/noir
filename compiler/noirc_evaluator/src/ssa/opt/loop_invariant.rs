@@ -106,11 +106,20 @@ struct LoopInvariantContext<'f> {
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
     current_pre_header: Option<BasicBlockId>,
 
+    // Post-Dominator Tree
     post_dom: DominatorTree,
 
     cfg: ControlFlowGraph,
 
+    // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
+    // Set of all control dependent blocks in a loop.
+    // Maintaining this set lets us optimize checking whether a block is control dependent.
+    // When checking whether a block is control dependent, we can check this set for
+    // whether any of its predecessors have already been marked as control dependent.
+    // If a predecessor has been marked as control dependent it means the block being
+    // checked must also be control dependent.
+    control_dependent_blocks: HashSet<BasicBlockId>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -129,6 +138,7 @@ impl<'f> LoopInvariantContext<'f> {
             post_dom,
             cfg,
             current_block_control_dependent: false,
+            control_dependent_blocks: HashSet::default(),
         }
     }
 
@@ -140,26 +150,7 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
-            if self.inserter.function.dfg.runtime().is_brillig() {
-                let mut all_predecessors =
-                    Loop::find_blocks_in_loop(self.pre_header(), *block, &self.cfg).blocks;
-                all_predecessors.remove(block);
-                all_predecessors.remove(&self.pre_header());
-
-                // Need to accurately determine whether the current block is dependent on any blocks between
-                // the current block and the loop header
-                for predecessor in all_predecessors {
-                    if predecessor == loop_.header {
-                        continue;
-                    }
-                    if self.is_control_dependent(predecessor, *block) {
-                        self.current_block_control_dependent = true;
-                        break;
-                    }
-                }
-            } else {
-                self.current_block_control_dependent = true;
-            }
+            self.is_control_dependent_post_pre_header(loop_, *block);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 self.transform_to_unchecked_from_loop_bounds(instruction_id);
@@ -202,6 +193,37 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_induction_var_bounds(loop_, false);
     }
 
+    /// Checks whether a `block` is control dependent on any blocks after
+    /// the given loop's pre-header.
+    fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
+        let mut all_predecessors =
+            Loop::find_blocks_in_loop(self.pre_header(), block, &self.cfg).blocks;
+        all_predecessors.remove(&block);
+        all_predecessors.remove(&self.pre_header());
+
+        // Need to accurately determine whether the current block is dependent on any blocks between
+        // the current block and the loop header
+        for predecessor in all_predecessors {
+            if predecessor == loop_.header {
+                continue;
+            }
+
+            if self.control_dependent_blocks.contains(&predecessor) {
+                self.current_block_control_dependent = true;
+                self.control_dependent_blocks.insert(predecessor);
+                break;
+            }
+
+            if self.is_control_dependent(predecessor, block) {
+                self.current_block_control_dependent = true;
+                self.control_dependent_blocks.insert(block);
+                break;
+            }
+        }
+    }
+
+    /// Checks whether a `block` is control dependent on a `parent_block`
+    ///
     /// Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
     /// The program dependence graph and its use in optimization. ACM
     /// Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
@@ -235,6 +257,8 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
+        // Reset the blocks that have been marked as control dependent
+        self.control_dependent_blocks.clear();
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
