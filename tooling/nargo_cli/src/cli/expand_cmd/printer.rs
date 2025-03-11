@@ -20,7 +20,7 @@ use noirc_frontend::{
         FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId, TraitId,
         TraitImplId, TypeAliasId, TypeId,
     },
-    token::{FunctionAttribute, SecondaryAttribute},
+    token::{FunctionAttribute, LocatedToken, SecondaryAttribute},
 };
 use types::{gather_named_type_vars, type_mentions_data_type};
 
@@ -912,13 +912,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push(']');
             }
             Value::Quoted(tokens) => {
-                self.push_str("quote {");
-                self.push_str(&tokens_to_string_with_indent(
-                    tokens,
-                    self.indent + 1,
-                    self.interner,
-                ));
-                self.push_str("}");
+                self.show_quoted(tokens);
             }
             Value::Pointer(value, ..) => {
                 self.show_value(&value.borrow());
@@ -1063,6 +1057,25 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         let name = self.module_def_id_name(module_def_id);
         self.push_str(&name);
         name
+    }
+
+    fn show_quoted(&mut self, tokens: &[LocatedToken]) {
+        self.push_str("quote {");
+        let string = tokens_to_string_with_indent(tokens, self.indent + 1, self.interner);
+        if string.contains('\n') {
+            self.push('\n');
+            self.increase_indent();
+            self.write_indent();
+            self.push_str(string.trim());
+            self.push('\n');
+            self.decrease_indent();
+            self.write_indent();
+        } else {
+            self.push(' ');
+            self.push_str(&string);
+            self.push(' ');
+        }
+        self.push_str("}");
     }
 
     fn pattern_is_self(&self, pattern: &HirPattern) -> bool {

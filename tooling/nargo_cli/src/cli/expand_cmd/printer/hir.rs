@@ -1,7 +1,7 @@
 use noirc_frontend::{
     Type, TypeBindings,
     ast::UnaryOp,
-    hir::{comptime::tokens_to_string_with_indent, def_map::ModuleDefId},
+    hir::def_map::ModuleDefId,
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
@@ -207,9 +207,7 @@ impl Printer<'_, '_, '_> {
                 self.show_hir_expression_id(hir_lambda.body);
             }
             HirExpression::Quote(tokens) => {
-                self.push_str("quote {");
-                self.push_str(&tokens_to_string_with_indent(&tokens.0, self.indent, self.interner));
-                self.push_str("}");
+                self.show_quoted(&tokens.0);
             }
             HirExpression::Unsafe(hir_block_expression) => {
                 // TODO: show the original comment
