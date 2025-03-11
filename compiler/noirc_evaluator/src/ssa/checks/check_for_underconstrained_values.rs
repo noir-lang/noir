@@ -316,7 +316,12 @@ impl DependencyContext {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        trace!("processing instructions of block {} of function {}", block, function.id());
+        trace!(
+            "processing instructions of block {} of function {} {}",
+            block,
+            function.name(),
+            function.id()
+        );
 
         // First, gather information on all Brillig calls in the block
         // to be able to follow their arguments first appearing in the
@@ -548,8 +553,9 @@ impl DependencyContext {
 
         if !self.tainted.is_empty() {
             trace!(
-                "number of Brillig calls in function {} left unchecked: {}",
-                function,
+                "number of Brillig calls in function {} {} left unchecked: {}",
+                function.name(),
+                function.id(),
                 self.tainted.len()
             );
         }
@@ -573,9 +579,10 @@ impl DependencyContext {
             .collect();
 
         trace!(
-            "making {} reports on underconstrained Brillig calls for function {}",
+            "making {} reports on underconstrained Brillig calls for function {} {}",
             warnings.len(),
-            function.name()
+            function.name(),
+            function.id()
         );
         warnings
     }
