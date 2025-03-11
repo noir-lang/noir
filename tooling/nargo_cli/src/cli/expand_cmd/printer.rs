@@ -7,7 +7,7 @@ use noirc_frontend::{
     ast::{Ident, ItemVisibility, Visibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
-        def_map::{CrateDefMap, DefMaps, ModuleDefId, ModuleId},
+        def_map::{DefMaps, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{
@@ -31,7 +31,6 @@ pub(super) struct Printer<'interner, 'def_map, 'string> {
     crate_id: CrateId,
     interner: &'interner NodeInterner,
     def_maps: &'def_map DefMaps,
-    def_map: &'def_map CrateDefMap,
     string: &'string mut String,
     indent: usize,
     module_id: ModuleId,
@@ -44,29 +43,19 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         crate_id: CrateId,
         interner: &'interner NodeInterner,
         def_maps: &'def_map DefMaps,
-        def_map: &'def_map CrateDefMap,
         string: &'string mut String,
     ) -> Self {
-        let module_id = ModuleId { krate: crate_id, local_id: def_map.root() };
+        let root_id = def_maps[&crate_id].root();
+        let module_id = ModuleId { krate: crate_id, local_id: root_id };
         let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
         let imports = HashMap::new();
-        Self {
-            crate_id,
-            interner,
-            def_maps,
-            def_map,
-            string,
-            indent: 0,
-            module_id,
-            imports,
-            trait_impls,
-        }
+        Self { crate_id, interner, def_maps, string, indent: 0, module_id, imports, trait_impls }
     }
 
     pub(super) fn show_module(&mut self, module_id: ModuleId) {
         let attributes = self.interner.try_module_attributes(&module_id);
         let name = attributes.map(|attributes| &attributes.name);
-        let module_data = &self.def_map.modules()[module_id.local_id.0];
+        let module_data = &self.def_maps[&self.crate_id].modules()[module_id.local_id.0];
         let is_contract = module_data.is_contract;
 
         if let Some(name) = name {

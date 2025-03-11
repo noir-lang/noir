@@ -76,13 +76,11 @@ fn get_expanded_package(
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    let def_map = &context.def_maps[&crate_id];
-    let root_module_id = def_map.root();
+    let root_module_id = context.def_maps[&crate_id].root();
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
     let mut string = String::new();
-    let mut printer =
-        Printer::new(crate_id, &context.def_interner, &context.def_maps, def_map, &mut string);
+    let mut printer = Printer::new(crate_id, &context.def_interner, &context.def_maps, &mut string);
     printer.show_module(module_id);
     printer.show_stray_trait_impls();
 
