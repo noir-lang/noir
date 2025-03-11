@@ -1709,7 +1709,9 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 // The compiler uses '$' for some internal identifiers.
                 // We replace them with "___" to make sure they have valid syntax, even though
                 // there's a tiny change they might collide with user code (unlikely, really).
-                let name = name.replace('$', "___");
+                //
+                // In other cases these internal names have spaces.
+                let name = name.replace('$', "___").replace(' ', "___");
 
                 self.push_str(&name);
             }
