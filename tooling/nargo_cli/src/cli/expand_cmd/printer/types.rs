@@ -139,7 +139,6 @@ impl Printer<'_, '_, '_> {
                 self.push_str(&op.to_string());
                 self.push(' ');
                 self.show_type_maybe_in_parentheses(rhs);
-                self.push(')');
             }
             Type::Unit
             | Type::Bool
