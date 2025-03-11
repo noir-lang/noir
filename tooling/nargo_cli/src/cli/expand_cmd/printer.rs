@@ -272,13 +272,14 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.show_type(&typ);
         self.push_str(" {\n");
         self.increase_indent();
-        for (index, method) in impl_.methods.iter().enumerate() {
+        for (index, (visibility, func_id)) in impl_.methods.iter().enumerate() {
             if index != 0 {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            // TODO: show visibility
-            self.show_function(*method);
+
+            let item = Item::Function(*func_id);
+            self.show_item_with_visibility(item, *visibility);
         }
         self.push('\n');
         self.decrease_indent();

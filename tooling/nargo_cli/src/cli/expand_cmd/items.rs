@@ -67,7 +67,7 @@ pub(super) struct Trait {
 pub(super) struct Impl {
     pub(super) generics: HashSet<String>,
     pub(super) typ: Type,
-    pub(super) methods: Vec<FuncId>,
+    pub(super) methods: Vec<(ItemVisibility, FuncId)>,
 }
 
 pub(super) struct TraitImpl {
@@ -230,7 +230,14 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         let mut generics = HashSet::new();
         gather_named_type_vars(&typ, &mut generics);
 
-        let methods = methods.into_iter().map(|method| method.method).collect::<Vec<_>>();
+        let methods = methods
+            .into_iter()
+            .map(|method| {
+                let func_id = method.method;
+                let modifiers = self.interner.function_modifiers(&func_id);
+                (modifiers.visibility, func_id)
+            })
+            .collect::<Vec<_>>();
 
         Impl { generics, typ, methods }
     }

@@ -16,7 +16,8 @@ impl<T> Foo<T> {
         self.int() + x
     }
 
-    fn int(self) -> i32 {
+    /// int docs
+    pub fn int(self) -> i32 {
         self.int
     }
 }
