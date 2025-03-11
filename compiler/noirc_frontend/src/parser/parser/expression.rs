@@ -147,6 +147,25 @@ impl Parser<'_> {
         self.parse_index(atom, start_location)
     }
 
+    pub(super) fn parse_member_accesses_or_method_calls_after_expression(
+        &mut self,
+        mut atom: Expression,
+        start_location: Location,
+    ) -> Expression {
+        let mut parsed;
+
+        loop {
+            (atom, parsed) = self.parse_member_access_or_method_call(atom, start_location);
+            if parsed {
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        atom
+    }
+
     /// CallExpression = Atom CallArguments
     fn parse_call(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if let Some(call_arguments) = self.parse_call_arguments() {
