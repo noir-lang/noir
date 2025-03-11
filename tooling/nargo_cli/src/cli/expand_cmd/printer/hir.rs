@@ -38,6 +38,18 @@ impl Printer<'_, '_, '_> {
         }
     }
 
+    fn show_hir_expression_id_maybe_inside_parens(&mut self, expr_id: ExprId) {
+        let hir_expr = self.interner.expression(&expr_id);
+        let parens = hir_expression_needs_parentheses(&hir_expr);
+        if parens {
+            self.push('(');
+        }
+        self.show_hir_expression(hir_expr);
+        if parens {
+            self.push(')');
+        }
+    }
+
     pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
@@ -55,14 +67,12 @@ impl Printer<'_, '_, '_> {
             }
             HirExpression::Prefix(hir_prefix_expression) => match hir_prefix_expression.operator {
                 UnaryOp::Minus => {
-                    self.push_str("-(");
-                    self.show_hir_expression_id(hir_prefix_expression.rhs);
-                    self.push(')');
+                    self.push('-');
+                    self.show_hir_expression_id_maybe_inside_parens(hir_prefix_expression.rhs);
                 }
                 UnaryOp::Not => {
-                    self.push_str("!(");
-                    self.show_hir_expression_id(hir_prefix_expression.rhs);
-                    self.push(')');
+                    self.push('!');
+                    self.show_hir_expression_id_maybe_inside_parens(hir_prefix_expression.rhs);
                 }
                 UnaryOp::Reference { mutable } => {
                     if mutable {
@@ -73,23 +83,23 @@ impl Printer<'_, '_, '_> {
                     self.show_hir_expression_id(hir_prefix_expression.rhs);
                 }
                 UnaryOp::Dereference { implicitly_added } => {
-                    if !implicitly_added {
+                    if implicitly_added {
+                        self.show_hir_expression_id(hir_prefix_expression.rhs);
+                    } else {
                         self.push('*');
+                        self.show_hir_expression_id_maybe_inside_parens(hir_prefix_expression.rhs);
                     }
-                    self.show_hir_expression_id(hir_prefix_expression.rhs);
                 }
             },
             HirExpression::Infix(hir_infix_expression) => {
-                self.push('(');
-                self.show_hir_expression_id(hir_infix_expression.lhs);
+                self.show_hir_expression_id_maybe_inside_parens(hir_infix_expression.lhs);
                 self.push(' ');
                 self.push_str(&hir_infix_expression.operator.kind.to_string());
                 self.push(' ');
-                self.show_hir_expression_id(hir_infix_expression.rhs);
-                self.push(')');
+                self.show_hir_expression_id_maybe_inside_parens(hir_infix_expression.rhs);
             }
             HirExpression::Index(hir_index_expression) => {
-                self.show_hir_expression_id(hir_index_expression.collection);
+                self.show_hir_expression_id_maybe_inside_parens(hir_index_expression.collection);
                 self.push('[');
                 self.show_hir_expression_id(hir_index_expression.index);
                 self.push(']');
@@ -619,5 +629,29 @@ impl Printer<'_, '_, '_> {
                 self.push_str(&name);
             }
         }
+    }
+}
+
+fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
+    match hir_expr {
+        HirExpression::Infix(..) | HirExpression::Cast(..) => true,
+        HirExpression::Ident(..)
+        | HirExpression::Literal(..)
+        | HirExpression::Block(..)
+        | HirExpression::Prefix(..)
+        | HirExpression::Index(..)
+        | HirExpression::Constructor(..)
+        | HirExpression::EnumConstructor(..)
+        | HirExpression::MemberAccess(..)
+        | HirExpression::Call(..)
+        | HirExpression::Constrain(..)
+        | HirExpression::If(..)
+        | HirExpression::Match(..)
+        | HirExpression::Tuple(..)
+        | HirExpression::Lambda(..)
+        | HirExpression::Quote(..)
+        | HirExpression::Unquote(..)
+        | HirExpression::Unsafe(..)
+        | HirExpression::Error => false,
     }
 }
