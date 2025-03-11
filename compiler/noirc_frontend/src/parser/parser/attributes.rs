@@ -707,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn parsing_cfg_feature_requires_nonempty_string() {
+    fn parsing_cfg_feature_allows_empty_string() {
         let src = "#[cfg(feature = \"\")]";
         let mut parser = Parser::for_str_with_dummy_file(src);
         let (attribute, _location) = parser.parse_attribute().unwrap();

@@ -853,8 +853,8 @@ impl fmt::Display for Attribute {
 impl Attribute {
     pub(crate) fn is_disabled_cfg(&self) -> bool {
         match self {
-            Attribute::Function(_) => false,
             Attribute::Secondary(secondary) => secondary.is_disabled_cfg(),
+            _ => false,
         }
     }
 }
@@ -1019,17 +1019,8 @@ impl SecondaryAttribute {
 
     pub(crate) fn is_disabled_cfg(&self) -> bool {
         match self {
-            SecondaryAttribute::Deprecated(..) => false,
-            SecondaryAttribute::Tag(..) => false,
-            SecondaryAttribute::Meta(..) => false,
-            SecondaryAttribute::ContractLibraryMethod => false,
-            SecondaryAttribute::Export => false,
-            SecondaryAttribute::Field(..) => false,
-            SecondaryAttribute::Abi(..) => false,
-            SecondaryAttribute::Varargs => false,
-            SecondaryAttribute::UseCallersScope => false,
-            SecondaryAttribute::Allow(..) => false,
             SecondaryAttribute::Cfg(cfg_attribute) => cfg_attribute.is_disabled(),
+            _ => false,
         }
     }
 
