@@ -1,82 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741708375942,
+  "lastUpdate": 1741708377333,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0ac1163d6779cd00a2457c852c9abc60ebb298f8",
-          "message": "chore: add some extra tests (#7544)",
-          "timestamp": "2025-02-27T14:53:29Z",
-          "tree_id": "b33f5dd39ce24866d5c42a287077073a53aa5bc6",
-          "url": "https://github.com/noir-lang/noir/commit/0ac1163d6779cd00a2457c852c9abc60ebb298f8"
-        },
-        "date": 1740669466090,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 304.73,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 614.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 228.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 978.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 855.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 365.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7870,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 363.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 411.26,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3699,6 +3625,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 349.42,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dde7a85bafe7c600dd626a85a3cd3788862b19e7",
+          "message": "chore(ci): Exclude enum tests from Brillig reports (#7661)",
+          "timestamp": "2025-03-11T15:20:46Z",
+          "tree_id": "8b811d1af5f18871b9930e8b51fe3ecac87675e1",
+          "url": "https://github.com/noir-lang/noir/commit/dde7a85bafe7c600dd626a85a3cd3788862b19e7"
+        },
+        "date": 1741708373818,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 300.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 609.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 226.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1250,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1330,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 303.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 7860,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 7870,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 301.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 349.45,
             "unit": "MB"
           }
         ]
