@@ -217,7 +217,6 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-    dbg!(&custom_spans_with_errors);
     let mut primary_spans_with_errors: HashMap<Span, String> =
         primary_spans_with_errors.into_iter().collect();
 
@@ -243,7 +242,6 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
             .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
         let span = secondary.location.span;
         let message = &error.message;
-        dbg!(&span);
         let Some(expected_message) = primary_spans_with_errors
             .remove(&span)
             .or_else(|| custom_spans_with_errors.remove(&span))
@@ -268,7 +266,6 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
             }
 
             let span = secondary.location.span;
-            dbg!(&span);
             let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
                 if let Some(message) = primary_spans_with_errors.get(&span) {
                     panic!(
@@ -1163,8 +1160,8 @@ fn deny_cyclic_type_aliases() {
     let src = r#"
         type A = B;
         type B = A;
-        ------ Dependency cycle found
-        ~~~~~~ 'B' recursively depends on itself: B -> A -> B
+        ^^^^^^^^^^ Dependency cycle found
+        ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
         fn main() {}
     "#;
     check_errors(src);
