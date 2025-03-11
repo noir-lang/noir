@@ -140,21 +140,25 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
-            let mut all_predecessors =
-                Loop::find_blocks_in_loop(self.pre_header(), *block, &self.cfg).blocks;
-            all_predecessors.remove(block);
-            all_predecessors.remove(&self.pre_header());
+            if self.inserter.function.dfg.runtime().is_brillig() {
+                let mut all_predecessors =
+                    Loop::find_blocks_in_loop(self.pre_header(), *block, &self.cfg).blocks;
+                all_predecessors.remove(block);
+                all_predecessors.remove(&self.pre_header());
 
-            // Need to accurately determine whether the current block is dependent on any blocks between
-            // the current block and the loop header
-            for predecessor in all_predecessors {
-                if predecessor == loop_.header {
-                    continue;
+                // Need to accurately determine whether the current block is dependent on any blocks between
+                // the current block and the loop header
+                for predecessor in all_predecessors {
+                    if predecessor == loop_.header {
+                        continue;
+                    }
+                    if self.is_control_dependent(predecessor, *block) {
+                        self.current_block_control_dependent = true;
+                        break;
+                    }
                 }
-                if self.is_control_dependent(predecessor, *block) {
-                    self.current_block_control_dependent = true;
-                    break;
-                }
+            } else {
+                self.current_block_control_dependent = true;
             }
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
