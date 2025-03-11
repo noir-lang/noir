@@ -64,6 +64,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -87,7 +89,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.75.0
+        uses: dtolnay/rust-toolchain@1.85.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -519,8 +521,8 @@ jobs:
         working-directory: ./examples/prove_and_verify
         run: ./test.sh
 
-      - name: Run `codegen_verifier`
-        working-directory: ./examples/codegen_verifier
+      - name: Run `solidity_verifier`
+        working-directory: ./examples/solidity_verifier
         run: ./test.sh
 
       - name: Run `oracle_transcript`

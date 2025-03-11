@@ -38,7 +38,7 @@ use crate::{
     token::{FmtStrFragment, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus};
+use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -344,8 +344,12 @@ impl Elaborator<'_> {
 
         let operator = prefix.operator;
 
-        if let UnaryOp::MutableReference = operator {
-            self.check_can_mutate(rhs, rhs_location);
+        if let UnaryOp::Reference { mutable } = operator {
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            } else {
+                self.use_unstable_feature(UnstableFeature::Ownership, location);
+            }
         }
 
         let expr =

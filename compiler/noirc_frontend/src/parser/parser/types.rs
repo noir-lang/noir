@@ -236,11 +236,14 @@ impl Parser<'_> {
         if self.eat_keyword(Keyword::TypedExpr) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TypedExpr));
         }
+
+        let location = self.current_token_location;
         if self.eat_keyword(Keyword::StructDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::StructDefinition));
+            self.push_error(ParserErrorReason::StructDefinitionDeprecated, location);
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
-        if self.eat_keyword(Keyword::EnumDefinition) {
-            return Some(UnresolvedTypeData::Quoted(QuotedType::EnumDefinition));
+        if self.eat_keyword(Keyword::TypeDefinition) {
+            return Some(UnresolvedTypeData::Quoted(QuotedType::TypeDefinition));
         }
         if self.eat_keyword(Keyword::TraitConstraint) {
             return Some(UnresolvedTypeData::Quoted(QuotedType::TraitConstraint));
@@ -370,15 +373,15 @@ impl Parser<'_> {
     }
 
     fn parses_mutable_reference_type(&mut self) -> Option<UnresolvedTypeData> {
-        if self.eat(Token::Ampersand) {
-            if !self.eat_keyword(Keyword::Mut) {
-                self.expected_mut_after_ampersand();
-            }
+        // The `&` may be lexed as a slice start if this is an array or slice type
+        if self.eat(Token::Ampersand) || self.eat(Token::SliceStart) {
+            let mutable = self.eat_keyword(Keyword::Mut);
 
-            return Some(UnresolvedTypeData::MutableReference(Box::new(
-                self.parse_type_or_error(),
-            )));
-        };
+            return Some(UnresolvedTypeData::Reference(
+                Box::new(self.parse_type_or_error()),
+                mutable,
+            ));
+        }
 
         None
     }
@@ -605,10 +608,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_reference_type() {
+        let src = "&Field";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
+            panic!("Expected a reference type")
+        };
+        assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));
+    }
+
+    #[test]
     fn parses_mutable_reference_type() {
         let src = "&mut Field";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::MutableReference(typ) = typ.typ else {
+        let UnresolvedTypeData::Reference(typ, true) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
         assert!(matches!(typ.typ, UnresolvedTypeData::FieldElement));

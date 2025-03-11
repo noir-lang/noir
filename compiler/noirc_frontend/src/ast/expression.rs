@@ -383,7 +383,9 @@ impl BinaryOpKind {
 pub enum UnaryOp {
     Minus,
     Not,
-    MutableReference,
+    Reference {
+        mutable: bool,
+    },
 
     /// If implicitly_added is true, this operation was implicitly added by the compiler for a
     /// field dereference. The compiler may undo some of these implicitly added dereferences if
@@ -732,7 +734,8 @@ impl Display for UnaryOp {
         match self {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
-            UnaryOp::MutableReference => write!(f, "&mut"),
+            UnaryOp::Reference { mutable } if *mutable => write!(f, "&mut"),
+            UnaryOp::Reference { .. } => write!(f, "&"),
             UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }

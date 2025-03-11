@@ -393,7 +393,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_mutable_reference_type(&mut self, _: &UnresolvedType, _: Span) -> bool {
+    fn visit_reference_type(&mut self, _: &UnresolvedType, _mutable: bool, _: Span) -> bool {
         true
     }
 
@@ -1382,8 +1382,8 @@ impl UnresolvedType {
                     generic_type_args.accept(visitor);
                 }
             }
-            UnresolvedTypeData::MutableReference(unresolved_type) => {
-                if visitor.visit_mutable_reference_type(unresolved_type, self.location.span) {
+            UnresolvedTypeData::Reference(unresolved_type, mutable) => {
+                if visitor.visit_reference_type(unresolved_type, *mutable, self.location.span) {
                     unresolved_type.accept(visitor);
                 }
             }
