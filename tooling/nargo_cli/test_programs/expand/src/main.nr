@@ -1,6 +1,7 @@
 use std::as_witness as aliased_as_witness;
 
 trait SomeTrait {
+    /// some_method docs
     fn some_method();
 }
 
@@ -23,6 +24,7 @@ impl<T> Foo<T> {
 }
 
 impl<T> SomeTrait for Foo<T> {
+    /// some_method docs for Foo
     fn some_method() {
         let name = "some_method";
         panic(f"Implement \\\n\t {name} {{ }}")

@@ -349,7 +349,10 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             }
 
             self.write_indent();
-            self.show_function(func_id);
+
+            let item = Item::Function(func_id);
+            let visibility = ItemVisibility::Private;
+            self.show_item_with_visibility(item, visibility);
             printed_type_or_function = true;
         }
 
@@ -386,7 +389,10 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            self.show_function(*method);
+
+            let item = Item::Function(*method);
+            let visibility = ItemVisibility::Private;
+            self.show_item_with_visibility(item, visibility);
         }
         self.push('\n');
         self.decrease_indent();
