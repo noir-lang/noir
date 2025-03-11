@@ -18,7 +18,7 @@ use noirc_frontend::{
         stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    modules::relative_module_full_path,
+    modules::{module_def_id_to_reference_id, relative_module_full_path},
     node_interner::{
         DefinitionKind, ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner,
         ReferenceId, StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
@@ -1957,16 +1957,5 @@ fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool {
         | Type::TypeVariable(..)
         | Type::NamedGeneric(..)
         | Type::Error => true,
-    }
-}
-
-fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
-    match module_def_id {
-        ModuleDefId::ModuleId(module_id) => ReferenceId::Module(module_id),
-        ModuleDefId::FunctionId(func_id) => ReferenceId::Function(func_id),
-        ModuleDefId::TypeId(type_id) => ReferenceId::Type(type_id),
-        ModuleDefId::TypeAliasId(type_alias_id) => ReferenceId::Alias(type_alias_id),
-        ModuleDefId::TraitId(trait_id) => ReferenceId::Trait(trait_id),
-        ModuleDefId::GlobalId(global_id) => ReferenceId::Global(global_id),
     }
 }
