@@ -19,7 +19,7 @@ use super::{LockType, PackageOptions, WorkspaceCommand, check_cmd::check_crate_a
 
 mod printer;
 
-/// Expands macros
+/// Show the result of macro expansion
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExpandCommand {
     #[clap(flatten)]
