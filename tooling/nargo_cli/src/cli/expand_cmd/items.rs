@@ -87,6 +87,12 @@ pub(super) struct ItemBuilder<'interner, 'def_map> {
     crate_id: CrateId,
     interner: &'interner NodeInterner,
     def_maps: &'def_map DefMaps,
+    /// This set is initially created with all the trait impls in the crate.
+    /// As we traverse traits, will gather trait impls associated to those traits
+    /// that aren't associated to types in the current crate.
+    /// As we find structs and enums, we'll gather trait impls associated to those types.
+    /// Because a trait impl might be associated to multiple types, once we link a trait
+    /// impl to a type we'll remove it from this set.
     trait_impls: HashSet<TraitImplId>,
 }
 
