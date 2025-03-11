@@ -21,19 +21,18 @@ impl Printer<'_, '_, '_> {
         self.show_hir_expression(hir_expr);
     }
 
-    fn show_hir_expression_id_dereferencing(&mut self, expr_id: ExprId) {
+    fn dereference_hir_expression_id(&self, expr_id: ExprId) -> ExprId {
         let hir_expr = self.interner.expression(&expr_id);
         let HirExpression::Prefix(prefix) = &hir_expr else {
-            self.show_hir_expression(hir_expr);
-            return;
+            return expr_id;
         };
 
         match prefix.operator {
             UnaryOp::Reference { .. } | UnaryOp::Dereference { implicitly_added: true } => {
-                self.show_hir_expression_id_dereferencing(prefix.rhs);
+                prefix.rhs
             }
             UnaryOp::Minus | UnaryOp::Not | UnaryOp::Dereference { implicitly_added: false } => {
-                self.show_hir_expression(hir_expr);
+                expr_id
             }
         }
     }
@@ -358,7 +357,8 @@ impl Printer<'_, '_, '_> {
             return false;
         }
 
-        self.show_hir_expression_id_dereferencing(arguments[0]);
+        let first_argument = self.dereference_hir_expression_id(arguments[0]);
+        self.show_hir_expression_id_maybe_inside_parens(first_argument);
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
         self.push('(');
