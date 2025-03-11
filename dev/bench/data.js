@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741734983474,
+  "lastUpdate": 1741735037825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11401,70 +11401,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ca21820724f13b59834eb4a348c73069c5bbb70d",
-          "message": "fix: shift right overflow in ACIR with unknown var now returns zero (#7509)",
-          "timestamp": "2025-02-28T14:34:51Z",
-          "tree_id": "500c9b90a820494e2f8ad5c96e4dd3666868e061",
-          "url": "https://github.com/noir-lang/noir/commit/ca21820724f13b59834eb4a348c73069c5bbb70d"
-        },
-        "date": 1740754646745,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 244.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 278.76,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 468.21,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 409.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 348.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.26,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "3239a4a79ca1ec2b976da2ca47944cfa9a839c59",
           "message": "chore: address some frontend tests TODOs (#7554)",
@@ -14545,6 +14481,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5f7e215eea7189a2b111fc42fb7bf290be3e9836"
         },
         "date": 1741734980845,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "637deea91a01a636148448125d6c263d48cba548",
+          "message": "fix: correctly format let followed by comment before unsafe (#7659)",
+          "timestamp": "2025-03-11T22:53:07Z",
+          "tree_id": "f9b7be1e96e8001827134d3c2143abce760b0524",
+          "url": "https://github.com/noir-lang/noir/commit/637deea91a01a636148448125d6c263d48cba548"
+        },
+        "date": 1741735034952,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
