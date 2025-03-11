@@ -307,7 +307,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::MethodCall(e) => check(e.object) && e.arguments.iter().cloned().all(check),
         HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
@@ -323,7 +322,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         | HirExpression::EnumConstructor(_)
         | HirExpression::Quote(_)
         | HirExpression::Unquote(_)
-        | HirExpression::Comptime(_)
         | HirExpression::Error => true,
     }
 }
