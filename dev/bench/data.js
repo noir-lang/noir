@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741687661256,
+  "lastUpdate": 1741687664750,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11452,70 +11452,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ef2302b17a4aaa70c16cd437afc54bfb3d8540f2",
-          "message": "chore: revert bump of base64ct to `v1.6.0` after `v1.7.0` yanked (#7541)",
-          "timestamp": "2025-02-26T22:04:49Z",
-          "tree_id": "3c1a003749b3141cce429003ab7c036e7749f9b7",
-          "url": "https://github.com/noir-lang/noir/commit/ef2302b17a4aaa70c16cd437afc54bfb3d8540f2"
-        },
-        "date": 1740608910234,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 280.51,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 215.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 469.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 410.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 356.99,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "826b18a10630471c19c25ab745f9bfe045813e69",
           "message": "chore!: bump rust edition to 2024 (#7533)",
           "timestamp": "2025-02-26T22:53:01Z",
@@ -14595,6 +14531,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1fa0dd95a95b01652332e94952ade14019a51fd1"
         },
         "date": 1741607973943,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ceb8b355fdcd0335b2d6dd7c340139bf404635f1",
+          "message": "fix(ssa): don't check Brillig calls for coverage if they don't return anything (e.g. println) (#7644)",
+          "timestamp": "2025-03-11T09:42:16Z",
+          "tree_id": "f5f5820f41cde018b4067ae33aa38fdd247adc28",
+          "url": "https://github.com/noir-lang/noir/commit/ceb8b355fdcd0335b2d6dd7c340139bf404635f1"
+        },
+        "date": 1741687662077,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
