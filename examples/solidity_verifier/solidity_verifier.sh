@@ -37,6 +37,7 @@ PROOF_WITHOUT_PUBLIC_INPUTS="${PROOF_WITHOUT_PUBLIC_INPUTS_START}${PROOF_WITHOUT
 
 # Spin up an anvil node to deploy the contract to
 anvil &
+trap 'kill %-' EXIT
 
 DEPLOY_INFO=$(forge create HonkVerifier \
   --rpc-url "127.0.0.1:8545" \
@@ -46,6 +47,3 @@ VERIFIER_ADDRESS=$(echo $DEPLOY_INFO | jq -r '.deployedTo')
 
 # Call the verifier contract with our proof.
 cast call $VERIFIER_ADDRESS "verify(bytes, bytes32[])(bool)" "$PROOF_WITHOUT_PUBLIC_INPUTS" "[$SPLIT_HEX_PUBLIC_INPUTS]"
-
-# Stop anvil node again
-kill %-
