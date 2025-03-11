@@ -29,8 +29,7 @@ use crate::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstructorExpression, HirExpression, HirIdent, HirIfExpression, HirIndexExpression,
-            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirMethodCallExpression,
-            HirPrefixExpression,
+            HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess, HirPrefixExpression,
         },
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
@@ -528,7 +527,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constructor(constructor) => self.evaluate_constructor(constructor, id),
             HirExpression::MemberAccess(access) => self.evaluate_access(access, id),
             HirExpression::Call(call) => self.evaluate_call(call, id),
-            HirExpression::MethodCall(call) => self.evaluate_method_call(call, id),
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_, id),
@@ -536,7 +534,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
-            HirExpression::Comptime(block) => self.evaluate_block(block),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -1367,33 +1364,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 expr_location: location,
             }
         });
-    }
-
-    fn evaluate_method_call(
-        &mut self,
-        call: HirMethodCallExpression,
-        id: ExprId,
-    ) -> IResult<Value> {
-        let object = self.evaluate(call.object)?;
-        let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
-        })?;
-        let location = self.elaborator.interner.expr_location(&id);
-
-        let typ = object.get_type().follow_bindings();
-        let method_name = &call.method.0.contents;
-        let check_self_param = true;
-
-        let method = self
-            .elaborator
-            .lookup_method(&typ, method_name, location, check_self_param)
-            .and_then(|method| method.func_id(self.elaborator.interner));
-
-        if let Some(method) = method {
-            self.call_function(method, arguments, TypeBindings::new(), location)
-        } else {
-            Err(InterpreterError::NoMethodFound { name: method_name.clone(), typ, location })
-        }
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {

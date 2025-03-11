@@ -38,7 +38,7 @@ libraries:
     timeout: 2
   noir_rsa:
     repo: noir-lang/noir_rsa
-    timeout: 2
+    timeout: 4
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
@@ -60,7 +60,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 80
+    timeout: 90
   blob:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
