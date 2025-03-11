@@ -20,7 +20,7 @@ use super::{LockType, PackageOptions, WorkspaceCommand, check_cmd::check_crate_a
 mod printer;
 
 /// Show the result of macro expansion
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Args, Default)]
 pub(crate) struct ExpandCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
@@ -58,6 +58,17 @@ fn expand_package(
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CompileError> {
+    let code = get_expanded_package(file_manager, parsed_files, package, compile_options)?;
+    println!("{code}");
+    Ok(())
+}
+
+fn get_expanded_package(
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
+    package: &Package,
+    compile_options: &CompileOptions,
+) -> Result<String, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
     // Even though this isn't LSP, we need to active this to be able to go from a ModuleDefId to its parent module
@@ -82,13 +93,104 @@ fn expand_package(
             imports_granularity: ImportsGranularity::Crate,
             ..Default::default()
         };
-        let code = nargo_fmt::format(&string, parsed_module, &config);
-        println!("{code}");
+        Ok(nargo_fmt::format(&string, parsed_module, &config))
     } else {
-        println!("{string}");
-        println!();
-        println!("// Warning: the generated code has syntax errors");
+        string.push_str("\n\n// Warning: the generated code has syntax errors");
+        Ok(string)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
+    use nargo_toml::PackageSelection;
+
+    use crate::cli::read_workspace;
+
+    use super::{ExpandCommand, get_expanded_package};
+
+    #[test]
+    fn nargo_expand_smoke_test() {
+        let root_path = std::env::current_dir()
+            .unwrap()
+            .join("test_programs")
+            .join("expand")
+            .canonicalize()
+            .expect("Could not resolve root path");
+
+        let command = ExpandCommand::default();
+        let workspace = read_workspace(&root_path, PackageSelection::All).unwrap();
+
+        let mut workspace_file_manager = workspace.new_file_manager();
+        insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
+        let parsed_files = parse_all(&workspace_file_manager);
+
+        let code = get_expanded_package(
+            &workspace_file_manager,
+            &parsed_files,
+            workspace.into_iter().next().unwrap(),
+            &command.compile_options,
+        )
+        .expect("Expected code to be expanded");
+
+        let expected = r#"use std::as_witness as aliased_as_witness;
+
+trait SomeTrait {
+    fn some_method();
+}
+
+/// Docs on top of Foo
+pub struct Foo<T> {
+    /// Docs on top of value
+    value: T,
+    int: i32,
+}
+
+impl<T> Foo<T> {
+    fn method(self, x: i32) -> i32 {
+        self.int() + x
     }
 
-    Ok(())
+    fn int(self) -> i32 {
+        self.int
+    }
+}
+
+impl<T> SomeTrait for Foo<T> {
+    fn some_method() {
+        let name: str<11> = "some_method";
+        panic(f"Implement \\\n\t {name} {{ }}")
+    }
+}
+
+mod module {
+    pub struct Bar {}
+}
+
+fn main() {
+    let _x: () = aliased_as_witness(1);
+    let _y: Field = 3;
+    let foo: Foo<Field> = Foo::<Field> { value: 1, int: 2 };
+    let _: i32 = foo.method(10);
+}
+
+#[abi(functions)]
+fn bar() -> module::Bar {
+    let bar: module::Bar = module::Bar {};
+    bar
+}
+
+comptime fn generate_baz(_: Module) -> Quoted {
+    quote {
+        pub fn baz() {
+            
+        }
+    }
+}
+
+pub fn baz() {}
+"#;
+
+        assert_eq!(code, expected);
+    }
 }
