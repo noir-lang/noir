@@ -957,32 +957,44 @@ mod test {
 
     #[test]
     fn do_not_hoist_unsafe_div() {
-        // This test is similar to `nested_loop_invariant_code_motion`, the operation
-        // in question we are trying to hoist is `v7 = div i32 10, v0`.
-        // Check that the lower bound of the outer loop it checked and that we not
+        // This test is similar to `nested_loop_invariant_code_motion`, except that
+        // the loop logic is under a dynamic predicate.
+        // Divisions are only reliant upon predicates and do not have other side effects.
+        // If an unsafe division occurs in a loop block that is not control dependent,
+        // we can still safely hoist that division as that instruction is always going to be hit.
+        // Thus, we place the unsafe division under a predicate to ensure that we are testing
+        // division hoisting based upon loop bounds and nothing else.
+        //
+        // The operation in question we are trying to hoist is `v12 = div u32 10, v1`.
+        // Check that the lower bound of the outer loop is checked and that we do not
         // hoist an operation that can potentially error with a division by zero.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 0)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            jmp b4(u32 0)
           b3():
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v5 = lt v1, i32 4
-            jmpif v5 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v8 = lt v2, u32 4
+            jmpif v8 then: b5, else: b6
           b5():
-            v11 = unchecked_add v0, i32 1
-            jmp b1(v11)
+            jmpif v4 then: b7, else: b8
           b6():
-            v7 = div i32 10, v0
-            constrain v7 == i32 6
-            v10 = unchecked_add v1, i32 1
-            jmp b4(v10)
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b7():
+            v12 = div u32 10, v1
+            constrain v12 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
         }
         ";
 
@@ -998,26 +1010,31 @@ mod test {
         // in this test starts with a lower bound of `1`.
         let src = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 1)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 1)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            jmp b4(u32 0)
           b3():
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v5 = lt v1, i32 4
-            jmpif v5 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v9 = lt v2, u32 4
+            jmpif v9 then: b5, else: b6
           b5():
-            v7 = unchecked_add v0, i32 1
-            jmp b1(v7)
+            jmpif v4 then: b7, else: b8
           b6():
-            v9 = div i32 10, v0
-            constrain v9 == i32 6
-            v11 = unchecked_add v1, i32 1
-            jmp b4(v11)
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v10)
+          b7():
+            v12 = div u32 10, v1
+            constrain v12 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
         }
         ";
 
@@ -1026,26 +1043,31 @@ mod test {
         let ssa = ssa.loop_invariant_code_motion();
         let expected = "
         brillig(inline) fn main f0 {
-          b0():
-            jmp b1(i32 1)
-          b1(v0: i32):
-            v4 = lt v0, i32 4
-            jmpif v4 then: b3, else: b2
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            jmp b1(u32 1)
+          b1(v1: u32):
+            v7 = lt v1, u32 4
+            jmpif v7 then: b2, else: b3
           b2():
-            return
+            v9 = div u32 10, v1
+            jmp b4(u32 0)
           b3():
-            v6 = div i32 10, v0
-            jmp b4(i32 0)
-          b4(v1: i32):
-            v8 = lt v1, i32 4
-            jmpif v8 then: b6, else: b5
+            return
+          b4(v2: u32):
+            v11 = lt v2, u32 4
+            jmpif v11 then: b5, else: b6
           b5():
-            v11 = unchecked_add v0, i32 1
-            jmp b1(v11)
+            jmpif v4 then: b7, else: b8
           b6():
-            constrain v6 == i32 6
-            v10 = unchecked_add v1, i32 1
-            jmp b4(v10)
+            v12 = unchecked_add v1, u32 1
+            jmp b1(v12)
+          b7():
+            constrain v9 == u32 6
+            jmp b8()
+          b8():
+            v14 = unchecked_add v2, u32 1
+            jmp b4(v14)
         }
         ";
 
