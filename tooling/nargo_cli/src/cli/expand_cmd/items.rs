@@ -331,7 +331,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         Item::Trait(Trait { id: trait_id, methods, trait_impls })
     }
 
-    pub(super) fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {
+    fn type_only_mention_types_outside_current_crate(&self, typ: &Type) -> bool {
         match typ {
             Type::Array(length, typ) => {
                 self.type_only_mention_types_outside_current_crate(length)
@@ -394,7 +394,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 }
 
-pub(crate) fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
+fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
     match typ {
         Type::Array(length, typ) => {
             gather_named_type_vars(length, type_vars);
@@ -460,7 +460,7 @@ pub(crate) fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>
     }
 }
 
-pub(super) fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> bool {
+fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> bool {
     match typ {
         Type::Array(length, typ) => {
             type_mentions_data_type(length, data_type) && type_mentions_data_type(typ, data_type)

@@ -58,7 +58,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         }
     }
 
-    pub(super) fn show_module(&mut self, module: Module) {
+    fn show_module(&mut self, module: Module) {
         let module_id = module.id;
 
         if let Some(name) = &module.name {
