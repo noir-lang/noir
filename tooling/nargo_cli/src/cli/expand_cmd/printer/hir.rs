@@ -202,10 +202,6 @@ impl Printer<'_, '_, '_> {
                 self.push_str(&tokens_to_string_with_indent(&tokens.0, self.indent, self.interner));
                 self.push_str("}");
             }
-            HirExpression::Comptime(hir_block_expression) => {
-                self.push_str("comptime ");
-                self.show_hir_block_expression(hir_block_expression);
-            }
             HirExpression::Unsafe(hir_block_expression) => {
                 // TODO: show the original comment
                 self.push_str("/* Safety: comment added by `nargo expand` */\n");
@@ -214,9 +210,6 @@ impl Printer<'_, '_, '_> {
                 self.show_hir_block_expression(hir_block_expression);
             }
             HirExpression::Error => unreachable!("error nodes should not happen"),
-            HirExpression::MethodCall(_) => {
-                todo!("method calls should not happen")
-            }
             HirExpression::Unquote(_) => todo!("unquote should not happen"),
         }
     }
