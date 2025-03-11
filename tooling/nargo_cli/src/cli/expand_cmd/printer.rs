@@ -1592,11 +1592,15 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 for fragment in fmt_str_fragments {
                     match fragment {
                         FmtStrFragment::String(string) => {
-                            // TODO: escape the string
+                            let string = string
+                                .replace('\\', "\\\\")
+                                .replace('\n', "\\n")
+                                .replace('\t', "\\t")
+                                .replace('{', "{{")
+                                .replace('}', "}}");
                             self.push_str(&string);
                         }
                         FmtStrFragment::Interpolation(string, _) => {
-                            // TODO: interpolate expr_id instead?
                             self.push('{');
                             self.push_str(&string);
                             self.push('}');
