@@ -6,7 +6,8 @@
 [Website][Noir] | [Getting started] | [Documentation] | [Contributing]
 </div>
 
-
+[![](https://img.shields.io/badge/License-Apache2.0-green.svg)](https://github.com/noir-lang/noir/blob/master/LICENSE-APACHE)
+[![](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/noir-lang/noir/blob/master/LICENSE-MIT)
 
 # The Noir Programming Language
 
