@@ -10,9 +10,9 @@ use noirc_frontend::{
         FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
         LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
         MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
-        NoirTrait, NoirTraitImpl, NoirTypeAlias, NormalTypeAlias, NumericTypeAlias, Param, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
-        TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        NoirTrait, NoirTraitImpl, NormalTypeAlias, Param, Path, PathSegment, Pattern,
+        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
+        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -138,21 +138,14 @@ fn type_alias_with_file(type_alias: NormalTypeAlias, file: FileId) -> NormalType
         typ: unresolved_type_with_file(type_alias.typ, file),
         visibility: type_alias.visibility,
         location: location_with_file(type_alias.location, file),
+        numeric_type: type_alias
+            .numeric_type
+            .map(|num_type| unresolved_type_with_file(num_type, file)),
     }
 }
 
-fn noir_type_alias_with_file(noir_type_alias: NoirTypeAlias, file: FileId) -> NoirTypeAlias {
-    match noir_type_alias {
-        NoirTypeAlias::NormalTypeAlias(type_alias) => {
-            NoirTypeAlias::NormalTypeAlias(type_alias_with_file(type_alias, file))
-        }
-        NoirTypeAlias::NumericTypeAlias(numeric_type_alias) => {
-            NoirTypeAlias::NumericTypeAlias(NumericTypeAlias {
-                type_alias: type_alias_with_file(numeric_type_alias.type_alias, file),
-                numeric_type: unresolved_type_with_file(numeric_type_alias.numeric_type, file),
-            })
-        }
-    }
+fn noir_type_alias_with_file(noir_type_alias: NormalTypeAlias, file: FileId) -> NormalTypeAlias {
+    type_alias_with_file(noir_type_alias, file)
 }
 
 fn type_impl_with_file(type_impl: TypeImpl, file: FileId) -> TypeImpl {

@@ -809,8 +809,8 @@ impl NodeInterner {
 
         self.type_aliases.push(Shared::new(TypeAlias::new(
             type_id,
-            typ.type_alias_def.name(),
-            typ.type_alias_def.location(),
+            typ.type_alias_def.name.clone(),
+            typ.type_alias_def.location,
             Type::Error,
             generics,
         )));

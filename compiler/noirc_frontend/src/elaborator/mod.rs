@@ -1643,29 +1643,25 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = alias.module_id;
 
-        let name = &alias.type_alias_def.name();
-        let visibility = alias.type_alias_def.visibility();
-        let location = alias.type_alias_def.location();
+        let name = &alias.type_alias_def.name;
+        let visibility = alias.type_alias_def.visibility;
+        let location = alias.type_alias_def.location;
 
-        let generics = self.add_generics(alias.type_alias_def.generics());
+        let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
 
         let mut num_expr = None;
-        let typ = match alias.type_alias_def {
-            crate::ast::NoirTypeAlias::NormalTypeAlias(type_alias) => {
-                self.resolve_type(type_alias.typ)
+
+        let typ = if let Some(num_type) = alias.type_alias_def.numeric_type {
+            let num_type = self.resolve_type(num_type);
+            let kind = Kind::numeric(num_type);
+            if let UnresolvedTypeData::Expression(expr) = alias.type_alias_def.typ.typ.clone() {
+                let expr_kind = UnresolvedTypeExpression::to_expression_kind(&expr);
+                num_expr = Some(expr_kind);
             }
-            crate::ast::NoirTypeAlias::NumericTypeAlias(numeric_type_alias) => {
-                let num_type = self.resolve_type(numeric_type_alias.numeric_type);
-                let kind = Kind::numeric(num_type);
-                if let UnresolvedTypeData::Expression(expr) =
-                    numeric_type_alias.type_alias.typ.typ.clone()
-                {
-                    let expr_kind = UnresolvedTypeExpression::to_expression_kind(&expr);
-                    num_expr = Some(expr_kind);
-                }
-                self.resolve_type_with_kind(numeric_type_alias.type_alias.typ, &kind)
-            }
+            self.resolve_type_with_kind(alias.type_alias_def.typ, &kind)
+        } else {
+            self.resolve_type(alias.type_alias_def.typ)
         };
 
         if visibility != ItemVisibility::Private {

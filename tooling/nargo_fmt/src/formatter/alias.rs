@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{NoirTypeAlias, NormalTypeAlias},
+    ast::NormalTypeAlias,
     token::{Keyword, Token},
 };
 
@@ -18,14 +18,6 @@ impl Formatter<'_> {
         self.write_space();
         self.format_type(type_alias.typ);
         self.write_semicolon();
-    }
-
-    pub(super) fn format_noir_type_alias(&mut self, noir_type_alias: NoirTypeAlias) {
-        let type_alias = match noir_type_alias {
-            NoirTypeAlias::NumericTypeAlias(numeric_type_alias) => numeric_type_alias.type_alias,
-            NoirTypeAlias::NormalTypeAlias(normal_type_alias) => normal_type_alias,
-        };
-        self.format_type_alias(type_alias);
     }
 }
 

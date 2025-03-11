@@ -7,7 +7,7 @@ use crate::{
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
         PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree,
         UseTreeKind,
     },
@@ -22,9 +22,9 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind, TypePath,
-    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
-    UnresolvedTypeExpression, UnsafeExpression,
+    MatchExpression, NoirEnumeration, NormalTypeAlias, Pattern, Signedness, TraitBound,
+    TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -148,7 +148,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_noir_type_alias(&mut self, _: &NoirTypeAlias, _: Span) -> bool {
+    fn visit_noir_type_alias(&mut self, _: &NormalTypeAlias, _: Span) -> bool {
         true
     }
 
@@ -815,7 +815,7 @@ impl NoirEnumeration {
     }
 }
 
-impl NoirTypeAlias {
+impl NormalTypeAlias {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_noir_type_alias(self, span) {
             self.accept_children(visitor);
@@ -823,12 +823,7 @@ impl NoirTypeAlias {
     }
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
-        match self {
-            NoirTypeAlias::NormalTypeAlias(type_alias) => type_alias.typ.accept(visitor),
-            NoirTypeAlias::NumericTypeAlias(num_type_alias) => {
-                num_type_alias.type_alias.typ.accept(visitor);
-            }
-        }
+        self.typ.accept(visitor);
     }
 }
 

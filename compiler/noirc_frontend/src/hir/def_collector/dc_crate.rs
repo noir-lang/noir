@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration};
+use crate::ast::{Expression, NoirEnumeration, NormalTypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -22,8 +22,8 @@ use crate::node_interner::{
 
 use crate::ast::{
     ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -108,7 +108,7 @@ pub struct UnresolvedTraitImpl {
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTypeAlias,
+    pub type_alias_def: NormalTypeAlias,
 }
 
 #[derive(Debug, Clone)]

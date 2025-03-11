@@ -1,10 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{
-        Ident, ItemVisibility, NoirTypeAlias, NormalTypeAlias, NumericTypeAlias, UnresolvedType,
-        UnresolvedTypeData,
-    },
+    ast::{Ident, ItemVisibility, NormalTypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
@@ -16,16 +13,17 @@ impl Parser<'_> {
         &mut self,
         visibility: ItemVisibility,
         start_location: Location,
-    ) -> NoirTypeAlias {
+    ) -> NormalTypeAlias {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
-            return NoirTypeAlias::NormalTypeAlias(NormalTypeAlias {
+            return NormalTypeAlias {
                 visibility,
                 name: Ident::default(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
                 location: start_location,
-            });
+                numeric_type: None,
+            };
         };
         // Optional numeric type for alias over numeric generics
         let mut num_typ = None;
@@ -50,32 +48,19 @@ impl Parser<'_> {
             typ
         };
 
-        if let Some(num_type) = num_typ {
-            NoirTypeAlias::NumericTypeAlias(NumericTypeAlias {
-                type_alias: NormalTypeAlias { visibility, name, generics, typ, location },
-                numeric_type: num_type,
-            })
-        } else {
-            NoirTypeAlias::NormalTypeAlias(NormalTypeAlias {
-                visibility,
-                name,
-                generics,
-                typ,
-                location,
-            })
-        }
+        NormalTypeAlias { visibility, name, generics, typ, location, numeric_type: num_typ }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{NoirTypeAlias, UnresolvedTypeData},
+        ast::{NormalTypeAlias, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
-    fn parse_type_alias_no_errors(src: &str) -> NoirTypeAlias {
+    fn parse_type_alias_no_errors(src: &str) -> NormalTypeAlias {
         let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
@@ -90,24 +75,24 @@ mod tests {
     fn parse_type_alias_no_generics() {
         let src = "type Foo = Field;";
         let alias = parse_type_alias_no_errors(src);
-        assert_eq!("Foo", alias.name().to_string());
-        assert!(alias.generics().is_empty());
-        assert_eq!(alias.type_alias().typ.typ, UnresolvedTypeData::FieldElement);
+        assert_eq!("Foo", alias.name.to_string());
+        assert!(alias.generics.is_empty());
+        assert_eq!(alias.typ.typ, UnresolvedTypeData::FieldElement);
     }
 
     #[test]
     fn parse_type_alias_with_generics() {
         let src = "type Foo<A> = Field;";
         let alias = parse_type_alias_no_errors(src);
-        assert_eq!("Foo", alias.name().to_string());
-        assert_eq!(alias.generics().len(), 1);
+        assert_eq!("Foo", alias.name.to_string());
+        assert_eq!(alias.generics.len(), 1);
     }
 
     #[test]
     fn parse_numeric_generic_type_alias() {
         let src = "type Double<let N: u32>: u32 = N * 2;";
         let alias = parse_type_alias_no_errors(src);
-        assert_eq!("Double", alias.name().to_string());
-        assert_eq!(alias.generics().len(), 1);
+        assert_eq!("Double", alias.name.to_string());
+        assert_eq!(alias.generics.len(), 1);
     }
 }
