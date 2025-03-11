@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741701653166,
+  "lastUpdate": 1741701654174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11441,70 +11441,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b7c86f4535a3617d8aaf892140ed1d412bf30287",
-          "message": "chore: put RcTracker as part of the DIE context (#7309)",
-          "timestamp": "2025-02-27T11:17:20Z",
-          "tree_id": "274eed8565677fd71f9f9da4f2ef22cc1fae3b16",
-          "url": "https://github.com/noir-lang/noir/commit/b7c86f4535a3617d8aaf892140ed1d412bf30287"
-        },
-        "date": 1740656424980,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 246.27,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 280.52,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 215.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 469.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 410.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 356.99,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "9056d74cb30853fbeb44cedee5cb8f20f775f005",
           "message": "feat: simplify simple conditionals for brillig (#7205)",
@@ -14585,6 +14521,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/60d13682da442da99053088453b9cf7da23ce8cc"
         },
         "date": 1741700061641,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7356e24a52a9659327ce153d8ee3c9540a9f36f",
+          "message": "fix: allow method call after block, if and match (#7655)",
+          "timestamp": "2025-03-11T13:34:52Z",
+          "tree_id": "7835124ee5196bb142fb02be9fe5cd6708d0f6d6",
+          "url": "https://github.com/noir-lang/noir/commit/a7356e24a52a9659327ce153d8ee3c9540a9f36f"
+        },
+        "date": 1741701650599,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
