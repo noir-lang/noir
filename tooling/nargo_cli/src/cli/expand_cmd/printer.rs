@@ -180,8 +180,22 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
 
         for comment in doc_comments {
             if comment.contains('\n') {
+                let ends_with_newline = comment.ends_with('\n');
+
                 self.push_str("/**");
-                self.push_str(comment);
+                for (index, line) in comment.lines().enumerate() {
+                    if index != 0 {
+                        self.push('\n');
+                        self.write_indent();
+                    }
+                    self.push_str(line);
+                }
+
+                if ends_with_newline {
+                    self.push('\n');
+                    self.write_indent();
+                }
+
                 self.push_str("*/");
             } else {
                 self.push_str("///");
