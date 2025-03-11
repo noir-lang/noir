@@ -12,16 +12,16 @@ use noirc_frontend::{
     },
     hir_def::{
         expr::{
-            HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression, HirIdent,
-            HirLiteral, HirMatch,
+            Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
+            HirIdent, HirLiteral, HirMatch,
         },
         stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{module_def_id_to_reference_id, relative_module_full_path},
     node_interner::{
-        DefinitionKind, ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner,
-        ReferenceId, StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, GlobalValue, ImplMethod, Methods,
+        NodeInterner, ReferenceId, StmtId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     token::{FmtStrFragment, FunctionAttribute, SecondaryAttribute},
 };
@@ -1351,14 +1351,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                     self.show_hir_expression_id(alternative);
                 }
             }
-            HirExpression::Match(hir_match) => match hir_match {
-                HirMatch::Success(expr_id) => self.show_hir_expression_id(expr_id),
-                HirMatch::Failure { .. } => {
-                    unreachable!("At this point code should not have errors")
-                }
-                HirMatch::Guard { .. } => todo!("hir match guard"),
-                HirMatch::Switch(..) => todo!("hir match switch"),
-            },
+            HirExpression::Match(hir_match) => self.show_hir_match(hir_match),
             HirExpression::Tuple(expr_ids) => {
                 let len = expr_ids.len();
                 self.push('(');
@@ -1407,6 +1400,99 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 todo!("method calls should not happen")
             }
             HirExpression::Unquote(_) => todo!("unquote should not happen"),
+        }
+    }
+
+    fn show_hir_match(&mut self, hir_match: HirMatch) {
+        match hir_match {
+            HirMatch::Success(expr_id) => self.show_hir_expression_id(expr_id),
+            HirMatch::Failure { .. } => {
+                unreachable!("At this point code should not have errors")
+            }
+            HirMatch::Guard { cond, body, otherwise } => {
+                self.push_str("if ");
+                self.show_hir_expression_id(cond);
+                self.push(' ');
+                self.show_hir_expression_id(body);
+                self.push_str(" else ");
+                self.show_hir_match(*otherwise);
+            }
+            HirMatch::Switch(variable, cases, default) => {
+                self.push_str("match ");
+                self.show_definition_id(variable);
+                self.push_str(" {\n");
+                self.increase_indent();
+                for case in cases {
+                    self.write_indent();
+                    self.show_constructor(case.constructor);
+                    if !case.arguments.is_empty() {
+                        self.push('(');
+                        for (index, argument) in case.arguments.into_iter().enumerate() {
+                            if index != 0 {
+                                self.push_str(", ");
+                            }
+                            self.show_definition_id(argument);
+                        }
+                        self.push(')');
+                    }
+                    self.push_str(" => ");
+                    self.show_hir_match(case.body);
+                    self.push(',');
+                    self.push('\n');
+                }
+
+                if let Some(default) = default {
+                    self.write_indent();
+                    self.push_str("_ => ");
+                    self.show_hir_match(*default);
+                    self.push(',');
+                    self.push('\n');
+                }
+
+                self.decrease_indent();
+                self.write_indent();
+                self.push('}');
+            }
+        }
+    }
+
+    fn show_constructor(&mut self, constructor: Constructor) {
+        match constructor {
+            Constructor::True => self.push_str("true"),
+            Constructor::False => self.push_str("false"),
+            Constructor::Unit => self.push_str("()"),
+            Constructor::Int(signed_field) => self.push_str(&signed_field.to_string()),
+            Constructor::Tuple(items) => {
+                let len = items.len();
+                self.push('(');
+                for (index, r#type) in items.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_type(r#type);
+                }
+                if len == 1 {
+                    self.push(',');
+                }
+                self.push(')');
+            }
+            Constructor::Variant(typ, index) => {
+                self.show_type_name_as_data_type(&typ);
+
+                let Type::DataType(data_type, _) = typ.follow_bindings() else {
+                    panic!("Expected data type")
+                };
+                let data_type = data_type.borrow();
+
+                let variant = data_type.variant_at(index);
+                self.push_str("::");
+                self.push_str(&variant.name.to_string());
+            }
+            Constructor::Range(from, to) => {
+                self.push_str(&from.to_string());
+                self.push_str("..");
+                self.push_str(&to.to_string());
+            }
         }
     }
 
@@ -1690,6 +1776,12 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 self.push('}');
             }
         }
+    }
+
+    fn show_definition_id(&mut self, definition_id: DefinitionId) {
+        let location = self.interner.definition(definition_id).location;
+        let ident = HirIdent::non_trait_method(definition_id, location);
+        self.show_hir_ident(ident);
     }
 
     fn show_hir_ident(&mut self, ident: HirIdent) {
