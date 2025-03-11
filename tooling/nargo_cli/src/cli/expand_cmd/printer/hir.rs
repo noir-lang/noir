@@ -13,9 +13,9 @@ use noirc_frontend::{
     token::FmtStrFragment,
 };
 
-use super::Printer;
+use super::ItemPrinter;
 
-impl Printer<'_, '_, '_> {
+impl ItemPrinter<'_, '_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
         let hir_expr = self.interner.expression(&expr_id);
         self.show_hir_expression(hir_expr);

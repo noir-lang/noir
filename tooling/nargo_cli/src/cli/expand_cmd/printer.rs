@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use noirc_driver::CrateId;
-use noirc_errors::Location;
 use noirc_frontend::{
     DataType, Generics, Type,
     ast::{Ident, ItemVisibility, Visibility},
@@ -16,18 +15,16 @@ use noirc_frontend::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{module_def_id_to_reference_id, relative_module_full_path},
-    node_interner::{
-        FuncId, GlobalId, GlobalValue, ImplMethod, Methods, NodeInterner, ReferenceId, TraitId,
-        TraitImplId, TypeAliasId, TypeId,
-    },
+    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
     token::{FunctionAttribute, LocatedToken, SecondaryAttribute},
 };
-use types::{gather_named_type_vars, type_mentions_data_type};
+
+use super::items::{Impl, Import, Item, Module, TraitImpl};
 
 mod hir;
 mod types;
 
-pub(super) struct Printer<'interner, 'def_map, 'string> {
+pub(super) struct ItemPrinter<'interner, 'def_map, 'string> {
     crate_id: CrateId,
     interner: &'interner NodeInterner,
     def_maps: &'def_map DefMaps,
@@ -35,10 +32,9 @@ pub(super) struct Printer<'interner, 'def_map, 'string> {
     indent: usize,
     module_id: ModuleId,
     imports: HashMap<ModuleDefId, Ident>,
-    pub(super) trait_impls: HashSet<TraitImplId>,
 }
 
-impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
+impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
     pub(super) fn new(
         crate_id: CrateId,
         interner: &'interner NodeInterner,
@@ -47,19 +43,26 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
     ) -> Self {
         let root_id = def_maps[&crate_id].root();
         let module_id = ModuleId { krate: crate_id, local_id: root_id };
-        let trait_impls = interner.get_trait_implementations_in_crate(crate_id);
         let imports = HashMap::new();
-        Self { crate_id, interner, def_maps, string, indent: 0, module_id, imports, trait_impls }
+        Self { crate_id, interner, def_maps, string, indent: 0, module_id, imports }
     }
 
-    pub(super) fn show_module(&mut self, module_id: ModuleId) {
-        let attributes = self.interner.try_module_attributes(&module_id);
-        let name = attributes.map(|attributes| &attributes.name);
-        let module_data = &self.def_maps[&self.crate_id].modules()[module_id.local_id.0];
-        let is_contract = module_data.is_contract;
+    pub(super) fn show_item(&mut self, item: Item) {
+        match item {
+            Item::Module(module) => self.show_module(module),
+            Item::DataType(data_type) => self.show_data_type(data_type),
+            Item::Trait(trait_) => self.show_trait(trait_),
+            Item::TypeAlias(type_alias_id) => self.show_type_alias(type_alias_id),
+            Item::Global(global_id) => self.show_global(global_id),
+            Item::Function(func_id) => self.show_function(func_id),
+        }
+    }
 
-        if let Some(name) = name {
-            if is_contract {
+    pub(super) fn show_module(&mut self, module: Module) {
+        let module_id = module.id;
+
+        if let Some(name) = &module.name {
+            if module.is_contract {
                 self.push_str("contract ");
             } else {
                 self.push_str("mod ");
@@ -73,66 +76,26 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.module_id = module_id;
 
         let previous_imports = std::mem::take(&mut self.imports);
-        self.imports = HashMap::new();
 
-        let definitions = module_data.definitions();
+        self.imports =
+            module.imports.iter().map(|import| (import.id, import.name.clone())).collect();
 
-        let mut definitions = definitions
-            .types()
-            .iter()
-            .chain(definitions.values())
-            .flat_map(|(_name, scope)| scope.values())
-            .map(|(module_def_id, visibility, _is_prelude)| {
-                let location = self.module_def_id_location(*module_def_id);
-                (*module_def_id, *visibility, location)
-            })
-            .collect::<Vec<_>>();
+        self.show_imports(module.imports);
 
-        // Make sure definitions are sorted according to location so the output is more similar to the original code
-        definitions.sort_by_key(|(_module_def_id, _visibility, location)| *location);
-
-        // Gather all ModuleDefId's for definitions so we can exclude them when we'll list imports now
-        let definitions_module_def_ids =
-            definitions.iter().map(|(module_def_id, ..)| *module_def_id).collect::<HashSet<_>>();
-
-        let scope = module_data.scope();
-        let mut scope = scope
-            .types()
-            .iter()
-            .chain(scope.values())
-            .flat_map(|(name, scope)| scope.values().map(|value| (name.clone(), value)))
-            .filter_map(|(name, (module_def_id, visibility, is_prelude))| {
-                if !definitions_module_def_ids.contains(module_def_id) {
-                    Some((name, *module_def_id, *visibility, *is_prelude))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        scope.sort_by_key(|(name, ..)| name.location());
-
-        self.imports = scope
-            .iter()
-            .map(|(name, module_def_id, ..)| (*module_def_id, name.clone()))
-            .collect::<HashMap<_, _>>();
-
-        self.show_imports(scope);
-
-        for (index, (module_def_id, visibility, _location)) in definitions.iter().enumerate() {
+        for (index, (visibility, item)) in module.items.into_iter().enumerate() {
             if index == 0 {
                 self.push_str("\n");
             } else {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            self.show_module_def_id(*module_def_id, *visibility);
+            self.show_item_with_visibility(item, visibility);
         }
 
         self.module_id = previous_module_id;
         self.imports = previous_imports;
 
-        if name.is_some() {
+        if module.name.is_some() {
             self.push('\n');
             self.decrease_indent();
             self.write_indent();
@@ -140,27 +103,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
-    fn show_module_def_id(&mut self, module_def_id: ModuleDefId, visibility: ItemVisibility) {
+    fn show_item_with_visibility(&mut self, item: Item, visibility: ItemVisibility) {
+        let module_def_id = item.module_def_id();
         let reference_id = module_def_id_to_reference_id(module_def_id);
         self.show_doc_comments(reference_id);
-
         self.show_module_def_id_attributes(module_def_id);
-
         self.show_item_visibility(visibility);
-
-        match module_def_id {
-            ModuleDefId::ModuleId(module_id) => {
-                self.show_module(module_id);
-            }
-            ModuleDefId::TypeId(type_id) => self.show_data_type(type_id),
-            ModuleDefId::TypeAliasId(type_alias_id) => self.show_type_alias(type_alias_id),
-            ModuleDefId::TraitId(trait_id) => {
-                self.show_trait(trait_id);
-                self.show_trait_impls_for_trait(trait_id);
-            }
-            ModuleDefId::GlobalId(global_id) => self.show_global(global_id),
-            ModuleDefId::FunctionId(func_id) => self.show_function(func_id),
-        }
+        self.show_item(item);
     }
 
     fn show_doc_comments(&mut self, reference_id: ReferenceId) {
@@ -242,7 +191,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
     }
 
-    fn show_data_type(&mut self, type_id: TypeId) {
+    fn show_data_type(&mut self, item_data_type: super::items::DataType) {
+        let type_id = item_data_type.id;
         let shared_data_type = self.interner.get_type(type_id);
         let data_type = shared_data_type.borrow();
         if data_type.is_struct() {
@@ -254,14 +204,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         }
         drop(data_type);
 
-        if let Some(methods) =
-            self.interner.get_type_methods(&Type::DataType(shared_data_type.clone(), vec![]))
-        {
-            self.show_data_type_impls(methods.values());
-        }
-
-        let data_type = shared_data_type.borrow();
-        self.show_data_type_trait_impls(&data_type);
+        self.show_data_type_impls(item_data_type.impls);
+        self.show_trait_impls(item_data_type.trait_impls);
     }
 
     fn show_struct(&mut self, data_type: &DataType) {
@@ -311,64 +255,30 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_impls<'a, 'b>(&'a mut self, methods: impl Iterator<Item = &'b Methods>) {
-        // Gather all impl methods
-        // First split methods by impl methods and trait impl methods
-        let mut impl_methods = Vec::new();
-
-        for methods in methods {
-            impl_methods.extend(methods.direct.clone());
-        }
-
-        // Don't show enum variant functions
-        impl_methods.retain(|method| {
-            let meta = self.interner.function_meta(&method.method);
-            meta.enum_variant_index.is_none()
-        });
-
-        // Split them by the impl type. For example here we'll group
-        // all of `Foo<i32>` methods in one bucket, all of `Foo<Field>` in another, and
-        // all of `Foo<T>` in another one.
-        #[allow(clippy::mutable_key_type)]
-        let mut impl_methods_by_type: HashMap<Type, Vec<ImplMethod>> = HashMap::new();
-        for method in impl_methods {
-            impl_methods_by_type.entry(method.typ.clone()).or_default().push(method);
-        }
-
-        for (typ, methods) in impl_methods_by_type {
+    fn show_data_type_impls<'a, 'b>(&'a mut self, impls: Vec<Impl>) {
+        for impl_ in impls {
             self.push_str("\n\n");
             self.write_indent();
-            self.show_impl(typ, methods);
+            self.show_impl(impl_);
         }
     }
 
-    fn show_impl(&mut self, typ: Type, methods: Vec<ImplMethod>) {
+    fn show_impl(&mut self, impl_: Impl) {
+        let typ = impl_.typ;
+
         self.push_str("impl");
-
-        let mut type_var_names = HashSet::new();
-        gather_named_type_vars(&typ, &mut type_var_names);
-
-        if !type_var_names.is_empty() {
-            self.push('<');
-            for (index, name) in type_var_names.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(", ");
-                }
-                self.push_str(name);
-            }
-            self.push('>');
-        }
-
+        self.show_generic_names(&impl_.generics);
         self.push(' ');
         self.show_type(&typ);
         self.push_str(" {\n");
         self.increase_indent();
-        for (index, method) in methods.iter().enumerate() {
+        for (index, method) in impl_.methods.iter().enumerate() {
             if index != 0 {
                 self.push_str("\n\n");
             }
             self.write_indent();
-            self.show_function(method.method);
+            // TODO: show visibility
+            self.show_function(*method);
         }
         self.push('\n');
         self.decrease_indent();
@@ -376,24 +286,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('}');
     }
 
-    fn show_data_type_trait_impls(&mut self, data_type: &DataType) {
-        let mut trait_impls = self
-            .trait_impls
-            .iter()
-            .filter_map(|trait_impl_id| {
-                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-                let trait_impl = trait_impl.borrow();
-                if type_mentions_data_type(&trait_impl.typ, data_type) {
-                    Some((*trait_impl_id, trait_impl.location))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
-
-        for (trait_impl, _) in trait_impls {
+    fn show_trait_impls(&mut self, trait_impls: Vec<TraitImpl>) {
+        for trait_impl in trait_impls {
             self.push_str("\n\n");
             self.write_indent();
             self.show_trait_impl(trait_impl);
@@ -412,7 +306,8 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push(';');
     }
 
-    fn show_trait(&mut self, trait_id: TraitId) {
+    fn show_trait(&mut self, item_trait: super::items::Trait) {
+        let trait_id = item_trait.id;
         let trait_ = self.interner.get_trait(trait_id);
 
         self.push_str("trait ");
@@ -447,25 +342,13 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             printed_type_or_function = true;
         }
 
-        let mut func_ids = trait_
-            .method_ids
-            .values()
-            .map(|func_id| {
-                let location = self.interner.function_meta(func_id).location;
-                (func_id, location)
-            })
-            .collect::<Vec<_>>();
-
-        // Make sure functions are shown in the same order they were defined
-        func_ids.sort_by_key(|(_func_id, location)| *location);
-
-        for (func_id, _location) in func_ids {
+        for func_id in item_trait.methods {
             if printed_type_or_function {
                 self.push_str("\n\n");
             }
 
             self.write_indent();
-            self.show_function(*func_id);
+            self.show_function(func_id);
             printed_type_or_function = true;
         }
 
@@ -473,73 +356,19 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.decrease_indent();
         self.write_indent();
         self.push('}');
+
+        self.show_trait_impls(item_trait.trait_impls);
     }
 
-    /// Shows trait impls for traits, but only when those impls are
-    /// for types outside of the current crate as they are likely defined next
-    /// to the trait.
-    fn show_trait_impls_for_trait(&mut self, trait_id: TraitId) {
-        let mut trait_impls = self
-            .trait_impls
-            .iter()
-            .filter_map(|trait_impl_id| {
-                let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-                let trait_impl = trait_impl.borrow();
-                if trait_impl.trait_id == trait_id
-                    && self.type_only_mention_types_outside_current_crate(&trait_impl.typ)
-                {
-                    Some((*trait_impl_id, trait_impl.location))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        trait_impls.sort_by_key(|(_trait_impl_id, location)| *location);
-
-        for (trait_impl, _) in trait_impls {
-            self.push_str("\n\n");
-            self.write_indent();
-            self.show_trait_impl(trait_impl);
-        }
-    }
-
-    pub(super) fn show_stray_trait_impls(&mut self) {
-        let trait_impls = std::mem::take(&mut self.trait_impls);
-        for trait_impl in trait_impls {
-            self.push_str("\n\n");
-            self.write_indent();
-            self.show_trait_impl(trait_impl);
-        }
-    }
-
-    fn show_trait_impl(&mut self, trait_impl_id: TraitImplId) {
-        // Remove the trait impl from the set so we don't show it again
-        self.trait_impls.remove(&trait_impl_id);
+    fn show_trait_impl(&mut self, item_trait_impl: TraitImpl) {
+        let trait_impl_id = item_trait_impl.id;
 
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
 
         self.push_str("impl");
-
-        let mut type_var_names = HashSet::new();
-        for generic in &trait_impl.trait_generics {
-            gather_named_type_vars(generic, &mut type_var_names);
-        }
-        gather_named_type_vars(&trait_impl.typ, &mut type_var_names);
-
-        if !type_var_names.is_empty() {
-            self.push('<');
-            for (index, name) in type_var_names.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(", ");
-                }
-                self.push_str(name);
-            }
-            self.push('>');
-        }
-
+        self.show_generic_names(&item_trait_impl.generics);
         self.push(' ');
         self.push_str(&trait_.name.to_string());
 
@@ -551,7 +380,7 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_where_clause(&trait_impl.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
-        for (index, method) in trait_impl.methods.iter().enumerate() {
+        for (index, method) in item_trait_impl.methods.iter().enumerate() {
             if index != 0 {
                 self.push_str("\n\n");
             }
@@ -757,6 +586,21 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.push('>');
     }
 
+    fn show_generic_names(&mut self, generics: &HashSet<String>) {
+        if generics.is_empty() {
+            return;
+        }
+
+        self.push('<');
+        for (index, name) in generics.iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            self.push_str(name);
+        }
+        self.push('>');
+    }
+
     fn show_where_clause(&mut self, constraints: &[TraitConstraint]) {
         if constraints.is_empty() {
             return;
@@ -947,14 +791,11 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
         self.show_generic_types(&generics, use_colons);
     }
 
-    fn show_imports(
-        &mut self,
-        imports: Vec<(Ident, ModuleDefId, ItemVisibility, bool /* is prelude */)>,
-    ) {
+    fn show_imports(&mut self, imports: Vec<Import>) {
         let mut first = true;
 
-        for (alias, module_def_id, visibility, is_prelude) in imports {
-            if is_prelude {
+        for import in imports {
+            if import.is_prelude {
                 continue;
             }
 
@@ -963,14 +804,14 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                 first = false;
             }
             self.write_indent();
-            self.show_item_visibility(visibility);
+            self.show_item_visibility(import.visibility);
             self.push_str("use ");
             let use_import = false;
-            let name = self.show_reference_to_module_def_id(module_def_id, use_import);
+            let name = self.show_reference_to_module_def_id(import.id, use_import);
 
-            if name != alias.0.contents {
+            if name != import.name.0.contents {
                 self.push_str(" as ");
-                self.push_str(&alias.to_string());
+                self.push_str(&import.name.0.contents);
             }
             self.push(';');
             self.push('\n');
@@ -1076,12 +917,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
         }
-    }
-
-    fn module_def_id_location(&self, module_def_id: ModuleDefId) -> Location {
-        // We already have logic to go from a ReferenceId to a location, so we use that here
-        let reference_id = module_def_id_to_reference_id(module_def_id);
-        self.interner.reference_location(reference_id)
     }
 
     fn module_def_id_name(&self, module_def_id: ModuleDefId) -> String {

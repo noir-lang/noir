@@ -1,5 +1,6 @@
 use clap::Args;
 use fm::FileManager;
+use items::ItemBuilder;
 use nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
     parse_all, prepare_package, workspace::Workspace,
@@ -11,12 +12,13 @@ use noirc_frontend::{
     hir::{ParsedFiles, def_map::ModuleId},
     parse_program_with_dummy_file,
 };
-use printer::Printer;
+use printer::ItemPrinter;
 
 use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand, check_cmd::check_crate_and_report_errors};
 
+mod items;
 mod printer;
 
 /// Show the result of macro expansion
@@ -79,10 +81,13 @@ fn get_expanded_package(
     let root_module_id = context.def_maps[&crate_id].root();
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
+    let mut builder = ItemBuilder::new(crate_id, &context.def_interner, &context.def_maps);
+    let item = builder.build_module(module_id);
+
     let mut string = String::new();
-    let mut printer = Printer::new(crate_id, &context.def_interner, &context.def_maps, &mut string);
-    printer.show_module(module_id);
-    printer.show_stray_trait_impls();
+    let mut printer =
+        ItemPrinter::new(crate_id, &context.def_interner, &context.def_maps, &mut string);
+    printer.show_item(item);
 
     let (parsed_module, errors) = parse_program_with_dummy_file(&string);
     if errors.is_empty() {
