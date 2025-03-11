@@ -1784,7 +1784,6 @@ impl<'interner, 'def_map, 'string> Printer<'interner, 'def_map, 'string> {
                         .all(|typ| self.type_only_mention_types_outside_current_crate(typ))
             }
             Type::Alias(_type_alias, generics) => {
-                // TODO: check _type_alias
                 generics.iter().all(|typ| self.type_only_mention_types_outside_current_crate(typ))
             }
             Type::TraitAsType(trait_id, _, generics) => {
@@ -1930,7 +1929,6 @@ fn type_mentions_data_type(typ: &Type, data_type: &DataType) -> bool {
                 || generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
         }
         Type::Alias(_type_alias, generics) => {
-            // TODO: check _type_alias
             generics.iter().any(|typ| type_mentions_data_type(typ, data_type))
         }
         Type::TraitAsType(_, _, generics) => {
