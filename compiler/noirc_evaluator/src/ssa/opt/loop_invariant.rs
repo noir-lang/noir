@@ -158,6 +158,8 @@ impl<'f> LoopInvariantContext<'f> {
             // avoid greater compilation cost.
             if self.inserter.function.runtime().is_brillig() {
                 self.is_control_dependent_post_pre_header(loop_, *block);
+            } else {
+                self.current_block_control_dependent = true;
             }
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
