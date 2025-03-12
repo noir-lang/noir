@@ -107,6 +107,7 @@ struct LoopInvariantContext<'f> {
     current_pre_header: Option<BasicBlockId>,
 
     // Post-Dominator Tree
+    #[allow(dead_code)]
     post_dom: DominatorTree,
 
     cfg: ControlFlowGraph,
@@ -120,6 +121,8 @@ struct LoopInvariantContext<'f> {
     // If a predecessor has been marked as control dependent it means the block being
     // checked must also be control dependent.
     control_dependent_blocks: HashSet<BasicBlockId>,
+
+    reverse_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -127,7 +130,8 @@ impl<'f> LoopInvariantContext<'f> {
         let cfg = ControlFlowGraph::with_function(function);
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
-        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let reverse_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -139,6 +143,7 @@ impl<'f> LoopInvariantContext<'f> {
             cfg,
             current_block_control_dependent: false,
             control_dependent_blocks: HashSet::default(),
+            reverse_dom_frontiers,
         }
     }
 
@@ -214,9 +219,9 @@ impl<'f> LoopInvariantContext<'f> {
         // Need to accurately determine whether the current block is dependent on any blocks between
         // the current block and the loop header
         for predecessor in all_predecessors {
-            if self.control_dependent_blocks.contains(&predecessor)
-                || self.is_control_dependent(predecessor, block)
-            {
+            // if self.control_dependent_blocks.contains(&predecessor)
+            // || self.is_control_dependent(predecessor, block)
+            if self.is_control_dependent(predecessor, block) {
                 self.current_block_control_dependent = true;
                 self.control_dependent_blocks.insert(predecessor);
                 break;
@@ -240,14 +245,10 @@ impl<'f> LoopInvariantContext<'f> {
     //  (2) X is not post-dominated by Y.
     /// ```
     fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
-        let mut all_predecessors = Loop::find_blocks_in_loop(parent_block, block, &self.cfg).blocks;
-        all_predecessors.remove(&parent_block);
-        all_predecessors.remove(&block);
-
-        let first_control_cond =
-            all_predecessors.iter().any(|&pred| self.post_dom.dominates(pred, block));
-
-        first_control_cond && !self.post_dom.dominates(block, parent_block)
+        match self.reverse_dom_frontiers.get(&block) {
+            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            None => false,
+        }
     }
 
     /// Gather the variables declared within the loop

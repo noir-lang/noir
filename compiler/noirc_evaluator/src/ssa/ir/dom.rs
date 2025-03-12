@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -276,6 +276,49 @@ impl DominatorTree {
         debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
         block_a_id
     }
+
+    /// Computes the dominance frontier for all blocks in the dominator tree.
+    ///
+    /// We expect a standard CFG (non-reversed) even if we are operating over
+    /// a dominator tree or a post-dominator tree.
+    /// Calling this method on a dominator tree will return the CFG's dominance frontiers,
+    /// while on a post-dominator tree the method will return the CFG's reverse dominance frontiers.
+    ///
+    ///
+    pub(crate) fn compute_dominance_frontiers(
+        &mut self,
+        cfg: &ControlFlowGraph,
+    ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
+        let mut dominance_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>> =
+            HashMap::default();
+
+        let nodes = self.nodes.keys().into_iter().copied().collect::<Vec<_>>();
+        for block_id in nodes {
+            let predecessors = cfg.predecessors(block_id);
+            // Dominance frontier nodes must have more than one predecessor
+            if predecessors.len() > 1 {
+                // Iterate over the predecessors of the current block
+                for pred_id in predecessors {
+                    let mut runner = pred_id;
+                    // We start by checking if the current block dominates the predecessor
+                    while let Some(immediate_dominator) = self.immediate_dominator(block_id) {
+                        if immediate_dominator != runner {
+                            dominance_frontiers.entry(runner).or_default().insert(block_id);
+                            let Some(runner_immediate_dom) = self.immediate_dominator(runner)
+                            else {
+                                break;
+                            };
+                            runner = runner_immediate_dom;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        dominance_frontiers
+    }
 }
 
 #[cfg(test)]
@@ -285,8 +328,9 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, call_stack::CallStackId, dom::DominatorTree,
-            function::Function, instruction::TerminatorInstruction, map::Id, types::Type,
+            basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph,
+            dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id,
+            types::Type,
         },
     };
 
@@ -540,6 +584,27 @@ mod tests {
         assert!(post_dom.dominates(block2_id, block0_id));
         assert!(!post_dom.dominates(block2_id, block1_id));
         assert!(post_dom.dominates(block2_id, block2_id));
+    }
+
+    #[test]
+    fn dom_frontiers_backwards_layout() {
+        let (func, ..) = backwards_layout_setup();
+        let mut dt = DominatorTree::with_function(&func);
+
+        let cfg = ControlFlowGraph::with_function(&func);
+        let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
+        assert!(dom_frontiers.is_empty());
+    }
+
+    #[test]
+    fn post_dom_frontiers_backwards_layout() {
+        let (func, ..) = backwards_layout_setup();
+        let mut post_dom = DominatorTree::with_function_post_dom(&func);
+
+        let cfg = ControlFlowGraph::with_function(&func);
+        let reversed_cfg = cfg.reverse();
+        let dom_frontiers = post_dom.compute_dominance_frontiers(&cfg);
+        assert!(dom_frontiers.is_empty());
     }
 
     #[test]
