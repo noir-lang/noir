@@ -219,9 +219,6 @@ impl<'f> LoopInvariantContext<'f> {
         // Need to accurately determine whether the current block is dependent on any blocks between
         // the current block and the loop header
         for predecessor in all_predecessors {
-            // if self.control_dependent_blocks.contains(&predecessor)
-            //     || self.is_control_dependent(predecessor, block)
-            // {
             if self.is_control_dependent(predecessor, block) {
                 self.current_block_control_dependent = true;
                 self.control_dependent_blocks.insert(predecessor);
