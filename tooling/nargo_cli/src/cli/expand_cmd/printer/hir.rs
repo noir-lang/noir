@@ -689,6 +689,18 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_reference_to_module_def_id(ModuleDefId::FunctionId(func_id), use_import);
             }
             DefinitionKind::Global(global_id) => {
+                let global_info = self.interner.get_global(global_id);
+                let typ = self.interner.definition_type(global_info.definition_id);
+
+                // Special case: the global is an enum value
+                let typ = if let Type::Forall(_, typ) = typ { *typ } else { typ };
+                if let Type::DataType(data_type, _generics) = &typ {
+                    let data_type = data_type.borrow();
+                    if data_type.is_enum() {
+                        self.show_type_name_as_data_type(&typ);
+                        self.push_str("::");
+                    }
+                }
                 let use_import = true;
                 self.show_reference_to_module_def_id(ModuleDefId::GlobalId(global_id), use_import);
             }
