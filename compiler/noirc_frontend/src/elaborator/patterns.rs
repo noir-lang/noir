@@ -582,9 +582,16 @@ impl Elaborator<'_> {
         if is_comptime_local {
             let mut interpreter = self.setup_interpreter();
             let value = interpreter.evaluate(id);
-            let (id, typ) = self.inline_comptime_value(value, location);
-            self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
-            (id, typ)
+            // If the value is an error it means the variable already had an error, so don't report it here again
+            // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
+            // but that's not true)
+            if value.is_ok() {
+                let (id, typ) = self.inline_comptime_value(value, location);
+                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                (id, typ)
+            } else {
+                (id, typ)
+            }
         } else {
             (id, typ)
         }
