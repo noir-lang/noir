@@ -32,13 +32,14 @@
     "cspell": "^8.3.2",
     "eslint": "^9.22.0",
     "eslint-plugin-prettier": "^5.2.3",
-    "mocha": "^10.2.0",
-    "prettier": "3.2.5",
+    "mocha": "^11.1.0",
+    "prettier": "3.5.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.8.2"
   },
   "resolutions": {
-    "@types/estree": "1.0.6"
+    "@types/estree": "1.0.6",
+    "@types/mocha": "10.0.10"
   },
   "packageManager": "yarn@3.6.4"
 }

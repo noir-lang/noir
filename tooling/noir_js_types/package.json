@@ -39,10 +39,10 @@
     }
   },
   "devDependencies": {
-    "@types/prettier": "^3",
+    "@types/prettier": "^3.0.0",
     "eslint": "^9.22.0",
     "eslint-plugin-prettier": "^5.2.3",
-    "prettier": "3.2.5",
+    "prettier": "3.5.3",
     "typescript": "^5.8.2"
   }
 }
