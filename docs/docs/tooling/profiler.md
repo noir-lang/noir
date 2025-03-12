@@ -42,7 +42,7 @@ fn main(ptr: pub u32, mut array: [u32; 32]) -> pub [u32; 32] {
 }
 ```
 
-Change directory into the project and compile the program using `nargo compile`. We are ready then to try the profiler out.
+Change into the project directory and compile the program using `nargo compile`. We are now ready to try out the profiler.
 
 #### Flamegraphing
 
@@ -52,7 +52,7 @@ Let's take a granular look at our program's ACIR opcode footprint using the prof
 noir-profiler opcodes --artifact-path ./target/program.json --output ./target/
 ```
 
-The command will generate a flamegraph in your _target_ folder that maps the number of ACIR opcodes and their corresponding locations in your program source code.
+The command generates a flamegraph in your _target_ folder that maps the number of ACIR opcodes to their corresponding locations in your program's source code.
 
 Opening the flamegraph in a web browser will provide a more interactive experience, allowing you to click into different regions of the graph and examine them.
 
@@ -60,9 +60,9 @@ Flamegraph of the demonstrative project generated with Nargo v1.0.0-beta.2:
 
 ![ACIR Flamegraph Unoptimized](@site/static/img/tooling/profiler/acir-flamegraph-unoptimized.png)
 
-The demonstrative project consists of 387 ACIR opcodes in total, which from the flamegraph we can see that the majority of them comes from the write to `array[i]`.
+The demonstrative project consists of 387 ACIR opcodes in total. From the flamegraph, we can see that the majority come from the write to `array[i]`.
 
-Knowing the insight on our program's bottleneck, let's optimize it.
+With insight into our program's bottleneck, let's optimize it.
 
 #### Optimizing array writes with reads
 
@@ -93,7 +93,7 @@ unconstrained fn zero_out_array(ptr: u32, mut array: [u32; 32]) -> [u32; 32] {
 }
 ```
 
-Instead of writing our array in a fully constrained manner, we first write our array inside an unconstrained function and then assert every value in the array returned from the unconstrained function in a constrained manner.
+Instead of writing our array in a fully constrained context, we first write our array inside an unconstrained function. Then, we assert every value in the array returned from the unconstrained function in a constrained context.
 
 This brings the ACIR opcodes count of our program down to a total of 284 opcodes:
 
@@ -111,7 +111,7 @@ Check "Matched" in the bottom right corner to learn the percentage out of total 
 
 If you try searching for `memory::op` before and after the optimization, you will find that the search will no longer have matches after the optimization.
 
-This comes from the optimization removing the use of a dynamic array (i.e. an array with a dynamic index, that is its values rely on witness inputs). After the optimized rewrite into reading two arrays from known constant indices, simple arithmetic operations replaces the original memory operations.
+This comes from the optimization removing the use of a dynamic array (i.e. an array with a dynamic index, that is its values rely on witness inputs). After the optimization, the program reads from two arrays with known constant indices, replacing the original memory operations with simple arithmetic operations.
 
 :::
 
@@ -162,7 +162,7 @@ For example, we can find a 13.9% match `new_array` in the flamegraph above.
 In contrast, if we profile the pre-optimization demonstrative project:
 ![Brillig Trace Initial Program](@site/static/img/tooling/profiler/brillig-trace-initial-32.png)
 
-You will notice that it does not consist any `new_array`, and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
+You will notice that it does not contain `new_array` and executes a total of 1,582 Brillig opcodes (versus 2,125 Brillig opcodes post-optimization).
 
 As new unconstrained functions were added, it is reasonable that the program would consist of more Brillig opcodes. That said, the tradeoff is often easily justifiable by the fact that proving speeds are more commonly the major bottleneck of Noir programs versus execution speeds.
 
