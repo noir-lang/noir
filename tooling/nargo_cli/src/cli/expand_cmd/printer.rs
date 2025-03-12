@@ -32,6 +32,7 @@ pub(super) struct ItemPrinter<'interner, 'def_map, 'string> {
     indent: usize,
     module_id: ModuleId,
     imports: HashMap<ModuleDefId, Ident>,
+    self_type: Option<Type>,
 }
 
 impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
@@ -44,7 +45,16 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         let root_id = def_maps[&crate_id].root();
         let module_id = ModuleId { krate: crate_id, local_id: root_id };
         let imports = HashMap::new();
-        Self { crate_id, interner, def_maps, string, indent: 0, module_id, imports }
+        Self {
+            crate_id,
+            interner,
+            def_maps,
+            string,
+            indent: 0,
+            module_id,
+            imports,
+            self_type: None,
+        }
     }
 
     pub(super) fn show_item(&mut self, item: Item) {
@@ -272,6 +282,9 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.show_type(&typ);
         self.push_str(" {\n");
         self.increase_indent();
+
+        self.self_type = Some(typ.clone());
+
         for (index, (visibility, func_id)) in impl_.methods.iter().enumerate() {
             if index != 0 {
                 self.push_str("\n\n");
@@ -285,6 +298,8 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.decrease_indent();
         self.write_indent();
         self.push('}');
+
+        self.self_type = None;
     }
 
     fn show_trait_impls(&mut self, trait_impls: Vec<TraitImpl>) {
@@ -385,6 +400,8 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push_str(" {\n");
         self.increase_indent();
 
+        self.self_type = Some(trait_impl.typ.clone());
+
         let mut printed_item = false;
 
         let named = self.interner.get_associated_types_for_impl(trait_impl_id);
@@ -419,6 +436,8 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.decrease_indent();
         self.write_indent();
         self.push('}');
+
+        self.self_type = None;
     }
 
     fn show_global(&mut self, global_id: GlobalId) {
@@ -854,6 +873,11 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
     }
 
     fn show_type_name_as_data_type(&mut self, typ: &Type) {
+        if self.self_type.as_ref() == Some(typ) {
+            self.push_str("Self");
+            return;
+        }
+
         let Type::DataType(data_type, generics) = typ.follow_bindings() else {
             panic!("Expected a data type, got: {typ:?}");
         };

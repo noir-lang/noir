@@ -13,6 +13,11 @@ impl ItemPrinter<'_, '_, '_> {
     }
 
     pub(super) fn show_type(&mut self, typ: &Type) {
+        if self.self_type.as_ref() == Some(typ) {
+            self.push_str("Self");
+            return;
+        }
+
         match typ {
             Type::Array(length, typ) => {
                 self.push('[');

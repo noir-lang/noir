@@ -116,12 +116,28 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push(']');
             }
             HirExpression::Constructor(hir_constructor_expression) => {
-                let data_type = hir_constructor_expression.r#type.borrow();
-                let use_import = true;
-                self.show_reference_to_module_def_id(ModuleDefId::TypeId(data_type.id), use_import);
+                // let data_type = hir_constructor_expression.r#type.borrow();
+                let typ = Type::DataType(
+                    hir_constructor_expression.r#type.clone(),
+                    hir_constructor_expression.struct_generics.clone(),
+                );
+                if self.self_type.as_ref() == Some(&typ) {
+                    self.push_str("Self");
+                } else {
+                    let data_type = hir_constructor_expression.r#type.borrow();
 
-                let use_colons = true;
-                self.show_generic_types(&hir_constructor_expression.struct_generics, use_colons);
+                    let use_import = true;
+                    self.show_reference_to_module_def_id(
+                        ModuleDefId::TypeId(data_type.id),
+                        use_import,
+                    );
+
+                    let use_colons = true;
+                    self.show_generic_types(
+                        &hir_constructor_expression.struct_generics,
+                        use_colons,
+                    );
+                }
 
                 self.push_str(" { ");
                 for (index, (name, value)) in hir_constructor_expression.fields.iter().enumerate() {
