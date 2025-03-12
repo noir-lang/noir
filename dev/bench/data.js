@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741778514501,
+  "lastUpdate": 1741778515456,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3705,100 +3705,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0d84f746927388e730af2ce227bff1cfd709731a",
-          "message": "chore(ssa): Turn the Brillig constraints check back on by default (#7404)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-03-03T14:23:19Z",
-          "tree_id": "b33564aeaebcea81d2d0019f6a41dc8bc4dda869",
-          "url": "https://github.com/noir-lang/noir/commit/0d84f746927388e730af2ce227bff1cfd709731a"
-        },
-        "date": 1741012872579,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "sha256_regression",
-            "value": 1.02,
-            "unit": "s"
-          },
-          {
-            "name": "regression_4709",
-            "value": 0.677,
-            "unit": "s"
-          },
-          {
-            "name": "ram_blowup_regression",
-            "value": 20.7,
-            "unit": "s"
-          },
-          {
-            "name": "global_var_regression_entry_points",
-            "value": 0.511,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-inner",
-            "value": 2.428,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.048,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.982,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.135,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 105,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 109,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.602,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -8166,6 +8072,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.935,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.478,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c94886e4d019b532714dab28f3e88e080390537a",
+          "message": "chore: bump wasm-pack to 0.13.1 (#7675)",
+          "timestamp": "2025-03-12T10:59:04Z",
+          "tree_id": "44d2cb3104dc1fa23a7241dd659c10886a8a65b5",
+          "url": "https://github.com/noir-lang/noir/commit/c94886e4d019b532714dab28f3e88e080390537a"
+        },
+        "date": 1741778512694,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "regression_4709",
+            "value": 0.696,
+            "unit": "s"
+          },
+          {
+            "name": "ram_blowup_regression",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "global_var_regression_entry_points",
+            "value": 0.49,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 2.236,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 6.624,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 11,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 0.921,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 134,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.013,
             "unit": "s"
           },
           {
