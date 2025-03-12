@@ -279,12 +279,14 @@ impl DominatorTree {
 
     /// Computes the dominance frontier for all blocks in the dominator tree.
     ///
-    /// We expect a standard CFG (non-reversed) even if we are operating over
-    /// a dominator tree or a post-dominator tree.
-    /// Calling this method on a dominator tree will return the CFG's dominance frontiers,
-    /// while on a post-dominator tree the method will return the CFG's reverse dominance frontiers.
+    /// This method uses the algorithm specified under Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
+    /// As referenced in the paper a dominance frontier is the set of all CFG nodes, y, such that
+    /// b dominates a predecessor of y but does not strictly d.
     ///
-    ///
+    /// This method expects the appropriate CFG depending on whether we are operating over
+    /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
+    /// Calling this method on a dominator tree will return a function's dominance frontiers,
+    /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
     pub(crate) fn compute_dominance_frontiers(
         &mut self,
         cfg: &ControlFlowGraph,
@@ -659,7 +661,7 @@ mod tests {
 
         // b0 is the entry block which dominates all other blocks
         // Thus, it has an empty set for its dominance frontier
-        assert!(dom_frontiers.get(&0).is_none());
+        assert!(!dom_frontiers.contains_key(&0));
 
         // b1 is in its own DF due to the loop b5 -> b1
         // b1 dominates b5 which is a predecessor of b1, but b1 does not strictly dominate b1
@@ -674,7 +676,7 @@ mod tests {
         assert!(b2_df.contains(&1));
 
         // b3 is the exit block which does not dominate any blocks
-        assert!(dom_frontiers.get(&3).is_none());
+        assert!(!dom_frontiers.contains_key(&3));
 
         // b4 has DF { b5 } because b4 jumps to b5 (thus being a predecessor to b5)
         // b4 dominates itself but b5 is not strictly dominated by b4.
@@ -717,7 +719,7 @@ mod tests {
 
         // b0 is the entry node of the program and the exit block of the post-dominator tree.
         // Thus, it has an empty set for its post-dominance frontier (PDF)
-        assert!(post_dom_frontiers.get(&0).is_none());
+        assert!(!post_dom_frontiers.contains_key(&0));
 
         // b1 is in its own PDF due to the loop b5 -> b1
         // b1 post-dominates b2 and b5. b1 post-dominates itself but not strictly post-dominate itself.
@@ -733,7 +735,7 @@ mod tests {
 
         // b3 is the exit block of the program, but the starting node of the post-dominator tree
         // Thus, it has an empty PDF
-        assert!(post_dom_frontiers.get(&3).is_none());
+        assert!(!post_dom_frontiers.contains_key(&3));
 
         // b4 has DF { b2 } because b2 post-dominates itself and is a predecessor to b4.
         // b2 does not strictly post-dominate b4.
