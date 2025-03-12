@@ -581,8 +581,9 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push(']');
             }
             HirLValue::Dereference { lvalue, element_type: _, location: _ } => {
-                self.push('*');
+                self.push_str("*(");
                 self.show_hir_lvalue(*lvalue);
+                self.push(')');
             }
         }
     }
