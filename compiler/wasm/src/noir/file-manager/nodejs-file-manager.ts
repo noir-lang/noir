@@ -25,37 +25,38 @@ export async function readdirRecursive(dir: string): Promise<string[]> {
 export function createNodejsFileManager(dataDir: string): FileManager {
   return new FileManager(
     {
-      ...fs,
-      ...{
-        // ExistsSync is not available in the fs/promises module
-        existsSync,
-        // This is added here because the node types are not compatible with the FileSystem type for mkdir
-        // Typescripts tries to use a different variant of the function that is not the one that has the optional options.
-        mkdir: async (
-          dir: string,
-          opts?: {
-            /**
-             * Traverse child directories
-             */
-            recursive: boolean;
-          },
-        ) => {
-          await fs.mkdir(dir, opts);
+      // ExistsSync is not available in the fs/promises module
+      existsSync,
+      // This is added here because the node types are not compatible with the FileSystem type for mkdir
+      // Typescripts tries to use a different variant of the function that is not the one that has the optional options.
+      mkdir: async (
+        dir: string,
+        opts?: {
+          /**
+           * Traverse child directories
+           */
+          recursive: boolean;
         },
-        readdir: async (
-          dir: string,
-          options?: {
-            /**
-             * Traverse child directories
-             */
-            recursive: boolean;
-          },
-        ) => {
-          if (options?.recursive) {
-            return readdirRecursive(dir);
-          }
-          return (await fs.readdir(dir)).map((handles) => handles.toString());
+      ) => {
+        await fs.mkdir(dir, opts);
+      },
+
+      writeFile: fs.writeFile,
+      readFile: fs.readFile,
+      rename: fs.rename,
+      readdir: async (
+        dir: string,
+        options?: {
+          /**
+           * Traverse child directories
+           */
+          recursive: boolean;
         },
+      ) => {
+        if (options?.recursive) {
+          return readdirRecursive(dir);
+        }
+        return (await fs.readdir(dir)).map((handles) => handles.toString());
       },
     },
     dataDir,
