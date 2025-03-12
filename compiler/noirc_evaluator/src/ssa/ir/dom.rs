@@ -165,7 +165,7 @@ impl DominatorTree {
     /// Allocate and compute a post-dominator tree for the given function.
     ///
     /// This approach computes the reversed control flow graph and post-order internally and then
-    /// discards them. If either should be retained reuse it is better to instead pre-compute them
+    /// discards them. If either should be retained for reuse, it is better to instead pre-compute them
     /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
     #[cfg(test)]
     pub(crate) fn with_function_post_dom(func: &Function) -> Self {
