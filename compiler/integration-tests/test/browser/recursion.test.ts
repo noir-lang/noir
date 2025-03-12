@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from '@esm-bundle/chai';
 import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
