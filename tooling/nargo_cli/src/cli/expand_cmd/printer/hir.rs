@@ -210,8 +210,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_quoted(&tokens.0);
             }
             HirExpression::Unsafe(hir_block_expression) => {
-                // TODO: show the original comment
-                self.push_str("/* Safety: comment added by `nargo expand` */\n");
+                self.push_str("// Safety: comment added by `nargo expand`\n");
                 self.write_indent();
                 self.push_str("unsafe ");
                 self.show_hir_block_expression(hir_block_expression);
@@ -405,8 +404,7 @@ impl ItemPrinter<'_, '_, '_> {
                 if let HirExpression::Unsafe(_) =
                     self.interner.expression(&hir_let_statement.expression)
                 {
-                    // TODO: show the original comment
-                    self.push_str("/* Safety: comment added by `nargo expand` */\n");
+                    self.push_str("// Safety: comment added by `nargo expand`\n");
                     self.write_indent();
                 }
 
