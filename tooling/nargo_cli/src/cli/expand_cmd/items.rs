@@ -236,14 +236,21 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
         let mut generics = HashSet::new();
         gather_named_type_vars(&typ, &mut generics);
 
-        let methods = methods
+        let mut methods = methods
             .into_iter()
             .map(|method| {
                 let func_id = method.method;
+                let func_meta = self.interner.function_meta(&func_id);
                 let modifiers = self.interner.function_modifiers(&func_id);
-                (modifiers.visibility, func_id)
+                let location = func_meta.name.location;
+                (modifiers.visibility, func_id, location)
             })
             .collect::<Vec<_>>();
+
+        methods.sort_by_key(|(_, _, location)| *location);
+
+        let methods =
+            methods.into_iter().map(|(visibility, func_id, _)| (visibility, func_id)).collect();
 
         Impl { generics, typ, methods }
     }
