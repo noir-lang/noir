@@ -17,11 +17,12 @@ mod visibility;
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
 use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
-use fm::FileId;
 
 use iter_extended::vecmap;
+use noirc_errors::reporter::report_all;
 use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use crate::hir::Context;
@@ -76,11 +77,11 @@ pub(crate) fn get_program_with_options(
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
     let root = std::path::Path::new("/");
-    let fm = FileManager::new(root);
-
+    let mut fm = FileManager::new(root);
+    let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
+
     context.def_interner.populate_dummy_operator_traits();
-    let root_file_id = FileId::dummy();
     let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
 
     let (program, parser_errors) = parse_program(src, root_file_id);
@@ -136,9 +137,12 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
 }
 
 fn assert_no_errors(src: &str) {
-    let errors = get_program_errors(src);
+    let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}; src = {src}", errors);
+        let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+        let file_map = context.file_manager.as_file_map();
+        report_all(file_map, &errors, false, false);
+        panic!("Expected no errors");
     }
 }
 
@@ -246,7 +250,9 @@ fn check_errors_with_options(
 
     if monomorphize {
         if !errors.is_empty() {
-            panic!("Expected no errors before monomorphization, got: {:?}", errors);
+            let file_map = context.file_manager.as_file_map();
+            report_all(file_map, &errors, false, false);
+            panic!("Expected no errors before monomorphization");
         }
 
         let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
