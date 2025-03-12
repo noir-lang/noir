@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741778739415,
+  "lastUpdate": 1741778745990,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11377,70 +11377,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0d84f746927388e730af2ce227bff1cfd709731a",
-          "message": "chore(ssa): Turn the Brillig constraints check back on by default (#7404)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-03-03T14:23:19Z",
-          "tree_id": "b33564aeaebcea81d2d0019f6a41dc8bc4dda869",
-          "url": "https://github.com/noir-lang/noir/commit/0d84f746927388e730af2ce227bff1cfd709731a"
-        },
-        "date": 1741013230265,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 244.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 278.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 579.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 487.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 348.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.84,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14530,6 +14466,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9c66808a21bcf8be3a9f5f6059854cc078d7bf41"
         },
         "date": 1741778677188,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c94886e4d019b532714dab28f3e88e080390537a",
+          "message": "chore: bump wasm-pack to 0.13.1 (#7675)",
+          "timestamp": "2025-03-12T10:59:04Z",
+          "tree_id": "44d2cb3104dc1fa23a7241dd659c10886a8a65b5",
+          "url": "https://github.com/noir-lang/noir/commit/c94886e4d019b532714dab28f3e88e080390537a"
+        },
+        "date": 1741778743440,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
