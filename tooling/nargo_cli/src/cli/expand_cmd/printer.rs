@@ -586,7 +586,24 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
     }
 
     fn show_trait_generics(&mut self, generics: &TraitGenerics) {
-        if generics.is_empty() {
+        let ordered = &generics.ordered;
+
+        // Exclude named generics that are unbound because it's the same as not including them
+        let named = generics
+            .named
+            .iter()
+            .filter(|named| {
+                if let Type::NamedGeneric(type_variable, _) = &named.typ {
+                    if type_variable.borrow().is_unbound() {
+                        return false;
+                    }
+                }
+
+                true
+            })
+            .collect::<Vec<_>>();
+
+        if ordered.is_empty() && named.is_empty() {
             return;
         }
 
@@ -594,7 +611,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
 
         self.push('<');
 
-        for typ in &generics.ordered {
+        for typ in ordered {
             if printed_type {
                 self.push_str(", ");
             }
@@ -603,7 +620,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             printed_type = true;
         }
 
-        for named_type in &generics.named {
+        for named_type in named {
             if printed_type {
                 self.push_str(", ");
             }
