@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741812358527,
+  "lastUpdate": 1741812638642,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e83224484e9f92744ea70432c4e70b5d64f723c7",
-          "message": "feat(experimental): Issue errors for unreachable match branches (#7556)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-05T15:09:24Z",
-          "tree_id": "5e3708e4fdb4664095561ff8b854f817b66e2c06",
-          "url": "https://github.com/noir-lang/noir/commit/e83224484e9f92744ea70432c4e70b5d64f723c7"
-        },
-        "date": 1741188687062,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.5,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 273.89,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 516.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 289.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.34,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14535,6 +14471,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 507.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99830073ec96932948bbdec7a269f025e0bac136",
+          "message": "chore(docs): Extend stable documentation versions to build to cover multiple `beta.n` releases (#7685)",
+          "timestamp": "2025-03-12T20:26:02Z",
+          "tree_id": "1812b390f7003842b850c553edc11283bf2fa368",
+          "url": "https://github.com/noir-lang/noir/commit/99830073ec96932948bbdec7a269f025e0bac136"
+        },
+        "date": 1741812635879,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
             "unit": "MB"
           },
           {
