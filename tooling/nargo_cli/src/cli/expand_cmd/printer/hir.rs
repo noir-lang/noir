@@ -398,6 +398,12 @@ impl ItemPrinter<'_, '_, '_> {
 
         // The function must have a self type
         let func_meta = self.interner.function_meta(&func_id);
+
+        // Don't do this for trait methods (refer to the trait name instead)
+        if func_meta.trait_id.is_some() {
+            return false;
+        }
+
         let Some(self_type) = &func_meta.self_type else {
             return false;
         };
