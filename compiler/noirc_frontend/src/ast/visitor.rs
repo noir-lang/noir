@@ -22,7 +22,7 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, NormalTypeAlias, Pattern, Signedness, TraitBound,
+    MatchExpression, NoirEnumeration, TypeAlias, Pattern, Signedness, TraitBound,
     TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
@@ -148,7 +148,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_noir_type_alias(&mut self, _: &NormalTypeAlias, _: Span) -> bool {
+    fn visit_noir_type_alias(&mut self, _: &TypeAlias, _: Span) -> bool {
         true
     }
 
@@ -815,7 +815,7 @@ impl NoirEnumeration {
     }
 }
 
-impl NormalTypeAlias {
+impl TypeAlias {
     pub fn accept(&self, span: Span, visitor: &mut impl Visitor) {
         if visitor.visit_noir_type_alias(self, span) {
             self.accept_children(visitor);

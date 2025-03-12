@@ -13,7 +13,7 @@ mod parser;
 
 use crate::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NormalTypeAlias, TypeImpl,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl,
     UseTree,
 };
 use crate::token::SecondaryAttribute;
@@ -34,7 +34,7 @@ pub struct SortedModule {
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<Documented<NormalTypeAlias>>,
+    pub type_aliases: Vec<Documented<TypeAlias>>,
     pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
@@ -143,7 +143,7 @@ pub enum ItemKind {
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
-    TypeAlias(NormalTypeAlias),
+    TypeAlias(TypeAlias),
     Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
@@ -249,7 +249,7 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NormalTypeAlias, doc_comments: Vec<String>) {
+    fn push_type_alias(&mut self, type_alias: TypeAlias, doc_comments: Vec<String>) {
         self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 

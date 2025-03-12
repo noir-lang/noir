@@ -1,12 +1,12 @@
 use noirc_frontend::{
-    ast::NormalTypeAlias,
+    ast::TypeAlias,
     token::{Keyword, Token},
 };
 
 use super::Formatter;
 
 impl Formatter<'_> {
-    pub(super) fn format_type_alias(&mut self, type_alias: NormalTypeAlias) {
+    pub(super) fn format_type_alias(&mut self, type_alias: TypeAlias) {
         self.write_indentation();
         self.format_item_visibility(type_alias.visibility);
         self.write_keyword(Keyword::Type);

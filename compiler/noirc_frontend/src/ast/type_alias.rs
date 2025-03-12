@@ -6,7 +6,7 @@ use std::fmt::Display;
 /// Ast node for type aliases
 /// Depending on 'numeric_type', a Type Alias can be an alias to a normal type, or to a numeric generic type
 #[derive(Clone, Debug)]
-pub struct NormalTypeAlias {
+pub struct TypeAlias {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
     pub typ: UnresolvedType,
@@ -15,7 +15,7 @@ pub struct NormalTypeAlias {
     pub numeric_type: Option<UnresolvedType>,
 }
 
-impl Display for NormalTypeAlias {
+impl Display for TypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
         write!(f, "type {}<{}> = {}", self.name, generics.join(", "), self.typ)
