@@ -503,7 +503,7 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }

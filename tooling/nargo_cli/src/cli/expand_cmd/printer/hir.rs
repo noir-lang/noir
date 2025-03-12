@@ -580,10 +580,14 @@ impl ItemPrinter<'_, '_, '_> {
                 self.show_hir_expression_id(index);
                 self.push(']');
             }
-            HirLValue::Dereference { lvalue, element_type: _, location: _ } => {
-                self.push_str("*(");
-                self.show_hir_lvalue(*lvalue);
-                self.push(')');
+            HirLValue::Dereference { lvalue, implicitly_added, element_type: _, location: _ } => {
+                if implicitly_added {
+                    self.show_hir_lvalue(*lvalue);
+                } else {
+                    self.push_str("*(");
+                    self.show_hir_lvalue(*lvalue);
+                    self.push(')');
+                }
             }
         }
     }

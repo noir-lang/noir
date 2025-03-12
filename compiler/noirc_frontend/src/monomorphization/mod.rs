@@ -1807,7 +1807,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&typ, location)?;
                 ast::LValue::Index { array, index, element_type, location }
             }
-            HirLValue::Dereference { lvalue, element_type, location } => {
+            HirLValue::Dereference { lvalue, element_type, location, implicitly_added: _ } => {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
