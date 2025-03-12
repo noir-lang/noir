@@ -395,20 +395,32 @@ impl ItemPrinter<'_, '_, '_> {
             return false;
         };
 
+        // Is this `self.foo()` where `self` is currently a trait?
+        // If so, show it as `self.foo()` instead of `Self::foo(self)`.
+        let mut method_on_trait_self = false;
+
         // Special case: assumed trait method
         if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
             if trait_method.assumed {
-                self.show_type(&trait_method.constraint.typ);
-                self.push_str("::");
-                self.push_str(self.interner.function_name(&func_id));
-                if let Some(generics) = generics {
-                    let use_colons = true;
-                    self.show_generic_types(&generics, use_colons);
+                if let Type::NamedGeneric(_, name) = &trait_method.constraint.typ {
+                    if name.to_string() == "Self" {
+                        method_on_trait_self = true;
+                    }
                 }
-                self.push('(');
-                self.show_hir_expression_ids_separated_by_comma(arguments);
-                self.push(')');
-                return true;
+
+                if !method_on_trait_self {
+                    self.show_type(&trait_method.constraint.typ);
+                    self.push_str("::");
+                    self.push_str(self.interner.function_name(&func_id));
+                    if let Some(generics) = generics {
+                        let use_colons = true;
+                        self.show_generic_types(&generics, use_colons);
+                    }
+                    self.push('(');
+                    self.show_hir_expression_ids_separated_by_comma(arguments);
+                    self.push(')');
+                    return true;
+                }
             }
         }
 
@@ -416,7 +428,7 @@ impl ItemPrinter<'_, '_, '_> {
         let func_meta = self.interner.function_meta(&func_id);
 
         // Don't do this for trait methods (refer to the trait name instead)
-        if func_meta.trait_id.is_some() {
+        if func_meta.trait_id.is_some() && !method_on_trait_self {
             return false;
         }
 
