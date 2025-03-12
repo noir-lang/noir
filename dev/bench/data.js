@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741778499052,
+  "lastUpdate": 1741778500560,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8180,70 +8180,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b55dbb92a009a678f19fcf167bd09ac0264c6f0d",
-          "message": "chore: bump external pinned commits (#7561)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-03T11:22:10Z",
-          "tree_id": "45b374e8fc78f390856aebc3a4faac6cf7223550",
-          "url": "https://github.com/noir-lang/noir/commit/b55dbb92a009a678f19fcf167bd09ac0264c6f0d"
-        },
-        "date": 1741001963679,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.283,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.847,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.024,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -11373,6 +11309,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9c66808a21bcf8be3a9f5f6059854cc078d7bf41",
+          "message": "chore: bump node to v22.18.3 (#7668)",
+          "timestamp": "2025-03-12T10:58:47Z",
+          "tree_id": "d0b3e1f9921ed4ad843629b797e8fd0d6fa255b0",
+          "url": "https://github.com/noir-lang/noir/commit/9c66808a21bcf8be3a9f5f6059854cc078d7bf41"
+        },
+        "date": 1741778498121,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.283,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.732,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.489,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.024,
             "unit": "s"
           }
         ]
