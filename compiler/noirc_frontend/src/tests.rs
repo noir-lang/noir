@@ -140,8 +140,7 @@ fn assert_no_errors(src: &str) {
     let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
-        let file_map = context.file_manager.as_file_map();
-        report_all(file_map, &errors, false, false);
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("Expected no errors");
     }
 }
@@ -250,8 +249,7 @@ fn check_errors_with_options(
 
     if monomorphize {
         if !errors.is_empty() {
-            let file_map = context.file_manager.as_file_map();
-            report_all(file_map, &errors, false, false);
+            report_all(context.file_manager.as_file_map(), &errors, false, false);
             panic!("Expected no errors before monomorphization");
         }
 
@@ -282,17 +280,25 @@ fn check_errors_with_options(
 
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
                     "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
                 );
             } else {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
                     "Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
                 );
             }
         };
 
-        assert_eq!(message, &expected_message, "Primary error at {span:?} has unexpected message");
+        if message != &expected_message {
+            report_all(context.file_manager.as_file_map(), &errors, false, false);
+            assert_eq!(
+                message, &expected_message,
+                "Primary error at {span:?} has unexpected message"
+            );
+        }
 
         for secondary in &error.secondaries {
             let message = &secondary.message;
@@ -302,6 +308,7 @@ fn check_errors_with_options(
 
             let span = secondary.location.span;
             let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
                 if let Some(message) = primary_spans_with_errors.get(&span) {
                     panic!(
                         "Error at {span:?} with message {message:?} is annotated as primary but should be secondary"
@@ -313,18 +320,23 @@ fn check_errors_with_options(
                 };
             };
 
-            assert_eq!(
-                message, &expected_message,
-                "Secondary error at {span:?} has unexpected message"
-            );
+            if message != &expected_message {
+                report_all(context.file_manager.as_file_map(), &errors, false, false);
+                assert_eq!(
+                    message, &expected_message,
+                    "Secondary error at {span:?} has unexpected message"
+                );
+            }
         }
     }
 
     if !primary_spans_with_errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("These primary errors didn't happen: {primary_spans_with_errors:?}");
     }
 
     if !secondary_spans_with_errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("These secondary errors didn't happen: {secondary_spans_with_errors:?}");
     }
 }
