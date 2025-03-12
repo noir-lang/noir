@@ -1,8 +1,8 @@
-use std::mem::array_refcount;
+use std::{hint::black_box, mem::array_refcount};
 
 fn main() {
     let mut array = [0, 1, 2];
-    assert_refcount(array, 1);
+    assert_refcount(black_box(array), 1);
 
     borrow(array, array_refcount(array));
     borrow_mut(&mut array, array_refcount(array));
@@ -22,14 +22,14 @@ fn main() {
 }
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
-    assert_refcount(array, rc_before_call);
+    assert_refcount(black_box(array), rc_before_call);
     println(array[0]);
 }
 
 fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
     // Optimization: inc_rc isn't needed since there is only one array (`array`)
     // of the same type that `array` can be modified through
-    assert_refcount(*array, rc_before_call + 0);
+    assert_refcount(black_box(*array), rc_before_call + 0);
     array[0] = 3;
     println(array[0]);
 }
@@ -37,7 +37,7 @@ fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
 // Returning a copy of the array, otherwise the SSA can end up optimizing away
 // the `array_set`, with the whole body just becoming basically `println(4);`.
 fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
-    assert_refcount(array, rc_before_call + 1);
+    assert_refcount(black_box(array), rc_before_call + 1);
     array[0] = 4;
     println(array[0]);
     array
@@ -46,8 +46,8 @@ fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
 /// Borrow the same array mutably through both parameters, inc_rc is necessary here, although
 /// only one is needed to bring the rc from 1 to 2.
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
-    assert_refcount(*array1, rc_before_call + 1);
-    assert_refcount(*array2, rc_before_call + 1);
+    assert_refcount(black_box(*array1), rc_before_call + 1);
+    assert_refcount(black_box(*array2), rc_before_call + 1);
     array1[0] = 5;
     array2[0] = 6;
     println(array1[0]); // array1 & 2 alias, so this should also print 6
@@ -62,8 +62,8 @@ fn borrow_mut_two_separate(
     rc_before_call1: u32,
     rc_before_call2: u32,
 ) {
-    assert_refcount(*array1, rc_before_call1 + 0);
-    assert_refcount(*array2, rc_before_call2 + 0);
+    assert_refcount(black_box(*array1), rc_before_call1 + 0);
+    assert_refcount(black_box(*array2), rc_before_call2 + 0);
     array1[0] = 7;
     array2[0] = 8;
     println(array1[0]);
