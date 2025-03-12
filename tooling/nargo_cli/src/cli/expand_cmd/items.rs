@@ -461,11 +461,13 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
             gather_named_type_vars(lhs, type_vars);
             gather_named_type_vars(rhs, type_vars);
         }
+        Type::String(typ) => {
+            gather_named_type_vars(typ, type_vars);
+        }
         Type::Unit
         | Type::FieldElement
         | Type::Integer(..)
         | Type::Bool
-        | Type::String(_)
         | Type::Quoted(_)
         | Type::Constant(..)
         | Type::TypeVariable(_)
