@@ -474,19 +474,24 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
-        // `v6 = mul v0, v1` in b3 should now be `v3 = mul v0, v1` in b0
+        // From b3:
+        // `v6 = mul v0, v1`
+        // `constrain v6 == i32 6`
+        // To b0:
+        // `v3 = mul v0, v1`
+        // `constrain v3 == i32 6`
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = mul v0, v1
+            constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v6 = lt v2, i32 4
-            jmpif v6 then: b3, else: b2
+            v7 = lt v2, i32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == i32 6
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
@@ -543,15 +548,15 @@ mod test {
           b2():
             return
           b3():
+            constrain v4 == i32 6
             jmp b4(i32 0)
           b4(v3: i32):
-            v8 = lt v3, i32 4
-            jmpif v8 then: b6, else: b5
+            v9 = lt v3, i32 4
+            jmpif v9 then: b6, else: b5
           b5():
             v12 = unchecked_add v2, i32 1
             jmp b1(v12)
           b6():
-            constrain v4 == i32 6
             v11 = unchecked_add v3, i32 1
             jmp b4(v11)
         }
@@ -605,6 +610,7 @@ mod test {
             v3 = mul v0, v1
             v4 = mul v3, v0
             v6 = eq v4, i32 12
+            constrain v4 == i32 12
             jmp b1(i32 0)
           b1(v2: i32):
             v9 = lt v2, i32 4
@@ -612,7 +618,6 @@ mod test {
           b2():
             return
           b3():
-            constrain v4 == i32 12
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
@@ -746,8 +751,10 @@ mod test {
             v19 = unchecked_add v2, u32 1
             jmp b1(v19)
           b6():
+            constrain v10 == v0
             v13 = array_get v6, index v3 -> u32
             v14 = eq v13, v0
+            constrain v13 == v0
             jmp b7(u32 0)
           b7(v4: u32):
             v15 = lt v4, u32 4
@@ -756,8 +763,6 @@ mod test {
             v18 = unchecked_add v3, u32 1
             jmp b4(v18)
           b9():
-            constrain v10 == v0
-            constrain v13 == v0
             v17 = unchecked_add v4, u32 1
             jmp b7(v17)
         }
@@ -885,14 +890,14 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = mul v0, v1
+            constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v6 = lt v2, i32 4
-            jmpif v6 then: b3, else: b2
+            v7 = lt v2, i32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v3 == i32 6
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
@@ -1152,12 +1157,12 @@ mod control_dependence {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
+            constrain v4 == u32 12
             jmp b1(u32 0)
           b1(v2: u32):
-            v7 = lt v2, u32 4
-            jmpif v7 then: b2, else: b3
+            v8 = lt v2, u32 4
+            jmpif v8 then: b2, else: b3
           b2():
-            constrain v4 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp b1(v10)
           b3():
