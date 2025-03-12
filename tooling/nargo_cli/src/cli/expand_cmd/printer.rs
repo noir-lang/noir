@@ -873,6 +873,20 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str(&name);
                 return name;
             }
+
+            if let Some(self_type) = &func_meta.self_type {
+                if self_type.is_primitive() {
+                    // Type path, like `Field::method(...)`
+                    self.show_type(self_type);
+                    self.push_str("::");
+
+                    let name = self.interner.function_name(&func_id).to_string();
+                    self.push_str(&name);
+                    return name;
+                }
+            }
+
+            dbg!(&func_meta.self_type);
         }
 
         if use_import {
