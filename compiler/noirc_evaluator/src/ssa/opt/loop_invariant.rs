@@ -206,25 +206,19 @@ impl<'f> LoopInvariantContext<'f> {
     fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
         let mut all_predecessors =
             Loop::find_blocks_in_loop(self.pre_header(), block, &self.cfg).blocks;
+
         all_predecessors.remove(&block);
         all_predecessors.remove(&self.pre_header());
+        all_predecessors.remove(&loop_.header);
 
         // Need to accurately determine whether the current block is dependent on any blocks between
         // the current block and the loop header
-        for predecessor in all_predecessors.into_iter().rev() {
-            if predecessor == loop_.header {
-                continue;
-            }
-
-            if self.control_dependent_blocks.contains(&predecessor) {
+        for predecessor in all_predecessors {
+            if self.control_dependent_blocks.contains(&predecessor)
+                || self.is_control_dependent(predecessor, block)
+            {
                 self.current_block_control_dependent = true;
                 self.control_dependent_blocks.insert(predecessor);
-                break;
-            }
-
-            if self.is_control_dependent(predecessor, block) {
-                self.current_block_control_dependent = true;
-                self.control_dependent_blocks.insert(block);
                 break;
             }
         }
@@ -238,18 +232,21 @@ impl<'f> LoopInvariantContext<'f> {
     /// https://doi.org/10.1145/24039.24041
     ///
     /// Definition 3 from the linked paper above.
+    /// ```text
+    /// Let G be a control flow graph. Let X and Y be nodes in G. Y is
+    //  control dependent on X iff
+    //  (1) there exists a directed path P from X to Y with any 2 in P (excluding X
+    //  and Y) post-dominated by Y and
+    //  (2) X is not post-dominated by Y.
+    /// ```
     fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         let mut all_predecessors = Loop::find_blocks_in_loop(parent_block, block, &self.cfg).blocks;
         all_predecessors.remove(&parent_block);
         all_predecessors.remove(&block);
 
-        let mut first_control_cond = false;
-        for predecessor in all_predecessors {
-            if self.post_dom.dominates(predecessor, block) {
-                first_control_cond = true;
-                break;
-            }
-        }
+        let first_control_cond =
+            all_predecessors.iter().any(|&pred| self.post_dom.dominates(pred, block));
+
         first_control_cond && !self.post_dom.dominates(block, parent_block)
     }
 
