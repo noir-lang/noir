@@ -5899,7 +5899,7 @@ __metadata:
     "@types/adm-zip": ^0.5.0
     "@types/chai": ^4
     "@types/mocha": ^10.0.10
-    "@types/mocha-each": ^2
+    "@types/mocha-each": ^2.0.4
     "@types/node": ^22.13.10
     "@types/pako": ^2
     "@types/path-browserify": ^1
@@ -8868,7 +8868,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/mocha-each@npm:^2":
+"@types/mocha-each@npm:^2.0.4":
   version: 2.0.4
   resolution: "@types/mocha-each@npm:2.0.4"
   dependencies:
@@ -8877,14 +8877,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/mocha@npm:*":
-  version: 10.0.6
-  resolution: "@types/mocha@npm:10.0.6"
-  checksum: f7c836cf6cf27dc0f5970d262591b56f2a3caeaec8cfdc612c12e1cfbb207f601f710ece207e935164d4e3343b93be5054d0db5544f31f453b3923775d82099f
-  languageName: node
-  linkType: hard
-
-"@types/mocha@npm:^10.0.10":
+"@types/mocha@npm:10.0.10":
   version: 10.0.10
   resolution: "@types/mocha@npm:10.0.10"
   checksum: 17a56add60a8cc8362d3c62cb6798be3f89f4b6ccd5b9abd12b46e31ff299be21ff2faebf5993de7e0099559f58ca5a3b49a505d302dfa5d65c5a4edfc089195
