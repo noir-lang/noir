@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741781146295,
+  "lastUpdate": 1741781437917,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11367,70 +11367,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c2022f4fbab4ed5d9cd62b3ff5b9bba9bd36627e",
-          "message": "feat: perform constant sha256 compressions at compile-time (#7566)",
-          "timestamp": "2025-03-03T19:01:04Z",
-          "tree_id": "b3d23d752473f52cab17c2269eb9a588324f60f7",
-          "url": "https://github.com/noir-lang/noir/commit/c2022f4fbab4ed5d9cd62b3ff5b9bba9bd36627e"
-        },
-        "date": 1741029852959,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 244.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 278.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 579.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 487.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 348.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.84,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14520,6 +14456,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0c17e2a246be7502abb97230df2cb3a729365be2"
         },
         "date": 1741779698109,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6f4410990ff4d6711e3a5087f8205cee73d2882f",
+          "message": "chore: migrate to use new flat eslint config file (#7676)",
+          "timestamp": "2025-03-12T11:43:19Z",
+          "tree_id": "1cf3fdbcdaa3643c910bbf5963d6fea2f1338a94",
+          "url": "https://github.com/noir-lang/noir/commit/6f4410990ff4d6711e3a5087f8205cee73d2882f"
+        },
+        "date": 1741781435363,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
