@@ -158,7 +158,17 @@ impl ItemPrinter<'_, '_, '_> {
                     return;
                 }
 
-                self.show_hir_expression_id_maybe_inside_parens(hir_call_expression.func);
+                let func = self.interner.expression(&hir_call_expression.func);
+
+                // Special case: a call on a member access must have parentheses around it
+                if matches!(func, HirExpression::MemberAccess(..)) {
+                    self.push('(');
+                    self.show_hir_expression_id(hir_call_expression.func);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(hir_call_expression.func);
+                }
+
                 if hir_call_expression.is_macro_call {
                     self.push('!');
                 }
