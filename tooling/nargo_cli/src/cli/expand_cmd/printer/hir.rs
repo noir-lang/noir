@@ -137,7 +137,7 @@ impl ItemPrinter<'_, '_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.show_hir_expression_id(hir_member_access.lhs);
+                self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
                 self.push('.');
                 self.push_str(&hir_member_access.rhs.to_string());
             }
