@@ -211,7 +211,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         // Need to accurately determine whether the current block is dependent on any blocks between
         // the current block and the loop header
-        for predecessor in all_predecessors {
+        for predecessor in all_predecessors.into_iter().rev() {
             if predecessor == loop_.header {
                 continue;
             }
