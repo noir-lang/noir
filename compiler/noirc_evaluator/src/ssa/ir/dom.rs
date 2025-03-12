@@ -325,13 +325,16 @@ impl DominatorTree {
 mod tests {
     use std::cmp::Ordering;
 
+    use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId, call_stack::CallStackId, cfg::ControlFlowGraph,
             dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id,
-            types::Type,
+            post_order::PostOrder, types::Type,
         },
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -604,6 +607,144 @@ mod tests {
         let cfg = ControlFlowGraph::with_function(&func);
         let dom_frontiers = post_dom.compute_dominance_frontiers(&cfg);
         assert!(dom_frontiers.is_empty());
+    }
+
+    fn loop_with_conditional() -> Ssa {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v1: u32, v2: u32):
+            v5 = eq v1, u32 5
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v8 = lt v3, u32 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            jmpif v5 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v9 = mul u32 4294967295, v2
+            constrain v9 == u32 12
+            jmp b5()
+          b5():
+            v12 = unchecked_add v3, u32 1
+            jmp b1(v12)
+        }
+        ";
+        Ssa::from_str(src).unwrap()
+    }
+
+    #[test]
+    fn dom_frontiers() {
+        let ssa = loop_with_conditional();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let post_order = PostOrder::with_cfg(&cfg);
+
+        let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
+        dbg!(dom_frontiers.clone());
+
+        // Convert BasicBlockIds to their underlying u32 values for easy comparisons
+        let dom_frontiers = dom_frontiers
+            .into_iter()
+            .map(|(block, frontier)| {
+                (
+                    block.to_u32(),
+                    frontier.into_iter().map(|block| block.to_u32()).collect::<HashSet<_>>(),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        // b0 is the entry block which dominates all other blocks
+        // Thus, it has an empty set for its dominance frontier
+        assert!(dom_frontiers.get(&0).is_none());
+
+        // b1 is in its own DF due to the loop b5 -> b1
+        // b1 dominates b5 which is a predecessor of b1, but b1 does not strictly dominate b1
+        let b1_df = &dom_frontiers[&1];
+        assert_eq!(b1_df.len(), 1);
+        assert!(b1_df.contains(&1));
+
+        // b2 has DF { b1 } also due to the loop b5 -> b1.
+        // b2 dominates b5 which is a predecessor of b1, but b2 does not strictly dominate b1
+        let b2_df = &dom_frontiers[&2];
+        assert_eq!(b2_df.len(), 1);
+        assert!(b2_df.contains(&1));
+
+        // b3 is the exit block which does not dominate any blocks
+        assert!(dom_frontiers.get(&3).is_none());
+
+        // b4 has DF { b5 } because b4 jumps to b5 (thus being a predecessor to b5)
+        // b4 dominates itself but b5 is not strictly dominated by b4.
+        let b4_df = &dom_frontiers[&4];
+        assert_eq!(b4_df.len(), 1);
+        assert!(b4_df.contains(&5));
+
+        // b5 has DF { b1 } also due to the loop b5 -> b1
+        let b5_df = &dom_frontiers[&5];
+        assert_eq!(b5_df.len(), 1);
+        assert!(b5_df.contains(&1));
+    }
+
+    #[test]
+    fn post_dom_frontiers() {
+        let ssa = loop_with_conditional();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let reversed_cfg = cfg.reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+
+        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+        dbg!(post_dom_frontiers.clone());
+
+        // Convert BasicBlockIds to their underlying u32 values for easy comparisons
+        let post_dom_frontiers = post_dom_frontiers
+            .into_iter()
+            .map(|(block, frontier)| {
+                (
+                    block.to_u32(),
+                    frontier.into_iter().map(|block| block.to_u32()).collect::<HashSet<_>>(),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        // Another way to think about the post-dominator frontier for a node n,
+        // is that we can reach a block in the PDF during execution without going through n.
+
+        // b0 is the entry node of the program and the exit block of the post-dominator tree.
+        // Thus, it has an empty set for its post-dominance frontier (PDF)
+        assert!(post_dom_frontiers.get(&0).is_none());
+
+        // b1 is in its own PDF due to the loop b5 -> b1
+        // b1 post-dominates b2 and b5. b1 post-dominates itself but not strictly post-dominate itself.
+        let b1_pdf = &post_dom_frontiers[&1];
+        assert_eq!(b1_pdf.len(), 1);
+        assert!(b1_pdf.contains(&1));
+
+        // b2 has DF { b1 } also due to the loop b5 -> b1.
+        // b1 post-dominates itself is a predecessor of b2, but b1 does not strictly post-dominate b2.
+        let b2_pdf = &post_dom_frontiers[&2];
+        assert_eq!(b2_pdf.len(), 1);
+        assert!(b2_pdf.contains(&1));
+
+        // b3 is the exit block of the program, but the starting node of the post-dominator tree
+        // Thus, it has an empty PDF
+        assert!(post_dom_frontiers.get(&3).is_none());
+
+        // b4 has DF { b2 } because b2 post-dominates itself and is a predecessor to b4.
+        // b2 does not strictly post-dominate b4.
+        let b4_pdf = &post_dom_frontiers[&4];
+        assert_eq!(b4_pdf.len(), 1);
+        assert!(b4_pdf.contains(&2));
+
+        // b5 has DF { b1 } also due to the loop b5 -> b1
+        let b5_pdf = &post_dom_frontiers[&5];
+        assert_eq!(b5_pdf.len(), 1);
+        assert!(b5_pdf.contains(&1));
     }
 
     #[test]
