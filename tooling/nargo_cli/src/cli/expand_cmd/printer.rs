@@ -389,7 +389,9 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push_str("impl");
         self.show_generic_type_variables(&item_trait_impl.generics);
         self.push(' ');
-        self.push_str(&trait_.name.to_string());
+
+        let use_import = true;
+        self.show_reference_to_module_def_id(ModuleDefId::TraitId(trait_.id), use_import);
 
         let use_colons = false;
         self.show_generic_types(&trait_impl.trait_generics, use_colons);
