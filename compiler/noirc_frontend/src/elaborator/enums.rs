@@ -954,11 +954,18 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         variable_types: Vec<Type>,
         location: Location,
     ) -> Vec<DefinitionId> {
-        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
+        vecmap(variable_types.into_iter().enumerate(), |(index, typ)| {
+            self.fresh_match_variable(index, typ, location)
+        })
     }
 
-    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
-        let name = "internal_match_variable".to_string();
+    fn fresh_match_variable(
+        &mut self,
+        index: usize,
+        variable_type: Type,
+        location: Location,
+    ) -> DefinitionId {
+        let name = format!("internal_match_variable_{index}");
         let kind = DefinitionKind::Local(None);
         let id = self.elaborator.interner.push_definition(name, false, false, kind, location);
         self.elaborator.interner.push_definition_type(id, variable_type);

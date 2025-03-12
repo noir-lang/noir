@@ -55,3 +55,13 @@ comptime fn generate_baz(_: Module) -> Quoted {
         pub fn baz() {}
     }
 }
+
+fn test_enums() {
+    let foo = Foo { value: 1, int: 2 };
+    match foo {
+        Foo::<Field> { int, value } => {
+            println(f"value: {value}");
+            println(f"int: {int}");
+        },
+    }
+}

@@ -107,6 +107,7 @@ fn get_expanded_package(
 mod tests {
     use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
     use nargo_toml::PackageSelection;
+    use noirc_frontend::elaborator::UnstableFeature;
 
     use crate::cli::read_workspace;
 
@@ -121,7 +122,8 @@ mod tests {
             .canonicalize()
             .expect("Could not resolve root path");
 
-        let command = ExpandCommand::default();
+        let mut command = ExpandCommand::default();
+        command.compile_options.unstable_features.push(UnstableFeature::Enums);
         let workspace = read_workspace(&root_path, PackageSelection::All).unwrap();
 
         let mut workspace_file_manager = workspace.new_file_manager();
@@ -195,6 +197,25 @@ comptime fn generate_baz(_: Module) -> Quoted {
 }
 
 pub fn baz() {}
+
+fn test_enums() {
+    let foo: Foo<Field> = Foo::<Field> { value: 1, int: 2 };
+    {
+        let internal___variable: Foo<Field> = foo;
+        match internal___variable {
+            Foo::<Field> { value: internal_match_variable_0, int: internal_match_variable_1 } => {
+                let value: Field = internal_match_variable_1;
+                {
+                    let int: i32 = internal_match_variable_0;
+                    {
+                        println(f"value: {value}");
+                        println(f"int: {int}");
+                    }
+                }
+            },
+        }
+    }
+}
 "#;
 
         assert_eq!(code, expected);

@@ -243,14 +243,36 @@ impl ItemPrinter<'_, '_, '_> {
                     self.write_indent();
                     self.show_constructor(case.constructor);
                     if !case.arguments.is_empty() {
-                        self.push('(');
-                        for (index, argument) in case.arguments.into_iter().enumerate() {
-                            if index != 0 {
-                                self.push_str(", ");
+                        let typ = self.interner.definition_type(variable).follow_bindings();
+                        let Type::DataType(data_type, generics) = typ else {
+                            panic!("Expected a data type");
+                        };
+                        let data_type = data_type.borrow();
+                        if data_type.is_enum() {
+                            self.push('(');
+                            for (index, argument) in case.arguments.into_iter().enumerate() {
+                                if index != 0 {
+                                    self.push_str(", ");
+                                }
+                                self.show_definition_id(argument);
                             }
-                            self.show_definition_id(argument);
+                            self.push(')');
+                        } else if let Some(fields) = data_type.get_fields(&generics) {
+                            self.push('{');
+                            for (index, (argument, (name, _))) in
+                                case.arguments.into_iter().zip(fields).enumerate()
+                            {
+                                if index != 0 {
+                                    self.push_str(", ");
+                                }
+                                self.push_str(&name);
+                                self.push_str(": ");
+                                self.show_definition_id(argument);
+                            }
+                            self.push('}');
+                        } else {
+                            unreachable!("Expected data type to be struct or enum ")
                         }
-                        self.push(')');
                     }
                     self.push_str(" => ");
                     self.show_hir_match(case.body);
@@ -300,10 +322,11 @@ impl ItemPrinter<'_, '_, '_> {
                     panic!("Expected data type")
                 };
                 let data_type = data_type.borrow();
-
-                let variant = data_type.variant_at(index);
-                self.push_str("::");
-                self.push_str(&variant.name.to_string());
+                if data_type.is_enum() {
+                    let variant = data_type.variant_at(index);
+                    self.push_str("::");
+                    self.push_str(&variant.name.to_string());
+                }
             }
             Constructor::Range(from, to) => {
                 self.push_str(&from.to_string());
