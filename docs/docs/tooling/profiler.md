@@ -90,7 +90,7 @@ The `gates` command also accepts a backend binary. In the [quick start guide](..
 
 Run the following command:
 ```sh
-noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target
+noir-profiler gates --artifact-path ./target/program.json --backend-path bb --output ./target -- --include_gates_per_opcode
 ```
 `--backend-path` accepts a path to the backend binary. In the above command we assume that you have the backend binary path saved in your PATH. If you do not, you will have to pass the binary's absolute path.
 
