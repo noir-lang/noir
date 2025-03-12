@@ -5,7 +5,7 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch,
+            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
@@ -369,6 +369,23 @@ impl ItemPrinter<'_, '_, '_> {
             return false;
         };
 
+        // Special case: assumed trait method
+        if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
+            if trait_method.assumed {
+                self.show_type(&trait_method.constraint.typ);
+                self.push_str("::");
+                self.push_str(self.interner.function_name(&func_id));
+                if let Some(generics) = generics {
+                    let use_colons = true;
+                    self.show_generic_types(&generics, use_colons);
+                }
+                self.push('(');
+                self.show_hir_expression_ids_separated_by_comma(&arguments);
+                self.push(')');
+                return true;
+            }
+        }
+
         // The function must have a self type
         let func_meta = self.interner.function_meta(&func_id);
         let Some(self_type) = &func_meta.self_type else {
@@ -398,12 +415,7 @@ impl ItemPrinter<'_, '_, '_> {
             self.show_generic_types(&generics, use_colons);
         }
         self.push('(');
-        for (index, argument) in arguments[1..].iter().enumerate() {
-            if index != 0 {
-                self.push_str(", ");
-            }
-            self.show_hir_expression_id(*argument);
-        }
+        self.show_hir_expression_ids_separated_by_comma(&arguments[1..]);
         self.push(')');
 
         true
