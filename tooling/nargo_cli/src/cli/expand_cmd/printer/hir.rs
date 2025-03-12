@@ -49,6 +49,18 @@ impl ItemPrinter<'_, '_, '_> {
         }
     }
 
+    fn show_hir_expression_id_maybe_inside_curlies(&mut self, expr_id: ExprId) {
+        let hir_expr = self.interner.expression(&expr_id);
+        let parens = hir_expression_needs_parentheses(&hir_expr);
+        if parens {
+            self.push('{');
+        }
+        self.show_hir_expression(hir_expr);
+        if parens {
+            self.push('}');
+        }
+    }
+
     pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
@@ -146,7 +158,7 @@ impl ItemPrinter<'_, '_, '_> {
                     return;
                 }
 
-                self.show_hir_expression_id(hir_call_expression.func);
+                self.show_hir_expression_id_maybe_inside_parens(hir_call_expression.func);
                 if hir_call_expression.is_macro_call {
                     self.push('!');
                 }
@@ -219,7 +231,7 @@ impl ItemPrinter<'_, '_, '_> {
             self.show_type(&hir_lambda.return_type);
             self.push_str(" ");
         }
-        self.show_hir_expression_id(hir_lambda.body);
+        self.show_hir_expression_id_maybe_inside_curlies(hir_lambda.body);
     }
 
     fn show_hir_match(&mut self, hir_match: HirMatch) {
@@ -670,7 +682,7 @@ impl ItemPrinter<'_, '_, '_> {
 
 fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
     match hir_expr {
-        HirExpression::Infix(..) | HirExpression::Cast(..) => true,
+        HirExpression::Infix(..) | HirExpression::Cast(..) | HirExpression::Lambda(..) => true,
         HirExpression::Ident(..)
         | HirExpression::Literal(..)
         | HirExpression::Block(..)
@@ -684,7 +696,6 @@ fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
         | HirExpression::If(..)
         | HirExpression::Match(..)
         | HirExpression::Tuple(..)
-        | HirExpression::Lambda(..)
         | HirExpression::Quote(..)
         | HirExpression::Unquote(..)
         | HirExpression::Unsafe(..)
