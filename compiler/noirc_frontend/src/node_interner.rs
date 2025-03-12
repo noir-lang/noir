@@ -573,6 +573,10 @@ impl DefinitionInfo {
     pub fn is_global(&self) -> bool {
         self.kind.is_global()
     }
+
+    pub fn is_comptime_local(&self) -> bool {
+        self.comptime && matches!(self.kind, DefinitionKind::Local(..))
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
