@@ -5,7 +5,7 @@
 
 use noirc_errors::Location;
 use noirc_frontend::{
-    Type,
+    Kind, Type,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
     modules::module_def_id_to_reference_id,
@@ -65,13 +65,13 @@ pub(super) struct Trait {
 }
 
 pub(super) struct Impl {
-    pub(super) generics: HashSet<String>,
+    pub(super) generics: HashSet<(String, Kind)>,
     pub(super) typ: Type,
     pub(super) methods: Vec<(ItemVisibility, FuncId)>,
 }
 
 pub(super) struct TraitImpl {
-    pub(super) generics: HashSet<String>,
+    pub(super) generics: HashSet<(String, Kind)>,
     pub(super) id: TraitImplId,
     pub(super) methods: Vec<FuncId>,
 }
@@ -400,7 +400,7 @@ impl<'interner, 'def_map> ItemBuilder<'interner, 'def_map> {
     }
 }
 
-fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
+fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
     match typ {
         Type::Array(length, typ) => {
             gather_named_type_vars(length, type_vars);
@@ -431,8 +431,8 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<String>) {
                 gather_named_type_vars(&named_type.typ, type_vars);
             }
         }
-        Type::NamedGeneric(_, name) => {
-            type_vars.insert(name.to_string());
+        Type::NamedGeneric(type_variable, name) => {
+            type_vars.insert((name.to_string(), type_variable.kind()));
         }
         Type::CheckedCast { from, to: _ } => {
             gather_named_type_vars(from, type_vars);

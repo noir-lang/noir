@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use noirc_driver::CrateId;
 use noirc_frontend::{
-    DataType, Generics, Type,
+    DataType, Generics, Kind, Type,
     ast::{Ident, ItemVisibility, Visibility},
     hir::{
         comptime::{Value, tokens_to_string_with_indent},
@@ -267,7 +267,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         let typ = impl_.typ;
 
         self.push_str("impl");
-        self.show_generic_names(&impl_.generics);
+        self.show_generic_type_variables(&impl_.generics);
         self.push(' ');
         self.show_type(&typ);
         self.push_str(" {\n");
@@ -372,7 +372,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
 
         self.push_str("impl");
-        self.show_generic_names(&item_trait_impl.generics);
+        self.show_generic_type_variables(&item_trait_impl.generics);
         self.push(' ');
         self.push_str(&trait_.name.to_string());
 
@@ -540,25 +540,28 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             if index > 0 {
                 self.push_str(", ");
             }
-
-            match generic.kind() {
-                noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
-                    self.push_str(&generic.name);
-                }
-                noirc_frontend::Kind::IntegerOrField | noirc_frontend::Kind::Integer => {
-                    self.push_str("let ");
-                    self.push_str(&generic.name);
-                    self.push_str(": u32");
-                }
-                noirc_frontend::Kind::Numeric(typ) => {
-                    self.push_str("let ");
-                    self.push_str(&generic.name);
-                    self.push_str(": ");
-                    self.show_type(&typ);
-                }
-            }
+            self.show_generic_kind(&generic.name, &generic.kind());
         }
         self.push('>');
+    }
+
+    fn show_generic_kind(&mut self, name: &str, kind: &Kind) {
+        match kind {
+            Kind::Any | Kind::Normal => {
+                self.push_str(name);
+            }
+            Kind::IntegerOrField | Kind::Integer => {
+                self.push_str("let ");
+                self.push_str(name);
+                self.push_str(": u32");
+            }
+            Kind::Numeric(typ) => {
+                self.push_str("let ");
+                self.push_str(name);
+                self.push_str(": ");
+                self.show_type(&typ);
+            }
+        }
     }
 
     fn show_trait_generics(&mut self, generics: &TraitGenerics) {
@@ -593,17 +596,17 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.push('>');
     }
 
-    fn show_generic_names(&mut self, generics: &HashSet<String>) {
+    fn show_generic_type_variables(&mut self, generics: &HashSet<(String, Kind)>) {
         if generics.is_empty() {
             return;
         }
 
         self.push('<');
-        for (index, name) in generics.iter().enumerate() {
+        for (index, (name, kind)) in generics.iter().enumerate() {
             if index != 0 {
                 self.push_str(", ");
             }
-            self.push_str(name);
+            self.show_generic_kind(name, kind);
         }
         self.push('>');
     }
