@@ -292,7 +292,7 @@ impl DominatorTree {
         let mut dominance_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>> =
             HashMap::default();
 
-        let nodes = self.nodes.keys().into_iter().copied().collect::<Vec<_>>();
+        let nodes = self.nodes.keys().copied().collect::<Vec<_>>();
         for block_id in nodes {
             let predecessors = cfg.predecessors(block_id);
             // Dominance frontier nodes must have more than one predecessor
