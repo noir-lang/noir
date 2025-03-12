@@ -88,8 +88,11 @@ impl ItemPrinter<'_, '_, '_> {
                     self.push('_');
                 }
             },
-            Type::TraitAsType(..) => {
-                panic!("Trait as type should not happen")
+            Type::TraitAsType(trait_id, _, generics) => {
+                let trait_ = self.interner.get_trait(*trait_id);
+                self.push_str("impl ");
+                self.push_str(&trait_.name.0.contents);
+                self.show_trait_generics(generics);
             }
             Type::NamedGeneric(_type_variable, name) => {
                 self.push_str(name);
@@ -161,7 +164,7 @@ impl ItemPrinter<'_, '_, '_> {
 
 fn type_needs_parentheses(typ: &Type) -> bool {
     match typ {
-        Type::InfixExpr(..) | Type::Function(..) => true,
+        Type::InfixExpr(..) | Type::Function(..) | Type::TraitAsType(..) => true,
         Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
             TypeBinding::Bound(typ) => type_needs_parentheses(typ),
             TypeBinding::Unbound(..) => false,
@@ -178,7 +181,6 @@ fn type_needs_parentheses(typ: &Type) -> bool {
         | Type::Tuple(..)
         | Type::DataType(..)
         | Type::Alias(..)
-        | Type::TraitAsType(..)
         | Type::NamedGeneric(..)
         | Type::Reference(..)
         | Type::Forall(..)
