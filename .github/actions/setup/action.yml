@@ -7,7 +7,7 @@ runs:
     - uses: actions/setup-node@v4
       id: node
       with:
-        node-version: 22.14.0
+        node-version: 20.18.3
         cache: 'yarn'
         cache-dependency-path: 'yarn.lock'
 
