@@ -478,7 +478,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut HashSet<(String, Kind)>) {
 fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> bool {
     match typ {
         Type::Array(length, typ) => {
-            type_mentions_data_type(length, data_type) && type_mentions_data_type(typ, data_type)
+            type_mentions_data_type(length, data_type) || type_mentions_data_type(typ, data_type)
         }
         Type::Slice(typ) => type_mentions_data_type(typ, data_type),
         Type::FmtString(length, typ) => {
@@ -500,7 +500,7 @@ fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> 
                     .iter()
                     .any(|named_type| type_mentions_data_type(&named_type.typ, data_type))
         }
-        Type::CheckedCast { from, to: _ } => type_mentions_data_type(from, data_type),
+        Type::CheckedCast { from: _, to } => type_mentions_data_type(to, data_type),
         Type::Function(args, ret, env, _) => {
             args.iter().any(|typ| type_mentions_data_type(typ, data_type))
                 || type_mentions_data_type(ret, data_type)
@@ -520,6 +520,6 @@ fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> 
         | Type::Constant(..)
         | Type::TypeVariable(..)
         | Type::NamedGeneric(..)
-        | Type::Error => true,
+        | Type::Error => false,
     }
 }
