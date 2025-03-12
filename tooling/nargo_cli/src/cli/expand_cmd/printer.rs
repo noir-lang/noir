@@ -384,15 +384,36 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
         self.show_where_clause(&trait_impl.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
-        for (index, method) in item_trait_impl.methods.iter().enumerate() {
-            if index != 0 {
+
+        let mut printed_item = false;
+
+        let named = self.interner.get_associated_types_for_impl(trait_impl_id);
+        for named_type in named {
+            if printed_item {
+                self.push_str("\n\n");
+            }
+
+            self.write_indent();
+            self.push_str("type ");
+            self.push_str(&named_type.name.to_string());
+            self.push_str(" = ");
+            self.show_type(&named_type.typ);
+            self.push_str(";");
+
+            printed_item = true;
+        }
+
+        for method in item_trait_impl.methods {
+            if printed_item {
                 self.push_str("\n\n");
             }
             self.write_indent();
 
-            let item = Item::Function(*method);
+            let item = Item::Function(method);
             let visibility = ItemVisibility::Private;
             self.show_item_with_visibility(item, visibility);
+
+            printed_item = true;
         }
         self.push('\n');
         self.decrease_indent();
