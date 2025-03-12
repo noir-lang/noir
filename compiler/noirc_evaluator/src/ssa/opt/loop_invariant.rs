@@ -7,6 +7,43 @@
 //! - Already marked as loop invariants
 //!
 //! We also check that we are not hoisting instructions with side effects.
+//! However, there are certain instructions whose side effects are only activated
+//! under a predicate (e.g. an array out of bounds error on a dynamic index).
+//! Thus, we also track the control dependence of loop blocks to determine
+//! whether these "pure with predicate instructions" can be hoisted.
+//! We use post-dominance frontiers to determine control dependence.
+//!
+//! Let's look at definition 3 from the following paper:
+//! Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
+//! The program dependence graph and its use in optimization. ACM
+//! Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
+//! https://doi.org/10.1145/24039.24041
+//!
+//! ```text
+//! Let G be a control flow graph. Let X and Y be nodes in G. Y is
+//! control dependent on X iff
+//! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
+//! and Y) post-dominated by Y and
+//! (2) X is not post-dominated by Y.
+//! ```
+//!
+//! Verifying these conditions for every loop block would be quite inefficient.
+//! For example, let's say we just want to check whether a given loop block is control dependent at all
+//! after the loop preheader. We would have to to verify the conditions above for every block between the loop preheader
+//! and the given loop block. This is n^2 complexity in the worst case.
+//! To optimize the control dependence checks, we can use post-dominance frontiers (PDF).
+//!
+//! From Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
+//! ```text
+//! A dominance frontier is the set of all CFG nodes, y, such that
+//! b dominates a predecessor of y but does not strictly dominate y.
+//! ```
+//! Reversing this for post-dominance we can see that the conditions for control dependence
+//! are the same as those for post-dominance frontiers.
+//! Thus, we rewrite our control dependence condition as Y is control dependent on X iff Y is in PDF(Y).
+//!
+//! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
+//! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -111,6 +148,8 @@ struct LoopInvariantContext<'f> {
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
 
+    // Maps a block to its post-dominance frontiers
+    // This map should be precomputed a single time and used for checking control dependence.
     post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 }
 
@@ -194,13 +233,11 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
-    /// the given loop's pre-header.
+    /// the given loop's header.
     fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
-        let mut all_predecessors =
-            Loop::find_blocks_in_loop(self.pre_header(), block, &self.cfg).blocks;
+        let mut all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
 
         all_predecessors.remove(&block);
-        all_predecessors.remove(&self.pre_header());
         all_predecessors.remove(&loop_.header);
 
         // Need to accurately determine whether the current block is dependent on any blocks between
@@ -214,20 +251,9 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Checks whether a `block` is control dependent on a `parent_block`
-    ///
-    /// Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
-    /// The program dependence graph and its use in optimization. ACM
-    /// Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
-    /// https://doi.org/10.1145/24039.24041
-    ///
-    /// Definition 3 from the linked paper above.
-    /// ```text
-    /// Let G be a control flow graph. Let X and Y be nodes in G. Y is
-    //  control dependent on X iff
-    //  (1) there exists a directed path P from X to Y with any 2 in P (excluding X
-    //  and Y) post-dominated by Y and
-    //  (2) X is not post-dominated by Y.
-    /// ```
+    /// Uses post-dominance frontiers to determine control dependence.
+    /// Reference the doc comments at the top of the this module for more information
+    /// regarding post-dominance frontiers and control dependence.
     fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         match self.post_dom_frontiers.get(&block) {
             Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
