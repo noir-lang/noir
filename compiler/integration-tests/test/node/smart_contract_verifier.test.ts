@@ -6,7 +6,7 @@ import { resolve } from 'path';
 import toml from 'toml';
 
 import { Noir } from '@noir-lang/noir_js';
-import { UltraPlonkBackend } from '@aztec/bb.js';
+import { UltraHonkBackend } from '@aztec/bb.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
@@ -46,7 +46,7 @@ test_cases.forEach((testInfo) => {
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraPlonkBackend(noir_program.bytecode, {}, { recursive: false });
+    const backend = new UltraHonkBackend(noir_program.bytecode, {}, { recursive: false });
     const proofData = await backend.generateProof(witness);
 
     // JS verification
