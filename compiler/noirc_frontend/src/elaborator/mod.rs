@@ -14,7 +14,7 @@ use crate::{
 use crate::{
     EnumVariant, Shared, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
+        BlockExpression, CfgAttribute, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
         Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
@@ -46,7 +46,7 @@ use crate::{
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
-    token::{CfgAttribute, SecondaryAttribute},
+    token::SecondaryAttribute,
 };
 
 mod comptime;

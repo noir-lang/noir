@@ -3,7 +3,7 @@ use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
 use crate::{
-    ast::{Expression, Path},
+    ast::{CfgAttribute, Expression, Path},
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -1066,49 +1066,6 @@ impl Display for MetaAttribute {
                 self.arguments.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
             write!(f, "{}({})", self.name, args)
         }
-    }
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum CfgAttribute {
-    // feature = "{name}"
-    Feature { name: String, location: Location },
-}
-
-impl CfgAttribute {
-    pub fn name(&self) -> String {
-        match self {
-            CfgAttribute::Feature { name, .. } => name.clone(),
-        }
-    }
-
-    pub fn location(&self) -> Location {
-        match self {
-            CfgAttribute::Feature { location, .. } => *location,
-        }
-    }
-}
-
-impl Display for CfgAttribute {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CfgAttribute::Feature { name, location: _ } => {
-                write!(f, "feature = {:?}", name)
-            }
-        }
-    }
-}
-
-impl CfgAttribute {
-    // TODO(https://github.com/noir-lang/noir/issues/7574): enable more features once working
-    pub(crate) fn is_enabled(&self) -> bool {
-        match self {
-            CfgAttribute::Feature { name, .. } => name == "default",
-        }
-    }
-
-    pub(crate) fn is_disabled(&self) -> bool {
-        !self.is_enabled()
     }
 }
 

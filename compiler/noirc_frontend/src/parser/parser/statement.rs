@@ -2,29 +2,26 @@ use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
+        AssignStatement, BinaryOp, BinaryOpKind, CfgAttribute, CfgAttributed, Expression, ExpressionKind, ForBounds,
         ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
         StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
-    token::{Attribute, CfgAttribute, Keyword, SecondaryAttribute, Token, TokenKind},
+    token::{Attribute, Keyword, SecondaryAttribute, Token, TokenKind},
 };
 
 use super::Parser;
 
 impl Parser<'_> {
-    pub(crate) fn parse_statement_or_error(&mut self) -> (Statement, Option<CfgAttribute>) {
-        if let Some((statement, (_token, _location), cfg_attribute)) = self.parse_statement() {
-            (statement, cfg_attribute)
+    pub(crate) fn parse_statement_or_error(&mut self) -> CfgAttributed<Statement> {
+        if let Some(cfg_attributed) = self.parse_statement() {
+            cfg_attributed.map(|(statement, _semicolon)| statement)
         } else {
             self.expected_label(ParsingRuleLabel::Statement);
-            (
-                Statement {
-                    kind: StatementKind::Error,
-                    location: self.location_at_previous_token_end(),
-                },
-                None,
-            )
+            Statement {
+                kind: StatementKind::Error,
+                location: self.location_at_previous_token_end(),
+            }.into()
         }
     }
 
@@ -32,7 +29,7 @@ impl Parser<'_> {
     #[allow(clippy::type_complexity)]
     pub(crate) fn parse_statement(
         &mut self,
-    ) -> Option<(Statement, (Option<Token>, Location), Option<CfgAttribute>)> {
+    ) -> Option<CfgAttributed<(Statement, (Option<Token>, Location))>> {
         loop {
             // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
             self.warn_on_outer_doc_comments();
@@ -62,7 +59,9 @@ impl Parser<'_> {
             if let Some(kind) = kind {
                 let location = self.location_since(start_location);
                 let statement = Statement { kind, location };
-                return Some((statement, (semicolon_token, semicolon_location), cfg_attribute));
+                let mut cfg_attributed: CfgAttributed<_> = (statement, (semicolon_token, semicolon_location)).into();
+                cfg_attributed.cfg_attribute = cfg_attribute;
+                return Some(cfg_attributed);
             }
 
             self.expected_label(ParsingRuleLabel::Statement);

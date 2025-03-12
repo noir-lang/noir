@@ -313,7 +313,8 @@ impl Value {
                 match *expr {
                     ExprValue::Expression(expr) => expr,
                     ExprValue::Statement(statement) => ExpressionKind::Block(BlockExpression {
-                        statements: vec![Statement { kind: statement, location }],
+                        // TODO: can we propagate here instead of defaulting to no CfgAttribute?
+                        statements: vec![Statement { kind: statement, location }.into()],
                     }),
                     ExprValue::LValue(lvalue) => lvalue.as_expression().kind,
                     ExprValue::Pattern(_) => unreachable!("this case is handled above"),

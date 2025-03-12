@@ -16,7 +16,7 @@ use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
+        BlockExpression, CfgAttributed, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
         StatementKind, UnresolvedTypeData,
     },
     hir::{
@@ -569,6 +569,8 @@ pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     let typ = Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
+    // TODO: cfg(feature = ..) dropped here
+    let statements = statements.filter(CfgAttributed::is_enabled).map(CfgAttributed::inner);
     let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
 
     Value::Slice(statements, typ)

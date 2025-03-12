@@ -3,7 +3,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, CfgAttributed, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
         IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
         Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
@@ -877,27 +877,25 @@ impl Parser<'_> {
         Some(BlockExpression { statements })
     }
 
-    fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
-        if let Some((statement, semicolon, opt_cfg_attribute)) = self.parse_statement() {
-            if !self.is_enabled_cfg(opt_cfg_attribute) {
-                return None;
-            }
-            Some((statement, semicolon))
-        } else {
+    fn parse_statement_in_block(&mut self) -> Option<CfgAttributed<(Statement, (Option<Token>, Location))>> {
+        let result = self.parse_statement();
+        if result.is_none() {
             self.expected_label(ParsingRuleLabel::Statement);
-            None
         }
+        result
     }
 
     fn check_statements_require_semicolon(
         &mut self,
-        statements: Vec<(Statement, (Option<Token>, Location))>,
-    ) -> Vec<Statement> {
+        statements: Vec<CfgAttributed<(Statement, (Option<Token>, Location))>>,
+    ) -> Vec<CfgAttributed<Statement>> {
         let last = statements.len().saturating_sub(1);
         let iter = statements.into_iter().enumerate();
-        vecmap(iter, |(i, (statement, (semicolon, location)))| {
-            statement
-                .add_semicolon(semicolon, location, i == last, &mut |error| self.errors.push(error))
+        vecmap(iter, |(i, cfg_attributed)| {
+            cfg_attributed.map(|(statement, (semicolon, location))| {
+                statement
+                    .add_semicolon(semicolon, location, i == last, &mut |error| self.errors.push(error))
+            })
         })
     }
 

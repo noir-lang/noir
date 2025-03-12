@@ -1,10 +1,10 @@
 use noirc_errors::Location;
 
-use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
+use crate::ast::{CfgAttribute, Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::ParserErrorReason;
 use crate::parser::labels::ParsingRuleLabel;
-use crate::token::{Attribute, CfgAttribute, FunctionAttribute, MetaAttribute, TestScope, Token};
+use crate::token::{Attribute, FunctionAttribute, MetaAttribute, TestScope, Token};
 use crate::token::{CustomAttribute, SecondaryAttribute};
 
 use super::Parser;
@@ -170,7 +170,7 @@ impl Parser<'_> {
         self.eat_or_error(Token::LeftParen);
 
         // "feature"
-        if let Some(ident) = self.parse_path_no_turbofish().as_ref().and_then(Path::as_ident) {
+        if let Some(ident) = self.eat_ident() {
             if ident.0.contents != "feature" {
                 let ident = ident.clone();
                 self.push_error(

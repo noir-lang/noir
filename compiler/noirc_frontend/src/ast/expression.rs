@@ -4,7 +4,7 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
+    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint,
     UnresolvedType, UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
@@ -15,7 +15,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
-use super::{AsTraitPath, TypePath, UnsafeExpression};
+use super::{AsTraitPath, CfgAttributed, TypePath, UnsafeExpression};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -251,8 +251,8 @@ impl Expression {
             ExpressionKind::Block(block_expression)
             | ExpressionKind::Comptime(block_expression, _)
             | ExpressionKind::Unsafe(UnsafeExpression { block: block_expression, .. }) => {
-                if let Some(statement) = block_expression.statements.last() {
-                    statement.type_location()
+                if let Some(statement) = block_expression.statements.iter().filter(|cfg_attributed| cfg_attributed.is_enabled()).last() {
+                    statement.inner.type_location()
                 } else {
                     self.location
                 }
@@ -558,18 +558,10 @@ pub struct IndexExpression {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockExpression {
-    pub statements: Vec<Statement>,
+    pub statements: Vec<CfgAttributed<Statement>>,
 }
 
 impl BlockExpression {
-    pub fn pop(&mut self) -> Option<StatementKind> {
-        self.statements.pop().map(|stmt| stmt.kind)
-    }
-
-    pub fn len(&self) -> usize {
-        self.statements.len()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.statements.is_empty()
     }
@@ -713,7 +705,11 @@ impl Display for Literal {
 impl Display for BlockExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{{")?;
-        for statement in &self.statements {
+        for cfg_attributed in &self.statements {
+            // TODO: print CfgAttribute
+            assert_eq!(cfg_attributed.cfg_attribute, None);
+
+            let statement = &cfg_attributed.inner;
             let statement = statement.kind.to_string();
             for line in statement.lines() {
                 writeln!(f, "    {line}")?;

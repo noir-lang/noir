@@ -1,6 +1,6 @@
 use crate::{
-    ast::{AssignStatement, Expression, LValue, Statement, StatementKind},
-    token::{CfgAttribute, Token, TokenKind},
+    ast::{AssignStatement, CfgAttributed, Expression, LValue, Statement, StatementKind},
+    token::{Token, TokenKind},
 };
 
 use super::Parser;
@@ -19,7 +19,7 @@ impl Parser<'_> {
     /// This method is only used in `Quoted::as_expr`.
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
-    ) -> (StatementOrExpressionOrLValue, Option<CfgAttribute>) {
+    ) -> CfgAttributed<StatementOrExpressionOrLValue> {
         let start_location = self.current_token_location;
 
         // First check if it's an interned LValue
@@ -32,15 +32,12 @@ impl Parser<'_> {
                     if self.eat(Token::Assign) {
                         let expression = self.parse_expression_or_error();
                         let kind = StatementKind::Assign(AssignStatement { lvalue, expression });
-                        return (
-                            StatementOrExpressionOrLValue::Statement(Statement {
+                        return StatementOrExpressionOrLValue::Statement(Statement {
                                 kind,
                                 location: self.location_since(start_location),
-                            }),
-                            None,
-                        );
+                            }).into();
                     } else {
-                        return (StatementOrExpressionOrLValue::LValue(lvalue), None);
+                        return StatementOrExpressionOrLValue::LValue(lvalue).into();
                     }
                 }
                 _ => unreachable!(),
@@ -48,11 +45,12 @@ impl Parser<'_> {
         }
 
         // Otherwise, check if it's a statement (which in turn checks if it's an expression)
-        let (statement, opt_cfg_attribute) = self.parse_statement_or_error();
-        if let StatementKind::Expression(expr) = statement.kind {
-            (StatementOrExpressionOrLValue::Expression(expr), opt_cfg_attribute)
-        } else {
-            (StatementOrExpressionOrLValue::Statement(statement), opt_cfg_attribute)
-        }
+        self.parse_statement_or_error().map(|statement| {
+            if let StatementKind::Expression(expr) = statement.kind {
+                StatementOrExpressionOrLValue::Expression(expr)
+            } else {
+                StatementOrExpressionOrLValue::Statement(statement)
+            }
+        })
     }
 }

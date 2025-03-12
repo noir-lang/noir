@@ -1,6 +1,6 @@
-use crate::ast::{Expression, Ident, IntegerBitSize, ItemVisibility};
+use crate::ast::{CfgAttribute, Expression, Ident, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
-use crate::lexer::token::{CfgAttribute, Token};
+use crate::lexer::token::Token;
 use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;

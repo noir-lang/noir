@@ -7,7 +7,7 @@ use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
     token::{
-        CfgAttribute, FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens,
+        FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens,
     },
 };
 
@@ -622,10 +622,6 @@ impl<'a> Parser<'a> {
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
         self.errors.push(ParserError::with_reason(reason, location));
-    }
-
-    pub(crate) fn is_enabled_cfg(&self, opt_cfg_attribute: Option<CfgAttribute>) -> bool {
-        opt_cfg_attribute.as_ref().map(CfgAttribute::is_enabled).unwrap_or(true)
     }
 }
 

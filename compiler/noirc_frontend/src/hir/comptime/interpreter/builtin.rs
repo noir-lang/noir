@@ -807,9 +807,9 @@ fn quoted_as_expr(
         "an expression",
     );
 
-    let value = result.ok().and_then(|(statement_or_expression_or_lvalue, opt_cfg_attribute)| {
-        if elaborator.is_cfg_attribute_enabled(opt_cfg_attribute) {
-            Some(match statement_or_expression_or_lvalue {
+    let value = result.ok().and_then(|cfg_attributed| {
+        if elaborator.is_cfg_attribute_enabled(cfg_attributed.cfg_attribute) {
+            Some(match cfg_attributed.inner {
                 StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
                 StatementOrExpressionOrLValue::Statement(statement) => {
                     Value::statement(statement.kind)
@@ -2632,7 +2632,8 @@ fn function_def_set_body(
     };
 
     let statement = Statement { kind: statement_kind, location: body_location };
-    let body = BlockExpression { statements: vec![statement] };
+    // TODO: cfg(feature = ..) unsupported here
+    let body = BlockExpression { statements: vec![statement.into()] };
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
