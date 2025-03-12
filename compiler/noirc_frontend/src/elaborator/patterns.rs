@@ -17,7 +17,9 @@ use crate::{
         expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
+    node_interner::{
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
+    },
 };
 
 use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
@@ -543,8 +545,8 @@ impl Elaborator<'_> {
         let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
 
         let definition = self.interner.try_definition(definition_id);
-        let is_comptime_local =
-            !self.in_comptime_context() && definition.map_or(false, |def| def.is_comptime_local());
+        let is_comptime_local = !self.in_comptime_context()
+            && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::new();
