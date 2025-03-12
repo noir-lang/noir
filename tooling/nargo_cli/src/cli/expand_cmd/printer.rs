@@ -681,8 +681,33 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str("mut ");
                 self.show_pattern(pattern);
             }
-            HirPattern::Tuple(..) | HirPattern::Struct(..) => {
-                self.push('_');
+            HirPattern::Tuple(patterns, _) => {
+                let len = patterns.len();
+                self.push('(');
+                for (index, pattern) in patterns.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.show_pattern(pattern);
+                }
+                if len == 1 {
+                    self.push(',');
+                }
+                self.push(')');
+            }
+            HirPattern::Struct(typ, fields, _) => {
+                self.show_type_name_as_data_type(typ);
+                self.push_str(" { ");
+                for (index, (name, pattern)) in fields.iter().enumerate() {
+                    if index != 0 {
+                        self.push_str(", ");
+                    }
+                    self.push_str(&name.0.contents);
+                    self.push_str(": ");
+                    self.show_pattern(pattern);
+                }
+
+                self.push_str(" }");
             }
         }
     }
