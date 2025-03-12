@@ -26,7 +26,7 @@
     "eslint-plugin-prettier": "^5.2.3",
     "ethers": "^6.13.5",
     "hardhat": "^2.22.19",
-    "prettier": "3.2.5",
+    "prettier": "3.5.3",
     "smol-toml": "^1.1.2",
     "toml": "^3.0.0",
     "tslog": "^4.9.2"
