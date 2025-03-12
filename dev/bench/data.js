@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741786066702,
+  "lastUpdate": 1741786068385,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "899e8c8ac00e091d71c7045e90bc37b8b65c6524",
-          "message": "fix(frontend)!: Restrict capturing mutable variable in lambdas (#7488)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: jfecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-03-03T20:17:47Z",
-          "tree_id": "b30b6ea1aab53bb73880f59d3a5971ba1a40689e",
-          "url": "https://github.com/noir-lang/noir/commit/899e8c8ac00e091d71c7045e90bc37b8b65c6524"
-        },
-        "date": 1741034749358,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 244.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 278.97,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 579.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 487.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 348.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.84,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6f4410990ff4d6711e3a5087f8205cee73d2882f"
         },
         "date": 1741781435363,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "94a8e37398d350bce9f02e063f89189330487932",
+          "message": "chore: update yarn version to 4.5.2 (#7678)",
+          "timestamp": "2025-03-12T13:00:37Z",
+          "tree_id": "092974ac8907171ae61ce8a1931f45f9c2fb4bdf",
+          "url": "https://github.com/noir-lang/noir/commit/94a8e37398d350bce9f02e063f89189330487932"
+        },
+        "date": 1741786065640,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
