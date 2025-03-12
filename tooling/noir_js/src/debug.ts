@@ -52,7 +52,7 @@ export function extractCallStack(error: ExecutionError, debug: DebugInfo, files:
 
   try {
     return resolveOpcodeLocations(callStack, debug, files, brilligFunctionId);
-  } catch (err) {
+  } catch (_err) {
     return callStack;
   }
 }
