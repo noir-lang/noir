@@ -31,7 +31,7 @@
     "build": "bash ./build.sh",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
     "test:browser": "web-test-runner",
-    "lint": "NODE_NO_WARNINGS=1 ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0",
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "clean": "chmod u+w web nodejs || true && rm -rf web nodejs"
