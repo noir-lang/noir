@@ -164,7 +164,7 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push(')');
             }
             HirExpression::Cast(hir_cast_expression) => {
-                self.show_hir_expression_id(hir_cast_expression.lhs);
+                self.show_hir_expression_id_maybe_inside_parens(hir_cast_expression.lhs);
                 self.push_str(" as ");
                 self.show_type(&hir_cast_expression.r#type);
             }
