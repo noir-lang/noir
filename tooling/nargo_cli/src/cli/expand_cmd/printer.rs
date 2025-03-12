@@ -559,7 +559,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 self.push_str("let ");
                 self.push_str(name);
                 self.push_str(": ");
-                self.show_type(&typ);
+                self.show_type(typ);
             }
         }
     }

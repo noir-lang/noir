@@ -380,7 +380,7 @@ impl ItemPrinter<'_, '_, '_> {
                     self.show_generic_types(&generics, use_colons);
                 }
                 self.push('(');
-                self.show_hir_expression_ids_separated_by_comma(&arguments);
+                self.show_hir_expression_ids_separated_by_comma(arguments);
                 self.push(')');
                 return true;
             }
