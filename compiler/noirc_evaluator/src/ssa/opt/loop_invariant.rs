@@ -106,23 +106,12 @@ struct LoopInvariantContext<'f> {
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
     current_pre_header: Option<BasicBlockId>,
 
-    // Post-Dominator Tree
-    #[allow(dead_code)]
-    post_dom: DominatorTree,
-
     cfg: ControlFlowGraph,
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
-    // Set of all control dependent blocks in a loop.
-    // Maintaining this set lets us optimize checking whether a block is control dependent.
-    // When checking whether a block is control dependent, we can check this set for
-    // whether any of its predecessors have already been marked as control dependent.
-    // If a predecessor has been marked as control dependent it means the block being
-    // checked must also be control dependent.
-    control_dependent_blocks: HashSet<BasicBlockId>,
 
-    reverse_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 }
 
 impl<'f> LoopInvariantContext<'f> {
@@ -131,7 +120,7 @@ impl<'f> LoopInvariantContext<'f> {
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
-        let reverse_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+        let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -139,11 +128,9 @@ impl<'f> LoopInvariantContext<'f> {
             current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
             current_pre_header: None,
-            post_dom,
             cfg,
             current_block_control_dependent: false,
-            control_dependent_blocks: HashSet::default(),
-            reverse_dom_frontiers,
+            post_dom_frontiers,
         }
     }
 
@@ -221,7 +208,6 @@ impl<'f> LoopInvariantContext<'f> {
         for predecessor in all_predecessors {
             if self.is_control_dependent(predecessor, block) {
                 self.current_block_control_dependent = true;
-                self.control_dependent_blocks.insert(predecessor);
                 break;
             }
         }
@@ -243,7 +229,7 @@ impl<'f> LoopInvariantContext<'f> {
     //  (2) X is not post-dominated by Y.
     /// ```
     fn is_control_dependent(&mut self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
-        match self.reverse_dom_frontiers.get(&block) {
+        match self.post_dom_frontiers.get(&block) {
             Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
             None => false,
         }
@@ -261,8 +247,6 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
-        // Reset the blocks that have been marked as control dependent
-        self.control_dependent_blocks.clear();
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -315,8 +299,8 @@ impl<'f> LoopInvariantContext<'f> {
 
         let can_be_deduplicated = instruction.can_be_deduplicated(self.inserter.function, false)
             || matches!(instruction, Instruction::MakeArray { .. })
-            // TODO: improve this control dependence check
-            || (!matches!(instruction, Instruction::Call { .. }) && instruction.requires_acir_gen_predicate(&self.inserter.function.dfg) && !self.current_block_control_dependent)
+            || (instruction.can_be_deduplicated(self.inserter.function, true)
+                && !self.current_block_control_dependent)
             || self.can_be_deduplicated_from_loop_bound(&instruction);
 
         is_loop_invariant && can_be_deduplicated
