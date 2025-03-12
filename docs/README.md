@@ -26,7 +26,15 @@ yarn
 
 ### Local Development
 
-From the _noir_ root directory, run:
+From the _noir_ root directory:
+
+1. Fetch and generate the list of recent stable documentation versions to build:
+
+```sh
+yarn workspace docs version::stables
+```
+
+2. Start a development server serving docs preview:
 
 ```sh
 yarn workspace docs dev
