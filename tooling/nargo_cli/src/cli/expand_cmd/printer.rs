@@ -885,8 +885,6 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                     return name;
                 }
             }
-
-            dbg!(&func_meta.self_type);
         }
 
         if use_import {
