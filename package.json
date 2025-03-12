@@ -12,18 +12,18 @@
     "docs"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
-    "test": "yarn workspaces foreach --parallel --verbose run test",
+    "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
+    "test": "yarn workspaces foreach -A -vp run test",
     "test:integration": "yarn workspace integration-tests test",
-    "clean:workspaces": "yarn workspaces foreach --exclude @noir-lang/root run clean",
+    "clean:workspaces": "yarn workspaces foreach -A --exclude @noir-lang/root run clean",
     "clean:root": "rm -rf ./target ./packages",
     "clean": "yarn clean:workspaces && yarn clean:root",
-    "lint": "yarn workspaces foreach --verbose run lint",
+    "lint": "yarn workspaces foreach -A -vp run lint",
     "spellcheck": "cspell '**/*.{md,rs}' -c ./cspell.json",
     "prepare:publish": "yarn clean && yarn build",
-    "build:js:only": "yarn workspaces foreach -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root}\" run build",
-    "nightly:version": "yarn workspaces foreach run nightly:version",
-    "publish:all": "yarn install && yarn workspaces foreach run publish"
+    "build:js:only": "yarn workspaces foreach -A -vtp --exclude \"{@noir-lang/acvm_js,@noir-lang/noirc_abi,@noir-lang/noir_wasm,docs,@noir-lang/root}\" run build",
+    "nightly:version": "yarn workspaces foreach -A run nightly:version",
+    "publish:all": "yarn install && yarn workspaces foreach -A run publish"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
@@ -44,5 +44,5 @@
     "@types/estree": "1.0.6",
     "@types/mocha": "10.0.10"
   },
-  "packageManager": "yarn@3.6.4"
+  "packageManager": "yarn@4.5.2"
 }
