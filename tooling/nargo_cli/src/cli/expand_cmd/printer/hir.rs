@@ -396,9 +396,17 @@ impl ItemPrinter<'_, '_, '_> {
     fn show_hir_block_expression(&mut self, block: HirBlockExpression) {
         self.push_str("{\n");
         self.increase_indent();
-        for statement in block.statements {
+        let len = block.statements.len();
+        for (index, statement) in block.statements.into_iter().enumerate() {
             self.write_indent();
             self.show_hir_statement_id(statement);
+
+            // For some reason some statements in the middle of a block end up being `Expression`
+            // and not `Semi`, so we add a semicolon, if needed, to produce valid syntax.
+            if index != len - 1 && !self.string.ends_with(';') {
+                self.push(';');
+            }
+
             self.push_str("\n");
         }
         self.decrease_indent();
