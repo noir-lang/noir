@@ -343,7 +343,7 @@ impl ItemPrinter<'_, '_, '_> {
         }
 
         // A method call must have `func` be a HirIdent
-        let HirExpression::Ident(hir_ident, _generics) =
+        let HirExpression::Ident(hir_ident, generics) =
             self.interner.expression(&hir_call_expression.func)
         else {
             return false;
@@ -379,6 +379,10 @@ impl ItemPrinter<'_, '_, '_> {
         self.show_hir_expression_id_maybe_inside_parens(first_argument);
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
+        if let Some(generics) = generics {
+            let use_colons = true;
+            self.show_generic_types(&generics, use_colons);
+        }
         self.push('(');
         for (index, argument) in arguments[1..].iter().enumerate() {
             if index != 0 {
