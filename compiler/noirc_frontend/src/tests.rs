@@ -158,17 +158,45 @@ fn assert_no_errors(src: &str) {
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
     let allow_parser_errors = false;
-    check_errors_with_options(src, allow_parser_errors, FrontendOptions::test_default());
+    let monomorphize = false;
+    check_errors_with_options(
+        src,
+        allow_parser_errors,
+        monomorphize,
+        FrontendOptions::test_default(),
+    );
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let allow_parser_errors = false;
-    let mut options = FrontendOptions::test_default();
-    options.enabled_unstable_features = features;
-    check_errors_with_options(src, allow_parser_errors, options);
+    let monomorphize = false;
+    let options =
+        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
+    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
 }
 
-fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: FrontendOptions) {
+#[allow(unused)]
+pub(super) fn check_monomorphization_error(src: &str) {
+    check_monomorphization_error_using_features(src, &[]);
+}
+
+pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
+    let allow_parser_errors = false;
+    let monomorphize = true;
+    check_errors_with_options(
+        src,
+        allow_parser_errors,
+        monomorphize,
+        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
+    );
+}
+
+fn check_errors_with_options(
+    src: &str,
+    allow_parser_errors: bool,
+    monomorphize: bool,
+    options: FrontendOptions,
+) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -213,12 +241,31 @@ fn check_errors_with_options(src: &str, allow_parser_errors: bool, options: Fron
         secondary_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
-    let (_, _, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
+
+    if monomorphize {
+        if !errors.is_empty() {
+            panic!("Expected no errors before monomorphization, got: {:?}", errors);
+        }
+
+        let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
+            panic!("get_monomorphized: test program contains no 'main' function")
+        });
+
+        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
+        match result {
+            Ok(_) => panic!("Expected a monomorphization error but got none"),
+            Err(error) => {
+                errors.push(error.into());
+            }
+        }
+    }
+
     if errors.is_empty() && !primary_spans_with_errors.is_empty() {
         panic!("Expected some errors but got none");
     }
 
-    let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
     for error in &errors {
         let secondary = error
             .secondaries
