@@ -602,7 +602,6 @@ mod tests {
         let mut post_dom = DominatorTree::with_function_post_dom(&func);
 
         let cfg = ControlFlowGraph::with_function(&func);
-        let reversed_cfg = cfg.reverse();
         let dom_frontiers = post_dom.compute_dominance_frontiers(&cfg);
         assert!(dom_frontiers.is_empty());
     }
