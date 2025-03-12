@@ -240,24 +240,15 @@ impl ItemPrinter<'_, '_, '_> {
                 self.push_str(" {\n");
                 self.increase_indent();
                 for case in cases {
+                    let typ = self.interner.definition_type(variable).follow_bindings();
                     self.write_indent();
-                    self.show_constructor(case.constructor);
+
+                    if !matches!(typ, Type::Tuple(..)) {
+                        self.show_constructor(case.constructor);
+                    }
+
                     if !case.arguments.is_empty() {
-                        let typ = self.interner.definition_type(variable).follow_bindings();
-                        let Type::DataType(data_type, generics) = typ else {
-                            panic!("Expected a data type");
-                        };
-                        let data_type = data_type.borrow();
-                        if data_type.is_enum() {
-                            self.push('(');
-                            for (index, argument) in case.arguments.into_iter().enumerate() {
-                                if index != 0 {
-                                    self.push_str(", ");
-                                }
-                                self.show_definition_id(argument);
-                            }
-                            self.push(')');
-                        } else if let Some(fields) = data_type.get_fields(&generics) {
+                        if let Some(fields) = get_type_fields(&typ) {
                             self.push('{');
                             for (index, (argument, (name, _))) in
                                 case.arguments.into_iter().zip(fields).enumerate()
@@ -271,7 +262,14 @@ impl ItemPrinter<'_, '_, '_> {
                             }
                             self.push('}');
                         } else {
-                            unreachable!("Expected data type to be struct or enum ")
+                            self.push('(');
+                            for (index, argument) in case.arguments.into_iter().enumerate() {
+                                if index != 0 {
+                                    self.push_str(", ");
+                                }
+                                self.show_definition_id(argument);
+                            }
+                            self.push(')');
                         }
                     }
                     self.push_str(" => ");
@@ -680,5 +678,15 @@ fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
         | HirExpression::Unquote(..)
         | HirExpression::Unsafe(..)
         | HirExpression::Error => false,
+    }
+}
+
+fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type)>> {
+    match typ.follow_bindings() {
+        Type::DataType(data_type, generics) => {
+            let data_type = data_type.borrow();
+            data_type.get_fields(&generics)
+        }
+        _ => None,
     }
 }
