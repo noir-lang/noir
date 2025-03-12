@@ -764,8 +764,10 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!("{std}::mem::zeroed()"));
             }
-            Value::Closure(_)
-            | Value::TypeDefinition(_)
+            Value::Closure(closure) => {
+                self.show_hir_lambda(closure.lambda.clone());
+            }
+            Value::TypeDefinition(_)
             | Value::TraitConstraint(..)
             | Value::TraitDefinition(_)
             | Value::TraitImpl(_)

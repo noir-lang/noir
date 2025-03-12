@@ -5,7 +5,7 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLiteral, HirMatch,
+            HirIdent, HirLambda, HirLiteral, HirMatch,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
@@ -188,24 +188,7 @@ impl ItemPrinter<'_, '_, '_> {
                 }
                 self.push(')');
             }
-            HirExpression::Lambda(hir_lambda) => {
-                self.push('|');
-                for (index, (parameter, typ)) in hir_lambda.parameters.into_iter().enumerate() {
-                    if index != 0 {
-                        self.push_str(", ");
-                    }
-                    self.show_hir_pattern(parameter);
-                    self.push_str(": ");
-                    self.show_type(&typ);
-                }
-                self.push_str("| ");
-                if hir_lambda.return_type != Type::Unit {
-                    self.push_str("-> ");
-                    self.show_type(&hir_lambda.return_type);
-                    self.push_str(" ");
-                }
-                self.show_hir_expression_id(hir_lambda.body);
-            }
+            HirExpression::Lambda(hir_lambda) => self.show_hir_lambda(hir_lambda),
             HirExpression::Quote(tokens) => {
                 self.show_quoted(&tokens.0);
             }
@@ -218,6 +201,25 @@ impl ItemPrinter<'_, '_, '_> {
             HirExpression::Error => unreachable!("error nodes should not happen"),
             HirExpression::Unquote(_) => todo!("unquote should not happen"),
         }
+    }
+
+    pub(super) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
+        self.push('|');
+        for (index, (parameter, typ)) in hir_lambda.parameters.into_iter().enumerate() {
+            if index != 0 {
+                self.push_str(", ");
+            }
+            self.show_hir_pattern(parameter);
+            self.push_str(": ");
+            self.show_type(&typ);
+        }
+        self.push_str("| ");
+        if hir_lambda.return_type != Type::Unit {
+            self.push_str("-> ");
+            self.show_type(&hir_lambda.return_type);
+            self.push_str(" ");
+        }
+        self.show_hir_expression_id(hir_lambda.body);
     }
 
     fn show_hir_match(&mut self, hir_match: HirMatch) {
