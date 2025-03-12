@@ -886,8 +886,20 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             self.interner,
         ) {
             if !full_path.is_empty() {
-                self.push_str(&full_path);
-                self.push_str("::");
+                // `relative_module_full_path` for a module returns the full path to that module
+                // so we need to remove the last segment
+                if matches!(module_def_id, ModuleDefId::ModuleId(..)) {
+                    let mut full_path = full_path.split("::").collect::<Vec<_>>();
+                    full_path.pop();
+                    let full_path = full_path.join("::");
+                    if !full_path.is_empty() {
+                        self.push_str(&full_path);
+                        self.push_str("::");
+                    }
+                } else {
+                    self.push_str(&full_path);
+                    self.push_str("::");
+                }
             }
         };
 
