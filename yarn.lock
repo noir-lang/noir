@@ -6545,7 +6545,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@eslint/js@npm:9.22.0":
+"@eslint/js@npm:9.22.0, @eslint/js@npm:^9.22.0":
   version: 9.22.0
   resolution: "@eslint/js@npm:9.22.0"
   checksum: 3eb6ed01c31f185b1822b78a872af5b87daa4aaf2ed753ce81c0c7227c852a09e1c7356103259f35f09e77d9e116c796cec6958702044d057f0c179b53b783ec
@@ -7693,12 +7693,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@noir-lang/root@workspace:."
   dependencies:
+    "@eslint/eslintrc": ^3.3.0
+    "@eslint/js": ^9.22.0
     "@typescript-eslint/eslint-plugin": ^8.26.1
     "@typescript-eslint/parser": ^8.26.1
     chai: ^4.4.1
     cspell: ^8.3.2
     eslint: ^9.22.0
     eslint-plugin-prettier: ^5.2.3
+    globals: ^16.0.0
     mocha: ^11.1.0
     prettier: 3.5.3
     ts-node: ^10.9.1
@@ -17455,6 +17458,13 @@ __metadata:
   version: 14.0.0
   resolution: "globals@npm:14.0.0"
   checksum: 534b8216736a5425737f59f6e6a5c7f386254560c9f41d24a9227d60ee3ad4a9e82c5b85def0e212e9d92162f83a92544be4c7fd4c902cb913736c10e08237ac
+  languageName: node
+  linkType: hard
+
+"globals@npm:^16.0.0":
+  version: 16.0.0
+  resolution: "globals@npm:16.0.0"
+  checksum: 41df1cb6f86c36dfdf8fb6c270247105c85cc3aec8d8238c5e691b0d2aad9eed8ff390d1035f4b5a27ee24bf75b095c7b84717e9d2050d2122e61f37d9c6131a
   languageName: node
   linkType: hard
 

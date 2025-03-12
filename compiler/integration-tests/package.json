@@ -10,7 +10,7 @@
     "test:browser": "web-test-runner",
     "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
     "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",
-    "lint": "NODE_NO_WARNINGS=1 ESLINT_USE_FLAT_CONFIG=false eslint_USE_FLAT_CONFIG=false eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0"
   },
   "dependencies": {
     "@aztec/bb.js": "0.77.1",
