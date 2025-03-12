@@ -44,7 +44,7 @@
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@ltd/j-toml": "^1.38.0",
-    "@types/adm-zip": "^0.5.0",
+    "@types/adm-zip": "^0.5.7",
     "@types/chai": "^4",
     "@types/mocha": "^10.0.10",
     "@types/mocha-each": "^2.0.4",
