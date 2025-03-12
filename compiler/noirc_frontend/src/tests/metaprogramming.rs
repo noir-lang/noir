@@ -32,6 +32,8 @@ fn comptime_code_rejects_dynamic_variable() {
                                ^ Non-comptime variable `x` referenced in comptime code
                                ~ Non-comptime variables can't be used in comptime code
         assert_eq(my_var, 2);
+                  ^^^^^^ Non-comptime variable `my_var` referenced in comptime code
+                  ~~~~~~ Non-comptime variables can't be used in comptime code
     }
     "#;
     check_errors(src);
