@@ -14,8 +14,8 @@ use crate::{
 use crate::{
     EnumVariant, Shared, Type, TypeVariable,
     ast::{
-        BlockExpression, CfgAttribute, FunctionKind, GenericTypeArgs, Ident, NoirFunction, NoirStruct, Param,
-        Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
+        BlockExpression, CfgAttribute, FunctionKind, GenericTypeArgs, Ident, NoirFunction,
+        NoirStruct, Param, Path, Pattern, TraitBound, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedTypeData, UnsupportedNumericGenericType,
     },
     graph::CrateId,

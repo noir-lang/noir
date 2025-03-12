@@ -2,9 +2,9 @@ use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, CfgAttribute, CfgAttributed, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, Statement,
-        StatementKind, WhileStatement,
+        AssignStatement, BinaryOp, BinaryOpKind, CfgAttribute, CfgAttributed, Expression,
+        ExpressionKind, ForBounds, ForLoopStatement, ForRange, Ident, InfixExpression, LValue,
+        LetStatement, Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     token::{Attribute, Keyword, SecondaryAttribute, Token, TokenKind},
@@ -21,7 +21,8 @@ impl Parser<'_> {
             Statement {
                 kind: StatementKind::Error,
                 location: self.location_at_previous_token_end(),
-            }.into()
+            }
+            .into()
         }
     }
 
@@ -59,7 +60,8 @@ impl Parser<'_> {
             if let Some(kind) = kind {
                 let location = self.location_since(start_location);
                 let statement = Statement { kind, location };
-                let mut cfg_attributed: CfgAttributed<_> = (statement, (semicolon_token, semicolon_location)).into();
+                let mut cfg_attributed: CfgAttributed<_> =
+                    (statement, (semicolon_token, semicolon_location)).into();
                 cfg_attributed.cfg_attribute = cfg_attribute;
                 return Some(cfg_attributed);
             }

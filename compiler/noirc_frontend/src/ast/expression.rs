@@ -4,8 +4,8 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData, Visibility,
+    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData, Visibility,
 };
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::signed_field::SignedField;
@@ -251,7 +251,12 @@ impl Expression {
             ExpressionKind::Block(block_expression)
             | ExpressionKind::Comptime(block_expression, _)
             | ExpressionKind::Unsafe(UnsafeExpression { block: block_expression, .. }) => {
-                if let Some(statement) = block_expression.statements.iter().filter(|cfg_attributed| cfg_attributed.is_enabled()).last() {
+                if let Some(statement) = block_expression
+                    .statements
+                    .iter()
+                    .filter(|cfg_attributed| cfg_attributed.is_enabled())
+                    .last()
+                {
                     statement.inner.type_location()
                 } else {
                     self.location

@@ -151,7 +151,13 @@ impl Elaborator<'_> {
         let statements_len = block.statements.len();
         let mut statements = Vec::with_capacity(statements_len);
 
-        for (i, statement) in block.statements.into_iter().filter(|cfg_attributed| cfg_attributed.is_enabled()).map(|cfg_attributed| cfg_attributed.inner).enumerate() {
+        for (i, statement) in block
+            .statements
+            .into_iter()
+            .filter(|cfg_attributed| cfg_attributed.is_enabled())
+            .map(|cfg_attributed| cfg_attributed.inner)
+            .enumerate()
+        {
             let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);

@@ -6,9 +6,7 @@ use noirc_errors::{Location, Span};
 use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
-    token::{
-        FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens,
-    },
+    token::{FmtStrFragment, IntType, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};

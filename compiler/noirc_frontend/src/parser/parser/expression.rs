@@ -3,10 +3,10 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        ArrayLiteral, BlockExpression, CallExpression, CastExpression, CfgAttributed, ConstrainExpression,
-        ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
-        IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
+        ArrayLiteral, BlockExpression, CallExpression, CastExpression, CfgAttributed,
+        ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
+        Ident, IfExpression, IndexExpression, Literal, MatchExpression, MemberAccessExpression,
+        MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType, UnsafeExpression,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
@@ -877,7 +877,11 @@ impl Parser<'_> {
         Some(BlockExpression { statements })
     }
 
-    fn parse_statement_in_block(&mut self) -> Option<CfgAttributed<(Statement, (Option<Token>, Location))>> {
+    // TODO: make type alias for semicolon tuple?
+    #[allow(clippy::type_complexity)]
+    fn parse_statement_in_block(
+        &mut self,
+    ) -> Option<CfgAttributed<(Statement, (Option<Token>, Location))>> {
         let result = self.parse_statement();
         if result.is_none() {
             self.expected_label(ParsingRuleLabel::Statement);
@@ -885,6 +889,8 @@ impl Parser<'_> {
         result
     }
 
+    // TODO: make type alias for semicolon tuple?
+    #[allow(clippy::type_complexity)]
     fn check_statements_require_semicolon(
         &mut self,
         statements: Vec<CfgAttributed<(Statement, (Option<Token>, Location))>>,
@@ -893,8 +899,9 @@ impl Parser<'_> {
         let iter = statements.into_iter().enumerate();
         vecmap(iter, |(i, cfg_attributed)| {
             cfg_attributed.map(|(statement, (semicolon, location))| {
-                statement
-                    .add_semicolon(semicolon, location, i == last, &mut |error| self.errors.push(error))
+                statement.add_semicolon(semicolon, location, i == last, &mut |error| {
+                    self.errors.push(error)
+                })
             })
         })
     }

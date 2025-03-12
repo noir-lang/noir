@@ -862,7 +862,8 @@ impl ForRange {
                         Statement {
                             kind: StatementKind::Expression(block),
                             location: block_location,
-                        }.into(),
+                        }
+                        .into(),
                     ],
                 };
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_location);

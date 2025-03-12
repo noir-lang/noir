@@ -10,10 +10,7 @@ pub struct CfgAttributed<T> {
 
 impl<T> From<T> for CfgAttributed<T> {
     fn from(input: T) -> CfgAttributed<T> {
-        CfgAttributed {
-            cfg_attribute: None,
-            inner: input,
-        }
+        CfgAttributed { cfg_attribute: None, inner: input }
     }
 }
 
@@ -28,10 +25,7 @@ impl<T> CfgAttributed<T> {
     {
         let cfg_attribute = self.cfg_attribute.clone();
         let inner = f(self.inner);
-        CfgAttributed {
-            cfg_attribute,
-            inner,
-        }
+        CfgAttributed { cfg_attribute, inner }
     }
 
     pub fn each_mut<F>(&mut self, mut f: F)

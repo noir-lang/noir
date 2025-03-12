@@ -16,8 +16,8 @@ use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
     ast::{
-        BlockExpression, CfgAttributed, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, Signedness,
-        StatementKind, UnresolvedTypeData,
+        BlockExpression, CfgAttributed, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern,
+        Signedness, StatementKind, UnresolvedTypeData,
     },
     hir::{
         comptime::{

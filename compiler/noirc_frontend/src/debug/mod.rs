@@ -144,14 +144,23 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<CfgAttributed<ast::Statement>>, location: Location) {
-        statements.iter_mut().for_each(|cfg_attributed| cfg_attributed.each_mut(|stmt| self.walk_statement(stmt)));
+    fn walk_scope(
+        &mut self,
+        statements: &mut Vec<CfgAttributed<ast::Statement>>,
+        location: Location,
+    ) {
+        statements
+            .iter_mut()
+            .for_each(|cfg_attributed| cfg_attributed.each_mut(|stmt| self.walk_statement(stmt)));
 
         // extract and save the return value from the scope if there is one
         let ret_stmt = statements.pop();
         let has_ret_expr = match ret_stmt {
             None => false,
-            Some(CfgAttributed { inner: ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }, cfg_attribute }) => {
+            Some(CfgAttributed {
+                inner: ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. },
+                cfg_attribute,
+            }) => {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
@@ -161,10 +170,7 @@ impl DebugInstrumenter {
                     ),
                     location: ret_expr.location,
                 };
-                let save_ret_expr = CfgAttributed {
-                    inner: save_ret_expr,
-                    cfg_attribute,
-                };
+                let save_ret_expr = CfgAttributed { inner: save_ret_expr, cfg_attribute };
                 statements.push(save_ret_expr);
                 true
             }
