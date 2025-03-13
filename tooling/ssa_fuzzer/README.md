@@ -26,3 +26,8 @@ or in 5 threads
 ```
 cargo-fuzz run TARGET --fuzz-dir ./fuzzer -- -jobs=5 -workers=5
 ```
+
+### Supported targets
+
+1. uint
+2. field
