@@ -15,7 +15,6 @@ use super::rpc::RPCForeignCallExecutor;
 
 /// A builder for [DefaultForeignCallLayers] where we can enable fields based on feature flags,
 /// which is easier than providing different overrides for a `new` method.
-#[cfg(feature = "rpc")]
 pub struct DefaultForeignCallBuilder<'a> {
     pub output: PrintOutput<'a>,
     pub enable_mocks: bool,
@@ -122,6 +121,7 @@ pub type DefaultForeignCallLayers<'a, B, F> = Layer<
 >;
 
 /// Convenience constructor for code that used to create the executor this way.
+#[cfg(feature = "rpc")]
 pub struct DefaultForeignCallExecutor;
 
 /// Convenience constructors for the RPC case. Non-RPC versions are not provided
