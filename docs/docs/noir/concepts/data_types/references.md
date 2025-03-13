@@ -21,3 +21,26 @@ fn multiplyBy2(x: &mut Field) {
     *x = *x * 2;
 }
 ```
+
+References do have limitations. Mutable references to array elements are not supported.
+
+For example, the following code snippet:
+```rust
+fn foo(x: &mut u32) {
+    *x += 1;
+}
+fn main() {
+    let mut state: [u32; 4] = [1, 2, 3, 4];
+    foo(&mut state[0]);
+    assert_eq(state[0], 2); // expect:2 got:1
+}
+```
+Will error with the following:
+```
+error: Mutable references to array elements are currently unsupported
+  ┌─ src/main.nr:6:18
+  │
+6 │         foo(&mut state[0]);
+  │                  -------- Try storing the element in a fresh variable first
+  │
+```
