@@ -1,6 +1,16 @@
 //! This module implements a fuzzer for testing and comparing ACIR and Brillig SSA implementations.
 //! It generates random sequences of arithmetic and logical operations and ensures both implementations
 //! produce identical results.
+//! Main fuzz steps: 
+//! 0) Generate random witness
+//! 1) Generate random sequence of instructions
+//! 2) Insert instructions into ACIR and Brillig builders
+//! 3) Get programs, and compile them
+//! 4) Run and compare
+//! if programs returned different results, then we have a bug
+//! if one of the programs failed to compile, then we just execute the other one
+//! and if the other one executed successfully, it's a bug
+
 
 #![no_main]
 
