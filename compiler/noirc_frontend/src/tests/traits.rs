@@ -1248,6 +1248,7 @@ fn as_trait_path_in_expression() {
 
 #[test]
 fn allows_renaming_trait_during_import() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
     let src = r#"
     mod trait_mod {
         pub trait Foo {
@@ -1268,6 +1269,7 @@ fn allows_renaming_trait_during_import() {
 
 #[test]
 fn renaming_trait_avoids_name_collisions() {
+    // Regression test for https://github.com/noir-lang/noir/issues/7632
     let src = r#"
     mod trait_mod {
         pub trait Foo {

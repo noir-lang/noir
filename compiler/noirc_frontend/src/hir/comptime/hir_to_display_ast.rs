@@ -6,8 +6,8 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, MatchExpression,
-    MemberAccessExpression, MethodCallExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression, UnresolvedType,
+    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir_def::expr::{
@@ -148,19 +148,6 @@ impl HirExpression {
                 let is_macro_call = false;
                 ExpressionKind::Call(Box::new(CallExpression { func, arguments, is_macro_call }))
             }
-            HirExpression::MethodCall(method_call) => {
-                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: method_call.object.to_display_ast(interner),
-                    method_name: method_call.method.clone(),
-                    arguments: vecmap(method_call.arguments.clone(), |arg| {
-                        arg.to_display_ast(interner)
-                    }),
-                    generics: method_call.generics.clone().map(|option| {
-                        option.iter().map(|generic| generic.to_display_ast()).collect()
-                    }),
-                    is_macro_call: false,
-                }))
-            }
             HirExpression::Constrain(constrain) => {
                 let expr = constrain.0.to_display_ast(interner);
                 let mut arguments = vec![expr];
@@ -198,9 +185,6 @@ impl HirExpression {
                 ExpressionKind::Lambda(Box::new(Lambda { parameters, return_type, body }))
             }
             HirExpression::Error => ExpressionKind::Error,
-            HirExpression::Comptime(block) => {
-                ExpressionKind::Comptime(block.to_display_ast(interner), location)
-            }
             HirExpression::Unsafe(block) => ExpressionKind::Unsafe(UnsafeExpression {
                 block: block.to_display_ast(interner),
                 unsafe_keyword_location: location,

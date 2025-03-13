@@ -438,7 +438,7 @@ jobs:
         run: |
           # Note the lack of spaces between package names.
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
+          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         working-directory: ./compiler/integration-tests
@@ -483,7 +483,7 @@ jobs:
         run: |
           # Note the lack of spaces between package names.
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
-          yarn workspaces foreach -vtp --from "{$PACKAGES_TO_BUILD}" run build
+          yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
       - name: Run `integration-tests`
         working-directory: ./compiler/integration-tests
@@ -521,8 +521,8 @@ jobs:
         working-directory: ./examples/prove_and_verify
         run: ./test.sh
 
-      - name: Run `codegen_verifier`
-        working-directory: ./examples/codegen_verifier
+      - name: Run `solidity_verifier`
+        working-directory: ./examples/solidity_verifier
         run: ./test.sh
 
       - name: Run `oracle_transcript`
