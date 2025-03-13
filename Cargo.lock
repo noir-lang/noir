@@ -23,7 +23,6 @@ dependencies = [
  "prost",
  "prost-build",
  "protoc-prebuilt",
- "rmp",
  "rmp-serde",
  "serde",
  "serde-big-array",
