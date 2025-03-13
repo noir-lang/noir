@@ -775,8 +775,8 @@ mod tests {
         // b3 is the exit block which does not dominate any blocks
         assert!(!dom_frontiers.contains_key(&blocks[3]));
 
-        // b4 has DF { b5 } because b4 jumps to b5 (thus being a predecessor to b5)
-        // b4 dominates itself but b5 is not strictly dominated by b4.
+        // b4 has DF { b5 } because b4 jumps to b5, thus being a predecessor to b5.
+        // b5 dominates itself but b5 does not strictly dominate b4.
         let b4_df = &dom_frontiers[&blocks[4]];
         assert_eq!(b4_df.len(), 1);
         assert!(b4_df.contains(&blocks[5]));
@@ -798,13 +798,13 @@ mod tests {
 
         let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
 
-        // Another way to think about the post-dominator frontier for a node n,
+        // Another way to think about the post-dominator frontier (PDF) for a node n,
         // is that we can reach a block in the PDF during execution without going through n.
 
         // b0 is the entry node of the program and the exit block of the post-dominator tree.
-        // Thus, it has an empty set for its post-dominance frontier (PDF)
+        // Thus, it has an empty set for its PDF
         assert!(!post_dom_frontiers.contains_key(&blocks[0]));
-        // We must go through b1 and b2 to reach the exist node
+        // We must go through b1 and b2 to reach the exit node
         assert!(!post_dom_frontiers.contains_key(&blocks[1]));
         assert!(!post_dom_frontiers.contains_key(&blocks[2]));
 
