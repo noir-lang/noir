@@ -12,6 +12,7 @@ use crate::ssa::{
         instruction::{ConstrainError, Instruction},
         value::ValueId,
     },
+    opt::pure::FunctionPurities,
 };
 
 use super::{
@@ -53,6 +54,7 @@ struct Translator {
     globals_graph: Arc<GlobalsGraph>,
 
     error_selector_counter: u64,
+    purities: FunctionPurities,
 }
 
 impl Translator {
@@ -69,6 +71,8 @@ impl Translator {
     }
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
+        let mut purities = FunctionPurities::default();
+
         // A FunctionBuilder must be created with a main Function, so here wer remove it
         // from the parsed SSA to avoid adding it twice later on.
         let main_function = parsed_ssa.functions.remove(0);
@@ -76,6 +80,10 @@ impl Translator {
         let mut builder = FunctionBuilder::new(main_function.external_name.clone(), main_id);
         builder.set_runtime(main_function.runtime_type);
         builder.simplify = simplify;
+
+        if let Some(purity) = main_function.purity {
+            purities.insert(main_id, purity);
+        }
 
         // Map function names to their IDs so calls can be resolved
         let mut function_id_counter = 1;
@@ -85,6 +93,10 @@ impl Translator {
             function_id_counter += 1;
 
             functions.insert(function.internal_name.clone(), function_id);
+
+            if let Some(purity) = function.purity {
+                purities.insert(function_id, purity);
+            }
         }
 
         // Does not matter what ID we use here.
@@ -100,6 +112,7 @@ impl Translator {
             global_values: HashMap::new(),
             globals_graph: Arc::new(GlobalsGraph::default()),
             error_selector_counter: 0,
+            purities,
         };
 
         translator.translate_globals(std::mem::take(&mut parsed_ssa.globals))?;
@@ -448,7 +461,9 @@ impl Translator {
         }
     }
 
-    fn finish(self) -> Ssa {
+    fn finish(mut self) -> Ssa {
+        self.builder.set_purities(Arc::new(self.purities));
+
         let mut ssa = self.builder.finish();
 
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
