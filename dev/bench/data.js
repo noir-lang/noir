@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741875847458,
+  "lastUpdate": 1741875850284,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "95ac7a8477d16a293659fd1eca73ce12debd9968",
-          "message": "feat(cli): Log and replay oracle transcript (#7417)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-05T19:29:05Z",
-          "tree_id": "fac64a048b38da107475b30fa86d23928949430b",
-          "url": "https://github.com/noir-lang/noir/commit/95ac7a8477d16a293659fd1eca73ce12debd9968"
-        },
-        "date": 1741204946232,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.5,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 273.89,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 516.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 289.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.34,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/35097f4384e59ea9ea8295d825380b7c4e9f6f9a"
         },
         "date": 1741872720516,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.zaki@proton.me",
+            "name": "James Zaki",
+            "username": "jzaki"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d2dcce33577ea51d40eb98aa22371991b3747408",
+          "message": "chore: Update README.md to add trailing docs `/` (#7689)",
+          "timestamp": "2025-03-13T14:00:28Z",
+          "tree_id": "d110407760d69ba478e9c6fba0067f12d8cdf09b",
+          "url": "https://github.com/noir-lang/noir/commit/d2dcce33577ea51d40eb98aa22371991b3747408"
+        },
+        "date": 1741875846944,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
