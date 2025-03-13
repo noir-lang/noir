@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741891076025,
+  "lastUpdate": 1741891083199,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "2d373ec623be1b06cc2d5d072c5da2b022b6d351",
-          "message": "chore!: bump bb version to v0.77.0 (#7599)",
-          "timestamp": "2025-03-05T20:49:24Z",
-          "tree_id": "0b4fa106b27b4e9059567c86fadd6452cd763dd8",
-          "url": "https://github.com/noir-lang/noir/commit/2d373ec623be1b06cc2d5d072c5da2b022b6d351"
-        },
-        "date": 1741209137734,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.68,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.73,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "5a3d2bc0e13a12b039c793c73d7817924c13e159",
           "message": "chore: track more critical libraries (#7604)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5e2b9e9f1a8ac639acdb204be291739fa50f2ff5"
         },
         "date": 1741876773583,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.35,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "607b95010318882578b8ff06f04274efebde46cb",
+          "message": "chore: add cargo deny advisory (#7691)",
+          "timestamp": "2025-03-13T18:09:15Z",
+          "tree_id": "10d35ab52c008f8dea9cc93d11fd9ee3e3786e4c",
+          "url": "https://github.com/noir-lang/noir/commit/607b95010318882578b8ff06f04274efebde46cb"
+        },
+        "date": 1741891080238,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
