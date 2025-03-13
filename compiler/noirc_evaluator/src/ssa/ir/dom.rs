@@ -9,7 +9,10 @@ use std::cmp::Ordering;
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
+
 use fxhash::FxHashMap as HashMap;
+#[allow(unused_imports)]
+use fxhash::FxHashSet as HashSet;
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
