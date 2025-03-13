@@ -89,7 +89,10 @@ pub fn save_and_check_witness(
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
-    check_witness(circuit, results.return_values, circuit_name)
+    if let Some(ref return_value) = results.return_values.actual_return {
+        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+    }
+    check_witness(circuit, results.return_values)
 }
 
 /// Save the witness stack to a file.
@@ -109,7 +112,6 @@ pub fn save_witness(
 pub fn check_witness(
     circuit: &CompiledProgram,
     return_values: ReturnValues,
-    circuit_name: &str,
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
     if let Some(ref expected) = circuit.abi.return_type {
@@ -128,7 +130,6 @@ pub fn check_witness(
                 if actual != expected {
                     return Err(CliError::UnexpectedReturn { expected, actual: Some(actual) });
                 }
-                println!("[{}] Circuit output: {actual:?}", circuit_name);
             }
         }
     }
