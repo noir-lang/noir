@@ -161,8 +161,10 @@ impl FuzzerContext {
         }
         let acir_array = self.acir_arrays[array_idx as usize].id;
         let brillig_array = self.brillig_arrays[array_idx as usize].id;
-        let acir_result = self.acir_builder.insert_array_get(acir_array, index);
-        let brillig_result = self.brillig_builder.insert_array_get(brillig_array, index);
+        let acir_id = self.acir_ids[index as usize];
+        let brillig_id = self.brillig_ids[index as usize];
+        let acir_result = self.acir_builder.insert_array_get(acir_array, acir_id);
+        let brillig_result = self.brillig_builder.insert_array_get(brillig_array, brillig_id);
         self.acir_ids.push(id_to_int(acir_result));
         self.brillig_ids.push(id_to_int(brillig_result));
     }
@@ -190,8 +192,10 @@ impl FuzzerContext {
         let value = u32_to_id_value(value);
         let acir_array = self.acir_arrays[array_idx as usize].id;
         let brillig_array = self.brillig_arrays[array_idx as usize].id;
-        let acir_result = self.acir_builder.insert_array_set(acir_array, index, value);
-        let brillig_result = self.brillig_builder.insert_array_set(brillig_array, index, value);
+        let acir_id = self.acir_ids[index as usize];
+        let brillig_id = self.brillig_ids[index as usize];
+        let acir_result = self.acir_builder.insert_array_set(acir_array, acir_id, value);
+        let brillig_result = self.brillig_builder.insert_array_set(brillig_array, brillig_id, value);
         self.acir_arrays
             .push(Array { id: acir_result, length: self.acir_arrays[array_idx as usize].length });
         self.brillig_arrays.push(Array {
@@ -213,9 +217,10 @@ impl FuzzerContext {
         ) {
             return;
         }
-        let arg = u32_to_id_value(arg);
-        let acir_result = f(&mut self.acir_builder, arg);
-        let brillig_result = f(&mut self.brillig_builder, arg);
+        let acir_arg = u32_to_id_value(self.acir_ids[arg as usize]);
+        let brillig_arg = u32_to_id_value(self.brillig_ids[arg as usize]);
+        let acir_result = f(&mut self.acir_builder, acir_arg);
+        let brillig_result = f(&mut self.brillig_builder, brillig_arg);
         self.acir_ids.push(id_to_int(acir_result));
         self.brillig_ids.push(id_to_int(brillig_result));
     }
@@ -235,10 +240,12 @@ impl FuzzerContext {
         ) {
             return;
         }
-        let lhs = u32_to_id_value(lhs);
-        let rhs = u32_to_id_value(rhs);
-        let acir_result = f(&mut self.acir_builder, lhs, rhs);
-        let brillig_result = f(&mut self.brillig_builder, lhs, rhs);
+        let acir_lhs = u32_to_id_value(self.acir_ids[lhs as usize]);
+        let acir_rhs = u32_to_id_value(self.acir_ids[rhs as usize]);
+        let brillig_lhs = u32_to_id_value(self.brillig_ids[lhs as usize]);
+        let brillig_rhs = u32_to_id_value(self.brillig_ids[rhs as usize]);
+        let acir_result = f(&mut self.acir_builder, acir_lhs, acir_rhs);
+        let brillig_result = f(&mut self.brillig_builder, brillig_lhs, brillig_rhs);
         self.acir_ids.push(id_to_int(acir_result));
         self.brillig_ids.push(id_to_int(brillig_result));
     }
