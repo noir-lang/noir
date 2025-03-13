@@ -220,7 +220,7 @@ impl FuzzerContext {
     fn insert_instruction_with_single_arg(
         &mut self,
         arg: u32,
-        f: fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>,
+        instruction: fn(&mut FuzzerBuilder, Id<Value>) -> Id<Value>,
     ) {
         if !index_presented(
             arg,
@@ -231,8 +231,8 @@ impl FuzzerContext {
         }
         let acir_arg = u32_to_id_value(self.acir_ids[arg as usize]);
         let brillig_arg = u32_to_id_value(self.brillig_ids[arg as usize]);
-        let acir_result = f(&mut self.acir_builder, acir_arg);
-        let brillig_result = f(&mut self.brillig_builder, brillig_arg);
+        let acir_result = instruction(&mut self.acir_builder, acir_arg);
+        let brillig_result = instruction(&mut self.brillig_builder, brillig_arg);
         self.acir_ids.push(id_to_int(acir_result));
         self.brillig_ids.push(id_to_int(brillig_result));
     }
@@ -243,7 +243,7 @@ impl FuzzerContext {
         &mut self,
         lhs: u32,
         rhs: u32,
-        f: fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>,
+        instruction: fn(&mut FuzzerBuilder, Id<Value>, Id<Value>) -> Id<Value>,
     ) {
         if !both_indeces_presented(
             lhs,
@@ -257,8 +257,8 @@ impl FuzzerContext {
         let acir_rhs = u32_to_id_value(self.acir_ids[rhs as usize]);
         let brillig_lhs = u32_to_id_value(self.brillig_ids[lhs as usize]);
         let brillig_rhs = u32_to_id_value(self.brillig_ids[rhs as usize]);
-        let acir_result = f(&mut self.acir_builder, acir_lhs, acir_rhs);
-        let brillig_result = f(&mut self.brillig_builder, brillig_lhs, brillig_rhs);
+        let acir_result = instruction(&mut self.acir_builder, acir_lhs, acir_rhs);
+        let brillig_result = instruction(&mut self.brillig_builder, brillig_lhs, brillig_rhs);
         self.acir_ids.push(id_to_int(acir_result));
         self.brillig_ids.push(id_to_int(brillig_result));
     }
