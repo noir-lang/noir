@@ -55,6 +55,9 @@ jobs:
         with:
           ref: gh-pages
 
+      - name: Clear old docs
+        run: rm -rf ./docs
+
       - name: Download rustdoc output
         uses: actions/download-artifact@v4
         with:
