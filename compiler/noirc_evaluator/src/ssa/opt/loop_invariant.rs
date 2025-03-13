@@ -567,14 +567,14 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = mul v0, v1
+            constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v7 = lt v2, i32 4
-            jmpif v7 then: b3, else: b2
+            v8 = lt v2, i32 4
+            jmpif v8 then: b3, else: b2
           b2():
             return
           b3():
-            constrain v4 == i32 6
             jmp b4(i32 0)
           b4(v3: i32):
             v9 = lt v3, i32 4
@@ -769,6 +769,7 @@ mod test {
           b3():
             v10 = array_get v6, index v2 -> u32
             v11 = eq v10, v0
+            constrain v10 == v0
             jmp b4(u32 0)
           b4(v3: u32):
             v12 = lt v3, u32 4
@@ -777,7 +778,6 @@ mod test {
             v19 = unchecked_add v2, u32 1
             jmp b1(v19)
           b6():
-            constrain v10 == v0
             v13 = array_get v6, index v3 -> u32
             v14 = eq v13, v0
             constrain v13 == v0
