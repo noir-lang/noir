@@ -17,7 +17,9 @@ use crate::{
         expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitMethod},
         stmt::HirPattern,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind},
+    node_interner::{
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
+    },
 };
 
 use super::{Elaborator, ResolverMeta, path_resolution::PathResolutionItem};
@@ -542,8 +544,10 @@ impl Elaborator<'_> {
 
         let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
 
-        let definition_kind =
-            self.interner.try_definition(definition_id).map(|definition| definition.kind.clone());
+        let definition = self.interner.try_definition(definition_id);
+        let is_comptime_local = !self.in_comptime_context()
+            && definition.is_some_and(DefinitionInfo::is_comptime_local);
+        let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
 
         let mut bindings = TypeBindings::new();
 
@@ -574,7 +578,23 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
         self.interner.push_expr_type(id, typ.clone());
 
-        (id, typ)
+        // If this variable it a comptime local variable, use its current value as the final expression
+        if is_comptime_local {
+            let mut interpreter = self.setup_interpreter();
+            let value = interpreter.evaluate(id);
+            // If the value is an error it means the variable already had an error, so don't report it here again
+            // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
+            // but that's not true)
+            if value.is_ok() {
+                let (id, typ) = self.inline_comptime_value(value, location);
+                self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
+                (id, typ)
+            } else {
+                (id, typ)
+            }
+        } else {
+            (id, typ)
+        }
     }
 
     /// Solve any generics that are part of the path before the function, for example:

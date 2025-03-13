@@ -142,6 +142,9 @@ impl DominatorTree {
 
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
+    ///
+    /// This method should be used for when we want to compute a post-dominator tree.
+    /// A post-dominator tree just expects the control flow graph to be reversed.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
         let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: HashMap::default() };
         dom_tree.compute_dominator_tree(cfg, post_order);
@@ -157,6 +160,18 @@ impl DominatorTree {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
         Self::with_cfg_and_post_order(&cfg, &post_order)
+    }
+
+    /// Allocate and compute a post-dominator tree for the given function.
+    ///
+    /// This approach computes the reversed control flow graph and post-order internally and then
+    /// discards them. If either should be retained for reuse, it is better to instead pre-compute them
+    /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
+    #[cfg(test)]
+    pub(crate) fn with_function_post_dom(func: &Function) -> Self {
+        let reversed_cfg = ControlFlowGraph::with_function(func).reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+        Self::with_cfg_and_post_order(&reversed_cfg, &post_order)
     }
 
     /// Build a dominator tree from a control flow graph using Keith D. Cooper's
@@ -403,8 +418,7 @@ mod tests {
         dt.dominates(b2, b1);
     }
 
-    #[test]
-    fn backwards_layout() {
+    fn backwards_layout_setup() -> (Function, BasicBlockId, BasicBlockId, BasicBlockId) {
         // func {
         //   block0():
         //     jmp block2()
@@ -425,10 +439,16 @@ mod tests {
         builder.terminate_with_jmp(block1_id, vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.main();
+        let func = ssa.main().clone();
         let block0_id = func.entry_block();
 
-        let mut dt = DominatorTree::with_function(func);
+        (func, block0_id, block1_id, block2_id)
+    }
+
+    #[test]
+    fn backwards_layout() {
+        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
+        let mut dt = DominatorTree::with_function(&func);
 
         // Expected dominance tree:
         // block0 {
@@ -471,6 +491,55 @@ mod tests {
         assert!(!dt.dominates(block2_id, block0_id));
         assert!(dt.dominates(block2_id, block1_id));
         assert!(dt.dominates(block2_id, block2_id));
+    }
+
+    #[test]
+    fn post_dom_backwards_layout() {
+        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
+
+        let mut post_dom = DominatorTree::with_function_post_dom(&func);
+
+        // Expected post-dominator tree:
+        // block1 {
+        //   block2 {
+        //     block0
+        //   }
+        // }
+
+        assert_eq!(post_dom.immediate_dominator(block1_id), None);
+        assert_eq!(post_dom.immediate_dominator(block2_id), Some(block1_id));
+        assert_eq!(post_dom.immediate_dominator(block0_id), Some(block2_id));
+
+        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block0_id), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block1_id), Ordering::Greater);
+        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block2_id), Ordering::Greater);
+
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block0_id), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block1_id), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block2_id), Ordering::Less);
+
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block0_id), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block1_id), Ordering::Greater);
+        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block2_id), Ordering::Equal);
+
+        // Post-dominance matrix:
+        // ✓: Row item post-dominates column item
+        //    b0  b1  b2
+        // b0 ✓
+        // b1 ✓   ✓   ✓
+        // b2 ✓       ✓
+
+        assert!(post_dom.dominates(block0_id, block0_id));
+        assert!(!post_dom.dominates(block0_id, block1_id));
+        assert!(!post_dom.dominates(block0_id, block2_id));
+
+        assert!(post_dom.dominates(block1_id, block0_id));
+        assert!(post_dom.dominates(block1_id, block1_id));
+        assert!(post_dom.dominates(block1_id, block2_id));
+
+        assert!(post_dom.dominates(block2_id, block0_id));
+        assert!(!post_dom.dominates(block2_id, block1_id));
+        assert!(post_dom.dominates(block2_id, block2_id));
     }
 
     #[test]
