@@ -7,22 +7,22 @@
 //! - Already marked as loop invariants
 //!
 //! We also check that we are not hoisting instructions with side effects.
-use acvm::{acir::AcirField, FieldElement};
+use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
+    Ssa,
     ir::{
         basic_block::BasicBlockId,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{
-            binary::eval_constant_binary_op, Binary, BinaryOp, Instruction, InstructionId,
+            Binary, BinaryOp, Instruction, InstructionId, binary::eval_constant_binary_op,
         },
         post_order::PostOrder,
         types::Type,
         value::ValueId,
     },
-    Ssa,
 };
 
 use super::unrolling::{Loop, Loops};
@@ -373,8 +373,8 @@ impl<'f> LoopInvariantContext<'f> {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
     use crate::ssa::Ssa;
+    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[test]
     fn simple_loop_invariant_code_motion() {
@@ -840,15 +840,15 @@ mod test {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-              jmp b1(u32 0)
+            jmp b1(u32 0)
           b1(v2: u32):
-              v5 = lt v2, u32 4
-              jmpif v5 then: b3, else: b2
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
           b2():
-              return
+            return
           b3():
-              v7 = sub v2, u32 1
-              jmp b1(v7)
+            v7 = sub v2, u32 1
+            jmp b1(v7)
         }
         ";
 

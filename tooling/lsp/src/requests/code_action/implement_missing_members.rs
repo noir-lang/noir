@@ -11,7 +11,7 @@ use crate::{byte_span_to_range, trait_impl_method_stub_generator::TraitImplMetho
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn implement_missing_members(
         &mut self,
         noir_trait_impl: &NoirTraitImpl,

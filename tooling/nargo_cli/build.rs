@@ -27,6 +27,8 @@ fn main() {
 
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
+    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
+    // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
@@ -196,6 +198,9 @@ fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner
     nargo.arg("--check-non-determinism");
     // Allow more bytecode in exchange to catch illegal states.
     nargo.arg("--enable-brillig-debug-assertions");
+
+    // Enable enums as an unstable feature
+    nargo.arg("-Zenums");
 
     if force_brillig.0 {{
         nargo.arg("--force-brillig");
@@ -493,7 +498,6 @@ fn generate_compile_success_no_bug_tests(test_file: &mut File, test_data_dir: &P
             &test_dir,
             "compile",
             r#"
-                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:").not());
             "#,
             &MatrixConfig::default(),
@@ -523,7 +527,6 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_dir,
             "compile",
             r#"
-                nargo.arg("--enable-brillig-constraints-check");
                 nargo.assert().success().stderr(predicate::str::contains("bug:"));
             "#,
             &MatrixConfig::default(),

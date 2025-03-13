@@ -1,6 +1,8 @@
 use fm::{FileId, FileMap};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 use noirc_frontend::{
+    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    TypeVariable,
     ast::{ItemVisibility, Visibility},
     hir::def_map::ModuleId,
     hir_def::{
@@ -13,14 +15,12 @@ use noirc_frontend::{
         DefinitionId, DefinitionKind, ExprId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,
     },
-    DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
-    TypeVariable,
 };
 
 use crate::{
     attribute_reference_finder::AttributeReferenceFinder,
     modules::module_full_path,
-    requests::{to_lsp_location, ProcessRequestCallbackArgs},
+    requests::{ProcessRequestCallbackArgs, to_lsp_location},
     utils,
 };
 
@@ -34,7 +34,7 @@ pub(super) fn hover_from_reference(
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = AttributeReferenceFinder::new(
                     file_id,
@@ -318,7 +318,7 @@ fn get_global_value(interner: &NodeInterner, expr: ExprId) -> Option<String> {
                 get_global_array_value(interner, hir_array_literal, true)
             }
             HirLiteral::Bool(value) => Some(value.to_string()),
-            HirLiteral::Integer(field_element, _) => Some(field_element.to_string()),
+            HirLiteral::Integer(value) => Some(value.to_string()),
             HirLiteral::Str(string) => Some(format!("{:?}", string)),
             HirLiteral::FmtStr(..) => None,
             HirLiteral::Unit => Some("()".to_string()),
@@ -338,11 +338,7 @@ fn get_global_array_value(
     match literal {
         HirArrayLiteral::Standard(values) => {
             get_exprs_global_value(interner, &values).map(|value| {
-                if is_slice {
-                    format!("&[{}]", value)
-                } else {
-                    format!("[{}]", value)
-                }
+                if is_slice { format!("&[{}]", value) } else { format!("[{}]", value) }
             })
         }
         HirArrayLiteral::Repeated { repeated_element, length } => {
@@ -360,11 +356,7 @@ fn get_global_array_value(
 fn get_exprs_global_value(interner: &NodeInterner, exprs: &[ExprId]) -> Option<String> {
     let strings: Vec<String> =
         exprs.iter().filter_map(|value| get_global_value(interner, *value)).collect();
-    if strings.len() == exprs.len() {
-        Some(strings.join(", "))
-    } else {
-        None
-    }
+    if strings.len() == exprs.len() { Some(strings.join(", ")) } else { None }
 }
 
 fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
@@ -403,11 +395,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 .trait_generics
                 .iter()
                 .filter_map(|generic| {
-                    if let Type::NamedGeneric(_, name) = generic {
-                        Some(name)
-                    } else {
-                        None
-                    }
+                    if let Type::NamedGeneric(_, name) = generic { Some(name) } else { None }
                 })
                 .collect();
 
@@ -510,7 +498,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let is_self = pattern_is_self(pattern, args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::MutableReference(..)) {
+        if is_self && matches!(typ, Type::Reference(..)) {
             string.push_str("&mut ");
         }
 
@@ -781,7 +769,7 @@ struct TypeLinksGatherer<'a> {
     links: Vec<String>,
 }
 
-impl<'a> TypeLinksGatherer<'a> {
+impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
             Type::Array(typ, _) => self.gather_type_links(typ),
@@ -826,7 +814,7 @@ impl<'a> TypeLinksGatherer<'a> {
                 self.gather_type_links(return_type);
                 self.gather_type_links(env);
             }
-            Type::MutableReference(typ) => self.gather_type_links(typ),
+            Type::Reference(typ, _) => self.gather_type_links(typ),
             Type::InfixExpr(lhs, _, rhs, _) => {
                 self.gather_type_links(lhs);
                 self.gather_type_links(rhs);

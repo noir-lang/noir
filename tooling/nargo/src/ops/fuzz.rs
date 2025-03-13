@@ -1,23 +1,23 @@
 use std::path::PathBuf;
 
 use acvm::{
+    BlackBoxFunctionSolver, FieldElement,
     acir::native_types::{WitnessMap, WitnessStack},
     brillig_vm::BranchToFeatureMap,
-    BlackBoxFunctionSolver, FieldElement,
 };
 use noir_greybox_fuzzer::{
     AcirAndBrilligPrograms, ErrorAndCoverage, FuzzTestResult, FuzzedExecutorExecutionConfiguration,
     FuzzedExecutorFailureConfiguration, FuzzedExecutorFolderConfiguration, WitnessAndCoverage,
 };
 use noirc_abi::{Abi, InputMap};
-use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_errors::FileDiagnostic;
-use noirc_frontend::hir::{def_map::FuzzingHarness, Context};
+use noirc_driver::{CompileOptions, compile_no_check};
+use noirc_errors::CustomDiagnostic;
+use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
 
 use crate::PrintOutput;
 use crate::{
     errors::try_to_diagnose_runtime_error,
-    foreign_calls::{layers, DefaultForeignCallBuilder},
+    foreign_calls::{DefaultForeignCallBuilder, layers},
     ops::{execute::execute_program_with_brillig_fuzzing, test::TestForeignCallExecutor},
 };
 
@@ -49,7 +49,7 @@ pub enum FuzzingRunStatus {
     ExecutionFailure {
         message: String,
         counterexample: Option<(InputMap, Abi)>,
-        error_diagnostic: Option<FileDiagnostic>,
+        error_diagnostic: Option<CustomDiagnostic>,
     },
     MinimizationFailure {
         message: String,
@@ -57,7 +57,7 @@ pub enum FuzzingRunStatus {
     ForeignCallFailure {
         message: String,
     },
-    CompileError(FileDiagnostic),
+    CompileError(CustomDiagnostic),
 }
 
 impl FuzzingRunStatus {
@@ -309,13 +309,15 @@ where
                                     &B::default(),
                                     &mut foreign_call_executor,
                                 );
-                                match execution_failure{
+                                match execution_failure {
                                     Err(err) => try_to_diagnose_runtime_error(
-                                &err,
-                                &unwrapped_brillig_program.abi,
-                                &unwrapped_brillig_program.debug,
-                            ),
-                                    Ok(..) => panic!("The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution")
+                                        &err,
+                                        &unwrapped_brillig_program.abi,
+                                        &unwrapped_brillig_program.debug,
+                                    ),
+                                    Ok(..) => panic!(
+                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution"
+                                    ),
                                 }
                             }
                         };

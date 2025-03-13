@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use color_eyre::eyre::{self};
+use color_eyre::eyre;
 use serde::{Deserialize, Serialize};
 
 pub(crate) trait GatesProvider {

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use noirc_frontend::{
+    Kind, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
     graph::CrateId,
     hir::{
@@ -9,7 +10,6 @@ use noirc_frontend::{
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
     node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
-    Kind, ResolvedGeneric, Type,
 };
 
 use crate::modules::relative_module_id_path;
@@ -359,7 +359,11 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.append_type(ret);
                 }
             }
-            Type::MutableReference(typ) => {
+            Type::Reference(typ, false) => {
+                self.string.push('&');
+                self.append_type(typ);
+            }
+            Type::Reference(typ, true) => {
                 self.string.push_str("&mut ");
                 self.append_type(typ);
             }
@@ -447,7 +451,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                 self.string.push_str(&generic.name);
             }
-            Kind::Numeric(ref typ) => {
+            Kind::Numeric(typ) => {
                 self.string.push_str("let ");
                 self.string.push_str(&generic.name);
                 self.string.push_str(": ");

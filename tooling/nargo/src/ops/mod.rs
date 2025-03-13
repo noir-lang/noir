@@ -8,9 +8,9 @@ pub use self::transform::{transform_contract, transform_program};
 
 pub use self::execute::{execute_program, execute_program_with_profiling};
 pub use self::fuzz::{
-    run_fuzzing_harness, FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus,
+    FuzzExecutionConfig, FuzzFolderConfig, FuzzingRunStatus, run_fuzzing_harness,
 };
-pub use self::test::{run_test, TestStatus};
+pub use self::test::{TestStatus, run_test};
 
 mod check;
 mod compile;

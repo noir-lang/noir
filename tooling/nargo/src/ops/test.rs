@@ -1,20 +1,24 @@
 use acvm::{
+    AcirField, BlackBoxFunctionSolver, FieldElement,
     acir::{
         brillig::ForeignCallResult,
         native_types::{WitnessMap, WitnessStack},
     },
     pwg::ForeignCallWaitInfo,
-    AcirField, BlackBoxFunctionSolver, FieldElement,
 };
 use noirc_abi::Abi;
-use noirc_driver::{compile_no_check, CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH};
-use noirc_errors::{debug_info::DebugInfo, FileDiagnostic};
-use noirc_frontend::hir::{def_map::TestFunction, Context};
+use noirc_driver::{CompileError, CompileOptions, DEFAULT_EXPRESSION_WIDTH, compile_no_check};
+use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
+use noirc_frontend::hir::{Context, def_map::TestFunction};
 
 use crate::{
-    errors::try_to_diagnose_runtime_error,
-    foreign_calls::{layers, print::PrintOutput, ForeignCallError, ForeignCallExecutor},
     NargoError,
+    errors::try_to_diagnose_runtime_error,
+    foreign_calls::{
+        ForeignCallError, ForeignCallExecutor, layers,
+        print::PrintOutput,
+        transcript::{ForeignCallLog, LoggingForeignCallExecutor},
+    },
 };
 
 use super::execute_program;
@@ -22,9 +26,9 @@ use super::execute_program;
 #[derive(Debug)]
 pub enum TestStatus {
     Pass,
-    Fail { message: String, error_diagnostic: Option<FileDiagnostic> },
+    Fail { message: String, error_diagnostic: Option<CustomDiagnostic> },
     Skipped,
-    CompileError(FileDiagnostic),
+    CompileError(CustomDiagnostic),
 }
 
 impl TestStatus {
@@ -60,11 +64,21 @@ where
             let compiled_program = crate::ops::transform_program(compiled_program, target_width);
 
             if test_function_has_no_arguments {
+                let ignore_foreign_call_failures =
+                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
+                        .is_ok_and(|var| &var == "true");
+
+                let mut foreign_call_log = ForeignCallLog::from_env("NARGO_TEST_FOREIGN_CALL_LOG");
+
                 // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
                 // otherwise constraints involving these expressions will not error.
                 // Use a base layer that doesn't handle anything, which we handle in the `execute` below.
-                let inner_executor = build_foreign_call_executor(output, layers::Unhandled);
-                let mut foreign_call_executor = TestForeignCallExecutor::new(inner_executor);
+                let foreign_call_executor = build_foreign_call_executor(output, layers::Unhandled);
+                let foreign_call_executor = TestForeignCallExecutor::new(foreign_call_executor);
+                let mut foreign_call_executor = LoggingForeignCallExecutor::new(
+                    foreign_call_executor,
+                    foreign_call_log.print_output(),
+                );
 
                 let circuit_execution = execute_program(
                     &compiled_program.program,
@@ -80,9 +94,8 @@ where
                     &circuit_execution,
                 );
 
-                let ignore_foreign_call_failures =
-                    std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
-                        .is_ok_and(|var| &var == "true");
+                let foreign_call_executor = foreign_call_executor.executor;
+                foreign_call_log.write_log().expect("failed to write foreign call log");
 
                 if let TestStatus::Fail { .. } = status {
                     if ignore_foreign_call_failures
@@ -218,7 +231,7 @@ fn test_status_program_compile_pass(
 fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
-    error_diagnostic: Option<FileDiagnostic>,
+    error_diagnostic: Option<CustomDiagnostic>,
 ) -> TestStatus {
     // Extract the expected failure message, if there was one
     //
@@ -235,9 +248,7 @@ fn check_expected_failure_message(
     // expected_failure_message
     let expected_failure_message_matches = failed_assertion
         .as_ref()
-        .or_else(|| {
-            error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.diagnostic.message)
-        })
+        .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
         .map(|message| message.contains(expected_failure_message))
         .unwrap_or(false);
     if expected_failure_message_matches {

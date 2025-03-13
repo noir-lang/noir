@@ -5,23 +5,23 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
-    insert_all_files_for_workspace_into_file_manager,
+    FuzzExecutionConfig, FuzzFolderConfig, insert_all_files_for_workspace_into_file_manager,
     ops::FuzzingRunStatus,
     package::{CrateName, Package},
     parse_all, prepare_package,
     workspace::Workspace,
-    FuzzExecutionConfig, FuzzFolderConfig,
 };
 use nargo_toml::PackageSelection;
-use noirc_abi::input_parser::{json::serialize_to_json, Format};
-use noirc_driver::{check_crate, CompileOptions};
+use noirc_abi::input_parser::{Format, json::serialize_to_json};
+use noirc_driver::{CompileOptions, check_crate};
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use rayon::prelude::{ParallelBridge, ParallelIterator};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
 
-use super::{fs::inputs::write_inputs_to_file, LockType, PackageOptions, WorkspaceCommand};
+use super::{LockType, PackageOptions, WorkspaceCommand};
+use noir_artifact_cli::fs::inputs::write_inputs_to_file;
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]

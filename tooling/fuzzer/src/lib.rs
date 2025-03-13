@@ -4,11 +4,11 @@
 //! Code is used under the MIT license.
 
 use acvm::{
+    FieldElement,
     acir::{
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
-    FieldElement,
 };
 use dictionary::build_dictionary_from_program;
 use noirc_abi::InputMap;

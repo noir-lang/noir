@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
 use acir::{
+    AcirField,
     brillig::{ForeignCallParam, ForeignCallResult, Opcode as BrilligOpcode},
     circuit::{
+        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::BlockId,
-        ErrorSelector, OpcodeLocation, RawAssertionPayload, ResolvedAssertionPayload,
     },
     native_types::WitnessMap,
-    AcirField,
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use brillig_vm::{
-    BranchToFeatureMap, BrilligProfilingSamples, FailureReason, MemoryValue, VMStatus, VM,
+    BranchToFeatureMap, BrilligProfilingSamples, FailureReason, MemoryValue, VM, VMStatus,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{pwg::OpcodeNotSolvable, OpcodeResolutionError};
+use crate::{OpcodeResolutionError, pwg::OpcodeNotSolvable};
 
 use super::{get_value, insert_value, memory_op::MemoryOpSolver};
 
@@ -105,7 +105,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     Err(_) => {
                         return Err(OpcodeResolutionError::OpcodeNotSolvable(
                             OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                        ))
+                        ));
                     }
                 },
                 BrilligInputs::Array(expr_arr) => {
@@ -116,7 +116,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                             Err(_) => {
                                 return Err(OpcodeResolutionError::OpcodeNotSolvable(
                                     OpcodeNotSolvable::ExpressionHasTooManyUnknowns(expr.clone()),
-                                ))
+                                ));
                             }
                         }
                     }

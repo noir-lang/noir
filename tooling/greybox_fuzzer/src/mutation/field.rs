@@ -1,14 +1,14 @@
 use super::configurations::{
-    FieldElementDictionaryUpdate, FieldElementInversionMutation, FieldElementPow2Update,
-    FieldElementSmallValueUpdate, FieldElementSubstitutionMutation, TopLevelFieldElementMutation,
     BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_SMALL_VALUE_UPDATE_CONFIGURATION, BASIC_FIELD_INVERSION_CONFIGURATION,
     BASIC_FIELD_SUBSTITUTION_CONFIGURATION, BASIC_TOPLEVEL_FIELD_ELEMENT_MUTATION_CONFIGURATION,
+    FieldElementDictionaryUpdate, FieldElementInversionMutation, FieldElementPow2Update,
+    FieldElementSmallValueUpdate, FieldElementSubstitutionMutation, TopLevelFieldElementMutation,
 };
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{seq::SliceRandom, Rng};
+use rand::{Rng, seq::SliceRandom};
 use rand_xorshift::XorShiftRng;
 
 /// This file contains mechanisms for deterministically mutating a given field value
@@ -79,6 +79,7 @@ impl<'a> FieldMutator<'a> {
         Self { dictionary, prng }
     }
 
+    #[allow(static_mut_refs)]
     fn apply_substitution(&mut self) -> FieldElement {
         match BASIC_FIELD_SUBSTITUTION_CONFIGURATION.select(self.prng) {
             FieldElementSubstitutionMutation::Zero => FieldElement::from(0u32),
@@ -103,6 +104,7 @@ impl<'a> FieldMutator<'a> {
         }
     }
 
+    #[allow(static_mut_refs)]
     fn apply_pow_2_update(&mut self, element: FieldElement) -> FieldElement {
         let chosen_power_of_two = unsafe { POWERS_OF_TWO.choose(self.prng).unwrap() };
         let chosen_inverse_power_of_two =

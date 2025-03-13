@@ -248,15 +248,12 @@ pub(crate) fn module_def_id_relative_path(
             interner,
         )
     } else {
-        let Some(module_full_path) = relative_module_full_path(
+        relative_module_full_path(
             module_def_id,
             current_module_id,
             current_module_parent_id,
             interner,
-        ) else {
-            return None;
-        };
-        module_full_path
+        )?
     };
 
     let path = if defining_module.is_some() || !matches!(module_def_id, ModuleDefId::ModuleId(..)) {

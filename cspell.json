@@ -173,6 +173,7 @@
         "noncanonical",
         "nouner",
         "oneshot",
+        "oneof",
         "overflowing",
         "pedersen",
         "peekable",
@@ -188,6 +189,11 @@
         "printstd",
         "proptest",
         "proptests",
+        "prost",
+        "proto",
+        "protobuf",
+        "protoc",
+        "protos",
         "pseudocode",
         "pubkey",
         "quantile",
@@ -261,7 +267,10 @@
         "whitespaces",
         "YOLO",
         "zkhash",
-        "zshell"
+        "zshell",
+        "flamegraph",
+        "flamegraphs",
+        "lookback"
     ],
     "ignorePaths": [
         "./**/node_modules/**",

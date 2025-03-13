@@ -1,6 +1,0 @@
-[package]
-name = "comptime_from_field"
-type = "bin"
-authors = [""]
-
-[dependencies]

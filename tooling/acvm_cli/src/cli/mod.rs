@@ -3,7 +3,6 @@ use color_eyre::eyre;
 use const_format::formatcp;
 
 mod execute_cmd;
-mod fs;
 
 const ACVM_VERSION: &str = env!("CARGO_PKG_VERSION");
 

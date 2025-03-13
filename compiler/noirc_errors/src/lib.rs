@@ -6,23 +6,5 @@
 pub mod debug_info;
 mod position;
 pub mod reporter;
-pub use position::{Location, Position, Span, Spanned};
+pub use position::{Located, Location, Position, Span, Spanned};
 pub use reporter::{CustomDiagnostic, DiagnosticKind};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FileDiagnostic {
-    pub file_id: fm::FileId,
-    pub diagnostic: CustomDiagnostic,
-}
-
-impl FileDiagnostic {
-    pub fn new(file_id: fm::FileId, diagnostic: CustomDiagnostic) -> FileDiagnostic {
-        FileDiagnostic { file_id, diagnostic }
-    }
-}
-
-impl From<FileDiagnostic> for Vec<FileDiagnostic> {
-    fn from(value: FileDiagnostic) -> Self {
-        vec![value]
-    }
-}

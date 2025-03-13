@@ -1,6 +1,6 @@
 use codespan_reporting::files::{Error, Files, SimpleFile};
 use noirc_driver::{CompiledContract, CompiledProgram, DebugFile};
-use noirc_errors::{debug_info::DebugInfo, Location};
+use noirc_errors::{Location, debug_info::DebugInfo};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -204,12 +204,12 @@ mod tests {
     use crate::debug::DebugArtifact;
     use acvm::acir::circuit::OpcodeLocation;
     use fm::FileManager;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
     use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     // Returns the absolute path to the file
     fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {

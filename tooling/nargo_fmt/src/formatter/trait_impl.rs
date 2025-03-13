@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
         // skip synthetic trait impl's, e.g. generated from trait aliases
         if trait_impl.is_synthetic {

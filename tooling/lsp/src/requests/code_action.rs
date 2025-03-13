@@ -12,6 +12,10 @@ use lsp_types::{
 };
 use noirc_errors::Span;
 use noirc_frontend::{
+    ParsedModule,
+    parser::{Item, ItemKind, ParsedSubModule},
+};
+use noirc_frontend::{
     ast::{
         CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
         Path, UseTree, Visitor,
@@ -21,14 +25,10 @@ use noirc_frontend::{
     node_interner::{NodeInterner, Reexport},
     usage_tracker::UsageTracker,
 };
-use noirc_frontend::{
-    parser::{Item, ItemKind, ParsedSubModule},
-    ParsedModule,
-};
 
 use crate::{
-    modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions, utils,
-    visibility::module_def_id_is_visible, LspState,
+    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
+    utils, visibility::module_def_id_is_visible,
 };
 
 use super::{process_request, to_lsp_location};
@@ -44,7 +44,7 @@ mod tests;
 pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
-) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> + use<> {
     let uri = params.text_document.clone().uri;
     let position = params.range.start;
     let text_document_position_params =
@@ -56,7 +56,7 @@ pub(crate) fn on_code_action_request(
             utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = CodeActionFinder::new(
                     uri,
@@ -233,16 +233,16 @@ impl<'a> CodeActionFinder<'a> {
     }
 }
 
-impl<'a> Visitor for CodeActionFinder<'a> {
+impl Visitor for CodeActionFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
             self.use_segment_positions.add(use_tree);
         }
 
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
@@ -306,7 +306,7 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         }
 
         if call.is_macro_call {
-            self.remove_bang_from_call(call.func.span);
+            self.remove_bang_from_call(call.func.location.span);
         }
 
         true

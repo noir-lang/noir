@@ -430,7 +430,7 @@ lazy_static! {
     };
 }
 
-impl<'a> Poseidon2<'a> {
+impl Poseidon2<'_> {
     pub(crate) fn new() -> Self {
         Poseidon2 { config: &POSEIDON2_CONFIG }
     }
@@ -626,7 +626,7 @@ impl<'a> Poseidon2Sponge<'a> {
 mod test {
     use acir::AcirField;
 
-    use super::{field_from_hex, poseidon2_permutation, FieldElement};
+    use super::{FieldElement, field_from_hex, poseidon2_permutation};
 
     #[test]
     fn smoke_test() {

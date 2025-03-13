@@ -12,21 +12,21 @@
 
 use std::collections::HashMap;
 
+use acir::AcirField;
 use acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapArray,
     HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
 };
-use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
-use arithmetic::{evaluate_binary_field_op, evaluate_binary_int_op, BrilligArithmeticError};
-use black_box::{evaluate_black_box, BrilligBigIntSolver};
+use arithmetic::{BrilligArithmeticError, evaluate_binary_field_op, evaluate_binary_int_op};
+use black_box::{BrilligBigIntSolver, evaluate_black_box};
 
 // Re-export `brillig`.
 pub use acir::brillig;
 use memory::MemoryTypeError;
-pub use memory::{Memory, MemoryValue, MEMORY_ADDRESSING_BIT_SIZE};
-use num_bigint::BigUint;
+pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
 
+use num_bigint::BigUint;
 mod arithmetic;
 mod black_box;
 mod memory;
@@ -338,10 +338,13 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 };
                 let approach_index = self.branch_to_feature_map[&(
                     self.program_counter,
-                    FUZZING_COMPARISON_LOG_RANGE_END_STATE - BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
+                    FUZZING_COMPARISON_LOG_RANGE_END_STATE
+                        - BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
                 )];
-                let condition_index = self.branch_to_feature_map
-                    [&(self.program_counter, if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE })];
+                let condition_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+                )];
                 self.fuzzer_trace[condition_index] += 1;
                 self.fuzzer_trace[approach_index] += 1;
             }
@@ -384,15 +387,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                         - rhs_value.abs_diff(lhs_value).checked_ilog2().map_or_else(|| 0, |x| x + 1)
                             as usize,
                 )];
-                let condition_index = self.branch_to_feature_map
-                    [&(self.program_counter, if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE })];
+                let condition_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+                )];
                 self.fuzzer_trace[condition_index] += 1;
                 self.fuzzer_trace[approach_index] += 1;
             }
         }
     }
     pub fn get_fuzzing_trace(&self) -> Vec<u32> {
-            self.fuzzer_trace.clone()
+        self.fuzzer_trace.clone()
     }
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
@@ -721,69 +726,99 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             destinations.iter().zip(destination_value_types).zip(&values)
         {
             match (destination, value_type) {
-            (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
-                match output {
-                    ForeignCallParam::Single(value) => {
-                        self.write_value_to_memory(*value_index, value, *bit_size)?;
-                    }
-                    _ => return Err(format!(
-                        "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}")
-                    ),
-                }
-            }
-            (
-                ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
-                HeapValueType::Array { value_types, size: type_size },
-            ) if size == type_size => {
-                if HeapValueType::all_simple(value_types) {
+                (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
                     match output {
-                        ForeignCallParam::Array(values) => {
-                            if values.len() != *size {
-                                // foreign call returning flattened values into a nested type, so the sizes do not match
-                               let destination = self.memory.read_ref(*pointer_index);
-                               let return_type = value_type;
-                               let mut flatten_values_idx = 0; //index of values read from flatten_values
-                               self.write_slice_of_values_to_memory(destination, &output.fields(), &mut flatten_values_idx, return_type)?;
-                            } else {
-                                self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
+                        ForeignCallParam::Single(value) => {
+                            self.write_value_to_memory(*value_index, value, *bit_size)?;
+                        }
+                        _ => {
+                            return Err(format!(
+                                "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
+                            ));
+                        }
+                    }
+                }
+                (
+                    ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
+                    HeapValueType::Array { value_types, size: type_size },
+                ) if size == type_size => {
+                    if HeapValueType::all_simple(value_types) {
+                        match output {
+                            ForeignCallParam::Array(values) => {
+                                if values.len() != *size {
+                                    // foreign call returning flattened values into a nested type, so the sizes do not match
+                                    let destination = self.memory.read_ref(*pointer_index);
+                                    let return_type = value_type;
+                                    let mut flatten_values_idx = 0; //index of values read from flatten_values
+                                    self.write_slice_of_values_to_memory(
+                                        destination,
+                                        &output.fields(),
+                                        &mut flatten_values_idx,
+                                        return_type,
+                                    )?;
+                                } else {
+                                    self.write_values_to_memory_slice(
+                                        *pointer_index,
+                                        values,
+                                        value_types,
+                                    )?;
+                                }
+                            }
+                            _ => {
+                                return Err(
+                                    "Function result size does not match brillig bytecode size"
+                                        .to_string(),
+                                );
                             }
                         }
-                        _ => {
-                            return Err("Function result size does not match brillig bytecode size".to_string());
-                        }
+                    } else {
+                        // foreign call returning flattened values into a nested type, so the sizes do not match
+                        let destination = self.memory.read_ref(*pointer_index);
+                        let return_type = value_type;
+                        let mut flatten_values_idx = 0; //index of values read from flatten_values
+                        self.write_slice_of_values_to_memory(
+                            destination,
+                            &output.fields(),
+                            &mut flatten_values_idx,
+                            return_type,
+                        )?;
                     }
-                } else {
-                    // foreign call returning flattened values into a nested type, so the sizes do not match
-                    let destination = self.memory.read_ref(*pointer_index);
-                    let return_type = value_type;
-                    let mut flatten_values_idx = 0; //index of values read from flatten_values
-                    self.write_slice_of_values_to_memory(destination, &output.fields(), &mut flatten_values_idx, return_type)?;
-            }
-        }
-            (
-                ValueOrArray::HeapVector(HeapVector {pointer: pointer_index, size: size_index }),
-                HeapValueType::Vector { value_types },
-            ) => {
-                if HeapValueType::all_simple(value_types) {
-                    match output {
-                        ForeignCallParam::Array(values) => {
-                            // Set our size in the size address
-                            self.memory.write(*size_index, values.len().into());
-                            self.write_values_to_memory_slice(*pointer_index, values, value_types)?;
-
+                }
+                (
+                    ValueOrArray::HeapVector(HeapVector {
+                        pointer: pointer_index,
+                        size: size_index,
+                    }),
+                    HeapValueType::Vector { value_types },
+                ) => {
+                    if HeapValueType::all_simple(value_types) {
+                        match output {
+                            ForeignCallParam::Array(values) => {
+                                // Set our size in the size address
+                                self.memory.write(*size_index, values.len().into());
+                                self.write_values_to_memory_slice(
+                                    *pointer_index,
+                                    values,
+                                    value_types,
+                                )?;
+                            }
+                            _ => {
+                                return Err(
+                                    "Function result size does not match brillig bytecode size"
+                                        .to_string(),
+                                );
+                            }
                         }
-                        _ => {
-                            return Err("Function result size does not match brillig bytecode size".to_string());
-                        }
+                    } else {
+                        unimplemented!("deflattening heap vectors from foreign calls");
                     }
-                } else {
-                    unimplemented!("deflattening heap vectors from foreign calls");
+                }
+                _ => {
+                    return Err(format!(
+                        "Unexpected value type {value_type:?} for destination {destination:?}"
+                    ));
                 }
             }
-            _ => {
-                return Err(format!("Unexpected value type {value_type:?} for destination {destination:?}"));
-            }
-        }
         }
 
         let _ =
@@ -1203,13 +1238,10 @@ mod tests {
         assert_eq!(status, VMStatus::InProgress);
 
         let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
-                call_stack: vec![5]
-            }
-        );
+        assert_eq!(status, VMStatus::Failure {
+            reason: FailureReason::Trap { revert_data_offset: 0, revert_data_size: 0 },
+            call_stack: vec![5]
+        });
 
         // The address at index `2` should have not changed as we jumped over the add opcode
         let VM { memory, .. } = vm;
@@ -1883,7 +1915,7 @@ mod tests {
     ) -> VM<'a, F, StubbedBlackBoxSolver> {
         let mut vm = VM::new(calldata, opcodes, solver, false, None);
         brillig_execute(&mut vm);
-        assert_eq!(vm.call_stack, vec![]);
+        assert!(vm.call_stack.is_empty());
         vm
     }
 
@@ -1927,13 +1959,10 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(vec![], &double_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "double".into(),
-                inputs: vec![FieldElement::from(5usize).into()]
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "double".into(),
+            inputs: vec![FieldElement::from(5usize).into()]
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(
@@ -2021,13 +2050,10 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_matrix.clone(), &invert_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "matrix_2x2_transpose".into(),
-                inputs: vec![initial_matrix.into()]
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "matrix_2x2_transpose".into(),
+            inputs: vec![initial_matrix.into()]
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2133,13 +2159,10 @@ mod tests {
             brillig_execute_and_get_vm(input_string.clone(), &string_double_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "string_double".into(),
-                inputs: vec![input_string.clone().into()]
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "string_double".into(),
+            inputs: vec![input_string.clone().into()]
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(ForeignCallResult {
@@ -2232,13 +2255,10 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_matrix.clone(), &invert_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "matrix_2x2_transpose".into(),
-                inputs: vec![initial_matrix.clone().into()]
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "matrix_2x2_transpose".into(),
+            inputs: vec![initial_matrix.clone().into()]
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2355,13 +2375,10 @@ mod tests {
         let mut vm = brillig_execute_and_get_vm(initial_memory, &matrix_mul_program, &solver);
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "matrix_2x2_transpose".into(),
-                inputs: vec![matrix_a.into(), matrix_b.into()]
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "matrix_2x2_transpose".into(),
+            inputs: vec![matrix_a.into(), matrix_b.into()]
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(expected_result.clone().into());
@@ -2500,25 +2517,22 @@ mod tests {
         );
 
         // Check that VM is waiting
-        assert_eq!(
-            vm.status,
-            VMStatus::ForeignCallWait {
-                function: "flat_sum".into(),
-                inputs: vec![ForeignCallParam::Array(vec![
-                    (1u128).into(),
-                    (2u128).into(), // size of following vector
-                    (2u128).into(),
-                    (3u128).into(),
-                    (4u128).into(),
-                    (5u128).into(),
-                    (3u128).into(), // size of following vector
-                    (6u128).into(),
-                    (7u128).into(),
-                    (8u128).into(),
-                    (9u128).into(),
-                ])],
-            }
-        );
+        assert_eq!(vm.status, VMStatus::ForeignCallWait {
+            function: "flat_sum".into(),
+            inputs: vec![ForeignCallParam::Array(vec![
+                (1u128).into(),
+                (2u128).into(), // size of following vector
+                (2u128).into(),
+                (3u128).into(),
+                (4u128).into(),
+                (5u128).into(),
+                (3u128).into(), // size of following vector
+                (6u128).into(),
+                (7u128).into(),
+                (8u128).into(),
+                (9u128).into(),
+            ])],
+        });
 
         // Push result we're waiting for
         vm.resolve_foreign_call(FieldElement::from(45u128).into());
@@ -2613,14 +2627,9 @@ mod tests {
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
         let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::RuntimeError {
-                    message: "Attempted to divide by zero".into()
-                },
-                call_stack: vec![2]
-            }
-        );
+        assert_eq!(status, VMStatus::Failure {
+            reason: FailureReason::RuntimeError { message: "Attempted to divide by zero".into() },
+            call_stack: vec![2]
+        });
     }
 }

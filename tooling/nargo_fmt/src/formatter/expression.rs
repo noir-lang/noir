@@ -6,7 +6,7 @@ use noirc_frontend::{
         MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
         UnresolvedTypeData,
     },
-    token::{Keyword, Token},
+    token::{Keyword, Token, TokenKind},
 };
 
 use crate::chunks::{Chunk, ChunkFormatter, ChunkGroup, GroupKind, GroupTag, TextChunk};
@@ -19,9 +19,21 @@ struct FormattedLambda {
     first_line_width: usize,
 }
 
-impl<'a, 'b> ChunkFormatter<'a, 'b> {
+impl ChunkFormatter<'_, '_> {
     pub(super) fn format_expression(&mut self, expression: Expression, group: &mut ChunkGroup) {
-        group.leading_comment(self.skip_comments_and_whitespace_chunk());
+        group.leading_comment(self.chunk(|formatter| {
+            // Doc comments for an expression could come before a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+
+            formatter.skip_comments_and_whitespace();
+
+            // Or doc comments could come after a potential non-doc comment
+            if formatter.token.kind() == TokenKind::OuterDocComment {
+                formatter.format_outer_doc_comments_checking_safety();
+            }
+        }));
 
         match expression.kind {
             ExpressionKind::Literal(literal) => self.format_literal(literal, group),
@@ -86,9 +98,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(block_expression, _span) => {
+            ExpressionKind::Unsafe(unsafe_xpression) => {
                 group.group(self.format_unsafe_expression(
-                    block_expression,
+                    unsafe_xpression.block,
                     false, // force multiple lines
                 ));
             }
@@ -143,7 +155,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
 
         group.text(self.chunk(|formatter| {
             if is_slice {
-                formatter.write_token(Token::Ampersand);
+                formatter.write_token(Token::SliceStart);
             }
             formatter.write_left_bracket();
         }));
@@ -349,7 +361,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             formatter.write_space();
             formatter.write(&delimiter_start.to_string());
             for token in tokens.0 {
-                formatter.write_source_span(token.to_span());
+                formatter.write_source_span(token.span());
             }
             formatter.write(&delimiter_end.to_string());
         }));
@@ -377,7 +389,6 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     ) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            formatter.format_outer_doc_comments_checking_safety();
             formatter.write_keyword(Keyword::Unsafe);
             formatter.write_space();
         }));
@@ -704,7 +715,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     fn format_prefix(&mut self, prefix: PrefixExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            if let UnaryOp::MutableReference = prefix.operator {
+            if let UnaryOp::Reference { mutable: true } = prefix.operator {
                 formatter.write_current_token();
                 formatter.bump();
                 formatter.skip_comments_and_whitespace();
@@ -1156,7 +1167,9 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
             ConstrainKind::Constrain => {
-                unreachable!("constrain always produces an error, and the formatter doesn't run when there are errors")
+                unreachable!(
+                    "constrain always produces an error, and the formatter doesn't run when there are errors"
+                )
             }
         };
 
@@ -1309,7 +1322,7 @@ impl<'a, 'b> ChunkFormatter<'a, 'b> {
     }
 }
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_empty_block_contents(&mut self) {
         if let Some(chunks) = self.chunk_formatter().empty_block_contents_chunk() {
             self.format_chunk_group(chunks);
@@ -1331,7 +1344,7 @@ fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_format, assert_format_with_config, assert_format_with_max_width, Config};
+    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
 
     #[test]
     fn format_unit() {

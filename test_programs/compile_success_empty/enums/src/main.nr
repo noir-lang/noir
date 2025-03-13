@@ -3,6 +3,7 @@ fn main() {
     foo_tests();
     option_tests();
     abc_tests();
+    match_on_structs();
 }
 
 fn primitive_tests() {
@@ -19,7 +20,19 @@ fn primitive_tests() {
         false => fail(),
         true => (),
     }
+
+    // Ensure we can match on MIN and use globals as constants
+    let i64_min = I64_MIN;
+    match i64_min {
+        9_223_372_036_854_775_807 => fail(),
+        -9_223_372_036_854_775_807 => fail(),
+        0 => fail(),
+        I64_MIN => (),
+        _ => fail(),
+    }
 }
+
+global I64_MIN: i64 = -9_223_372_036_854_775_808;
 
 enum Foo<T> {
     A(Field, Field),
@@ -103,7 +116,7 @@ fn abc_tests() {
     // Mut is only to throw the optimizer off a bit so we can see
     // the `eq`s that get generated before they're removed because each of these are constant
     let mut tuple = (ABC::A, ABC::B);
-    match tuple {
+    let _ = match tuple {
         (ABC::A, _) => 1,
         (_, ABC::A) => 2,
         (_, ABC::B) => 3,
@@ -113,4 +126,28 @@ fn abc_tests() {
         (ABC::C, ABC::F) => 7,
         _ => 0,
     };
+}
+
+fn match_on_structs() {
+    let foo = MyStruct { x: 10, y: 20 };
+    match foo {
+        MyStruct { x, y } => {
+            assert_eq(x, 10);
+            assert_eq(y, 20);
+        },
+    }
+
+    match MyOption::Some(foo) {
+        MyOption::Some(MyStruct { x: x2, y: y2 }) => {
+            assert_eq(x2, 10);
+            assert_eq(y2, 20);
+        },
+        MyOption::None => fail(),
+        MyOption::Maybe => fail(),
+    }
+}
+
+struct MyStruct {
+    x: i32,
+    y: Field,
 }

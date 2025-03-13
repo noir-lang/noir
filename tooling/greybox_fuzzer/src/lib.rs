@@ -6,15 +6,15 @@ use std::{
 };
 
 use acvm::{
+    FieldElement,
     acir::{
         circuit::Program,
         native_types::{WitnessMap, WitnessStack},
     },
-    FieldElement,
 };
 use coverage::{
-    analyze_brillig_program_before_fuzzing, AccumulatedFuzzerCoverage, BrilligCoverageRanges,
-    FeatureToIndexMap, PotentialBoolWitnessList, RawBrilligCoverage, SingleTestCaseCoverage,
+    AccumulatedFuzzerCoverage, BrilligCoverageRanges, FeatureToIndexMap, PotentialBoolWitnessList,
+    RawBrilligCoverage, SingleTestCaseCoverage, analyze_brillig_program_before_fuzzing,
 };
 use noir_fuzzer::dictionary::build_dictionary_from_program;
 
@@ -23,7 +23,7 @@ mod coverage;
 mod mutation;
 mod types;
 
-use corpus::{Corpus, TestCase, TestCaseId, DEFAULT_CORPUS_FOLDER};
+use corpus::{Corpus, DEFAULT_CORPUS_FOLDER, TestCase, TestCaseId};
 use mutation::InputMutator;
 use rayon::iter::ParallelIterator;
 use termcolor::{ColorChoice, StandardStream};
@@ -328,18 +328,18 @@ pub struct AcirAndBrilligPrograms {
     pub brillig_program: ProgramArtifact,
 }
 impl<
-        E: Fn(
-                &Program<FieldElement>,
-                WitnessMap<FieldElement>,
-            ) -> Result<WitnessStack<FieldElement>, String>
-            + Sync,
-        F: Fn(
-                &Program<FieldElement>,
-                WitnessMap<FieldElement>,
-                &FeatureToIndexMap,
-            ) -> Result<WitnessAndCoverage, ErrorAndCoverage>
-            + Sync,
-    > FuzzedExecutor<E, F>
+    E: Fn(
+            &Program<FieldElement>,
+            WitnessMap<FieldElement>,
+        ) -> Result<WitnessStack<FieldElement>, String>
+        + Sync,
+    F: Fn(
+            &Program<FieldElement>,
+            WitnessMap<FieldElement>,
+            &FeatureToIndexMap,
+        ) -> Result<WitnessAndCoverage, ErrorAndCoverage>
+        + Sync,
+> FuzzedExecutor<E, F>
 {
     /// Instantiates a fuzzed executor given an executor
     #[allow(clippy::too_many_arguments)]
@@ -428,7 +428,7 @@ impl<
     pub fn fuzz(&mut self) -> FuzzTestResult {
         self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
-        let seed = thread_rng().gen::<u64>();
+        let seed = thread_rng().r#gen::<u64>();
 
         // Init a fast PRNG used throughout the campain
         let mut prng = XorShiftRng::seed_from_u64(seed);

@@ -77,4 +77,3 @@ unconstrained fn shr(x: u32, y: u8) -> u32 {
 unconstrained fn shl(x: u32, y: u8) -> u32 {
     x << y
 }
-

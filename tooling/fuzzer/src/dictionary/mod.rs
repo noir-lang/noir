@@ -6,16 +6,16 @@
 use std::collections::HashSet;
 
 use acvm::{
+    AcirField,
     acir::{
         circuit::{
+            Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligInputs},
             opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
-            Circuit, Opcode, Program,
         },
         native_types::Expression,
     },
     brillig_vm::brillig::Opcode as BrilligOpcode,
-    AcirField,
 };
 
 /// Constructs a [HashSet<F>] of values pulled from a [Program<F>] which are likely to be correspond
