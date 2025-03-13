@@ -57,6 +57,11 @@ jobs:
           name: rustdoc
           path: ./docs
 
+      - name: Configure git
+        run: |
+          git config --global user.email "rustdoc"
+          git config --global user.name "github@users.noreply.github.com"
+
       - name: Commit new docs
         run: |
           git add ./docs/*
