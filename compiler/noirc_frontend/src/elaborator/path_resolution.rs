@@ -99,7 +99,7 @@ enum MethodLookupResult {
     /// (we'll warn about this to avoid introducing a large breaking change)
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
     /// Multiple trait method matches were found and they are all in scope.
-    FoundMultipleTraitMethods(Vec<TraitId>),
+    FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
 impl Elaborator<'_> {
@@ -295,9 +295,9 @@ impl Elaborator<'_> {
                         per_ns
                     }
                     MethodLookupResult::FoundMultipleTraitMethods(vec) => {
-                        let traits = vecmap(vec, |trait_id| {
+                        let traits = vecmap(vec, |(trait_id, name)| {
                             let trait_ = self.interner.get_trait(trait_id);
-                            self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                            self.usage_tracker.mark_as_used(importing_module, &name);
                             self.fully_qualified_trait_path(trait_)
                         });
                         return Err(PathResolutionError::MultipleTraitsInScope {
@@ -400,7 +400,7 @@ impl Elaborator<'_> {
         }
 
         if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, _, _)| trait_id);
+            let trait_ids = vecmap(results, |(trait_id, name, _)| (trait_id, name.clone()));
             return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
         }
 
