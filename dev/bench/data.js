@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741871731725,
+  "lastUpdate": 1741871735792,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a7fa75640d2c7b990a4ad912266defabe9651919",
-          "message": "chore(profiler): Add option to only get the total sample count for the `execution-opcodes` command (#7578)",
-          "timestamp": "2025-03-05T15:10:19Z",
-          "tree_id": "4d54e7c5c6e3ad59f76a2bffd0d71179622f4d95",
-          "url": "https://github.com/noir-lang/noir/commit/a7fa75640d2c7b990a4ad912266defabe9651919"
-        },
-        "date": 1741188547520,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.07,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.286,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.846,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.605,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "94e1a9915db5cd9602f6b613a32b52a8f6ebe753",
+          "message": "feat(ssa): Post dominator tree (#7595)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-03-13T12:49:10Z",
+          "tree_id": "67bb15521a72d8d5ac6a3f69fd2a7f9c0c4faf0f",
+          "url": "https://github.com/noir-lang/noir/commit/94e1a9915db5cd9602f6b613a32b52a8f6ebe753"
+        },
+        "date": 1741871731956,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.285,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.73,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.8,
             "unit": "s"
           },
           {
