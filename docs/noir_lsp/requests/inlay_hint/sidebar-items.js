@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_expression_name","on_inlay_hint_request","push_type_parts","push_type_variable_parts","string_part","text_part_with_location"],"struct":["InlayHintCollector"]};

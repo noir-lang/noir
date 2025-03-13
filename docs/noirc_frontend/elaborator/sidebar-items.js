@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ElaborateReason","UnstableFeature"],"mod":["types"],"struct":["Elaborator","LambdaContext","Loop","ResolverMeta","Turbofish"],"type":["FrontendOptions"]};
+window.SIDEBAR_ITEMS = {"enum":["ElaborateReason","UnsafeBlockStatus","UnstableFeature"],"mod":["comptime","enums","expressions","lints","options","path_resolution","patterns","scope","statements","trait_impls","traits","types","unquote"],"struct":["Elaborator","FunctionContext","LambdaContext","Loop","ResolverMeta","Turbofish"],"type":["FrontendOptions","ScopeForest"]};

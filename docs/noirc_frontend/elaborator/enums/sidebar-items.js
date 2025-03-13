@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["WILDCARD_PATTERN"],"enum":["Pattern"],"struct":["Column","MatchCompiler","Row"],"type":["RowBody"]};

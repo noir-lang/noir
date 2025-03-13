@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TraitImplItemKind","TraitItem"],"struct":["NoirTrait","NoirTraitImpl","TraitBound","TraitImplItem","TypeImpl","UnresolvedTraitConstraint"]};

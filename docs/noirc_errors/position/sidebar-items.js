@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Located","Location","Span","Spanned"],"type":["Position"]};

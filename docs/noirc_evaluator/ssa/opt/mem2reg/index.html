@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known addresses with the value stored at that address, if it is also known. This pass will also remove any `Store` instructions within a block that are no longer needed because no more loads occur in between the Store in question and the next Store."><title>noirc_evaluator::ssa::opt::mem2reg - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.3</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module mem2reg</a></h2><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">opt</a></span><h1>Module <span>mem2reg</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/opt/mem2reg.rs.html#1-1233">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The goal of the mem2reg SSA optimization pass is to replace any <code>Load</code> instructions to known
+addresses with the value stored at that address, if it is also known. This pass will also remove
+any <code>Store</code> instructions within a block that are no longer needed because no more loads occur in
+between the Store in question and the next Store.</p>
+<p>The pass works as follows:</p>
+<ul>
+<li>Each block in each function is iterated in forward-order.</li>
+<li>The starting value of each reference in the block is the unification of the same references
+at the end of each direct predecessor block to the current block.</li>
+<li>At each step, the value of each reference is either Known(ValueId) or Unknown.</li>
+<li>Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.</li>
+<li>If a block has no predecessors, the starting value of each reference is Unknown.</li>
+<li>Throughout this pass, aliases of each reference are also tracked.
+<ul>
+<li>References typically have 1 alias - themselves.</li>
+<li>A reference with multiple aliases means we will not be able to optimize out loads if the
+reference is stored to. Note that this means we can still optimize out loads if these
+aliased references are never stored to, or the store occurs after a load.</li>
+<li>A reference with 0 aliases means we were unable to find which reference this reference
+refers to. If such a reference is stored to, we must conservatively invalidate every
+reference in the current block.</li>
+</ul>
+</li>
+<li>We also track the last load instruction to each address per block.</li>
+</ul>
+<p>From there, to figure out the value of each reference at the end of block, iterate each instruction:</p>
+<ul>
+<li>On <code>Instruction::Allocate</code>:
+<ul>
+<li>Register a new reference was made with itself as its only alias</li>
+</ul>
+</li>
+<li>On <code>Instruction::Load { address }</code>:
+<ul>
+<li>
+<p>If <code>address</code> is known to only have a single alias (including itself) and if the value of
+that alias is known, replace the value of the load with the known value.</p>
+</li>
+<li>
+<p>Furthermore, if the result of the load is a reference, mark the result as an alias
+of the reference it dereferences to (if known).</p>
+<ul>
+<li>If which reference it dereferences to is not known, this load result has no aliases.</li>
+</ul>
+</li>
+<li>
+<p>We also track the last instance of a load instruction to each address in a block.
+If we see that the last load instruction was from the same address as the current load instruction,
+we move to replace the result of the current load with the result of the previous load.</p>
+<p>This removal requires a couple conditions:</p>
+<ul>
+<li>No store occurs to that address before the next load,</li>
+<li>The address is not used as an argument to a call</li>
+</ul>
+<p>This optimization helps us remove repeated loads for which there are not known values.</p>
+</li>
+</ul>
+</li>
+<li>On <code>Instruction::Store { address, value }</code>:
+<ul>
+<li>If the address of the store is known:
+<ul>
+<li>If the address has exactly 1 alias:
+<ul>
+<li>Set the value of the address to <code>Known(value)</code>.</li>
+</ul>
+</li>
+<li>If the address has more than 1 alias:
+<ul>
+<li>Set the value of every possible alias to <code>Unknown</code>.</li>
+</ul>
+</li>
+<li>If the address has 0 aliases:
+<ul>
+<li>Conservatively mark every alias in the block to <code>Unknown</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>If the address of the store is not known:
+<ul>
+<li>Conservatively mark every alias in the block to <code>Unknown</code>.</li>
+</ul>
+</li>
+<li>Additionally, if there were no Loads to any alias of the address between this Store and
+the previous Store to the same address, the previous store can be removed.</li>
+<li>Remove the instance of the last load instruction to the address and its aliases</li>
+</ul>
+</li>
+<li>On <code>Instruction::Call { arguments }</code>:
+<ul>
+<li>If any argument of the call is a reference, set the value of each alias of that
+reference to <code>Unknown</code></li>
+<li>Any builtin functions that may return aliases if their input also contains a
+reference should be tracked. Examples: <code>slice_push_back</code>, <code>slice_insert</code>, <code>slice_remove</code>, etc.</li>
+<li>Remove the instance of the last load instruction for any reference arguments and their aliases</li>
+</ul>
+</li>
+</ul>
+<p>On a terminator instruction:</p>
+<ul>
+<li>If the terminator is a <code>Jmp</code>:
+<ul>
+<li>For each reference argument of the jmp, mark the corresponding block parameter it is passed
+to as an alias for the jmp argument.</li>
+</ul>
+</li>
+</ul>
+<p>Finally, if this is the only block in the function, we can remove any Stores that were not
+referenced by the terminator instruction.</p>
+<p>Repeating this algorithm for each block in the function in program order should result in
+optimizing out most known loads. However, identifying all aliases correctly has been proven
+undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
+that could theoretically be optimized out. This pass can be performed at any time in the
+SSA optimization pipeline, although it will be more successful the simpler the program’s CFG is.
+This pass is currently performed several times to enable other passes - most notably being
+performed before loop unrolling to try to allow for mutable variables used for loop indices.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="alias_set/index.html" title="mod noirc_evaluator::ssa::opt::mem2reg::alias_set">alias_<wbr>set</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="mod" href="block/index.html" title="mod noirc_evaluator::ssa::opt::mem2reg::block">block</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.PerFunctionContext.html" title="struct noirc_evaluator::ssa::opt::mem2reg::PerFunctionContext">PerFunction<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul></section></div></main></body></html>

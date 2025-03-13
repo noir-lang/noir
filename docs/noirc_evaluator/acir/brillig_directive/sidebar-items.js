@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["directive_invert","directive_quotient","directive_to_radix"]};

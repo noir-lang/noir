@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PathResolutionError"],"fn":["resolve_import","resolve_path_kind"],"struct":["ImportDirective","ResolvedImport"]};
+window.SIDEBAR_ITEMS = {"enum":["PathResolutionError"],"fn":["get_module","resolve_import","resolve_path_kind"],"struct":["ImportDirective","ImportSolver","PathResolutionTargetResolver","ResolvedImport"],"type":["ImportResolutionResult"]};

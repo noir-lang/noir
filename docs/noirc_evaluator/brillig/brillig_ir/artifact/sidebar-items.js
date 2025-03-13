@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BrilligParameter","LabelType"],"struct":["BrilligArtifact","GeneratedBrillig","Label"],"type":["JumpInstructionPosition","OpcodeLocation","UnresolvedJumpLocation"]};

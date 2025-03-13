@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["witness_map","witness_stack"],"struct":["WitnessMap","WitnessStack"]};

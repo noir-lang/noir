@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The flatten cfg optimization pass “flattens” the entire control flow graph into a single block. This includes branches in the CFG with non-constant conditions. Flattening these requires special handling for operations with side-effects and can lead to a loss of information since the jmpif will no longer be in the program. As a result, this pass should usually be towards or at the end of the optimization passes. Note that this pass will also perform unexpectedly if loops are still present in the program. Since the pass sees a normal jmpif, it will attempt to merge both blocks, but no actual looping will occur."><title>noirc_evaluator::ssa::opt::flatten_cfg - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.3</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module flatten_<wbr>cfg</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#constrain-v0" title="constrain v0">constrain v0</a></li><li><a href="#b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-" title="b0(v0: u1, v1: Field, v2: Field): jmpif v0, then: b1, else: b2 b1(): jmp b3(v1) b2(): jmp b3(v2) b3(v3: Field): … b3 instructions …">b0(v0: u1, v1: Field, v2: Field): jmpif v0, then: b1, else: b2 b1(): jmp b3(v1) b2(): jmp b3(v2) b3(v3: Field): … b3 instructions …</a></li><li><a href="#b0v0-u1v1--allocate-1-fieldjmpif-v0-then-b1-else-b2b1store-v1-field-5-b1-instructions-jmp-b3b2store-v1-field-7-b2-instructions-jmp-b3b3-b3-instructions-" title="b0(v0: u1): v1 = allocate 1 Field jmpif v0, then: b1, else: b2 b1(): store v1, Field 5 … b1 instructions … jmp b3 b2(): store v1, Field 7 … b2 instructions … jmp b3 b3(): … b3 instructions …">b0(v0: u1): v1 = allocate 1 Field jmpif v0, then: b1, else: b2 b1(): store v1, Field 5 … b1 instructions … jmp b3 b2(): store v1, Field 7 … b2 instructions … jmp b3 b3(): … b3 instructions …</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">opt</a></span><h1>Module <span>flatten_cfg</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1-1540">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The flatten cfg optimization pass “flattens” the entire control flow graph into a single block.
+This includes branches in the CFG with non-constant conditions. Flattening these requires
+special handling for operations with side-effects and can lead to a loss of information since
+the jmpif will no longer be in the program. As a result, this pass should usually be towards or
+at the end of the optimization passes. Note that this pass will also perform unexpectedly if
+loops are still present in the program. Since the pass sees a normal jmpif, it will attempt to
+merge both blocks, but no actual looping will occur.</p>
+<p>This pass is also known to produce some extra instructions which may go unused (usually ‘Not’)
+while merging branches. These extra instructions can be cleaned up by a later dead instruction
+elimination (DIE) pass.</p>
+<p>Though CFG information is lost during this pass, some key information is retained in the form
+of <code>EnableSideEffectsIf</code> instructions. Each time the flattening pass enters and exits a branch of
+a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
+of the program point. For example:</p>
+<p>b0(v0: u1):
+jmpif v0, then: b1, else: b2
+b1():
+v1 = call f0
+jmp b3(v1)
+… blocks b2 &amp; b3 …</p>
+<p>Would brace the call instruction as such:
+enable_side_effects v0
+v1 = call f0
+enable_side_effects u1 1</p>
+<p>(Note: we restore to “true” to indicate that this program point is not nested within any
+other branches.)</p>
+<p>When we are flattening a block that was reached via a jmpif with a non-constant condition c,
+the following transformations of certain instructions within the block are expected:</p>
+<ol>
+<li>A constraint is multiplied by the condition and changes the constraint to
+an equality with c:</li>
+</ol>
+<h2 id="constrain-v0"><a class="doc-anchor" href="#constrain-v0">§</a>constrain v0</h2>
+<p>v1 = mul v0, c
+v2 = eq v1, c
+constrain v2</p>
+<ol start="2">
+<li>If we reach the end block of the branch created by the jmpif instruction, its block parameters
+will be merged. To merge the jmp arguments of the then and else branches, the formula
+<code>c * then_arg + !c * else_arg</code> is used for each argument.</li>
+</ol>
+<h2 id="b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-"><a class="doc-anchor" href="#b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-">§</a>b0(v0: u1, v1: Field, v2: Field):
+jmpif v0, then: b1, else: b2
+b1():
+jmp b3(v1)
+b2():
+jmp b3(v2)
+b3(v3: Field):
+… b3 instructions …</h2>
+<p>b0(v0: u1, v1: Field, v2: Field):
+v3 = mul v0, v1
+v4 = not v0
+v5 = mul v4, v2
+v6 = add v3, v5
+… b3 instructions …</p>
+<ol start="3">
+<li>After being stored to in at least one predecessor of a block with multiple predecessors, the
+value of a memory address is the value it had in both branches combined via c * a + !c * b.
+Note that the following example is simplified to remove extra load instructions and combine
+the separate merged stores for each branch into one store. See the next example for a
+non-simplified version with address offsets.</li>
+</ol>
+<h2 id="b0v0-u1v1--allocate-1-fieldjmpif-v0-then-b1-else-b2b1store-v1-field-5-b1-instructions-jmp-b3b2store-v1-field-7-b2-instructions-jmp-b3b3-b3-instructions-"><a class="doc-anchor" href="#b0v0-u1v1--allocate-1-fieldjmpif-v0-then-b1-else-b2b1store-v1-field-5-b1-instructions-jmp-b3b2store-v1-field-7-b2-instructions-jmp-b3b3-b3-instructions-">§</a>b0(v0: u1):
+v1 = allocate 1 Field
+jmpif v0, then: b1, else: b2
+b1():
+store v1, Field 5
+… b1 instructions …
+jmp b3
+b2():
+store v1, Field 7
+… b2 instructions …
+jmp b3
+b3():
+… b3 instructions …</h2>
+<p>b0():
+v1 = allocate 1 Field
+store v1, Field 5
+… b1 instructions …
+store v1, Field 7
+… b2 instructions …
+v2 = mul v0, Field 5
+v3 = not v0
+v4 = mul v3, Field 7
+v5 = add v2, v4
+store v1, v5
+… b3 instructions …</p>
+<p>Note that if the ValueId of the address stored to is not the same, two merging store
+instructions will be made - one to each address. This is the case even if both addresses refer
+to the same address internally. This can happen when they are equivalent offsets:</p>
+<p>b0(v0: u1, v1: ref)
+jmpif v0, then: b1, else: b2
+b1():
+v2 = add v1, Field 1
+store Field 11 in v2
+… b1 instructions …
+b2():
+v3 = add v1, Field 1
+store Field 12 in v3
+… b2 instructions …</p>
+<p>In this example, both store instructions store to an offset of 1 from v1, but because the
+ValueIds differ (v2 and v3), two store instructions will be created:</p>
+<p>b0(v0: u1, v1: ref)
+v2 = add v1, Field 1
+v3 = load v2            (new load)
+store Field 11 in v2
+… b1 instructions …
+v4 = not v0             (new not)
+v5 = add v1, Field 1
+v6 = load v5            (new load)
+store Field 12 in v5
+… b2 instructions …
+v7 = mul v0, Field 11
+v8 = mul v4, v3
+v9 = add v7, v8
+store v9 at v2          (new store)
+v10 = mul v0, v6
+v11 = mul v4, Field 12
+v12 = add v10, v11
+store v12 at v5         (new store)</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="branch_analysis/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::branch_analysis">branch_<wbr>analysis</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">This is an algorithm for identifying branch starts and ends.</div></li><li><div class="item-name"><a class="mod" href="value_merger/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::value_merger">value_<wbr>merger</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.ConditionalBranch.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalBranch">Conditional<wbr>Branch</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.ConditionalContext.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalContext">Conditional<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.flatten_function_cfg.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_function_cfg">flatten_<wbr>function_<wbr>cfg</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul></section></div></main></body></html>

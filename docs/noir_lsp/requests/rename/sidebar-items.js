@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_prepare_rename_request","on_rename_request"]};

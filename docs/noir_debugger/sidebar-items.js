@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["run_dap_loop","run_repl_session"],"mod":["errors"]};
+window.SIDEBAR_ITEMS = {"fn":["run_dap_loop","run_repl_session"],"mod":["context","dap","errors","foreign_calls","repl","source_code_printer"]};

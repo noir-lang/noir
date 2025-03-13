@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["type_of_binary_operation"],"struct":["BrilligBlock"]};

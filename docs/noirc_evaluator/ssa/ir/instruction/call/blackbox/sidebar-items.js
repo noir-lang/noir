@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["simplify_ec_add","simplify_hash","simplify_msm","simplify_poseidon2_permutation","simplify_sha256_compression","simplify_signature"],"type":["ECDSASignatureVerifier"]};

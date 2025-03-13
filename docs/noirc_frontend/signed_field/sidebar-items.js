@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["SignedField"],"trait":["AbsU128"]};
+window.SIDEBAR_ITEMS = {"macro":["impl_unsigned_abs_for"],"struct":["SignedField"],"trait":["AbsU128"]};

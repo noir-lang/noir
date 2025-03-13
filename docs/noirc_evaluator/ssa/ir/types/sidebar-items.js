@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["NumericType","Type"],"type":["CompositeType"]};

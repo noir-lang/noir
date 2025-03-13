@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["assert_unique_feature","field_wrapper"],"struct":["GenericFieldElement"],"trait":["AcirField"],"type":["FieldElement"]};
+window.SIDEBAR_ITEMS = {"macro":["assert_unique_feature","field_wrapper"],"mod":["field_element","generic_ark"],"struct":["GenericFieldElement"],"trait":["AcirField"],"type":["FieldElement"]};

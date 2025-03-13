@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Value"],"struct":["BinaryFieldOp","BinaryIntOp","BlackBox","Call","CalldataCopy","Cast","ConditionalMov","Const","ForeignCall","IndirectConst","Jump","JumpIf","JumpIfNot","Load","Mov","Not","Return","Stop","Store","Trap"]};

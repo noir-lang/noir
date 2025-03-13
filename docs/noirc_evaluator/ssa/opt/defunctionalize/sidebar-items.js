@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_return_block","create_apply_function","create_apply_functions","find_dynamic_dispatches","find_functions_as_values","find_variants","function_id_to_field","map_function_to_field","remove_first_class_functions_in_instruction"],"struct":["ApplyFunction","DefunctionalizationContext"],"type":["ApplyFunctions","Variants"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ARROW","COMPILE_CODELENS_TITLE","COMPILE_COMMAND","DEBUG_CODELENS_TITLE","DEBUG_COMMAND","EXECUTE_CODELENS_TITLE","EXECUTE_COMMAND","INFO_CODELENS_TITLE","INFO_COMMAND","TEST_CODELENS_TITLE","TEST_COMMAND"],"fn":["collect_lenses_for_package","on_code_lens_request","on_code_lens_request_inner","package_selection_args","with_arrow"]};

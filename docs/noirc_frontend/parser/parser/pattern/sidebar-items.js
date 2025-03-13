@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PatternOrSelf"],"struct":["SelfPattern"]};

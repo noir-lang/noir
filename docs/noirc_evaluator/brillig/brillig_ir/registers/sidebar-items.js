@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["DeallocationListAllocator","GlobalSpace","ScratchSpace","Stack"],"trait":["RegisterAllocator"]};

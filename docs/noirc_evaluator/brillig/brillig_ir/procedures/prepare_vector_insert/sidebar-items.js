@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compile_prepare_vector_insert_procedure"]};

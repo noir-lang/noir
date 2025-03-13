@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MEMORY_ADDRESSING_BIT_SIZE"],"enum":["MemoryTypeError","MemoryValue"],"struct":["Memory"]};

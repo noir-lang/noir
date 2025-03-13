@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["empty_body","empty_function"],"struct":["FunctionDefinitionWithOptionalBody"]};

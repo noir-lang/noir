@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_document_symbol_request"],"struct":["DocumentSymbolCollector"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["extract_indices","get_public_parameters_witness","get_public_witness","get_return_witness"]};

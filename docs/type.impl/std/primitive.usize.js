@@ -1,9 +1,9 @@
 (function() {
-    var type_impls = Object.fromEntries([["brillig",[]]]);
+    var type_impls = Object.fromEntries([["brillig",[]],["noirc_evaluator",[["<details class=\"toggle implementors-toggle\" open><summary><section id=\"impl-DebugToString-for-usize\" class=\"impl\"><a class=\"src rightside\" href=\"src/noirc_evaluator/brillig/brillig_ir/debug_show.rs.html#25\">Source</a><a href=\"#impl-DebugToString-for-usize\" class=\"anchor\">§</a><h3 class=\"code-header\">impl <a class=\"trait\" href=\"noirc_evaluator/brillig/brillig_ir/debug_show/trait.DebugToString.html\" title=\"trait noirc_evaluator::brillig::brillig_ir::debug_show::DebugToString\">DebugToString</a> for <a class=\"primitive\" href=\"https://doc.rust-lang.org/1.85.0/std/primitive.usize.html\">usize</a></h3></section></summary><div class=\"impl-items\"><section id=\"method.debug_to_string\" class=\"method trait-impl\"><a class=\"src rightside\" href=\"src/noirc_evaluator/brillig/brillig_ir/debug_show.rs.html#25\">Source</a><a href=\"#method.debug_to_string\" class=\"anchor\">§</a><h4 class=\"code-header\">fn <a href=\"noirc_evaluator/brillig/brillig_ir/debug_show/trait.DebugToString.html#tymethod.debug_to_string\" class=\"fn\">debug_to_string</a>(&amp;self) -&gt; <a class=\"struct\" href=\"https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html\" title=\"struct alloc::string::String\">String</a></h4></section></div></details>","DebugToString","noirc_evaluator::brillig::brillig_ir::artifact::OpcodeLocation","noirc_evaluator::brillig::brillig_ir::artifact::JumpInstructionPosition"]]]]);
     if (window.register_type_impls) {
         window.register_type_impls(type_impls);
     } else {
         window.pending_type_impls = type_impls;
     }
 })()
-//{"start":55,"fragment_lengths":[14]}
+//{"start":55,"fragment_lengths":[14,1450]}

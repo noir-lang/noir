@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ABBREVIATION_LIMIT"],"enum":["BlackBoxFuncCall","ConstantOrWitnessEnum"],"fn":["deserialize_big_array_into_box","get_inputs_string","get_outputs_string","serialize_big_array"],"struct":["FunctionInput","InvalidInputBitSize"]};

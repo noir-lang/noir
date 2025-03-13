@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["UnstableFeature"],"struct":["GenericOptions"],"type":["ElaboratorOptions","FrontendOptions"]};

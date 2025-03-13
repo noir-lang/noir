@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["CHOSEN_FIELD"],"fn":["collect_defs","collect_enum","collect_function","collect_impl","collect_struct"]};
+window.SIDEBAR_ITEMS = {"constant":["CHOSEN_FIELD"],"fn":["check_duplicate_field_names","check_duplicate_variant_names","collect_defs","collect_enum","collect_function","collect_global","collect_impl","collect_struct","collect_trait_impl_items","find_module","is_native_field","push_child_module","should_check_siblings_for_module"],"struct":["ModCollector"],"type":["AssociatedConstants","AssociatedTypes"]};

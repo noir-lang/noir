@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TomlTypes"],"fn":["parse_toml","serialize_to_toml"]};

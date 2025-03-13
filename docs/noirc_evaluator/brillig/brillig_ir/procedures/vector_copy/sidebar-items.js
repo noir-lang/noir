@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compile_vector_copy_procedure"]};

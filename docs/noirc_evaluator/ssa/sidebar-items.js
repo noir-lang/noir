@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SsaLogging"],"fn":["create_program"],"mod":["ir","ssa_gen"],"struct":["SsaCircuitArtifact","SsaEvaluatorOptions","SsaProgramArtifact"]};
+window.SIDEBAR_ITEMS = {"enum":["SsaLogging"],"fn":["convert_generated_acir_into_circuit","create_named_dir","create_program","optimize_all","optimize_into_acir","split_public_and_private_inputs","time","write_to_file"],"mod":["checks","function_builder","ir","opt","ssa_gen"],"struct":["ArtifactsAndWarnings","SsaBuilder","SsaCircuitArtifact","SsaEvaluatorOptions","SsaProgramArtifact"]};

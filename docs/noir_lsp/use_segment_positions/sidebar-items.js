@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["UseSegmentPosition"],"fn":["new_use_completion_item_additional_text_edits","use_completion_item_additional_text_edits"],"struct":["UseCompletionItemAdditionTextEditsRequest","UseSegmentPositions"]};

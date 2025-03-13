@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["perform_foreign_call","resolve_brillig","wrap_js_error"],"mod":["inputs","outputs"],"struct":["ForeignCallHandler"]};

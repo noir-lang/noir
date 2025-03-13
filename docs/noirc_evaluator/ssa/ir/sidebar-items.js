@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {};
+window.SIDEBAR_ITEMS = {"mod":["basic_block","call_stack","cfg","dfg","dom","function","function_inserter","instruction","map","post_order","printer","types","value"]};

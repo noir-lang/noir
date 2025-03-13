@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["builtin_integer_types","keyword_builtin_function","keyword_builtin_type"],"struct":["BuiltInFunction"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ItemKind","ParserErrorReason","StatementOrExpressionOrLValue"],"fn":["parse_program","parse_program_with_dummy_file"],"struct":["Item","ParsedModule","ParsedSubModule","Parser","ParserError","SortedModule","SortedSubModule"]};
+window.SIDEBAR_ITEMS = {"enum":["ItemKind","ParserErrorReason","StatementOrExpressionOrLValue"],"fn":["parse_program","parse_program_with_dummy_file"],"mod":["errors","labels","parser"],"struct":["Item","ParsedModule","ParsedSubModule","Parser","ParserError","SortedModule","SortedSubModule"]};

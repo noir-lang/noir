@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_calls_to_update","build_entry_points_map_recursive","build_functions_to_clone","build_inner_call_to_entry_points","get_brillig_entry_points","update_function_calls"]};

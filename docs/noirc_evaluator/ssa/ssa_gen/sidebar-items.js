@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {};
+window.SIDEBAR_ITEMS = {"constant":["SSA_WORD_SIZE"],"fn":["generate_ssa"],"mod":["context","program","value"]};

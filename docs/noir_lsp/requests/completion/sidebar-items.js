@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_array_element_type","get_field_type","get_type_type_id","module_def_id_from_reference_id","name_matches","on_completion_request"],"mod":["auto_import","builtins","completion_items","kinds","sort_text","tests"],"struct":["NodeFinder"]};

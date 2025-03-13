@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Chunk","GroupKind"],"struct":["ChunkFormatter","ChunkGroup","GroupTag","TextChunk"]};

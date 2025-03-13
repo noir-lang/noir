@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_function_type_matches_expected_type","check_trait_impl_method_matches_declaration"]};

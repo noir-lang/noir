@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["ecdsa_secp256k1_verify","ecdsa_secp256r1_verify"],"mod":["secp256k1","secp256r1"]};

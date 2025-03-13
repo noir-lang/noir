@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Expression","Witness","WitnessMap","WitnessStack","WitnessStackError"]};
+window.SIDEBAR_ITEMS = {"mod":["expression","witness","witness_map","witness_stack"],"struct":["Expression","Witness","WitnessMap","WitnessStack","WitnessStackError"]};

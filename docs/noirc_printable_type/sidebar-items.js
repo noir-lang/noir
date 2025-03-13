@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PrintableType","PrintableValue","PrintableValueDisplay"]};
+window.SIDEBAR_ITEMS = {"enum":["PrintableType","PrintableValue","PrintableValueDisplay"],"fn":["format_field_string","to_string","write_template_replacing_interpolations"]};

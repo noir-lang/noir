@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["build_info","compile_contract","compile_contract_","compile_program","compile_program_","init_log_level"],"struct":["BuildInfo","CompilerContext","CrateIDWrapper"]};
+window.SIDEBAR_ITEMS = {"constant":["BUILD_INFO"],"fn":["build_info","compile_contract","compile_contract_","compile_program","compile_program_","init_log_level"],"mod":["compile","compile_new","errors"],"struct":["BuildInfo","CompilerContext","CrateIDWrapper"]};

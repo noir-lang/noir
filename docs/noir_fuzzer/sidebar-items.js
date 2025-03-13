@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FuzzedExecutor"]};
+window.SIDEBAR_ITEMS = {"mod":["dictionary","strategies","types"],"struct":["FuzzedExecutor"]};

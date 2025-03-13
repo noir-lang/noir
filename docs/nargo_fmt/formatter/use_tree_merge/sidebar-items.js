@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Segment"],"fn":["format_merged_import","format_merged_import_with_visibility","merge_imports","merge_imports_in_tree"],"struct":["ImportTree"]};

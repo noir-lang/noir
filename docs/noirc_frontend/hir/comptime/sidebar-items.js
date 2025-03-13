@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ComptimeError","InterpreterError","Value"],"struct":["Interpreter"]};
+window.SIDEBAR_ITEMS = {"enum":["ComptimeError","InterpreterError","Value"],"mod":["display","errors","hir_to_display_ast","interpreter","value"],"struct":["Interpreter"]};

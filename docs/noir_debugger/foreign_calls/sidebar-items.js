@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DebugForeignCall"],"fn":["debug_fn_id","debug_var_id"],"struct":["DefaultDebugForeignCallExecutor"],"trait":["DebugForeignCallExecutor"]};

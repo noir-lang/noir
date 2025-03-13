@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_goto_definition_inner","on_goto_definition_request","on_goto_type_definition_request"]};

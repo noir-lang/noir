@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["execute_cmd"]};
+window.SIDEBAR_ITEMS = {"fn":["parse_and_normalize_path"],"mod":["execute_cmd"]};

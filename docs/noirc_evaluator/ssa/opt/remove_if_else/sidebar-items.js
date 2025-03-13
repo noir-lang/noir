@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SizeChange"],"fn":["slice_capacity_change"],"struct":["Context"]};

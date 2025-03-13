@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["item_in_module_is_visible","method_call_is_visible","struct_member_is_visible","trait_member_is_visible"]};
+window.SIDEBAR_ITEMS = {"fn":["item_in_module_is_visible","method_call_is_visible","module_descendent_of_target","module_is_parent_of_struct_module","struct_member_is_visible","trait_member_is_visible","type_member_is_visible"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Purity"],"fn":["analyze_call_graph","build_call_graph"],"type":["FunctionPurities"]};

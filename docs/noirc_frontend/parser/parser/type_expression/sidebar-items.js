@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["type_expr_to_type","type_is_type_expr","type_to_type_expr"]};

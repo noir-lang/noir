@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AutoImportEntry","ReferencesTracker"]};
+window.SIDEBAR_ITEMS = {"struct":["AutoImportEntry","LocationIndices","ReferencesTracker"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ERROR_IDENT","WILDCARD_TYPE"],"enum":["ForRange","LValue","PathKind","Pattern","StatementKind","UseTreeKind"],"struct":["AsTraitPath","AssignStatement","ForBounds","ForLoopStatement","Ident","ImportStatement","LetStatement","ModuleDeclaration","Path","PathSegment","Statement","TypePath","UnsafeExpression","UseTree","WhileStatement"]};

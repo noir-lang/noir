@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["TraitGenerics"],"trait":["Generic"]};
+window.SIDEBAR_ITEMS = {"fn":["fmt_trait_generics"],"struct":["TraitGenerics"],"trait":["Generic"]};

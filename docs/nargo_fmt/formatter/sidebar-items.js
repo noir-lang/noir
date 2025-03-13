@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["alias","attribute","buffer","comments_and_whitespace","doc_comments","enums","expression","function","generics","global","impls","item","lvalue","module","path","pattern","statement","structs","trait_impl","traits","type_expression","types","use_tree","use_tree_merge","visibility","where_clause"],"struct":["Formatter"]};

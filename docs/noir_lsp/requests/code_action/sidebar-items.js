@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_code_action_request"],"mod":["fill_struct_fields","implement_missing_members","import_or_qualify","import_trait","remove_bang_from_call","remove_unused_import"],"struct":["CodeActionFinder"]};

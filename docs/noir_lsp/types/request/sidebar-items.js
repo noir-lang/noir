@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CodeLens","Formatting","GotoDeclaration","GotoDefinition","GotoTypeDefinition","Shutdown"],"struct":["Initialize","NargoTestRun","NargoTests"]};

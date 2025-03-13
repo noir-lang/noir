@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DebugTypeTracker"]};
+window.SIDEBAR_ITEMS = {"fn":["get_field"],"struct":["DebugTypeTracker"]};

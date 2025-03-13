@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["debug_info","reporter"],"struct":["Located","Location","Span","Spanned"],"type":["Position"]};
+window.SIDEBAR_ITEMS = {"mod":["debug_info","position","reporter"],"struct":["Located","Location","Span","Spanned"],"type":["Position"]};

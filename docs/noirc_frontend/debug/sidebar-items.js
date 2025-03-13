@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["build_debug_crate_file"],"struct":["DebugInstrumenter","SourceFieldId","SourceVarId"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_MEMBER_ASSIGN_DEPTH"],"fn":["build_assign_member_stmt","build_assign_var_stmt","build_debug_call_stmt","build_debug_crate_file","build_drop_var_stmt","id_expr","ident","pattern_to_string","pattern_vars","sint_expr","uint_expr"],"struct":["DebugInstrumenter","SourceFieldId","SourceVarId"]};

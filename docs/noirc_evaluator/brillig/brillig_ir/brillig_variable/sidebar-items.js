@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BrilligVariable"],"fn":["get_bit_size_from_ssa_type","type_to_heap_value_type"],"struct":["BrilligArray","BrilligVector","SingleAddrVariable"]};

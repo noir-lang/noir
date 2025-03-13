@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compile_prepare_vector_push_procedure","reallocate_vector_for_insertion"]};

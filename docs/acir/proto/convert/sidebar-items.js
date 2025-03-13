@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["acir","brillig","native","witness"],"struct":["ProtoSchema"]};

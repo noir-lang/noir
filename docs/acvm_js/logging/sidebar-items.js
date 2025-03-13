@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_log_level"],"struct":["JsLogInitError"]};

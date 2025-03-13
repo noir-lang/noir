@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["call_stack_frame_to_related_information","custom_diagnostic_to_diagnostic","on_did_change_configuration","on_did_change_text_document","on_did_close_text_document","on_did_open_text_document","on_did_save_text_document","on_exit","on_initialized","process_workspace_for_noir_document","publish_diagnostics","secondary_to_related_information"]};

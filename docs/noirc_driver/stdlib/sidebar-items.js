@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["stdlib_paths_with_source"],"struct":["StdLibAssets"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["JsonTypes"]};
+window.SIDEBAR_ITEMS = {"enum":["JsonTypes"],"fn":["parse_json","serialize_to_json"]};

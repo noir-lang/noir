@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["force_if_chunks_to_multiple_lines"],"struct":["FormattedLambda"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["module_def_id_is_visible"]};

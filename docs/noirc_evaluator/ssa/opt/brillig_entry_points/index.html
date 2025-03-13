@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The purpose of this pass is to perform function specialization of Brillig functions based upon a function’s entry points. Function specialization is performed through duplication of functions."><title>noirc_evaluator::ssa::opt::brillig_entry_points - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.3</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module brillig_<wbr>entry_<wbr>points</a></h2><h3><a href="#functions">Module Items</a></h3><ul class="block"><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">opt</a></span><h1>Module <span>brillig_entry_points</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/opt/brillig_entry_points.rs.html#1-610">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The purpose of this pass is to perform function specialization of Brillig functions based upon
+a function’s entry points. Function specialization is performed through duplication of functions.</p>
+<p>This pass is done due to how globals are initialized for Brillig generation.
+We allow multiple Brillig entry points (every call to Brillig from ACIR is an entry point),
+and in order to avoid re-initializing globals used in one entry point but not another,
+we set the globals initialization code based upon the globals used in a given entry point.
+The ultimate goal is to optimize for runtime execution.</p>
+<p>However, doing the above on its own is insufficient as we allow entry points to be called from
+other entry points and functions can be called across multiple entry points.
+As all functions can potentially share entry points and use globals, the global allocations maps
+generated for different entry points can conflict.</p>
+<p>To provide a more concrete example, let’s take this program:</p>
+<div class="example-wrap"><pre class="language-noir"><code>global ONE: Field = 1;
+global TWO: Field = 2;
+global THREE: Field = 3;
+fn main(x: Field, y: pub Field) {
+    /// Safety: testing context
+    unsafe {
+        entry_point_one(x, y);
+        entry_point_two(x, y);
+    }
+}
+unconstrained fn entry_point_one(x: Field, y: Field) {
+    let z = ONE + x + y;
+    assert(z == 2);
+    inner_func(x, y);
+}
+unconstrained fn entry_point_two(x: Field, y: Field) {
+    let z = TWO + x + y;
+    assert(z == 3);
+    inner_func(x, y);
+}
+unconstrained fn inner_func(x: Field, y: Field) {
+    let z = THREE + x + y;
+    assert(z == 4);
+}</code></pre></div>
+<p>The two entry points will have different global allocation maps:</p>
+<div class="example-wrap"><pre class="language-noir"><code>GlobalInit(Id(1)):
+  CONST M32835 = 1
+  CONST M32836 = 2
+  CONST M32837 = 3
+  RETURN
+GlobalInit(Id(2)):
+  CONST M32835 = 2
+  CONST M32836 = 3
+  RETURN</code></pre></div>
+<p>It is then not clear when generating the bytecode for <code>inner_func</code> which global allocations map should be used,
+and any choice will lead to an incorrect program.
+If <code>inner_func</code> used the map for <code>entry_point_one</code> the bytecode generated would use <code>M32837</code> to represent <code>THREE</code>.
+However, when <code>inner_func</code> is called from <code>entry_point_two</code>, the address for <code>THREE</code> is <code>M32836</code>.</p>
+<p>This pass will duplicate <code>inner_func</code> so that different functions are called by the different entry points.
+The test module for this pass can be referenced to see how this function duplication looks in SSA.</p>
+</div></details><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.build_calls_to_update.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::build_calls_to_update">build_<wbr>calls_<wbr>to_<wbr>update</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Clones new functions and returns a mapping representing the calls to update.</div></li><li><div class="item-name"><a class="fn" href="fn.build_entry_points_map_recursive.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::build_entry_points_map_recursive">build_<wbr>entry_<wbr>points_<wbr>map_<wbr>recursive</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Recursively mark any functions called in an entry point</div></li><li><div class="item-name"><a class="fn" href="fn.build_functions_to_clone.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::build_functions_to_clone">build_<wbr>functions_<wbr>to_<wbr>clone</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">For every call site, we can determine the entry point for a given callee.
+Once we know that we can determine which functions are in need of duplication.
+We duplicate when the following occurs:</div></li><li><div class="item-name"><a class="fn" href="fn.build_inner_call_to_entry_points.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::build_inner_call_to_entry_points">build_<wbr>inner_<wbr>call_<wbr>to_<wbr>entry_<wbr>points</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Builds a mapping from a <a href="../../ir/function/type.FunctionId.html" title="type noirc_evaluator::ssa::ir::function::FunctionId"><code>FunctionId</code></a> to the set of <a href="../../ir/function/type.FunctionId.html" title="type noirc_evaluator::ssa::ir::function::FunctionId"><code>FunctionId</code>s</a> of all the brillig entrypoints
+from which this function is reachable.</div></li><li><div class="item-name"><a class="fn" href="fn.get_brillig_entry_points.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::get_brillig_entry_points">get_<wbr>brillig_<wbr>entry_<wbr>points</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Returns a map of Brillig entry points to all functions called in that entry point.
+This includes any nested calls as well, as we want to be able to associate
+any Brillig function with the appropriate global allocations.</div></li><li><div class="item-name"><a class="fn" href="fn.update_function_calls.html" title="fn noirc_evaluator::ssa::opt::brillig_entry_points::update_function_calls">update_<wbr>function_<wbr>calls</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul></section></div></main></body></html>

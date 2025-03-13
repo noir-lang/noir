@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ImportsGranularity"],"macro":["config"],"struct":["Config","TomlConfig"]};

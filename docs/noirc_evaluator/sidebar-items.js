@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ErrorType"],"mod":["brillig","errors","ssa"]};
+window.SIDEBAR_ITEMS = {"enum":["ErrorType"],"mod":["acir","brillig","errors","ssa"]};

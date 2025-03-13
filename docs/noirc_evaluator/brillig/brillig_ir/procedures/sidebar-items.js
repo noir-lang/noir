@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ProcedureId"],"fn":["compile_procedure"],"mod":["array_copy","array_reverse","check_max_stack_depth","mem_copy","prepare_vector_insert","prepare_vector_push","revert_with_string","vector_copy","vector_pop_back","vector_pop_front","vector_remove"]};

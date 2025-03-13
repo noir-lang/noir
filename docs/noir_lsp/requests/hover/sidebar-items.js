@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_hover_request"],"mod":["from_reference","from_visitor"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AcirType","AcirVarData"],"fn":["fits_in_one_identity","power_of_two"],"struct":["AcirContext","AcirVar"]};

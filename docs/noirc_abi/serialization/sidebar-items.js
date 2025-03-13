@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["deserialize_struct_field_values","deserialize_struct_fields","serialize_struct_field_values","serialize_struct_fields"],"struct":["StructField","StructFieldValue"]};

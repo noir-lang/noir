@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["clone_git_repo","git_dep_location","lock_git_deps","nargo_crates","resolve_folder_name"]};

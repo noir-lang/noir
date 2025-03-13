@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FunctionCompletionKind","FunctionKind","RequestedItems"]};

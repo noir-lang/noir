@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_point","embedded_curve_add","multi_scalar_mul"]};

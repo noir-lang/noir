@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BlackBoxFuncCall","BlockType","ConstantOrWitnessEnum","Opcode"],"mod":["function_id"],"struct":["BlockId","FunctionInput","InvalidInputBitSize","MemOp"]};
+window.SIDEBAR_ITEMS = {"enum":["BlackBoxFuncCall","BlockType","ConstantOrWitnessEnum","Opcode"],"mod":["black_box_function_call","function_id","memory_operation"],"struct":["BlockId","FunctionInput","InvalidInputBitSize","MemOp"]};

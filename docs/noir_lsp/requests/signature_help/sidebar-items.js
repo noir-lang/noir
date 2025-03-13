@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_signature_help_request"],"mod":["tests"],"struct":["SignatureFinder"]};

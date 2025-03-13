@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["compute_bottom_up_order","compute_callees","compute_callers","compute_function_interface_cost","compute_function_own_weight","compute_inline_infos","compute_times_called","mark_brillig_functions_to_retain","mark_functions_to_retain_recursive"],"struct":["InlineInfo"],"type":["InlineInfos"]};
