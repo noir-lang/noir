@@ -28,7 +28,7 @@ jobs:
         run: cargo clean --doc
 
       - name: Build docs
-        run: cargo doc --no-deps --workspace
+        run: cargo doc --no-deps --document-private-items --workspace
 
       - name: Add redirect
         run: echo '<meta http-equiv="refresh" content="0;url=nargo/index.html">' > target/doc/index.html
