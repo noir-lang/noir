@@ -149,7 +149,18 @@
 <a href="#148" id="148">148</a>
 <a href="#149" id="149">149</a>
 <a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -157,6 +168,8 @@
 </span><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{basic_block::BasicBlockId, function::Function};
+
+<span class="kw">use </span><span class="kw">super</span>::cfg::ControlFlowGraph;
 
 <span class="doccomment">/// Depth-first traversal stack state marker for computing the cfg post-order.
 </span><span class="kw">enum </span>Visit {
@@ -176,20 +189,29 @@
 <span class="kw">impl </span>PostOrder {
     <span class="doccomment">/// Allocate and compute a function's block post-order.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_function(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
-        PostOrder(<span class="self">Self</span>::compute_post_order(func))
+        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(func);
+        <span class="self">Self</span>::with_cfg(<span class="kw-2">&amp;</span>cfg)
+    }
+
+    <span class="doccomment">/// Allocate and compute a function's block post-order.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_cfg(cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; <span class="self">Self </span>{
+        PostOrder(<span class="self">Self</span>::compute_post_order(cfg))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_vec(<span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
         <span class="self">self</span>.<span class="number">0
     </span>}
 
-    <span class="comment">// Computes the post-order of the function by doing a depth-first traversal of the
+    <span class="comment">// Computes the post-order of the CFG by doing a depth-first traversal of the
     // function's entry block's previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.
-    </span><span class="kw">fn </span>compute_post_order(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;BasicBlockId&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[(Visit::First, func.entry_block())];
+    </span><span class="kw">fn </span>compute_post_order(cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; Vec&lt;BasicBlockId&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[];
         <span class="kw">let </span><span class="kw-2">mut </span>visited: HashSet&lt;BasicBlockId&gt; = HashSet::new();
         <span class="kw">let </span><span class="kw-2">mut </span>post_order: Vec&lt;BasicBlockId&gt; = Vec::new();
+
+        <span class="comment">// Set root blocks
+        </span>stack.extend(cfg.compute_entry_blocks().into_iter().map(|root| (Visit::First, root)));
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>((visit, block_id)) = stack.pop() {
             <span class="kw">match </span>visit {
@@ -201,10 +223,10 @@
                         stack.push((Visit::Last, block_id));
                         <span class="comment">// Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
-                        </span><span class="kw">for </span>successor_id <span class="kw">in </span>func.dfg[block_id].successors().rev() {
+                        </span><span class="kw">for </span>successor_id <span class="kw">in </span>cfg.successors(block_id).rev() {
                             <span class="kw">if </span>!visited.contains(<span class="kw-2">&amp;</span>successor_id) {
-                                <span class="comment">// This not visited check would also be cover by the next
-                                // iteration, but checking here two saves an iteration per successor.
+                                <span class="comment">// This not visited check would also be covered by the next
+                                // iteration, but checking here too saves an iteration per successor.
                                 </span>stack.push((Visit::First, successor_id));
                             }
                         }

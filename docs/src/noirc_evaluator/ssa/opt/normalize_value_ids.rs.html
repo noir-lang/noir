@@ -207,7 +207,8 @@
 <a href="#206" id="206">206</a>
 <a href="#207" id="207">207</a>
 <a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -285,13 +286,14 @@
             new_function.dfg.make_global(value.get_type().into_owned());
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>reachable_blocks = PostOrder::with_function(old_function).into_vec();
-        reachable_blocks.reverse();
+        <span class="kw">let </span>reachable_blocks = old_function.reachable_blocks();
+        <span class="self">self</span>.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        <span class="self">self</span>.new_ids.populate_blocks(<span class="kw-2">&amp;</span>reachable_blocks, old_function, new_function);
+        <span class="kw">let </span><span class="kw-2">mut </span>reverse_post_order = PostOrder::with_function(old_function).into_vec();
+        reverse_post_order.reverse();
 
         <span class="comment">// Map each parameter, instruction, and terminator
-        </span><span class="kw">for </span>old_block_id <span class="kw">in </span>reachable_blocks {
+        </span><span class="kw">for </span>old_block_id <span class="kw">in </span>reverse_post_order {
             <span class="kw">let </span>new_block_id = <span class="self">self</span>.new_ids.blocks[<span class="kw-2">&amp;</span>old_block_id];
 
             <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_block_id];
@@ -348,7 +350,7 @@
 <span class="kw">impl </span>IdMaps {
     <span class="kw">fn </span>populate_blocks(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        reachable_blocks: <span class="kw-2">&amp;</span>[BasicBlockId],
+        reachable_blocks: <span class="kw">impl </span>IntoIterator&lt;Item = BasicBlockId&gt;,
         old_function: <span class="kw-2">&amp;mut </span>Function,
         new_function: <span class="kw-2">&amp;mut </span>Function,
     ) {
@@ -356,13 +358,13 @@
         <span class="self">self</span>.blocks.insert(old_entry, new_function.entry_block());
 
         <span class="kw">for </span>old_id <span class="kw">in </span>reachable_blocks {
-            <span class="kw">if </span><span class="kw-2">*</span>old_id != old_entry {
+            <span class="kw">if </span>old_id != old_entry {
                 <span class="kw">let </span>new_id = new_function.dfg.make_block();
-                <span class="self">self</span>.blocks.insert(<span class="kw-2">*</span>old_id, new_id);
+                <span class="self">self</span>.blocks.insert(old_id, new_id);
             }
 
-            <span class="kw">let </span>new_id = <span class="self">self</span>.blocks[old_id];
-            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[<span class="kw-2">*</span>old_id];
+            <span class="kw">let </span>new_id = <span class="self">self</span>.blocks[<span class="kw-2">&amp;</span>old_id];
+            <span class="kw">let </span>old_block = <span class="kw-2">&amp;mut </span>old_function.dfg[old_id];
             <span class="kw">for </span>old_parameter <span class="kw">in </span>old_block.take_parameters() {
                 <span class="kw">let </span>old_parameter = old_function.dfg.resolve(old_parameter);
                 <span class="kw">let </span>typ = old_function.dfg.type_of_value(old_parameter);

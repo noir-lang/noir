@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["optimize_contract","optimize_program","optimize_program_internal"]};

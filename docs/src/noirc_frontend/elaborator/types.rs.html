@@ -2137,15 +2137,7 @@
 <a href="#2136" id="2136">2136</a>
 <a href="#2137" id="2137">2137</a>
 <a href="#2138" id="2138">2138</a>
-<a href="#2139" id="2139">2139</a>
-<a href="#2140" id="2140">2140</a>
-<a href="#2141" id="2141">2141</a>
-<a href="#2142" id="2142">2142</a>
-<a href="#2143" id="2143">2143</a>
-<a href="#2144" id="2144">2144</a>
-<a href="#2145" id="2145">2145</a>
-<a href="#2146" id="2146">2146</a>
-<a href="#2147" id="2147">2147</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2139" id="2139">2139</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2162,7 +2154,7 @@
     elaborator::UnstableFeature,
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::{ModuleDefId, fully_qualified_module_path},
+        def_map::fully_qualified_module_path,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -3717,15 +3709,7 @@
         <span class="kw">let </span>traits_in_scope: Vec&lt;<span class="kw">_</span>&gt; = traits
             .iter()
             .filter_map(|trait_id| {
-                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
-                <span class="kw">let </span>trait_name = <span class="kw-2">&amp;</span>trait_.name;
-                <span class="kw">let </span>map = module_data.scope().types().get(trait_name)<span class="question-mark">?</span>;
-                <span class="kw">let </span>imported_item = map.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>)<span class="question-mark">?</span>;
-                <span class="kw">if </span>imported_item.<span class="number">0 </span>== ModuleDefId::TraitId(<span class="kw-2">*</span>trait_id) {
-                    <span class="prelude-val">Some</span>((<span class="kw-2">*</span>trait_id, trait_name))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
+                module_data.find_trait_in_scope(<span class="kw-2">*</span>trait_id).map(|name| (<span class="kw-2">*</span>trait_id, name.clone()))
             })
             .collect();
 
