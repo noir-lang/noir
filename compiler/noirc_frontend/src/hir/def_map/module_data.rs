@@ -174,6 +174,22 @@ impl ModuleData {
         self.scope.find_name(name)
     }
 
+    /// Finds a `use` that imports the given trait. If found, returns the imported name:
+    /// - `use some;:Trait;` will return `Some("Trait")`
+    /// - `use some::Trait as Alias;` will return `Some("Alias")`
+    pub fn find_trait_import(&self, trait_id: TraitId) -> Option<&Ident> {
+        // TODO: optimize this to avoid searching the entire HashMap
+        for (name, map) in self.scope().types() {
+            if let Some(item) = map.get(&None) {
+                if item.0 == ModuleDefId::TraitId(trait_id) {
+                    return Some(name);
+                }
+            }
+        }
+
+        None
+    }
+
     pub fn type_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.types().values().flat_map(|a| a.values().map(|(id, _, _)| *id))
     }

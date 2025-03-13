@@ -1246,11 +1246,8 @@ fn as_trait_path_in_expression() {
     assert_no_errors(src);
 }
 
-// TODO: remove `should_panic` once fixed
 #[test]
-#[should_panic = "Expected no errors"]
 fn allows_renaming_trait_during_import() {
-    // Regression test for https://github.com/noir-lang/noir/issues/7632
     let src = r#"
     mod trait_mod {
         pub trait Foo {
@@ -1269,11 +1266,8 @@ fn allows_renaming_trait_during_import() {
     assert_no_errors(src);
 }
 
-// TODO: remove `should_panic` once fixed
 #[test]
-#[should_panic = "Expected no errors"]
 fn renaming_trait_avoids_name_collisions() {
-    // Regression test for https://github.com/noir-lang/noir/issues/7632
     let src = r#"
     mod trait_mod {
         pub trait Foo {

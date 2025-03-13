@@ -94,7 +94,7 @@ enum MethodLookupResult {
     /// Found a method.
     FoundMethod(PerNs),
     /// Found a trait method and it's currently in scope.
-    FoundTraitMethod(PerNs, TraitId),
+    FoundTraitMethod(PerNs, Ident),
     /// There's only one trait method that matches, but it's not in scope
     /// (we'll warn about this to avoid introducing a large breaking change)
     FoundOneTraitMethodButNotInScope(PerNs, TraitId),
@@ -281,9 +281,8 @@ impl Elaborator<'_> {
                         }
                     }
                     MethodLookupResult::FoundMethod(per_ns) => per_ns,
-                    MethodLookupResult::FoundTraitMethod(per_ns, trait_id) => {
-                        let trait_ = self.interner.get_trait(trait_id);
-                        self.usage_tracker.mark_as_used(importing_module, &trait_.name);
+                    MethodLookupResult::FoundTraitMethod(per_ns, name) => {
+                        self.usage_tracker.mark_as_used(importing_module, &name);
                         per_ns
                     }
                     MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) => {
@@ -380,16 +379,9 @@ impl Elaborator<'_> {
 
         for (trait_id, item) in values.iter() {
             let trait_id = trait_id.expect("The None option was already considered before");
-            let trait_ = self.interner.get_trait(trait_id);
-            let Some(map) = starting_module.scope().types().get(&trait_.name) else {
-                continue;
+            if let Some(name) = starting_module.find_trait_import(trait_id) {
+                results.push((trait_id, name, item));
             };
-            let Some(imported_item) = map.get(&None) else {
-                continue;
-            };
-            if imported_item.0 == ModuleDefId::TraitId(trait_id) {
-                results.push((trait_id, item));
-            }
         }
 
         if results.is_empty() {
@@ -408,13 +400,13 @@ impl Elaborator<'_> {
         }
 
         if results.len() > 1 {
-            let trait_ids = vecmap(results, |(trait_id, _)| trait_id);
+            let trait_ids = vecmap(results, |(trait_id, _, _)| trait_id);
             return MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
         }
 
-        let (trait_id, item) = results.remove(0);
+        let (_, name, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
-        MethodLookupResult::FoundTraitMethod(per_ns, trait_id)
+        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
     }
 }
 
