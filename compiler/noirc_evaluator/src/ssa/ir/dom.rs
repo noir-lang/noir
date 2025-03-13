@@ -503,10 +503,22 @@ mod tests {
         func
     }
 
+    fn check_dom_matrix(
+        mut dom_tree: DominatorTree,
+        blocks: Vec<BasicBlockId>,
+        dominance_matrix: Vec<Vec<bool>>,
+    ) {
+        for (i, row) in dominance_matrix.into_iter().enumerate() {
+            for (j, expected) in row.into_iter().enumerate() {
+                assert_eq!(dom_tree.dominates(blocks[i], blocks[j]), expected);
+            }
+        }
+    }
+
     #[test]
     fn backwards_layout() {
         let func = backwards_layout_setup();
-        let mut dt = DominatorTree::with_function(&func);
+        let dt = DominatorTree::with_function(&func);
 
         // Expected dominance tree:
         // block0 {
@@ -543,17 +555,13 @@ mod tests {
         let dominance_matrix =
             vec![vec![true, true, true], vec![false, true, false], vec![false, true, true]];
 
-        for (i, row) in dominance_matrix.into_iter().enumerate() {
-            for (j, expected) in row.into_iter().enumerate() {
-                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected);
-            }
-        }
+        check_dom_matrix(dt, blocks, dominance_matrix);
     }
 
     #[test]
     fn post_dom_backwards_layout() {
         let func = backwards_layout_setup();
-        let mut post_dom = DominatorTree::with_function_post_dom(&func);
+        let post_dom = DominatorTree::with_function_post_dom(&func);
 
         // Expected post-dominator tree:
         // block1 {
@@ -590,11 +598,7 @@ mod tests {
         let post_dominance_matrix =
             vec![vec![true, false, false], vec![true, true, true], vec![true, false, true]];
 
-        for (i, row) in post_dominance_matrix.into_iter().enumerate() {
-            for (j, expected) in row.into_iter().enumerate() {
-                assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
-            }
-        }
+        check_dom_matrix(post_dom, blocks, post_dominance_matrix);
     }
 
     #[test]
@@ -646,7 +650,7 @@ mod tests {
     fn dom_loop_with_cond() {
         let ssa = loop_with_cond();
         let main = ssa.main();
-        let mut dt = DominatorTree::with_function(main);
+        let dt = DominatorTree::with_function(main);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
         // Dominance matrix:
@@ -668,11 +672,7 @@ mod tests {
             vec![false, false, false, false, false, true],
         ];
 
-        for (i, row) in dominance_matrix.into_iter().enumerate() {
-            for (j, expected) in row.into_iter().enumerate() {
-                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected);
-            }
-        }
+        check_dom_matrix(dt, blocks, dominance_matrix);
     }
 
     #[test]
@@ -684,7 +684,7 @@ mod tests {
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
-        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
@@ -720,11 +720,7 @@ mod tests {
             vec![false, false, true, false, true, true],
         ];
 
-        for (i, row) in post_dominance_matrix.into_iter().enumerate() {
-            for (j, expected) in row.into_iter().enumerate() {
-                assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
-            }
-        }
+        check_dom_matrix(post_dom, blocks, post_dominance_matrix);
     }
 
     #[test]
