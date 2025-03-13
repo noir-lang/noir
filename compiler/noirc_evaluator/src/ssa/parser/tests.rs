@@ -142,6 +142,18 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return
+          b2():
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
             jmpif v0 then: b2, else: b1
           b1():
             return
@@ -149,6 +161,23 @@ fn test_jmpif() {
             return
         }
         ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_multiple_jmpif() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return
+          b2():
+            jmpif v1 then: b3, else: b1
+          b3():
+            return
+        }
+    ";
     assert_ssa_roundtrip(src);
 }
 

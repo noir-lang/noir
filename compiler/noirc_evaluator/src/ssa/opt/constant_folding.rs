@@ -1603,10 +1603,10 @@ mod test {
               b2():
                 jmp b5()
               b3():
-                v4 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
+                v5 = sub v0, u32 1 // We can't hoist this because v0 is zero here and it will lead to an underflow
                 jmp b5()
               b4():
-                v5 = sub v0, u32 1
+                v4 = sub v0, u32 1
                 jmp b5()
               b5():
                 return

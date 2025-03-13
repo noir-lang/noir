@@ -433,11 +433,11 @@ mod test {
                   v3 = eq v0, u32 5
                   jmpif v3 then: b2, else: b1
                 b1():
-                  v6 = make_array b"foo"
-                  jmp b3(v6)
-                b2():
-                  v10 = make_array b"bar"
+                  v10 = make_array b"foo"
                   jmp b3(v10)
+                b2():
+                  v7 = make_array b"bar"
+                  jmp b3(v7)
                 b3(v1: [u8; 3]):
                   return v1
             }
@@ -487,36 +487,36 @@ mod test {
         assert_eq!(ssa.main().reachable_blocks().len(), 10);
 
         let expected = "
-            brillig(inline) fn foo f0 {
-              b0(v0: u32):
-                v3 = eq v0, u32 5
-                v4 = not v3
-                jmpif v3 then: b2, else: b1
-              b1():
-                v6 = lt v0, u32 3
-                v7 = truncate v0 to 1 bits, max_bit_size: 32
-                v8 = not v6
-                v9 = truncate v0 to 2 bits, max_bit_size: 32
-                v10 = cast v6 as u32
-                v11 = cast v8 as u32
-                v12 = unchecked_mul v10, v7
-                v13 = unchecked_mul v11, v9
-                v14 = unchecked_add v12, v13
-                jmp b3(v14)
-              b2():
-                v16 = lt u32 2, v0
-                v17 = and v0, u32 2
-                v18 = not v16
-                v19 = truncate v0 to 3 bits, max_bit_size: 32
-                v20 = cast v16 as u32
-                v21 = cast v18 as u32
-                v22 = unchecked_mul v20, v17
-                v23 = unchecked_mul v21, v19
-                v24 = unchecked_add v22, v23
-                jmp b3(v24)
-              b3(v1: u32):
-                return v1
-            }
+        brillig(inline) fn foo f0 {
+          b0(v0: u32):
+            v3 = eq v0, u32 5
+            v4 = not v3
+            jmpif v3 then: b2, else: b1
+          b1():
+            v16 = lt v0, u32 3
+            v17 = truncate v0 to 1 bits, max_bit_size: 32
+            v18 = not v16
+            v19 = truncate v0 to 2 bits, max_bit_size: 32
+            v20 = cast v16 as u32
+            v21 = cast v18 as u32
+            v22 = unchecked_mul v20, v17
+            v23 = unchecked_mul v21, v19
+            v24 = unchecked_add v22, v23
+            jmp b3(v24)
+          b2():
+            v6 = lt u32 2, v0
+            v7 = and v0, u32 2
+            v8 = not v6
+            v9 = truncate v0 to 3 bits, max_bit_size: 32
+            v10 = cast v6 as u32
+            v11 = cast v8 as u32
+            v12 = unchecked_mul v10, v7
+            v13 = unchecked_mul v11, v9
+            v14 = unchecked_add v12, v13
+            jmp b3(v14)
+          b3(v1: u32):
+            return v1
+        }
             ";
 
         let ssa = ssa.flatten_basic_conditionals();
