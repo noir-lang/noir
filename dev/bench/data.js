@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741876477364,
+  "lastUpdate": 1741876478728,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "adb03d03a26e0138e586be0bb4811cf36cdd4344",
-          "message": "chore: bump external pinned commits (#7601)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-05T19:31:40Z",
-          "tree_id": "f7bf25a3643af387541cf01cc232b1f18d86ca74",
-          "url": "https://github.com/noir-lang/noir/commit/adb03d03a26e0138e586be0bb4811cf36cdd4344"
-        },
-        "date": 1741204959102,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.076,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.79,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.531,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.026,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11348,6 +11284,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e2b9e9f1a8ac639acdb204be291739fa50f2ff5",
+          "message": "chore: add workflow to publish rustdoc to github pages (#7687)",
+          "timestamp": "2025-03-13T14:15:16Z",
+          "tree_id": "a74f551e9be6c8eb8b44a32e602c8ed3635309a0",
+          "url": "https://github.com/noir-lang/noir/commit/5e2b9e9f1a8ac639acdb204be291739fa50f2ff5"
+        },
+        "date": 1741876474855,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.282,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.728,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.485,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.007,
             "unit": "s"
           },
           {
