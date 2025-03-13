@@ -543,9 +543,9 @@ mod tests {
         let dominance_matrix =
             vec![vec![true, true, true], vec![false, true, false], vec![false, true, true]];
 
-        for (i, row) in dominance_matrix.iter().enumerate() {
-            for (j, &expected_dominates) in row.iter().enumerate() {
-                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected_dominates);
+        for (i, row) in dominance_matrix.into_iter().enumerate() {
+            for (j, expected) in row.into_iter().enumerate() {
+                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected);
             }
         }
     }
@@ -590,8 +590,8 @@ mod tests {
         let post_dominance_matrix =
             vec![vec![true, false, false], vec![true, true, true], vec![true, false, true]];
 
-        for (i, row) in post_dominance_matrix.iter().enumerate() {
-            for (j, &expected) in row.iter().enumerate() {
+        for (i, row) in post_dominance_matrix.into_iter().enumerate() {
+            for (j, expected) in row.into_iter().enumerate() {
                 assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
             }
         }
@@ -668,9 +668,9 @@ mod tests {
             vec![false, false, false, false, false, true],
         ];
 
-        for (i, row) in dominance_matrix.iter().enumerate() {
-            for (j, &expected_dominates) in row.iter().enumerate() {
-                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected_dominates);
+        for (i, row) in dominance_matrix.into_iter().enumerate() {
+            for (j, expected) in row.into_iter().enumerate() {
+                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected);
             }
         }
     }
@@ -720,8 +720,8 @@ mod tests {
             vec![false, false, true, false, true, true],
         ];
 
-        for (i, row) in post_dominance_matrix.iter().enumerate() {
-            for (j, &expected) in row.iter().enumerate() {
+        for (i, row) in post_dominance_matrix.into_iter().enumerate() {
+            for (j, expected) in row.into_iter().enumerate() {
                 assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
             }
         }
