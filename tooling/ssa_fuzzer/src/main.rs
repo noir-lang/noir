@@ -12,6 +12,7 @@ use builder::FuzzerBuilder;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type;
 
+/// example of how to use the lib to craft ssa and run it.
 fn main() {
     let type_ = Type::unsigned(128);
 

@@ -19,6 +19,8 @@ use noirc_evaluator::{
     },
 };
 
+/// Optimizes the given FunctionBuilder into ACIR
+/// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
 fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
@@ -41,6 +43,7 @@ fn optimize_into_acir(
     .run_pass(Ssa::dead_instruction_elimination, "Dead Instruction Elimination (2nd)")
     .finish();
 
+    // to triage ssa after optimizations, when crash found
     //let formatted_ssa = format!("{}", ssa);
     //println!("formatted_ssa: {:?}", formatted_ssa);
     match ssa.into_acir(&brillig, &BrilligOptions::default(), options.expression_width) {
@@ -49,6 +52,12 @@ fn optimize_into_acir(
     }
 }
 
+/// Converts the generated ACIR into a circuit artifact
+/// its taken from noirc_evaluator::ssa::convert_generated_acir_into_circuit,
+/// but modified not to use signature 
+/// in initial function signature used to split public, private and return witnesses
+/// but now we dont need it, because we dont have any public inputs,
+/// so we just use all witnesses as private inputs and return witnesses
 fn convert_generated_acir_into_circuit_without_signature(
     mut generated_acir: GeneratedAcir<FieldElement>,
     debug_variables: DebugVariables,
@@ -83,7 +92,6 @@ fn convert_generated_acir_into_circuit_without_signature(
         assert_messages: assert_messages.into_iter().collect(),
     };
 
-    // This converts each im::Vector in the BTreeMap to a Vec
     let locations = locations
         .into_iter()
         .map(|(index, locations)| (index, locations.into_iter().collect()))
@@ -124,6 +132,8 @@ fn convert_generated_acir_into_circuit_without_signature(
     }
 }
 
+/// Creates a program artifact from the given FunctionBuilder
+/// its taken from noirc_evaluator::ssa::create_program, but modified to accept FunctionBuilder
 fn create_program(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
@@ -155,9 +165,8 @@ fn create_program(
     Ok(program_artifact)
 }
 
-// create abi for 10 variables
-// Abi { parameters: [AbiParameter { name: "v0", typ: Field, visibility: Private }, AbiParameter { name: "v1", typ: Field, visibility: Public }],
-// return_type: Some(AbiReturnType { abi_type: Field, visibility: Public }), error_types: {} }
+/// Creates an ABI for the configured number of variables
+/// Seems useless in this case, but its needed for compile function
 fn generate_abi() -> Abi {
     let mut parameters = vec![];
     for i in 0..NUMBER_OF_VARIABLES_INITIAL {
@@ -173,6 +182,8 @@ fn generate_abi() -> Abi {
     Abi { parameters, return_type, error_types }
 }
 
+/// Compiles the given FunctionBuilder into a CompiledProgram
+/// its taken from noirc_driver::compile_no_check, but modified to accept FunctionBuilder
 pub fn compile(
     builder: FunctionBuilder,
     options: &CompileOptions,
@@ -203,10 +214,10 @@ pub fn compile(
     let abi = generate_abi();
     let file_map = BTreeMap::new();
     Ok(CompiledProgram {
-        hash: 1,
+        hash: 1, // const hash, doesnt matter in this case
         program,
         debug,
-        abi,
+        abi, 
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
