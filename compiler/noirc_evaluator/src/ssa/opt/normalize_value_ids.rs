@@ -76,13 +76,14 @@ impl Context {
             new_function.dfg.make_global(value.get_type().into_owned());
         }
 
-        let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
-        reachable_blocks.reverse();
+        let reachable_blocks = old_function.reachable_blocks();
+        self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        self.new_ids.populate_blocks(&reachable_blocks, old_function, new_function);
+        let mut reverse_post_order = PostOrder::with_function(old_function).into_vec();
+        reverse_post_order.reverse();
 
         // Map each parameter, instruction, and terminator
-        for old_block_id in reachable_blocks {
+        for old_block_id in reverse_post_order {
             let new_block_id = self.new_ids.blocks[&old_block_id];
 
             let old_block = &mut old_function.dfg[old_block_id];
@@ -139,7 +140,7 @@ impl Context {
 impl IdMaps {
     fn populate_blocks(
         &mut self,
-        reachable_blocks: &[BasicBlockId],
+        reachable_blocks: impl IntoIterator<Item = BasicBlockId>,
         old_function: &mut Function,
         new_function: &mut Function,
     ) {
@@ -147,13 +148,13 @@ impl IdMaps {
         self.blocks.insert(old_entry, new_function.entry_block());
 
         for old_id in reachable_blocks {
-            if *old_id != old_entry {
+            if old_id != old_entry {
                 let new_id = new_function.dfg.make_block();
-                self.blocks.insert(*old_id, new_id);
+                self.blocks.insert(old_id, new_id);
             }
 
-            let new_id = self.blocks[old_id];
-            let old_block = &mut old_function.dfg[*old_id];
+            let new_id = self.blocks[&old_id];
+            let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
                 let old_parameter = old_function.dfg.resolve(old_parameter);
                 let typ = old_function.dfg.type_of_value(old_parameter);
