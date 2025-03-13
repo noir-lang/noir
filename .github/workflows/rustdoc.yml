@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - tf/rustdoc
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
