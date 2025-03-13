@@ -258,7 +258,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 // Check if the trait type is already imported/visible in this module
                 let current_module_data =
                     &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-                if current_module_data.find_trait_import(*trait_id).is_some() {
+                if current_module_data.find_trait_in_scope(*trait_id).is_some() {
                     self.string.push_str(&trait_.name.0.contents);
                     self.append_trait_generics(trait_generics);
                     return;

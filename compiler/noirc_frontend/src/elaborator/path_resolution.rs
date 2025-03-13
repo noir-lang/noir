@@ -379,7 +379,7 @@ impl Elaborator<'_> {
 
         for (trait_id, item) in values.iter() {
             let trait_id = trait_id.expect("The None option was already considered before");
-            if let Some(name) = starting_module.find_trait_import(trait_id) {
+            if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
             };
         }

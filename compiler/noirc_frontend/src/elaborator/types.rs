@@ -1570,7 +1570,7 @@ impl Elaborator<'_> {
         let traits_in_scope: Vec<_> = traits
             .iter()
             .filter_map(|trait_id| {
-                module_data.find_trait_import(*trait_id).map(|name| (*trait_id, name.clone()))
+                module_data.find_trait_in_scope(*trait_id).map(|name| (*trait_id, name.clone()))
             })
             .collect();
 
