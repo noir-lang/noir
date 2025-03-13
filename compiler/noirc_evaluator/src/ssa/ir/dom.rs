@@ -650,7 +650,7 @@ mod tests {
     fn dom_loop_with_cond() {
         let ssa = loop_with_cond();
         let main = ssa.main();
-        let mut dt = DominatorTree::with_function(&main);
+        let mut dt = DominatorTree::with_function(main);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
         // Dominance matrix:
