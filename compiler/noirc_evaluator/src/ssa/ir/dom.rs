@@ -281,7 +281,7 @@ impl DominatorTree {
     ///
     /// This method uses the algorithm specified under Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
     /// As referenced in the paper a dominance frontier is the set of all CFG nodes, y, such that
-    /// b dominates a predecessor of y but does not strictly d.
+    /// b dominates a predecessor of y but does not strictly dominate y.
     ///
     /// This method expects the appropriate CFG depending on whether we are operating over
     /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
@@ -304,7 +304,7 @@ impl DominatorTree {
                     let mut runner = pred_id;
                     // We start by checking if the current block dominates the predecessor
                     while let Some(immediate_dominator) = self.immediate_dominator(block_id) {
-                        if immediate_dominator != runner {
+                        if immediate_dominator != runner && !self.dominates(block_id, runner) {
                             dominance_frontiers.entry(runner).or_default().insert(block_id);
                             let Some(runner_immediate_dom) = self.immediate_dominator(runner)
                             else {
@@ -646,7 +646,6 @@ mod tests {
 
         let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
-        dbg!(dom_frontiers.clone());
 
         // Convert BasicBlockIds to their underlying u32 values for easy comparisons
         let dom_frontiers = dom_frontiers
@@ -662,19 +661,8 @@ mod tests {
         // b0 is the entry block which dominates all other blocks
         // Thus, it has an empty set for its dominance frontier
         assert!(!dom_frontiers.contains_key(&0));
-
-        // b1 is in its own DF due to the loop b5 -> b1
-        // b1 dominates b5 which is a predecessor of b1, but b1 does not strictly dominate b1
-        let b1_df = &dom_frontiers[&1];
-        assert_eq!(b1_df.len(), 1);
-        assert!(b1_df.contains(&1));
-
-        // b2 has DF { b1 } also due to the loop b5 -> b1.
-        // b2 dominates b5 which is a predecessor of b1, but b2 does not strictly dominate b1
-        let b2_df = &dom_frontiers[&2];
-        assert_eq!(b2_df.len(), 1);
-        assert!(b2_df.contains(&1));
-
+        assert!(!dom_frontiers.contains_key(&1));
+        assert!(!dom_frontiers.contains_key(&2));
         // b3 is the exit block which does not dominate any blocks
         assert!(!dom_frontiers.contains_key(&3));
 
@@ -684,10 +672,7 @@ mod tests {
         assert_eq!(b4_df.len(), 1);
         assert!(b4_df.contains(&5));
 
-        // b5 has DF { b1 } also due to the loop b5 -> b1
-        let b5_df = &dom_frontiers[&5];
-        assert_eq!(b5_df.len(), 1);
-        assert!(b5_df.contains(&1));
+        assert!(!dom_frontiers.contains_key(&5));
     }
 
     #[test]
@@ -701,7 +686,6 @@ mod tests {
 
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
-        dbg!(post_dom_frontiers.clone());
 
         // Convert BasicBlockIds to their underlying u32 values for easy comparisons
         let post_dom_frontiers = post_dom_frontiers
@@ -720,18 +704,9 @@ mod tests {
         // b0 is the entry node of the program and the exit block of the post-dominator tree.
         // Thus, it has an empty set for its post-dominance frontier (PDF)
         assert!(!post_dom_frontiers.contains_key(&0));
-
-        // b1 is in its own PDF due to the loop b5 -> b1
-        // b1 post-dominates b2 and b5. b1 post-dominates itself but not strictly post-dominate itself.
-        let b1_pdf = &post_dom_frontiers[&1];
-        assert_eq!(b1_pdf.len(), 1);
-        assert!(b1_pdf.contains(&1));
-
-        // b2 has DF { b1 } also due to the loop b5 -> b1.
-        // b1 post-dominates itself is a predecessor of b2, but b1 does not strictly post-dominate b2.
-        let b2_pdf = &post_dom_frontiers[&2];
-        assert_eq!(b2_pdf.len(), 1);
-        assert!(b2_pdf.contains(&1));
+        // We must go through b1 and b2 to reach the exist node
+        assert!(!post_dom_frontiers.contains_key(&1));
+        assert!(!post_dom_frontiers.contains_key(&2));
 
         // b3 is the exit block of the program, but the starting node of the post-dominator tree
         // Thus, it has an empty PDF
@@ -743,10 +718,8 @@ mod tests {
         assert_eq!(b4_pdf.len(), 1);
         assert!(b4_pdf.contains(&2));
 
-        // b5 has DF { b1 } also due to the loop b5 -> b1
-        let b5_pdf = &post_dom_frontiers[&5];
-        assert_eq!(b5_pdf.len(), 1);
-        assert!(b5_pdf.contains(&1));
+        // Must go through b5 to reach the exit node
+        assert!(!post_dom_frontiers.contains_key(&5));
     }
 
     #[test]
