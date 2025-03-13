@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["diagnostic_to_string","package_start"],"struct":["JsonFormatter","PrettyFormatter","TerseFormatter"],"trait":["Formatter"]};

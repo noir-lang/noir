@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BIN_EXAMPLE","CONTRACT_EXAMPLE","LIB_EXAMPLE"],"fn":["initialize_project","run"],"struct":["InitCommand"]};

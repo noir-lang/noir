@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["read_bytecode_from_file","read_program_from_file","save_contract_to_file","save_program_to_file","write_to_file"]};

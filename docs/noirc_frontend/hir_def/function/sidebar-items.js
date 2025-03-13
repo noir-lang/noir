@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FunctionBody"],"struct":["FuncMeta","HirFunction","Parameters"],"type":["FunctionSignature","Param"]};

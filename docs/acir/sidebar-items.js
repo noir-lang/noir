@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["circuit","native_types"],"trait":["AcirField"],"type":["FieldElement"]};

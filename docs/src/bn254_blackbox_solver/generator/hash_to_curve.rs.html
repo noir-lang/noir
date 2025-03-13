@@ -1,0 +1,263 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/bn254_blackbox_solver/src/generator/hash_to_curve.rs`."><title>hash_to_curve.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="bn254_blackbox_solver" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">bn254_blackbox_solver/generator/</div>hash_to_curve.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<a href="#1" id="1">1</a>
+<a href="#2" id="2">2</a>
+<a href="#3" id="3">3</a>
+<a href="#4" id="4">4</a>
+<a href="#5" id="5">5</a>
+<a href="#6" id="6">6</a>
+<a href="#7" id="7">7</a>
+<a href="#8" id="8">8</a>
+<a href="#9" id="9">9</a>
+<a href="#10" id="10">10</a>
+<a href="#11" id="11">11</a>
+<a href="#12" id="12">12</a>
+<a href="#13" id="13">13</a>
+<a href="#14" id="14">14</a>
+<a href="#15" id="15">15</a>
+<a href="#16" id="16">16</a>
+<a href="#17" id="17">17</a>
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a>
+<a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a>
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+<a href="#44" id="44">44</a>
+<a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
+<a href="#47" id="47">47</a>
+<a href="#48" id="48">48</a>
+<a href="#49" id="49">49</a>
+<a href="#50" id="50">50</a>
+<a href="#51" id="51">51</a>
+<a href="#52" id="52">52</a>
+<a href="#53" id="53">53</a>
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="comment">// Adapted from https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/affine_element.rs
+</span><span class="doccomment">//!
+//! Code is used under the MIT license
+
+</span><span class="kw">use </span>acvm_blackbox_solver::blake3;
+
+<span class="kw">use </span>ark_ec::AffineRepr;
+<span class="kw">use </span>ark_ff::Field;
+<span class="kw">use </span>ark_ff::{BigInteger, PrimeField};
+<span class="kw">use </span>ark_grumpkin::{Affine, Fq};
+
+<span class="doccomment">/// Hash a seed buffer into a point
+///
+/// # ALGORITHM DESCRIPTION
+///
+///  1. Initialize unsigned integer `attempt_count = 0`
+///  2. Copy seed into a buffer whose size is 2 bytes greater than `seed` (initialized to `0`)
+///  3. Interpret `attempt_count` as a byte and write into buffer at `[buffer.size() - 2]`
+///  4. Compute Blake3 hash of buffer
+///  5. Set the end byte of the buffer to `1`
+///  6. Compute Blake3 hash of buffer
+///  7. Interpret the two hash outputs as the high / low 256 bits of a 512-bit integer (big-endian)
+///  8. Derive x-coordinate of point by reducing the 512-bit integer modulo the curve's field modulus (Fq)
+///  9. Compute `y^2` from the curve formula `y^2 = x^3 + ax + b` (`a`, `b` are curve params. for BN254, `a = 0`, `b = 3`)
+///  10. IF `y^2` IS NOT A QUADRATIC RESIDUE:
+///
+///  a. increment `attempt_count` by 1 and go to step 2
+///  
+///  11. IF `y^2` IS A QUADRATIC RESIDUE:
+///
+///  a. derive y coordinate via `y = sqrt(y)`
+///
+///  b. Interpret most significant bit of 512-bit integer as a 'parity' bit
+///
+///  c. If parity bit is set AND `y`'s most significant bit is not set, invert `y`
+///
+///  d. If parity bit is not set AND `y`'s most significant bit is set, invert `y`
+///
+///  e. return (x, y)
+///
+///  N.B. steps c. and e. are because the `sqrt()` algorithm can return 2 values,
+///  we need to a way to canonically distinguish between these 2 values and select a "preferred" one
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>hash_to_curve(seed: <span class="kw-2">&amp;</span>[u8], attempt_count: u8) -&gt; Affine {
+    <span class="kw">let </span>seed_size = seed.len();
+    <span class="comment">// expand by 2 bytes to cover incremental hash attempts
+    </span><span class="kw">let </span><span class="kw-2">mut </span>target_seed = seed.to_vec();
+    target_seed.extend_from_slice(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">2</span>]);
+
+    target_seed[seed_size] = attempt_count;
+    target_seed[seed_size + <span class="number">1</span>] = <span class="number">0</span>;
+    <span class="kw">let </span>hash_hi = blake3(<span class="kw-2">&amp;</span>target_seed).expect(<span class="string">"hash should succeed"</span>);
+    target_seed[seed_size + <span class="number">1</span>] = <span class="number">1</span>;
+    <span class="kw">let </span>hash_lo = blake3(<span class="kw-2">&amp;</span>target_seed).expect(<span class="string">"hash should succeed"</span>);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>hash = hash_hi.to_vec();
+    hash.extend_from_slice(<span class="kw-2">&amp;</span>hash_lo);
+
+    <span class="comment">// Here we reduce the 512 bit number modulo the base field modulus to calculate `x`
+    </span><span class="kw">let </span>x = Fq::from_be_bytes_mod_order(<span class="kw-2">&amp;</span>hash);
+    <span class="kw">let </span>x = Fq::from_base_prime_field(x);
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(point) = Affine::get_point_from_x_unchecked(x, <span class="bool-val">false</span>) {
+        <span class="kw">let </span>parity_bit = hash_hi[<span class="number">0</span>] &gt; <span class="number">127</span>;
+        <span class="kw">let </span>y_bit_set = point.y().unwrap().into_bigint().get_bit(<span class="number">0</span>);
+        <span class="kw">if </span>(parity_bit &amp;&amp; !y_bit_set) || (!parity_bit &amp;&amp; y_bit_set) { -point } <span class="kw">else </span>{ point }
+    } <span class="kw">else </span>{
+        hash_to_curve(seed, attempt_count + <span class="number">1</span>)
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+
+    <span class="kw">use </span>ark_ec::AffineRepr;
+    <span class="kw">use </span>ark_ff::{BigInteger, PrimeField};
+
+    <span class="kw">use </span><span class="kw">super</span>::hash_to_curve;
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>smoke_test() {
+        <span class="kw">let </span>test_cases: [(<span class="kw-2">&amp;</span>[u8], u8, (<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)); <span class="number">4</span>] = [
+            (
+                <span class="kw-2">&amp;</span>[],
+                <span class="number">0</span>,
+                (
+                    <span class="string">"24c4cb9c1206ab5470592f237f1698abe684dadf0ab4d7a132c32b2134e2c12e"</span>,
+                    <span class="string">"0668b8d61a317fb34ccad55c930b3554f1828a0e5530479ecab4defe6bbc0b2e"</span>,
+                ),
+            ),
+            (
+                <span class="kw-2">&amp;</span>[],
+                <span class="number">1</span>,
+                (
+                    <span class="string">"24c4cb9c1206ab5470592f237f1698abe684dadf0ab4d7a132c32b2134e2c12e"</span>,
+                    <span class="string">"0668b8d61a317fb34ccad55c930b3554f1828a0e5530479ecab4defe6bbc0b2e"</span>,
+                ),
+            ),
+            (
+                <span class="kw-2">&amp;</span>[<span class="number">1</span>],
+                <span class="number">0</span>,
+                (
+                    <span class="string">"107f1b633c6113f3222f39f6256f0546b41a4880918c86864b06471afb410454"</span>,
+                    <span class="string">"050cd3823d0c01590b6a50adcc85d2ee4098668fd28805578aa05a423ea938c6"</span>,
+                ),
+            ),
+            (
+                <span class="kw-2">&amp;</span>[<span class="number">0x68</span>, <span class="number">0x65</span>, <span class="number">0x6c</span>, <span class="number">0x6c</span>, <span class="number">0x6f</span>, <span class="number">0x20</span>, <span class="number">0x77</span>, <span class="number">0x6f</span>, <span class="number">0x72</span>, <span class="number">0x6c</span>, <span class="number">0x64</span>],
+                <span class="number">0</span>,
+                (
+                    <span class="string">"037c5c229ae495f6e8d1b4bf7723fafb2b198b51e27602feb8a4d1053d685093"</span>,
+                    <span class="string">"10cf9596c5b2515692d930efa2cf3817607e4796856a79f6af40c949b066969f"</span>,
+                ),
+            ),
+        ];
+
+        <span class="kw">for </span>(seed, attempt_count, expected_point) <span class="kw">in </span>test_cases {
+            <span class="kw">let </span>point = hash_to_curve(seed, attempt_count);
+            <span class="macro">assert!</span>(point.is_on_curve());
+            <span class="macro">assert_eq!</span>(
+                hex::encode(point.x().unwrap().into_bigint().to_bytes_be()),
+                expected_point.<span class="number">0</span>,
+                <span class="string">"Failed on x component with seed {seed:?}, attempt_count {attempt_count}"
+            </span>);
+            <span class="macro">assert_eq!</span>(
+                hex::encode(point.y().unwrap().into_bigint().to_bytes_be()),
+                expected_point.<span class="number">1</span>,
+                <span class="string">"Failed on y component with seed {seed:?}, attempt_count {attempt_count}"
+            </span>);
+        }
+    }
+}
+</code></pre></div></section></main></body></html>

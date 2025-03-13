@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["item_in_module_is_visible","method_call_is_visible","struct_member_is_visible","trait_member_is_visible"]};

@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["noirc_arena",[["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/ops/index/trait.IndexMut.html\" title=\"trait core::ops::index::IndexMut\">IndexMut</a>&lt;<a class=\"struct\" href=\"noirc_arena/struct.Index.html\" title=\"struct noirc_arena::Index\">Index</a>&gt; for <a class=\"struct\" href=\"noirc_arena/struct.Arena.html\" title=\"struct noirc_arena::Arena\">Arena</a>&lt;T&gt;"]]],["noirc_frontend",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/ops/index/trait.IndexMut.html\" title=\"trait core::ops::index::IndexMut\">IndexMut</a>&lt;<a class=\"struct\" href=\"noirc_frontend/hir/def_map/struct.LocalModuleId.html\" title=\"struct noirc_frontend::hir::def_map::LocalModuleId\">LocalModuleId</a>&gt; for <a class=\"struct\" href=\"noirc_frontend/hir/def_map/struct.CrateDefMap.html\" title=\"struct noirc_frontend::hir::def_map::CrateDefMap\">CrateDefMap</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.85.0/core/ops/index/trait.IndexMut.html\" title=\"trait core::ops::index::IndexMut\">IndexMut</a>&lt;<a class=\"struct\" href=\"noirc_frontend/monomorphization/ast/struct.FuncId.html\" title=\"struct noirc_frontend::monomorphization::ast::FuncId\">FuncId</a>&gt; for <a class=\"struct\" href=\"noirc_frontend/monomorphization/ast/struct.Program.html\" title=\"struct noirc_frontend::monomorphization::ast::Program\">Program</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[417,1000]}

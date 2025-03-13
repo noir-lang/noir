@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CHARACTER_BLACK_LIST"],"enum":["CrateId"],"struct":["CrateData","CrateGraph","CrateName","CyclicDependenciesError","Dependency"]};

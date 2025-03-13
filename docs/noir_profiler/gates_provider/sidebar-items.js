@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BackendGatesProvider","BackendGatesReport","BackendGatesResponse"],"trait":["GatesProvider"]};

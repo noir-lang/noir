@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ElaborateReason","UnstableFeature"],"mod":["types"],"struct":["Elaborator","LambdaContext","Loop","ResolverMeta","Turbofish"],"type":["FrontendOptions"]};

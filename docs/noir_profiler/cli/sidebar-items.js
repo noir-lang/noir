@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PROFILER_VERSION"],"enum":["ProfilerCommand"],"fn":["start_cli"],"mod":["execution_flamegraph_cmd","gates_flamegraph_cmd","opcodes_flamegraph_cmd"],"static":["VERSION_STRING"],"struct":["ProfilerCli"]};

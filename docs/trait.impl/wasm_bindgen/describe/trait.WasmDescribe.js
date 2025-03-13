@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["acvm_js",[["impl WasmDescribe for <a class=\"struct\" href=\"acvm_js/struct.JsExecutionError.html\" title=\"struct acvm_js::JsExecutionError\">JsExecutionError</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"acvm_js/struct.JsSolvedAndReturnWitness.html\" title=\"struct acvm_js::JsSolvedAndReturnWitness\">JsSolvedAndReturnWitness</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"acvm_js/struct.JsWitnessMap.html\" title=\"struct acvm_js::JsWitnessMap\">JsWitnessMap</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"acvm_js/struct.JsWitnessStack.html\" title=\"struct acvm_js::JsWitnessStack\">JsWitnessStack</a>"]]],["noir_wasm",[["impl WasmDescribe for <a class=\"struct\" href=\"noir_wasm/struct.CompilerContext.html\" title=\"struct noir_wasm::CompilerContext\">CompilerContext</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"noir_wasm/struct.CrateIDWrapper.html\" title=\"struct noir_wasm::CrateIDWrapper\">CrateIDWrapper</a>"]]],["noirc_abi_wasm",[["impl WasmDescribe for <a class=\"struct\" href=\"noirc_abi_wasm/struct.JsAbi.html\" title=\"struct noirc_abi_wasm::JsAbi\">JsAbi</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"noirc_abi_wasm/struct.JsInputMap.html\" title=\"struct noirc_abi_wasm::JsInputMap\">JsInputMap</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"noirc_abi_wasm/struct.JsInputValue.html\" title=\"struct noirc_abi_wasm::JsInputValue\">JsInputValue</a>"],["impl WasmDescribe for <a class=\"struct\" href=\"noirc_abi_wasm/struct.JsRawAssertionPayload.html\" title=\"struct noirc_abi_wasm::JsRawAssertionPayload\">JsRawAssertionPayload</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[643,327,653]}

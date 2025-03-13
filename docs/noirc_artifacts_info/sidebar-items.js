@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["count_opcodes_and_gates_in_program","show_info_report"],"struct":["FunctionInfo","InfoReport","ProgramInfo"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["monomorphize","monomorphize_debug","perform_impl_bindings","perform_instantiation_bindings","resolve_trait_method","undo_instantiation_bindings"],"mod":["ast","debug_types","errors","printer"]};

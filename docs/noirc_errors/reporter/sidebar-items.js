@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DiagnosticKind"],"fn":["line_and_column_from_span","report","report_all","stack_trace"],"struct":["CustomDiagnostic","CustomLabel","ReportedErrors"]};

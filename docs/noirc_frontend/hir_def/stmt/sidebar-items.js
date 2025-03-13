@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["HirLValue","HirPattern","HirStatement"],"struct":["HirAssignStatement","HirForStatement","HirLetStatement"]};

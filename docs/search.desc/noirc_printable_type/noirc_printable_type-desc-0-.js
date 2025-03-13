@@ -1,0 +1,1 @@
+searchState.loadedDescShard("noirc_printable_type", 0, "This is what all formats eventually transform into For …\nIn order to display a <code>PrintableValue</code> we need a …\nReturns the argument unchanged.\nReturns the argument unchanged.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.")

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BrilligInputs","BrilligOutputs"],"struct":["BrilligBytecode","BrilligFunctionId"]};

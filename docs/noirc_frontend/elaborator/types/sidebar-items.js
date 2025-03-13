@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SELF_TYPE_NAME"]};

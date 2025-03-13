@@ -1,0 +1,1 @@
+searchState.loadedDescShard("noir_fuzzer", 0, "This module has been adapted from Foundry’s fuzzing …\nAn executor for Noir programs which provides fuzzing …\nReturns the argument unchanged.\nFuzzes the provided program.\nCalls <code>U::from(self)</code>.\nInstantiates a fuzzed executor given a TestRunner.\nGranular and single-step function that runs only one fuzz …")

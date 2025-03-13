@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["derive_generators","embedded_curve_add","field_from_hex","multi_scalar_mul","poseidon2_permutation","poseidon_hash"],"struct":["Bn254BlackBoxSolver","POSEIDON2_CONFIG","Poseidon2Config","Poseidon2Sponge"]};

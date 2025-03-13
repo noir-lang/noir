@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["format_acir_opcode","format_acir_opcode_kind","format_binary_field_op","format_binary_int","format_blackbox_function","format_blackbox_op","format_brillig_opcode","format_brillig_opcode_kind"]};

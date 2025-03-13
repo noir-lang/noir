@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INSPECTOR_VERSION"],"enum":["InspectorCommand"],"fn":["start_cli"],"mod":["info_cmd","print_acir_cmd"],"static":["VERSION_STRING"],"struct":["InspectorCli"]};

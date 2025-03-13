@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_MISSING_CASES"],"enum":["Source","TypeCheckError"],"mod":["generics"],"struct":["NoMatchingImplFoundError"]};

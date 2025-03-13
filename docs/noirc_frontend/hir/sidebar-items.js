@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FunctionNameMatch"],"mod":["comptime","def_collector","def_map","resolution","scope","type_check"],"struct":["Context"],"type":["ParsedFiles"]};

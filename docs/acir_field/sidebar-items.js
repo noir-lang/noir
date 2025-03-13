@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["assert_unique_feature","field_wrapper"],"struct":["GenericFieldElement"],"trait":["AcirField"],"type":["FieldElement"]};

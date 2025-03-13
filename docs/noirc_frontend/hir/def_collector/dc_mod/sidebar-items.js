@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CHOSEN_FIELD"],"fn":["collect_defs","collect_enum","collect_function","collect_impl","collect_struct"]};

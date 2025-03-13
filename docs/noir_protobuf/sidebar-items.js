@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["decode_oneof_map","decode_some_map","decode_some_map_wrap","decode_vec_map_wrap"],"trait":["ProtoCodec"]};

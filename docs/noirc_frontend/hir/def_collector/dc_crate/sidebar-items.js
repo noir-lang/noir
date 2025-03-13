@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CompilationError"],"fn":["filter_literal_globals"],"struct":["CollectedItems","DefCollector","ModuleAttribute","UnresolvedEnum","UnresolvedFunctions","UnresolvedGlobal","UnresolvedStruct","UnresolvedTrait","UnresolvedTraitImpl","UnresolvedTypeAlias"]};

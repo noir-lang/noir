@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Attribute","BorrowedToken","DocStyle","FmtStrFragment","FunctionAttribute","IntType","Keyword","SecondaryAttribute","TestScope","Token","TokenKind"],"fn":["token_to_borrowed_token"],"struct":["Attributes","CustomAttribute","KeywordIter","LocatedToken","MetaAttribute","SpannedToken","Tokens"]};

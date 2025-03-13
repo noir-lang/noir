@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_locations_to_folded_stack_items","find_callsite_labels","generate_folded_sorted_lines","location_to_callsite_label","to_folded_sorted_lines"],"struct":["BrilligExecutionSample","CompilationSample","FoldedStackItem","InfernoFlamegraphGenerator"],"trait":["FlamegraphGenerator","Sample"]};

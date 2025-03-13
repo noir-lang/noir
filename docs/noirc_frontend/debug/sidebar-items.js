@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_debug_crate_file"],"struct":["DebugInstrumenter","SourceFieldId","SourceVarId"]};

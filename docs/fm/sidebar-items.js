@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FILE_EXTENSION"],"mod":["codespan_files"],"struct":["File","FileId","FileManager","FileMap","PathString"],"trait":["NormalizePath"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BinaryTypeOperator","Kind","QuotedType","Type","TypeBinding"],"struct":["DataType","EnumVariant","ResolvedGeneric","Shared","StructField","TypeAlias","TypeVariable","TypeVariableId","UnificationError"],"type":["GenericTypeVars","Generics","TypeBindings"]};

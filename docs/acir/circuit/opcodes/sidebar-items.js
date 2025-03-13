@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BlackBoxFuncCall","BlockType","ConstantOrWitnessEnum","Opcode"],"mod":["function_id"],"struct":["BlockId","FunctionInput","InvalidInputBitSize","MemOp"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LspError"],"fn":["insert_all_files_for_workspace_into_file_manager"],"struct":["LspState","NargoLspService"]};
