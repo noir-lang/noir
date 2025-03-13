@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - tf/rustdoc
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -72,6 +71,8 @@ jobs:
 
       - name: Commit new docs
         run: |
+          # This could _potentially_ clash with pushing benchmarks to this branch at the same time.
+          # In practice, this will complete much sooner than the benchmarks are generated.
           git add ./docs/*
           git commit -m "update rustdoc"
           git push
