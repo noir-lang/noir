@@ -137,7 +137,7 @@ mod tests {
         }
     }
 
-    /// Test that the `msgpack_serialize` is backwards compatible:
+    /// Test that the `msgpack_serialize(compact=false)` is backwards compatible:
     /// * removal of an enum variant (e.g. opcode no longer in use)
     /// * struct fields added: the old reader ignores new fields, but this could potentially lead to invalid behavior
     /// * struct fields reordered: trivial because fields are named
@@ -166,9 +166,11 @@ mod tests {
         }
     }
 
-    /// Test that the `msgpack_serialize_compact` is backwards compatible for a subset of the cases:
+    /// Test that the `msgpack_serialize(compact=true)` is backwards compatible for a subset of the cases:
     /// * removal of an enum variant (e.g. opcode no longer in use)
     /// * struct fields renamed: accepted because position based
+    /// * adding unused enum variants
+    ///
     /// And rejects cases which could lead to unintended behavior:
     /// * struct fields added: rejected because the number of fields change
     /// * struct fields reordered: rejected because fields are position based
