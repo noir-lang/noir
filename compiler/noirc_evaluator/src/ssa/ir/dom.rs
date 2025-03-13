@@ -282,7 +282,7 @@ impl DominatorTree {
 
     /// Computes the dominance frontier for all blocks in the dominator tree.
     ///
-    /// This method uses the algorithm specified under Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
+    /// This method uses the algorithm specified in Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
     /// As referenced in the paper a dominance frontier is the set of all CFG nodes, y, such that
     /// b dominates a predecessor of y but does not strictly dominate y.
     ///
