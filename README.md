@@ -46,5 +46,5 @@ Unless you explicitly state otherwise, any contribution intentionally submitted 
 [Getting Started]: https://noir-lang.org/docs/getting_started/quick_start/
 [Forum]: https://forum.aztec.network/c/noir
 [Discord]: https://discord.gg/JtqzkdeQ6G
-[Documentation]: https://noir-lang.org/docs
+[Documentation]: https://noir-lang.org/docs/
 [Contributing]: CONTRIBUTING.md

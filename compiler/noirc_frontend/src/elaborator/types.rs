@@ -15,7 +15,7 @@ use crate::{
     elaborator::UnstableFeature,
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::{ModuleDefId, fully_qualified_module_path},
+        def_map::fully_qualified_module_path,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -1570,15 +1570,7 @@ impl Elaborator<'_> {
         let traits_in_scope: Vec<_> = traits
             .iter()
             .filter_map(|trait_id| {
-                let trait_ = self.interner.get_trait(*trait_id);
-                let trait_name = &trait_.name;
-                let map = module_data.scope().types().get(trait_name)?;
-                let imported_item = map.get(&None)?;
-                if imported_item.0 == ModuleDefId::TraitId(*trait_id) {
-                    Some((*trait_id, trait_name))
-                } else {
-                    None
-                }
+                module_data.find_trait_in_scope(*trait_id).map(|name| (*trait_id, name.clone()))
             })
             .collect();
 
