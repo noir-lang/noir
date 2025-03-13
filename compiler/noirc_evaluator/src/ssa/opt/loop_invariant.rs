@@ -182,16 +182,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in loop_.blocks.iter() {
             self.current_block_control_dependent = false;
-            // The CFG will ultimately be entirely flattened in ACIR.
-            // We can leave hoisting of instructions based upon predicates as part
-            // of constant folding once we we have a flat CFG.
-            // Thus, we forego checking control dependence on ACIR as to
-            // avoid greater compilation cost.
-            if self.inserter.function.runtime().is_brillig() {
-                self.is_control_dependent_post_pre_header(loop_, *block);
-            } else {
-                self.current_block_control_dependent = true;
-            }
+            self.is_control_dependent_post_pre_header(loop_, *block);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
                 self.transform_to_unchecked_from_loop_bounds(instruction_id);
