@@ -1,0 +1,64 @@
+name: Publish rustdoc
+
+on:
+  push:
+    branches:
+      - master
+      - tf/rustdoc
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - name: Configure cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Clean docs folder
+        run: cargo clean --doc
+
+      - name: Build docs
+        run: cargo doc --no-deps --workspace
+
+      - name: Add redirect
+        run: echo '<meta http-equiv="refresh" content="0;url=aoc/index.html">' > target/doc/index.html
+
+      - name: Remove lock file
+        run: rm target/doc/.lock
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          name: rustdoc
+          path: target/doc
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Download rustdoc output
+        uses: actions/download-artifact@v4
+        with:
+          name: rustdoc
+          path: ./docs
+
+      - name: Commit new docs
+        run: |
+          git add ./docs/*
+          git commit -m "update rustdoc"
+          git push
