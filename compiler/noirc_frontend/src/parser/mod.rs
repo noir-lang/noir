@@ -97,6 +97,10 @@ impl ParsedModule {
         let mut module = SortedModule::default();
 
         for item in self.items {
+            // skip items with disabled cfg attributes
+            if item.cfg_feature_disabled {
+                continue;
+            }
             match item.kind {
                 ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func, item.doc_comments),
@@ -132,6 +136,7 @@ pub struct Item {
     pub kind: ItemKind,
     pub location: Location,
     pub doc_comments: Vec<String>,
+    pub cfg_feature_disabled: bool,
 }
 
 #[derive(Clone, Debug)]

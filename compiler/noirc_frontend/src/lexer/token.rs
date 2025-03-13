@@ -3,7 +3,7 @@ use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
 use crate::{
-    ast::{Expression, Path},
+    ast::{CfgAttribute, Expression, Path},
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -850,6 +850,15 @@ impl fmt::Display for Attribute {
     }
 }
 
+impl Attribute {
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            Attribute::Secondary(secondary) => secondary.is_disabled_cfg(),
+            _ => false,
+        }
+    }
+}
+
 /// Primary Attributes are those which a function can only have one of.
 /// They change the FunctionKind and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -973,6 +982,9 @@ pub enum SecondaryAttribute {
 
     /// Allow chosen warnings to happen so they are silenced.
     Allow(String),
+
+    // A #[cfg(..)] attribute
+    Cfg(CfgAttribute),
 }
 
 impl SecondaryAttribute {
@@ -990,6 +1002,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => Some("varargs".to_string()),
             SecondaryAttribute::UseCallersScope => Some("use_callers_scope".to_string()),
             SecondaryAttribute::Allow(_) => Some("allow".to_string()),
+            SecondaryAttribute::Cfg(_) => Some("cfg".to_string()),
         }
     }
 
@@ -1002,6 +1015,13 @@ impl SecondaryAttribute {
 
     pub(crate) fn is_abi(&self) -> bool {
         matches!(self, SecondaryAttribute::Abi(_))
+    }
+
+    pub(crate) fn is_disabled_cfg(&self) -> bool {
+        match self {
+            SecondaryAttribute::Cfg(cfg_attribute) => cfg_attribute.is_disabled(),
+            _ => false,
+        }
     }
 
     pub(crate) fn contents(&self) -> String {
@@ -1019,6 +1039,7 @@ impl SecondaryAttribute {
             SecondaryAttribute::Varargs => "varargs".to_string(),
             SecondaryAttribute::UseCallersScope => "use_callers_scope".to_string(),
             SecondaryAttribute::Allow(k) => format!("allow({k})"),
+            SecondaryAttribute::Cfg(cfg_attribute) => format!("cfg({cfg_attribute})"),
         }
     }
 }

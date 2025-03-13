@@ -35,6 +35,7 @@ fn item_with_file(item: Item, file: FileId) -> Item {
         kind: item_kind_with_file(item.kind, file),
         location: item.location,
         doc_comments: item.doc_comments,
+        cfg_feature_disabled: item.cfg_feature_disabled,
     }
 }
 
@@ -589,7 +590,8 @@ fn secondary_attribute_with_file(
         | SecondaryAttribute::Abi(_)
         | SecondaryAttribute::Varargs
         | SecondaryAttribute::UseCallersScope
-        | SecondaryAttribute::Allow(_) => secondary_attribute,
+        | SecondaryAttribute::Allow(_)
+        | SecondaryAttribute::Cfg(_) => secondary_attribute,
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AssignStatement, Expression, LValue, Statement, StatementKind},
+    ast::{AssignStatement, CfgAttributed, Expression, LValue, Statement, StatementKind},
     token::{Token, TokenKind},
 };
 
@@ -19,7 +19,7 @@ impl Parser<'_> {
     /// This method is only used in `Quoted::as_expr`.
     pub(crate) fn parse_statement_or_expression_or_lvalue(
         &mut self,
-    ) -> StatementOrExpressionOrLValue {
+    ) -> CfgAttributed<StatementOrExpressionOrLValue> {
         let start_location = self.current_token_location;
 
         // First check if it's an interned LValue
@@ -35,9 +35,10 @@ impl Parser<'_> {
                         return StatementOrExpressionOrLValue::Statement(Statement {
                             kind,
                             location: self.location_since(start_location),
-                        });
+                        })
+                        .into();
                     } else {
-                        return StatementOrExpressionOrLValue::LValue(lvalue);
+                        return StatementOrExpressionOrLValue::LValue(lvalue).into();
                     }
                 }
                 _ => unreachable!(),
@@ -45,11 +46,12 @@ impl Parser<'_> {
         }
 
         // Otherwise, check if it's a statement (which in turn checks if it's an expression)
-        let statement = self.parse_statement_or_error();
-        if let StatementKind::Expression(expr) = statement.kind {
-            StatementOrExpressionOrLValue::Expression(expr)
-        } else {
-            StatementOrExpressionOrLValue::Statement(statement)
-        }
+        self.parse_statement_or_error().map(|statement| {
+            if let StatementKind::Expression(expr) = statement.kind {
+                StatementOrExpressionOrLValue::Expression(expr)
+            } else {
+                StatementOrExpressionOrLValue::Statement(statement)
+            }
+        })
     }
 }

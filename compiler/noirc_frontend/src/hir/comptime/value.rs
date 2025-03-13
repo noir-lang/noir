@@ -313,7 +313,8 @@ impl Value {
                 match *expr {
                     ExprValue::Expression(expr) => expr,
                     ExprValue::Statement(statement) => ExpressionKind::Block(BlockExpression {
-                        statements: vec![Statement { kind: statement, location }],
+                        // TODO: can we propagate here instead of defaulting to no CfgAttribute?
+                        statements: vec![Statement { kind: statement, location }.into()],
                     }),
                     ExprValue::LValue(lvalue) => lvalue.as_expression().kind,
                     ExprValue::Pattern(_) => unreachable!("this case is handled above"),
@@ -595,7 +596,14 @@ impl Value {
         let parser = Parser::parse_top_level_items;
         match self {
             Value::Quoted(tokens) => {
-                parse_tokens(tokens, elaborator, parser, location, "top-level item")
+                parse_tokens(tokens, elaborator, parser, location, "top-level item").map(
+                    |parsed_tokens| {
+                        parsed_tokens
+                            .into_iter()
+                            .filter(|item| !item.cfg_feature_disabled)
+                            .collect::<Vec<_>>()
+                    },
+                )
             }
             _ => {
                 let typ = self.get_type().into_owned();

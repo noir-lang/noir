@@ -807,16 +807,19 @@ fn quoted_as_expr(
         "an expression",
     );
 
-    let value =
-        result.ok().map(
-            |statement_or_expression_or_lvalue| match statement_or_expression_or_lvalue {
+    let value = result.ok().and_then(|cfg_attributed| {
+        if elaborator.is_cfg_attribute_enabled(cfg_attributed.cfg_attribute) {
+            Some(match cfg_attributed.inner {
                 StatementOrExpressionOrLValue::Expression(expr) => Value::expression(expr.kind),
                 StatementOrExpressionOrLValue::Statement(statement) => {
                     Value::statement(statement.kind)
                 }
                 StatementOrExpressionOrLValue::LValue(lvalue) => Value::lvalue(lvalue),
-            },
-        );
+            })
+        } else {
+            None
+        }
+    });
 
     Ok(option(return_type, value, location))
 }
@@ -2629,7 +2632,8 @@ fn function_def_set_body(
     };
 
     let statement = Statement { kind: statement_kind, location: body_location };
-    let body = BlockExpression { statements: vec![statement] };
+    // TODO: cfg(feature = ..) unsupported here
+    let body = BlockExpression { statements: vec![statement.into()] };
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
@@ -2787,7 +2791,11 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
 
     let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
+    let top_level_statements: Vec<_> =
+        parse(interpreter.elaborator, item, parser, "a top-level item")?
+            .into_iter()
+            .filter(|item| !item.cfg_feature_disabled)
+            .collect();
 
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
     interpreter.elaborate_in_module(module_id, reason, |elaborator| {

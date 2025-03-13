@@ -1,3 +1,4 @@
+use crate::ast::CfgAttributed;
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::ParsedModule;
@@ -8,6 +9,7 @@ use crate::{
     parser::{Item, ItemKind},
 };
 use fm::FileId;
+use iter_extended::vecmap;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
 use noirc_errors::{Location, Span};
 use std::collections::HashMap;
@@ -115,7 +117,8 @@ impl DebugInstrumenter {
                     .iter()
                     .filter_map(|(id, _is_mut)| {
                         let var_id = self.insert_var(&id.0.contents)?;
-                        Some(build_assign_var_stmt(var_id, id_expr(id)))
+                        // TODO: how to propagate cfg(feature = ..) here?
+                        Some(build_assign_var_stmt(var_id, id_expr(id)).into())
                     })
                     .collect::<Vec<_>>()
             })
@@ -128,26 +131,36 @@ impl DebugInstrumenter {
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");
-        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.location);
+        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.inner.location);
 
+        // TODO: how to propagate cfg(feature = ..) here?
         // rebuild function body
-        func_body.push(enter_stmt);
+        func_body.push(enter_stmt.into());
         func_body.extend(set_fn_params);
         func_body.extend(statements);
-        func_body.push(exit_stmt);
+        func_body.push(exit_stmt.into());
         func_body.push(last_stmt);
     }
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location) {
-        statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
+    fn walk_scope(
+        &mut self,
+        statements: &mut Vec<CfgAttributed<ast::Statement>>,
+        location: Location,
+    ) {
+        statements
+            .iter_mut()
+            .for_each(|cfg_attributed| cfg_attributed.each_mut(|stmt| self.walk_statement(stmt)));
 
         // extract and save the return value from the scope if there is one
         let ret_stmt = statements.pop();
         let has_ret_expr = match ret_stmt {
             None => false,
-            Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
+            Some(CfgAttributed {
+                inner: ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. },
+                cfg_attribute,
+            }) => {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
                         ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
@@ -157,6 +170,7 @@ impl DebugInstrumenter {
                     ),
                     location: ret_expr.location,
                 };
+                let save_ret_expr = CfgAttributed { inner: save_ret_expr, cfg_attribute };
                 statements.push(save_ret_expr);
                 true
             }
@@ -172,8 +186,9 @@ impl DebugInstrumenter {
 
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
+        // TODO: how to propagate cfg(feature = ..) here?
         let drop_vars_stmts =
-            scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, location));
+            scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, location).into());
         statements.extend(drop_vars_stmts);
 
         // return the saved value in __debug_expr, or unit otherwise
@@ -197,7 +212,9 @@ impl DebugInstrumenter {
                 location,
             }
         };
-        statements.push(last_stmt);
+
+        // TODO: how to propagate cfg(feature = ..) here?
+        statements.push(last_stmt.into());
     }
 
     fn walk_let_statement(
@@ -266,6 +283,9 @@ impl DebugInstrumenter {
             }),
             location: let_stmt.pattern.location(),
         });
+
+        // TODO: how to propagate cfg(feature = ..) here?
+        let block_stmts = vecmap(block_stmts, |block_stmt| block_stmt.into());
 
         ast::Statement {
             kind: ast::StatementKind::new_let(
@@ -367,10 +387,11 @@ impl DebugInstrumenter {
                 lvalue: assign_stmt.lvalue.clone(),
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
+                        // TODO: how to propagate cfg(feature = ..) here?
                         statements: vec![
-                            ast::Statement { kind: let_kind, location: expression_location },
-                            new_assign_stmt,
-                            ast::Statement { kind: ret_kind, location: expression_location },
+                            ast::Statement { kind: let_kind, location: expression_location }.into(),
+                            new_assign_stmt.into(),
+                            ast::Statement { kind: ret_kind, location: expression_location }.into(),
                         ],
                     }),
                     location: expression_location,
@@ -471,6 +492,9 @@ impl DebugInstrumenter {
         } else {
             statements.push(block_statement);
         }
+
+        // TODO: how to propagate cfg(feature = ..) be propagated here?
+        let statements = vecmap(statements, |statement| statement.into());
 
         for_stmt.block = ast::Expression {
             kind: ast::ExpressionKind::Block(ast::BlockExpression { statements }),

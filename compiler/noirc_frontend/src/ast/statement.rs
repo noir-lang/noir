@@ -858,11 +858,12 @@ impl ForRange {
                 let block_location = block.location;
                 let new_block = BlockExpression {
                     statements: vec![
-                        let_elem,
+                        let_elem.into(),
                         Statement {
                             kind: StatementKind::Expression(block),
                             location: block_location,
-                        },
+                        }
+                        .into(),
                     ],
                 };
                 let new_block = Expression::new(ExpressionKind::Block(new_block), block_location);
@@ -877,7 +878,7 @@ impl ForRange {
                 };
 
                 let block = ExpressionKind::Block(BlockExpression {
-                    statements: vec![let_array, for_loop],
+                    statements: vec![let_array.into(), for_loop.into()],
                 });
                 Statement {
                     kind: StatementKind::Expression(Expression::new(block, for_loop_location)),

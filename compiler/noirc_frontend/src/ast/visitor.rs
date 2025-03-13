@@ -968,7 +968,8 @@ impl BlockExpression {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         for statement in &self.statements {
-            statement.accept(visitor);
+            // TODO: visit CfgAttribute's?
+            statement.inner.accept(visitor);
         }
     }
 }

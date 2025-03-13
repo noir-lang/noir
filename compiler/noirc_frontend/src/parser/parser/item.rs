@@ -98,7 +98,12 @@ impl<'a> Parser<'a> {
             self.push_error(ParserErrorReason::DocCommentDoesNotDocumentAnything, start_location);
         }
 
-        vecmap(kinds, |kind| Item { kind, location, doc_comments: doc_comments.clone() })
+        vecmap(kinds, |(kind, cfg_feature_disabled)| Item {
+            kind,
+            location,
+            doc_comments: doc_comments.clone(),
+            cfg_feature_disabled,
+        })
     }
 
     /// This method returns one 'ItemKind' in the majority of cases.
@@ -118,13 +123,14 @@ impl<'a> Parser<'a> {
     ///         | TypeAlias
     ///         | Function
     ///         )
-    fn parse_item_kind(&mut self) -> Vec<ItemKind> {
+    fn parse_item_kind(&mut self) -> Vec<(ItemKind, bool)> {
         if let Some(kind) = self.parse_inner_attribute() {
-            return vec![ItemKind::InnerAttribute(kind)];
+            return vec![(ItemKind::InnerAttribute(kind), false)];
         }
 
         let start_location = self.current_token_location;
         let attributes = self.parse_attributes();
+        let cfg_feature_disabled = attributes.iter().any(|attribute| attribute.0.is_disabled_cfg());
 
         let modifiers = self.parse_modifiers(
             true, // allow mut
@@ -134,42 +140,42 @@ impl<'a> Parser<'a> {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
             let use_tree = self.parse_use_tree();
-            return vec![ItemKind::Import(use_tree, modifiers.visibility)];
+            return vec![(ItemKind::Import(use_tree, modifiers.visibility), cfg_feature_disabled)];
         }
 
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility)];
+            let parsed_mod_or_contract =
+                self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility);
+            return vec![(parsed_mod_or_contract, cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Struct) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![ItemKind::Struct(self.parse_struct(
-                attributes,
-                modifiers.visibility,
-                start_location,
-            ))];
+            let parsed_struct = self.parse_struct(attributes, modifiers.visibility, start_location);
+            return vec![(ItemKind::Struct(parsed_struct), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Enum) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![ItemKind::Enum(self.parse_enum(
-                attributes,
-                modifiers.visibility,
-                start_location,
-            ))];
+            let parsed_enum = self.parse_enum(attributes, modifiers.visibility, start_location);
+            return vec![(ItemKind::Enum(parsed_enum), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Impl) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![match self.parse_impl() {
-                Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
-                Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
-            }];
+            let parsed_impl = self.parse_impl();
+            return vec![(
+                match parsed_impl {
+                    Impl::Impl(type_impl) => ItemKind::Impl(type_impl),
+                    Impl::TraitImpl(noir_trait_impl) => ItemKind::TraitImpl(noir_trait_impl),
+                },
+                cfg_feature_disabled,
+            )];
         }
 
         if self.eat_keyword(Keyword::Trait) {
@@ -177,9 +183,9 @@ impl<'a> Parser<'a> {
 
             let (noir_trait, noir_impl) =
                 self.parse_trait(attributes, modifiers.visibility, start_location);
-            let mut output = vec![ItemKind::Trait(noir_trait)];
+            let mut output = vec![(ItemKind::Trait(noir_trait), cfg_feature_disabled)];
             if let Some(noir_impl) = noir_impl {
-                output.push(ItemKind::TraitImpl(noir_impl));
+                output.push((ItemKind::TraitImpl(noir_impl), cfg_feature_disabled));
             }
 
             return output;
@@ -188,34 +194,35 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Global) {
             self.unconstrained_not_applicable(modifiers);
 
-            return vec![ItemKind::Global(
-                self.parse_global(
-                    attributes,
-                    modifiers.comptime.is_some(),
-                    modifiers.mutable.is_some(),
-                ),
-                modifiers.visibility,
+            let parsed_global = self.parse_global(
+                attributes,
+                modifiers.comptime.is_some(),
+                modifiers.mutable.is_some(),
+            );
+            return vec![(
+                ItemKind::Global(parsed_global, modifiers.visibility),
+                cfg_feature_disabled,
             )];
         }
 
         if self.eat_keyword(Keyword::Type) {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![ItemKind::TypeAlias(
-                self.parse_type_alias(modifiers.visibility, start_location),
-            )];
+            let parsed_type_alias = self.parse_type_alias(modifiers.visibility, start_location);
+            return vec![(ItemKind::TypeAlias(parsed_type_alias), cfg_feature_disabled)];
         }
 
         if self.eat_keyword(Keyword::Fn) {
             self.mutable_not_applicable(modifiers);
 
-            return vec![ItemKind::Function(self.parse_function(
+            let parsed_function = self.parse_function(
                 attributes,
                 modifiers.visibility,
                 modifiers.comptime.is_some(),
                 modifiers.unconstrained.is_some(),
                 false, // allow_self
-            ))];
+            );
+            return vec![(ItemKind::Function(parsed_function), cfg_feature_disabled)];
         }
 
         vec![]
@@ -277,5 +284,18 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert!(error.to_string().contains("This doc comment doesn't document anything"));
+    }
+
+    #[test]
+    fn no_error_on_disabled_cfg_before_main() {
+        let src = r#"
+        #[cfg(feature = "disabled_feature")]
+        use foo_module::FOO;
+
+        fn main() { }
+        "#;
+        let (module, errors) = parse_program_with_dummy_file(src);
+        assert_eq!(module.items.len(), 2);
+        assert_eq!(errors, vec![]);
     }
 }

@@ -1,6 +1,6 @@
 use noirc_errors::Location;
 
-use crate::ast::{Expression, ExpressionKind, Ident, Literal, Path};
+use crate::ast::{CfgAttribute, Expression, ExpressionKind, Ident, Literal, Path};
 use crate::lexer::errors::LexerErrorKind;
 use crate::parser::ParserErrorReason;
 use crate::parser::labels::ParsingRuleLabel;
@@ -60,12 +60,16 @@ impl Parser<'_> {
     ///     | 'allow' '(' AttributeValue ')'
     ///     | 'deprecated'
     ///     | 'deprecated' '(' string ')'
+    ///     | 'cfg' '(' CfgAttribute ')'
     ///     | 'contract_library_method'
     ///     | 'export'
     ///     | 'field' '(' AttributeValue ')'
     ///     | 'use_callers_scope'
     ///     | 'varargs'
     ///     | MetaAttribute
+    ///
+    /// CfgAttribute
+    ///     = Arguments
     ///
     /// MetaAttribute
     ///     = Path Arguments?
@@ -144,6 +148,8 @@ impl Parser<'_> {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     self.parse_test_attribute(start_location)
+                } else if ident.0.contents == "cfg" {
+                    self.parse_cfg_attribute(start_location)
                 } else {
                     // Every other attribute has the form `name(arg1, arg2, .., argN)`
                     self.parse_ident_attribute_other_than_test(ident, start_location)
@@ -156,6 +162,47 @@ impl Parser<'_> {
             self.expected_label(ParsingRuleLabel::Path);
             self.parse_tag_attribute(start_location)
         }
+    }
+
+    fn parse_cfg_attribute(&mut self, start_location: Location) -> Attribute {
+        // `[cfg` <- already parsed
+        // `(feature = "{str}"`
+        self.eat_or_error(Token::LeftParen);
+
+        // "feature"
+        if let Some(ident) = self.eat_ident() {
+            if ident.0.contents != "feature" {
+                let ident = ident.clone();
+                self.push_error(
+                    ParserErrorReason::DisallowedCfgAttributeContents { ident },
+                    self.location_since(start_location),
+                );
+            }
+        }
+
+        // '='
+        self.eat_or_error(Token::Assign);
+        let name = self.eat_str().unwrap_or_else(|| {
+            self.push_error(
+                ParserErrorReason::WrongNumberOfAttributeArguments {
+                    name: "cfg".to_string(),
+                    min: 1,
+                    max: 1,
+                    found: 0,
+                },
+                self.location_since(start_location),
+            );
+            String::new()
+        });
+
+        // `)]`
+        self.eat_or_error(Token::RightParen);
+        self.skip_until_right_bracket();
+
+        Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
+            name,
+            location: self.location_since(start_location),
+        }))
     }
 
     fn parse_meta_attribute(&mut self, name: Path, start_location: Location) -> Attribute {
@@ -400,8 +447,8 @@ mod tests {
     use noirc_errors::Span;
 
     use crate::{
-        parser::{Parser, parser::tests::expect_no_errors},
-        token::{Attribute, FunctionAttribute, SecondaryAttribute, TestScope},
+        parser::{Parser, ParserErrorReason, parser::tests::expect_no_errors},
+        token::{Attribute, CfgAttribute, FunctionAttribute, SecondaryAttribute, TestScope},
     };
 
     fn parse_inner_secondary_attribute_no_errors(src: &str, expected: SecondaryAttribute) {
@@ -413,7 +460,7 @@ mod tests {
 
     fn parse_attribute_no_errors(src: &str, expected: Attribute) {
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
+        let (attribute, _location) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         assert_eq!(attribute, expected);
     }
@@ -583,7 +630,7 @@ mod tests {
     fn parses_meta_attribute_single_identifier_no_arguments() {
         let src = "#[foo]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
+        let (attribute, _location) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
             panic!("Expected meta attribute");
@@ -596,7 +643,7 @@ mod tests {
     fn parses_meta_attribute_single_identifier_as_keyword() {
         let src = "#[dep]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
+        let (attribute, _location) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
             panic!("Expected meta attribute");
@@ -609,7 +656,7 @@ mod tests {
     fn parses_meta_attribute_single_identifier_with_arguments() {
         let src = "#[foo(1, 2, 3)]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
+        let (attribute, _location) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
             panic!("Expected meta attribute");
@@ -623,7 +670,7 @@ mod tests {
     fn parses_meta_attribute_path_with_arguments() {
         let src = "#[foo::bar(1, 2, 3)]";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
+        let (attribute, _location) = parser.parse_attribute().unwrap();
         expect_no_errors(&parser.errors);
         let Attribute::Secondary(SecondaryAttribute::Meta(meta)) = attribute else {
             panic!("Expected meta attribute");
@@ -631,6 +678,46 @@ mod tests {
         assert_eq!(meta.name.to_string(), "foo::bar");
         assert_eq!(meta.arguments.len(), 3);
         assert_eq!(meta.arguments[0].to_string(), "1");
+    }
+
+    #[test]
+    fn parses_cfg_feature() {
+        let src = "#[cfg(feature = \"foo\")]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _location) = parser.parse_attribute().unwrap();
+        expect_no_errors(&parser.errors);
+        let Attribute::Secondary(SecondaryAttribute::Cfg(cfg_attribute)) = attribute else {
+            panic!("Expected cfg attribute");
+        };
+        let CfgAttribute::Feature { name: feature_name, location: _ } = cfg_attribute;
+        assert_eq!(feature_name, "foo");
+    }
+
+    #[test]
+    fn parse_failure_cfg_non_feature() {
+        let src = "#[cfg(feature_typo = \"foo\")]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let parse_attribute_result = parser.parse_attribute();
+        assert!(parse_attribute_result.is_some());
+        assert_eq!(parser.errors.len(), 1);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::DisallowedCfgAttributeContents { .. })
+        ));
+    }
+
+    #[test]
+    fn parsing_cfg_feature_allows_empty_string() {
+        let src = "#[cfg(feature = \"\")]";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let (attribute, _location) = parser.parse_attribute().unwrap();
+        match attribute {
+            Attribute::Secondary(SecondaryAttribute::Cfg(CfgAttribute::Feature {
+                name, ..
+            })) => assert_eq!(name, String::new()),
+            other => panic!("expected an CfgAttribute::Feature, but found {other:?}"),
+        }
+        expect_no_errors(&parser.errors);
     }
 
     #[test]

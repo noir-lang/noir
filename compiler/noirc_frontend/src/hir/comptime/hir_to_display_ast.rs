@@ -540,7 +540,7 @@ impl HirBlockExpression {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> BlockExpression {
         let statements =
-            vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner));
+            vecmap(self.statements.clone(), |statement| statement.to_display_ast(interner).into());
         BlockExpression { statements }
     }
 }

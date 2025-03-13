@@ -1,4 +1,4 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
+use crate::ast::{CfgAttribute, Expression, Ident, IntegerBitSize, ItemVisibility};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
@@ -76,6 +76,12 @@ pub enum ParserErrorReason {
     TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
     TraitImplVisibilityIgnored,
+    #[error(
+        "Only one 'cfg' attribute is allowed, but found {cfg_attribute} and {second_cfg_attribute}"
+    )]
+    MultipleCfgAttributesFound { cfg_attribute: CfgAttribute, second_cfg_attribute: CfgAttribute },
+    #[error("Unexpected 'cfg' attribute contents: {ident}. Expected e.g. 'feature'")]
+    DisallowedCfgAttributeContents { ident: Ident },
     #[error("This requires the unstable feature '{0}' which is not enabled")]
     ExperimentalFeature(UnstableFeature),
     #[error(
