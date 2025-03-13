@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741872726613,
+  "lastUpdate": 1741875558141,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "95ac7a8477d16a293659fd1eca73ce12debd9968",
-          "message": "feat(cli): Log and replay oracle transcript (#7417)\n\nCo-authored-by: Tom French <tom@tomfren.ch>",
-          "timestamp": "2025-03-05T19:29:05Z",
-          "tree_id": "fac64a048b38da107475b30fa86d23928949430b",
-          "url": "https://github.com/noir-lang/noir/commit/95ac7a8477d16a293659fd1eca73ce12debd9968"
-        },
-        "date": 1741204577064,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.074,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.3,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.017,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.895,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.647,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.027,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "james.zaki@proton.me",
+            "name": "James Zaki",
+            "username": "jzaki"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d2dcce33577ea51d40eb98aa22371991b3747408",
+          "message": "chore: Update README.md to add trailing docs `/` (#7689)",
+          "timestamp": "2025-03-13T14:00:28Z",
+          "tree_id": "d110407760d69ba478e9c6fba0067f12d8cdf09b",
+          "url": "https://github.com/noir-lang/noir/commit/d2dcce33577ea51d40eb98aa22371991b3747408"
+        },
+        "date": 1741875555462,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.069,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.283,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.729,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.496,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
             "unit": "s"
           }
         ]
