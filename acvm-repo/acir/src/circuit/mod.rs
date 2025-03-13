@@ -572,7 +572,7 @@ mod tests {
         #[test]
         fn prop_program_msgpack_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = msgpack_serialize(&program)?;
+                let bz = msgpack_serialize(&program, false)?;
                 let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
@@ -612,7 +612,7 @@ mod tests {
         #[test]
         fn prop_witness_stack_msgpack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = msgpack_serialize(&witness)?;
+                let bz = msgpack_serialize(&witness, true)?;
                 let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
@@ -652,7 +652,7 @@ mod tests {
         #[test]
         fn prop_witness_map_msgpack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = msgpack_serialize(&witness)?;
+                let bz = msgpack_serialize(&witness, false)?;
                 let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())

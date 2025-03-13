@@ -19,19 +19,30 @@ pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std
 /// Serialize a value using MessagePack, based on `serde`.
 ///
 /// This format is compact can be configured to be backwards compatible.
+///
+/// When `compact` is `true`, it serializes structs as tuples, otherwise it writes their field names.
+/// Enums are always serialized with their variant names (despite what the library comments say, and it's not configurable).
+///
+/// Set `compact` to `true` if we want old readers to fail when a new field is added to a struct,
+/// that is, if we think that ignoring a new field could lead to incorrect behavior.
 #[allow(dead_code)]
-pub(crate) fn msgpack_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    // Could do this for the default behavior:
-    // rmp_serde::to_vec(self).map_err(std::io::Error::other)
-
-    // Or this to be able to configure the serialization:
-    // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
-    // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
-    // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-    let mut buf = Vec::new();
-    let mut ser = rmp_serde::Serializer::new(&mut buf).with_struct_map();
-    value.serialize(&mut ser).map_err(std::io::Error::other)?;
-    Ok(buf)
+pub(crate) fn msgpack_serialize<T: Serialize>(
+    value: &T,
+    compact: bool,
+) -> std::io::Result<Vec<u8>> {
+    if compact {
+        // The default behavior encodes struct fields as
+        rmp_serde::to_vec(value).map_err(std::io::Error::other)
+    } else {
+        // Or this to be able to configure the serialization:
+        // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
+        // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
+        // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
+        let mut buf = Vec::new();
+        let mut ser = rmp_serde::Serializer::new(&mut buf).with_struct_map();
+        value.serialize(&mut ser).map_err(std::io::Error::other)?;
+        Ok(buf)
+    }
 }
 
 /// Deserialize a value using MessagePack, based on `serde`.
@@ -67,75 +78,142 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::i32;
-
     use crate::serialization::{msgpack_deserialize, msgpack_serialize};
 
-    /// Test that the MessagePack encoding we use is backwards for the cases we care about:
+    mod version1 {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+        pub(crate) enum Foo {
+            Case0 { d: u32 },
+            Case1 { a: u64, b: bool },
+            Case2 { a: i32 },
+            Case3 { a: bool },
+            Case4 { a: Box<Foo> },
+            Case5 { a: u32, b: Option<u32> },
+        }
+    }
+
+    mod version2 {
+        use serde::{Deserialize, Serialize};
+
+        // Removed variants and fields
+        #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+        pub(crate) enum Foo {
+            // removed
+            // Case0 { .. },
+            // unchanged, but position shifted
+            Case1 {
+                a: u64,
+                b: bool,
+            },
+            // new prefix field
+            Case2 {
+                b: String,
+                a: i32,
+            },
+            // new suffix field
+            Case3 {
+                a: bool,
+                b: String,
+            },
+            // reordered, optional removed
+            Case5 {
+                a: u32,
+            },
+            // reordered, field renamed
+            Case4 {
+                #[serde(rename = "a")]
+                c: Box<Foo>,
+            },
+            // new
+            Case6 {
+                b: i64,
+            },
+            // new, now more variants than before
+            Case7 {
+                c: bool,
+            },
+        }
+    }
+
+    /// Test that the `msgpack_serialize` is backwards compatible:
     /// * removal of an enum variant (e.g. opcode no longer in use)
-    ///
-    /// Things we could make backwards compatible but we don't necessarily want to:
-    /// * struct fields added: the old reader could ignore new fields, but this would potentially lead to unintended behavior
-    /// * struct fields reordered: this can be achieved if the previous point is acceptable
+    /// * struct fields added: the old reader ignores new fields, but this could potentially lead to invalid behavior
+    /// * struct fields reordered: trivial because fields are named
     /// * struct fields renamed: this would work with positional encoding, or using `#[serde(rename)]`
     #[test]
-    fn msgpack_encodes_variant_name() {
-        mod version1 {
-            use serde::{Deserialize, Serialize};
+    fn msgpack_serialize_backwards_compatibility() {
+        let cases = vec![
+            (version2::Foo::Case1 { b: true, a: 1 }, version1::Foo::Case1 { b: true, a: 1 }),
+            (version2::Foo::Case2 { b: "prefix".into(), a: 2 }, version1::Foo::Case2 { a: 2 }),
+            (
+                version2::Foo::Case3 { a: true, b: "suffix".into() },
+                version1::Foo::Case3 { a: true },
+            ),
+            (
+                version2::Foo::Case4 { c: Box::new(version2::Foo::Case1 { a: 4, b: false }) },
+                version1::Foo::Case4 { a: Box::new(version1::Foo::Case1 { a: 4, b: false }) },
+            ),
+            (version2::Foo::Case5 { a: 5 }, version1::Foo::Case5 { a: 5, b: None }),
+        ];
 
-            #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-            pub(crate) enum Foo {
-                Bar { a: u64, b: String },
-                Baz { c: i32 },
-                Qux { d: Option<u32>, e: bool },
+        for (i, (v2, v1)) in cases.into_iter().enumerate() {
+            let bz = msgpack_serialize(&v2, false).unwrap();
+            let v = msgpack_deserialize::<version1::Foo>(&bz)
+                .unwrap_or_else(|e| panic!("case {i} failed: {e}"));
+            assert_eq!(v, v1);
+        }
+    }
+
+    /// Test that the `msgpack_serialize_compact` is backwards compatible for a subset of the cases:
+    /// * removal of an enum variant (e.g. opcode no longer in use)
+    /// * struct fields renamed: accepted because position based
+    /// And rejects cases which could lead to unintended behavior:
+    /// * struct fields added: rejected because the number of fields change
+    /// * struct fields reordered: rejected because fields are position based
+    #[test]
+    fn msgpack_serialize_compact_backwards_compatibility() {
+        let cases = vec![
+            (version2::Foo::Case1 { b: true, a: 1 }, version1::Foo::Case1 { b: true, a: 1 }, None),
+            (
+                version2::Foo::Case2 { b: "prefix".into(), a: 2 },
+                version1::Foo::Case2 { a: 2 },
+                Some("wrong msgpack marker FixStr(6)"),
+            ),
+            (
+                version2::Foo::Case3 { a: true, b: "suffix".into() },
+                version1::Foo::Case3 { a: true },
+                Some("array had incorrect length, expected 1"),
+            ),
+            (
+                version2::Foo::Case4 { c: Box::new(version2::Foo::Case1 { a: 4, b: false }) },
+                version1::Foo::Case4 { a: Box::new(version1::Foo::Case1 { a: 4, b: false }) },
+                None,
+            ),
+            (
+                version2::Foo::Case5 { a: 5 },
+                version1::Foo::Case5 { a: 5, b: None },
+                Some("invalid length 1, expected struct variant Foo::Case5 with 2 elements"),
+            ),
+        ];
+
+        for (i, (v2, v1, ex)) in cases.into_iter().enumerate() {
+            let bz = msgpack_serialize(&v2, true).unwrap();
+            let res = msgpack_deserialize::<version1::Foo>(&bz);
+            match (res, ex) {
+                (Ok(v), None) => {
+                    assert_eq!(v, v1);
+                }
+                (Ok(_), Some(ex)) => panic!("case {i} expected to fail with {ex}"),
+                (Err(e), None) => panic!("case {i} expected to pass; got {e}"),
+                (Err(e), Some(ex)) => {
+                    let e = e.to_string();
+                    if !e.contains(ex) {
+                        panic!("case {i} error expected to contain {ex}; got {e}")
+                    }
+                }
             }
         }
-
-        mod version2 {
-            use serde::{Deserialize, Serialize};
-
-            // Removed `Bar` and `Qux::e`.
-            #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-            pub(crate) enum Foo {
-                Baz { c: i32 },
-                Qux { e: bool },
-            }
-        }
-
-        mod version3 {
-            use serde::{Deserialize, Serialize};
-
-            // Added `Baz::f` and `Qux::q`.
-            #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-            pub(crate) enum Foo {
-                Baz {
-                    f: String,
-                    c: i32,
-                },
-                Qux {
-                    #[serde(rename = "e")]
-                    h: bool,
-                    g: String,
-                },
-            }
-        }
-
-        // If the enum encoding was position based, this would fail.
-        let bz = msgpack_serialize(&version2::Foo::Baz { c: i32::MAX }).unwrap();
-        let v = msgpack_deserialize::<version1::Foo>(&bz).expect("removed enum variant");
-        assert_eq!(v, version1::Foo::Baz { c: i32::MAX });
-
-        // If the struct field encoding was position based, this would fail.
-        let bz =
-            msgpack_serialize(&version3::Foo::Baz { f: "prefix".into(), c: i32::MAX }).unwrap();
-        let v = msgpack_deserialize::<version1::Foo>(&bz)
-            .expect("adding a new field before an existing one");
-        assert_eq!(v, version1::Foo::Baz { c: i32::MAX });
-
-        // If the struct field encoding was position based, this would fail.
-        let bz = msgpack_serialize(&version3::Foo::Qux { h: true, g: "suffix".into() }).unwrap();
-        let v = msgpack_deserialize::<version1::Foo>(&bz)
-            .expect("adding a new field at the end and omit optional");
-        assert_eq!(v, version1::Foo::Qux { d: None, e: true });
     }
 }
