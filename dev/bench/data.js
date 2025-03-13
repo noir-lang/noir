@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741871801751,
+  "lastUpdate": 1741872111149,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a7fa75640d2c7b990a4ad912266defabe9651919",
-          "message": "chore(profiler): Add option to only get the total sample count for the `execution-opcodes` command (#7578)",
-          "timestamp": "2025-03-05T15:10:19Z",
-          "tree_id": "4d54e7c5c6e3ad59f76a2bffd0d71179622f4d95",
-          "url": "https://github.com/noir-lang/noir/commit/a7fa75640d2c7b990a4ad912266defabe9651919"
-        },
-        "date": 1741188921137,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.5,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 273.89,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 516.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 425.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 289.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.34,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/99830073ec96932948bbdec7a269f025e0bac136"
         },
         "date": 1741812635879,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 296.92,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "94e1a9915db5cd9602f6b613a32b52a8f6ebe753",
+          "message": "feat(ssa): Post dominator tree (#7595)\n\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>",
+          "timestamp": "2025-03-13T12:49:10Z",
+          "tree_id": "67bb15521a72d8d5ac6a3f69fd2a7f9c0c4faf0f",
+          "url": "https://github.com/noir-lang/noir/commit/94e1a9915db5cd9602f6b613a32b52a8f6ebe753"
+        },
+        "date": 1741872108250,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
