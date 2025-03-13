@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["collect_errors","compile_contract","compile_program","compile_program_with_debug_instrumenter","compile_workspace","report_errors"]};

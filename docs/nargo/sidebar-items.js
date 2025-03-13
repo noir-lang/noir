@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["insert_all_files_for_package_into_file_manager","insert_all_files_for_packages_dependencies_into_file_manager","insert_all_files_for_workspace_into_file_manager","insert_all_files_for_workspace_into_file_manager_with_overrides","parse_all","prepare_dependencies","prepare_package"],"mod":["constants","errors","foreign_calls","ops","package","workspace"]};
+window.SIDEBAR_ITEMS = {"constant":["PANIC_MESSAGE"],"fn":["main","setup_tracing"],"mod":["cli","errors"]};

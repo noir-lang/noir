@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Dependency","PackageType"],"struct":["CrateName","Package"]};

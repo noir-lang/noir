@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CompileError","ExecutionError","NargoError"],"fn":["extract_locations_from_error","extract_message_from_error","try_to_diagnose_runtime_error"],"struct":["Location"]};
+window.SIDEBAR_ITEMS = {"enum":["CliError"]};
