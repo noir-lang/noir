@@ -38,6 +38,7 @@ collect_dirs compile_success_no_bug
 collect_dirs compile_success_with_bug
 collect_dirs execution_success
 collect_dirs noir_test_success
+collect_dirs fuzzing_failure
 
 echo "]" >> Nargo.toml
 
