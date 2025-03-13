@@ -652,7 +652,7 @@ mod tests {
         let main = ssa.main();
         let mut dt = DominatorTree::with_function(&main);
 
-        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+        let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
         // Dominance matrix:
         // ✓: Row item dominates column item
         //    b0  b1  b2  b3  b4  b5
@@ -703,7 +703,7 @@ mod tests {
 
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
 
-        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+        let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
         // Post-dominance matrix:
         // ✓: Row item post-dominates column item
@@ -765,7 +765,7 @@ mod tests {
         let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
 
-        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+        let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
         // b0 is the entry block which dominates all other blocks
         // Thus, it has an empty set for its dominance frontier
@@ -796,7 +796,7 @@ mod tests {
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
-        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+        let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
         // Another way to think about the post-dominator frontier (PDF) for a node n,
         // is that we can reach a block in the PDF during execution without going through n.
