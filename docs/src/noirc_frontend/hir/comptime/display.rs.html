@@ -958,7 +958,10 @@
 <a href="#957" id="957">957</a>
 <a href="#958" id="958">958</a>
 <a href="#959" id="959">959</a>
-<a href="#960" id="960">960</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1245,7 +1248,6 @@
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(<span class="kw">_</span>)
-            | Token::LineComment(..)
             | Token::BlockComment(..)
             | Token::AttributeStart { .. }
             | Token::Invalid(<span class="kw">_</span>) =&gt; {
@@ -1253,6 +1255,10 @@
                     <span class="macro">write!</span>(f, <span class="string">" "</span>)<span class="question-mark">?</span>;
                 }
                 <span class="macro">write!</span>(f, <span class="string">"{token}"</span>)
+            }
+            Token::LineComment(..) =&gt; {
+                <span class="macro">writeln!</span>(f, <span class="string">"{token}"</span>)<span class="question-mark">?</span>;
+                <span class="self">self</span>.write_indent(f)
             }
             Token::EOF =&gt; <span class="prelude-val">Ok</span>(()),
         }
