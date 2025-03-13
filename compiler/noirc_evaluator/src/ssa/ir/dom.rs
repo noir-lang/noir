@@ -327,7 +327,6 @@ impl DominatorTree {
 mod tests {
     use std::cmp::Ordering;
 
-    use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
     use iter_extended::vecmap;
 
     use crate::ssa::{
