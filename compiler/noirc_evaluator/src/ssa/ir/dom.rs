@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -276,18 +276,65 @@ impl DominatorTree {
         debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
         block_a_id
     }
+
+    /// Computes the dominance frontier for all blocks in the dominator tree.
+    ///
+    /// This method uses the algorithm specified under Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
+    /// As referenced in the paper a dominance frontier is the set of all CFG nodes, y, such that
+    /// b dominates a predecessor of y but does not strictly dominate y.
+    ///
+    /// This method expects the appropriate CFG depending on whether we are operating over
+    /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
+    /// Calling this method on a dominator tree will return a function's dominance frontiers,
+    /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
+    pub(crate) fn compute_dominance_frontiers(
+        &mut self,
+        cfg: &ControlFlowGraph,
+    ) -> HashMap<BasicBlockId, HashSet<BasicBlockId>> {
+        let mut dominance_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>> =
+            HashMap::default();
+
+        let nodes = self.nodes.keys().copied().collect::<Vec<_>>();
+        for block_id in nodes {
+            let predecessors = cfg.predecessors(block_id);
+            // Dominance frontier nodes must have more than one predecessor
+            if predecessors.len() > 1 {
+                // Iterate over the predecessors of the current block
+                for pred_id in predecessors {
+                    let mut runner = pred_id;
+                    // We start by checking if the current block dominates the predecessor
+                    while let Some(immediate_dominator) = self.immediate_dominator(block_id) {
+                        if immediate_dominator != runner && !self.dominates(block_id, runner) {
+                            dominance_frontiers.entry(runner).or_default().insert(block_id);
+                            let Some(runner_immediate_dom) = self.immediate_dominator(runner)
+                            else {
+                                break;
+                            };
+                            runner = runner_immediate_dom;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        dominance_frontiers
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::cmp::Ordering;
 
+    use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+    use iter_extended::vecmap;
+
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::BasicBlockId, call_stack::CallStackId, dom::DominatorTree,
-            function::Function, instruction::TerminatorInstruction, map::Id, types::Type,
-        },
+            basic_block::{BasicBlock, BasicBlockId}, call_stack::CallStackId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type
+        }, ssa_gen::Ssa,
     };
 
     #[test]
@@ -540,6 +587,228 @@ mod tests {
         assert!(post_dom.dominates(block2_id, block0_id));
         assert!(!post_dom.dominates(block2_id, block1_id));
         assert!(post_dom.dominates(block2_id, block2_id));
+    }
+
+    #[test]
+    fn dom_frontiers_backwards_layout() {
+        let (func, ..) = backwards_layout_setup();
+        let mut dt = DominatorTree::with_function(&func);
+
+        let cfg = ControlFlowGraph::with_function(&func);
+        let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
+        assert!(dom_frontiers.is_empty());
+    }
+
+    #[test]
+    fn post_dom_frontiers_backwards_layout() {
+        let (func, ..) = backwards_layout_setup();
+        let mut post_dom = DominatorTree::with_function_post_dom(&func);
+
+        let cfg = ControlFlowGraph::with_function(&func);
+        let dom_frontiers = post_dom.compute_dominance_frontiers(&cfg);
+        assert!(dom_frontiers.is_empty());
+    }
+
+    fn loop_with_cond() -> Ssa {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v1: u32, v2: u32):
+            v5 = eq v1, u32 5
+            jmp b1(u32 0)
+          b1(v3: u32):
+            v8 = lt v3, u32 4
+            jmpif v8 then: b2, else: b3
+          b2():
+            jmpif v5 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v9 = mul u32 4294967295, v2
+            constrain v9 == u32 12
+            jmp b5()
+          b5():
+            v12 = unchecked_add v3, u32 1
+            jmp b1(v12)
+        }
+        ";
+        Ssa::from_str(src).unwrap()
+    }
+
+    #[test]
+    fn dom_loop_with_cond() {
+        let ssa = loop_with_cond();
+        let main = ssa.main();
+        let mut dt = DominatorTree::with_function(&main);
+
+        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+        // Dominance matrix:
+        // ✓: Row item dominates column item
+        //    b0  b1  b2  b3  b4  b5
+        // b0 ✓   ✓   ✓   ✓   ✓   ✓
+        // b1     ✓   ✓   ✓   ✓   ✓
+        // b2         ✓       ✓   ✓
+        // b3             ✓
+        // b4                 ✓
+        // b5                     ✓
+
+        assert!(dt.dominates(blocks[0], blocks[0]));
+        assert!(dt.dominates(blocks[0], blocks[1]));
+        assert!(dt.dominates(blocks[0], blocks[2]));
+        assert!(dt.dominates(blocks[0], blocks[3]));
+        assert!(dt.dominates(blocks[0], blocks[4]));
+        assert!(dt.dominates(blocks[0], blocks[5]));
+
+        assert!(!dt.dominates(blocks[1], blocks[0]));
+        assert!(dt.dominates(blocks[1], blocks[1]));
+        assert!(dt.dominates(blocks[1], blocks[2]));
+        assert!(dt.dominates(blocks[1], blocks[3]));
+        assert!(dt.dominates(blocks[1], blocks[4]));
+        assert!(dt.dominates(blocks[1], blocks[5]));
+
+        assert!(!dt.dominates(blocks[2], blocks[0]));
+        assert!(!dt.dominates(blocks[2], blocks[1]));
+        assert!(dt.dominates(blocks[2], blocks[2]));
+        assert!(!dt.dominates(blocks[2], blocks[3]));
+        assert!(dt.dominates(blocks[2], blocks[4]));
+        assert!(dt.dominates(blocks[2], blocks[5]));
+
+        for block in [3, 4, 5] {
+            for i in 0..6 {
+                // We expect `block` to not dominate any blocks except itself
+                assert_eq!(dt.dominates(blocks[block], blocks[i]), i == block);
+            }
+        }
+    }
+
+    #[test]
+    fn post_dom_loop_with_cond() {
+        let ssa = loop_with_cond();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let reversed_cfg = cfg.reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+
+        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        
+        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+
+        // Post-dominance matrix:
+        // ✓: Row item post-dominates column item
+        //    b0  b1  b2  b3  b4  b5
+        // b0 ✓
+        // b1 ✓   ✓   ✓       ✓   ✓
+        // b2         ✓
+        // b3 ✓   ✓   ✓   ✓   ✓   ✓
+        // b4                 ✓
+        // b5         ✓       ✓   ✓
+
+        // b0 is the entry node, thus it does not post-dominate anything except itself
+        //
+        // b2 and b4 are leaves in the post-dominator tree. There are no nodes that must pass through
+        // those blocks to reach the exit node.
+        // The dominator tree computation does not recognize that the loop has constant bounds,
+        // so it will still account for the jmpif in b1 and the possibility of skipping b2.
+        for block in [0, 2, 4] {
+            for i in 0..6 {
+                // We expect `block` to not dominate any blocks except itself
+                assert_eq!(post_dom.dominates(blocks[block], blocks[i]), i == block);
+            }
+        }
+
+        // All nodes except the exit node b3, must pass through b1 to reach the exit node
+        assert!(post_dom.dominates(blocks[1], blocks[0]));
+        assert!(post_dom.dominates(blocks[1], blocks[1]));
+        assert!(post_dom.dominates(blocks[1], blocks[2]));
+        assert!(!post_dom.dominates(blocks[1], blocks[3]));
+        assert!(post_dom.dominates(blocks[1], blocks[4]));
+        assert!(post_dom.dominates(blocks[1], blocks[5]));
+        
+
+        // Starting from the exit node b3 which should be the root of the post-dominator tree
+        assert!(post_dom.dominates(blocks[3], blocks[0]));
+        assert!(post_dom.dominates(blocks[3], blocks[1]));
+        assert!(post_dom.dominates(blocks[3], blocks[2]));
+        assert!(post_dom.dominates(blocks[3], blocks[3]));
+        assert!(post_dom.dominates(blocks[3], blocks[4]));
+        assert!(post_dom.dominates(blocks[3], blocks[5]));
+
+        // Every block except for the loop header b1, the exit node b3, and the entry node b0,
+        // must pass through the loop exit, b5, to reach the exit node
+        assert!(!post_dom.dominates(blocks[5], blocks[0]));
+        assert!(!post_dom.dominates(blocks[5], blocks[1]));
+        assert!(post_dom.dominates(blocks[5], blocks[2]));
+        assert!(!post_dom.dominates(blocks[5], blocks[3]));
+        assert!(post_dom.dominates(blocks[5], blocks[4]));
+        assert!(post_dom.dominates(blocks[5], blocks[5]));
+    }
+
+    #[test]
+    fn dom_frontiers() {
+        let ssa = loop_with_cond();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let post_order = PostOrder::with_cfg(&cfg);
+
+        let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
+
+        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+
+        // b0 is the entry block which dominates all other blocks
+        // Thus, it has an empty set for its dominance frontier
+        assert!(!dom_frontiers.contains_key(&blocks[0]));
+        assert!(!dom_frontiers.contains_key(&blocks[1]));
+        assert!(!dom_frontiers.contains_key(&blocks[2]));
+        // b3 is the exit block which does not dominate any blocks
+        assert!(!dom_frontiers.contains_key(&blocks[3]));
+
+        // b4 has DF { b5 } because b4 jumps to b5 (thus being a predecessor to b5)
+        // b4 dominates itself but b5 is not strictly dominated by b4.
+        let b4_df = &dom_frontiers[&blocks[4]];
+        assert_eq!(b4_df.len(), 1);
+        assert!(b4_df.contains(&blocks[5]));
+
+        assert!(!dom_frontiers.contains_key(&blocks[5]));
+    }
+
+    #[test]
+    fn post_dom_frontiers() {
+        let ssa = loop_with_cond();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let reversed_cfg = cfg.reverse();
+        let post_order = PostOrder::with_cfg(&reversed_cfg);
+
+        let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+
+        let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
+
+        // Another way to think about the post-dominator frontier for a node n,
+        // is that we can reach a block in the PDF during execution without going through n.
+
+        // b0 is the entry node of the program and the exit block of the post-dominator tree.
+        // Thus, it has an empty set for its post-dominance frontier (PDF)
+        assert!(!post_dom_frontiers.contains_key(&blocks[0]));
+        // We must go through b1 and b2 to reach the exist node
+        assert!(!post_dom_frontiers.contains_key(&blocks[1]));
+        assert!(!post_dom_frontiers.contains_key(&blocks[2]));
+
+        // b3 is the exit block of the program, but the starting node of the post-dominator tree
+        // Thus, it has an empty PDF
+        assert!(!post_dom_frontiers.contains_key(&blocks[3]));
+
+        // b4 has DF { b2 } because b2 post-dominates itself and is a predecessor to b4.
+        // b2 does not strictly post-dominate b4.
+        let b4_pdf = &post_dom_frontiers[&blocks[4]];
+        assert_eq!(b4_pdf.len(), 1);
+        assert!(b4_pdf.contains(&blocks[2]));
+
+        // Must go through b5 to reach the exit node
+        assert!(!post_dom_frontiers.contains_key(&blocks[5]));
     }
 
     #[test]
