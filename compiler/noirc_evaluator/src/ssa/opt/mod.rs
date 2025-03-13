@@ -61,9 +61,12 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     ssa.normalize_ids();
 
     let ssa = ssa.to_string();
+    let ssa = ssa.trim_end();
 
     let expected_ssa = expected_ssa.to_string();
-    if ssa == expected_ssa {
+    let expected_ssa = expected_ssa.trim_end();
+
+    if ssa == expected_ssa || ssa == expected {
         return;
     }
 
