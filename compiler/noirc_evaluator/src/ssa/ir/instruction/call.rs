@@ -751,10 +751,10 @@ mod tests {
         let src = r#"
             brillig(inline) fn main func {
               block():
-                domain = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                result = call derive_pedersen_generators(domain, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
 
                 return result
             }
@@ -764,7 +764,7 @@ mod tests {
         let expected = r#"
             brillig(inline) fn main func {
               block():
-                domain = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
                 result = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
                 return result
             }
