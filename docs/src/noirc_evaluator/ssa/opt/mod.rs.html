@@ -57,7 +57,28 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -91,29 +112,50 @@
 <span class="kw">mod </span>unrolling;
 
 <span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
-/// is equal to the expected strings. Normalization is done so the IDs don't
+/// is equal to the expected string. Normalization is done so the IDs don't
 /// shift depending on whether temporary intermediate values were created.
 </span><span class="attr">#[cfg(test)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_normalized_ssa_equals(<span class="kw-2">mut </span>ssa: <span class="kw">super</span>::Ssa, expected: <span class="kw-2">&amp;</span>str) {
+    <span class="kw">use crate</span>::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
+
+    <span class="comment">// Clean up the expected SSA a bit
+    </span><span class="kw">let </span>expected = trim_leading_whitespace_from_lines(expected);
+    <span class="kw">let </span>expected = trim_comments_from_lines(<span class="kw-2">&amp;</span>expected);
+
     <span class="comment">// First check if `expected` is valid SSA by parsing it, otherwise
     // the comparison will always fail but it won't be clear that it's because
     // expected is not valid.
-    </span><span class="kw">if let </span><span class="prelude-val">Err</span>(err) = Ssa::from_str(expected) {
-        <span class="macro">panic!</span>(<span class="string">"`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}"</span>, err);
-    }
+    </span><span class="kw">let </span><span class="kw-2">mut </span>expected_ssa = <span class="kw">match </span>Ssa::from_str(<span class="kw-2">&amp;</span>expected) {
+        <span class="prelude-val">Ok</span>(ssa) =&gt; ssa,
+        <span class="prelude-val">Err</span>(err) =&gt; {
+            <span class="macro">panic!</span>(<span class="string">"`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}"</span>, err)
+        }
+    };
 
-    <span class="kw">use crate</span>::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
+    <span class="comment">// We won't exactly compare `expected` against `ssa`:
+    // we parse it, normalize it and turn it back into a string.
+    // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
+    // which is what the SSA printer produces.
+    </span>expected_ssa.normalize_ids();
 
     ssa.normalize_ids();
 
     <span class="kw">let </span>ssa = ssa.to_string();
-    <span class="kw">let </span>ssa = trim_leading_whitespace_from_lines(<span class="kw-2">&amp;</span>ssa);
-    <span class="kw">let </span>expected = trim_leading_whitespace_from_lines(expected);
-    <span class="kw">let </span>expected = trim_comments_from_lines(<span class="kw-2">&amp;</span>expected);
+    <span class="kw">let </span>ssa = ssa.trim_end();
 
-    <span class="kw">if </span>ssa != expected {
-        <span class="macro">println!</span>(<span class="string">"Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{ssa}\n~~~"</span>);
-        <span class="macro">similar_asserts::assert_eq!</span>(expected, ssa);
+    <span class="kw">let </span>expected_ssa = expected_ssa.to_string();
+    <span class="kw">let </span>expected_ssa = expected_ssa.trim_end();
+
+    <span class="kw">if </span>ssa == expected_ssa {
+        <span class="kw">return</span>;
     }
+
+    <span class="kw">if </span>expected != expected_ssa {
+        <span class="macro">println!</span>(<span class="string">"Expected (before ID normalization):\n~~~\n{expected}\n~~~\n"</span>);
+    }
+
+    <span class="macro">println!</span>(<span class="string">"Expected (after ID normalization):\n~~~\n{expected_ssa}\n~~~\n"</span>);
+    <span class="macro">println!</span>(<span class="string">"Got:\n~~~\n{ssa}\n~~~"</span>);
+    <span class="macro">similar_asserts::assert_eq!</span>(expected_ssa, ssa);
 }
 </code></pre></div></section></main></body></html>

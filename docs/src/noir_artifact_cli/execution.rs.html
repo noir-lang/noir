@@ -133,7 +133,10 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::BlackBoxFunctionSolver;
@@ -223,6 +226,9 @@
     <span class="comment">// Save first, so that we can potentially look at the output if the expectations fail.
     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(witness_dir) = witness_dir {
         save_witness(<span class="kw-2">&amp;</span>results.witness_stack, circuit_name, witness_dir, witness_name)<span class="question-mark">?</span>;
+    }
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>return_value) = results.return_values.actual_return {
+        <span class="macro">println!</span>(<span class="string">"[{}] Circuit output: {return_value:?}"</span>, circuit_name);
     }
     check_witness(circuit, results.return_values)
 }
