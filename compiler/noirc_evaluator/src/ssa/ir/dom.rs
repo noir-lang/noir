@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
@@ -287,6 +287,7 @@ impl DominatorTree {
     /// a dominator tree (standard CFG) or a post-dominator tree (reversed CFG).
     /// Calling this method on a dominator tree will return a function's dominance frontiers,
     /// while on a post-dominator tree the method will return the function's reverse (or post) dominance frontiers.
+    #[cfg(test)]
     pub(crate) fn compute_dominance_frontiers(
         &mut self,
         cfg: &ControlFlowGraph,
@@ -333,8 +334,17 @@ mod tests {
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
-            basic_block::{BasicBlock, BasicBlockId}, call_stack::CallStackId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function, instruction::TerminatorInstruction, map::Id, post_order::PostOrder, types::Type
-        }, ssa_gen::Ssa,
+            basic_block::{BasicBlock, BasicBlockId},
+            call_stack::CallStackId,
+            cfg::ControlFlowGraph,
+            dom::DominatorTree,
+            function::Function,
+            instruction::TerminatorInstruction,
+            map::Id,
+            post_order::PostOrder,
+            types::Type,
+        },
+        ssa_gen::Ssa,
     };
 
     #[test]
@@ -690,7 +700,7 @@ mod tests {
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
-        
+
         let blocks = vecmap(0..6, |index| Id::<BasicBlock>::test_new(index));
 
         // Post-dominance matrix:
@@ -723,7 +733,6 @@ mod tests {
         assert!(!post_dom.dominates(blocks[1], blocks[3]));
         assert!(post_dom.dominates(blocks[1], blocks[4]));
         assert!(post_dom.dominates(blocks[1], blocks[5]));
-        
 
         // Starting from the exit node b3 which should be the root of the post-dominator tree
         assert!(post_dom.dominates(blocks[3], blocks[0]));
