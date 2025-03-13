@@ -477,7 +477,7 @@ mod tests {
         dt.dominates(b2, b1);
     }
 
-    fn backwards_layout_setup() -> (Function, BasicBlockId, BasicBlockId, BasicBlockId) {
+    fn backwards_layout_setup() -> Function {
         // func {
         //   block0():
         //     jmp block2()
@@ -499,14 +499,13 @@ mod tests {
 
         let ssa = builder.finish();
         let func = ssa.main().clone();
-        let block0_id = func.entry_block();
 
-        (func, block0_id, block1_id, block2_id)
+        func
     }
 
     #[test]
     fn backwards_layout() {
-        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
+        let func = backwards_layout_setup();
         let mut dt = DominatorTree::with_function(&func);
 
         // Expected dominance tree:
@@ -516,21 +515,23 @@ mod tests {
         //   }
         // }
 
-        assert_eq!(dt.immediate_dominator(block0_id), None);
-        assert_eq!(dt.immediate_dominator(block1_id), Some(block2_id));
-        assert_eq!(dt.immediate_dominator(block2_id), Some(block0_id));
+        let blocks = vecmap(0..3, Id::<BasicBlock>::test_new);
 
-        assert_eq!(dt.reverse_post_order_cmp(block0_id, block0_id), Ordering::Equal);
-        assert_eq!(dt.reverse_post_order_cmp(block0_id, block1_id), Ordering::Less);
-        assert_eq!(dt.reverse_post_order_cmp(block0_id, block2_id), Ordering::Less);
+        assert_eq!(dt.immediate_dominator(blocks[0]), None);
+        assert_eq!(dt.immediate_dominator(blocks[1]), Some(blocks[2]));
+        assert_eq!(dt.immediate_dominator(blocks[2]), Some(blocks[0]));
 
-        assert_eq!(dt.reverse_post_order_cmp(block1_id, block0_id), Ordering::Greater);
-        assert_eq!(dt.reverse_post_order_cmp(block1_id, block1_id), Ordering::Equal);
-        assert_eq!(dt.reverse_post_order_cmp(block1_id, block2_id), Ordering::Greater);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[1]), Ordering::Less);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[2]), Ordering::Less);
 
-        assert_eq!(dt.reverse_post_order_cmp(block2_id, block0_id), Ordering::Greater);
-        assert_eq!(dt.reverse_post_order_cmp(block2_id, block1_id), Ordering::Less);
-        assert_eq!(dt.reverse_post_order_cmp(block2_id, block2_id), Ordering::Equal);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[0]), Ordering::Greater);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[2]), Ordering::Greater);
+
+        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[0]), Ordering::Greater);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[1]), Ordering::Less);
+        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
 
         // Dominance matrix:
         // ✓: Row item dominates column item
@@ -539,23 +540,19 @@ mod tests {
         // b1     ✓
         // b2     ✓   ✓
 
-        assert!(dt.dominates(block0_id, block0_id));
-        assert!(dt.dominates(block0_id, block1_id));
-        assert!(dt.dominates(block0_id, block2_id));
+        let dominance_matrix =
+            vec![vec![true, true, true], vec![false, true, false], vec![false, true, true]];
 
-        assert!(!dt.dominates(block1_id, block0_id));
-        assert!(dt.dominates(block1_id, block1_id));
-        assert!(!dt.dominates(block1_id, block2_id));
-
-        assert!(!dt.dominates(block2_id, block0_id));
-        assert!(dt.dominates(block2_id, block1_id));
-        assert!(dt.dominates(block2_id, block2_id));
+        for (i, row) in dominance_matrix.iter().enumerate() {
+            for (j, &expected_dominates) in row.iter().enumerate() {
+                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected_dominates);
+            }
+        }
     }
 
     #[test]
     fn post_dom_backwards_layout() {
-        let (func, block0_id, block1_id, block2_id) = backwards_layout_setup();
-
+        let func = backwards_layout_setup();
         let mut post_dom = DominatorTree::with_function_post_dom(&func);
 
         // Expected post-dominator tree:
@@ -565,21 +562,23 @@ mod tests {
         //   }
         // }
 
-        assert_eq!(post_dom.immediate_dominator(block1_id), None);
-        assert_eq!(post_dom.immediate_dominator(block2_id), Some(block1_id));
-        assert_eq!(post_dom.immediate_dominator(block0_id), Some(block2_id));
+        let blocks = vecmap(0..3, Id::<BasicBlock>::test_new);
 
-        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block0_id), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block1_id), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(block0_id, block2_id), Ordering::Greater);
+        assert_eq!(post_dom.immediate_dominator(blocks[0]), Some(blocks[2]));
+        assert_eq!(post_dom.immediate_dominator(blocks[1]), None);
+        assert_eq!(post_dom.immediate_dominator(blocks[2]), Some(blocks[1]));
 
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block0_id), Ordering::Less);
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block1_id), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(block1_id, block2_id), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[1]), Ordering::Greater);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[2]), Ordering::Greater);
 
-        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block0_id), Ordering::Less);
-        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block1_id), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(block2_id, block2_id), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[0]), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[2]), Ordering::Less);
+
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[0]), Ordering::Less);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[1]), Ordering::Greater);
+        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
 
         // Post-dominance matrix:
         // ✓: Row item post-dominates column item
@@ -588,22 +587,19 @@ mod tests {
         // b1 ✓   ✓   ✓
         // b2 ✓       ✓
 
-        assert!(post_dom.dominates(block0_id, block0_id));
-        assert!(!post_dom.dominates(block0_id, block1_id));
-        assert!(!post_dom.dominates(block0_id, block2_id));
+        let post_dominance_matrix =
+            vec![vec![true, false, false], vec![true, true, true], vec![true, false, true]];
 
-        assert!(post_dom.dominates(block1_id, block0_id));
-        assert!(post_dom.dominates(block1_id, block1_id));
-        assert!(post_dom.dominates(block1_id, block2_id));
-
-        assert!(post_dom.dominates(block2_id, block0_id));
-        assert!(!post_dom.dominates(block2_id, block1_id));
-        assert!(post_dom.dominates(block2_id, block2_id));
+        for (i, row) in post_dominance_matrix.iter().enumerate() {
+            for (j, &expected) in row.iter().enumerate() {
+                assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
+            }
+        }
     }
 
     #[test]
     fn dom_frontiers_backwards_layout() {
-        let (func, ..) = backwards_layout_setup();
+        let func = backwards_layout_setup();
         let mut dt = DominatorTree::with_function(&func);
 
         let cfg = ControlFlowGraph::with_function(&func);
@@ -613,7 +609,7 @@ mod tests {
 
     #[test]
     fn post_dom_frontiers_backwards_layout() {
-        let (func, ..) = backwards_layout_setup();
+        let func = backwards_layout_setup();
         let mut post_dom = DominatorTree::with_function_post_dom(&func);
 
         let cfg = ControlFlowGraph::with_function(&func);
@@ -623,7 +619,7 @@ mod tests {
 
     fn loop_with_cond() -> Ssa {
         let src = "
-        brillig(inline) predicate_pure fn main f0 {
+        brillig(inline) fn main f0 {
           b0(v1: u32, v2: u32):
             v5 = eq v1, u32 5
             jmp b1(u32 0)
@@ -663,31 +659,18 @@ mod tests {
         // b4                 ✓
         // b5                     ✓
 
-        assert!(dt.dominates(blocks[0], blocks[0]));
-        assert!(dt.dominates(blocks[0], blocks[1]));
-        assert!(dt.dominates(blocks[0], blocks[2]));
-        assert!(dt.dominates(blocks[0], blocks[3]));
-        assert!(dt.dominates(blocks[0], blocks[4]));
-        assert!(dt.dominates(blocks[0], blocks[5]));
+        let dominance_matrix = vec![
+            vec![true, true, true, true, true, true],
+            vec![false, true, true, true, true, true],
+            vec![false, false, true, false, true, true],
+            vec![false, false, false, true, false, false],
+            vec![false, false, false, false, true, false],
+            vec![false, false, false, false, false, true],
+        ];
 
-        assert!(!dt.dominates(blocks[1], blocks[0]));
-        assert!(dt.dominates(blocks[1], blocks[1]));
-        assert!(dt.dominates(blocks[1], blocks[2]));
-        assert!(dt.dominates(blocks[1], blocks[3]));
-        assert!(dt.dominates(blocks[1], blocks[4]));
-        assert!(dt.dominates(blocks[1], blocks[5]));
-
-        assert!(!dt.dominates(blocks[2], blocks[0]));
-        assert!(!dt.dominates(blocks[2], blocks[1]));
-        assert!(dt.dominates(blocks[2], blocks[2]));
-        assert!(!dt.dominates(blocks[2], blocks[3]));
-        assert!(dt.dominates(blocks[2], blocks[4]));
-        assert!(dt.dominates(blocks[2], blocks[5]));
-
-        for block in [3, 4, 5] {
-            for i in 0..6 {
-                // We expect `block` to not dominate any blocks except itself
-                assert_eq!(dt.dominates(blocks[block], blocks[i]), i == block);
+        for (i, row) in dominance_matrix.iter().enumerate() {
+            for (j, &expected_dominates) in row.iter().enumerate() {
+                assert_eq!(dt.dominates(blocks[i], blocks[j]), expected_dominates);
             }
         }
     }
@@ -705,6 +688,19 @@ mod tests {
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
+        // b0 is the entry node, thus it does not post-dominate anything except itself
+        //
+        // b2 and b4 are leaves in the post-dominator tree. There are no nodes that must pass through
+        // those blocks to reach the exit node.
+        // The dominator tree computation does not recognize that the loop has constant bounds,
+        // so it will still account for the jmpif in b1 and the possibility of skipping b2.
+        //
+        // All nodes except the exit node b3, must pass through b1 to reach the exit node.
+        //
+        // Starting from the exit node b3 which should be the root of the post-dominator tree
+        // Every block except for the loop header b1, the exit node b3, and the entry node b0,
+        // must pass through the loop exit, b5, to reach the exit node.
+        //
         // Post-dominance matrix:
         // ✓: Row item post-dominates column item
         //    b0  b1  b2  b3  b4  b5
@@ -715,43 +711,20 @@ mod tests {
         // b4                 ✓
         // b5         ✓       ✓   ✓
 
-        // b0 is the entry node, thus it does not post-dominate anything except itself
-        //
-        // b2 and b4 are leaves in the post-dominator tree. There are no nodes that must pass through
-        // those blocks to reach the exit node.
-        // The dominator tree computation does not recognize that the loop has constant bounds,
-        // so it will still account for the jmpif in b1 and the possibility of skipping b2.
-        for block in [0, 2, 4] {
-            for i in 0..6 {
-                // We expect `block` to not dominate any blocks except itself
-                assert_eq!(post_dom.dominates(blocks[block], blocks[i]), i == block);
+        let post_dominance_matrix = vec![
+            vec![true, false, false, false, false, false],
+            vec![true, true, true, false, true, true],
+            vec![false, false, true, false, false, false],
+            vec![true, true, true, true, true, true],
+            vec![false, false, false, false, true, false],
+            vec![false, false, true, false, true, true],
+        ];
+
+        for (i, row) in post_dominance_matrix.iter().enumerate() {
+            for (j, &expected) in row.iter().enumerate() {
+                assert_eq!(post_dom.dominates(blocks[i], blocks[j]), expected);
             }
         }
-
-        // All nodes except the exit node b3, must pass through b1 to reach the exit node
-        assert!(post_dom.dominates(blocks[1], blocks[0]));
-        assert!(post_dom.dominates(blocks[1], blocks[1]));
-        assert!(post_dom.dominates(blocks[1], blocks[2]));
-        assert!(!post_dom.dominates(blocks[1], blocks[3]));
-        assert!(post_dom.dominates(blocks[1], blocks[4]));
-        assert!(post_dom.dominates(blocks[1], blocks[5]));
-
-        // Starting from the exit node b3 which should be the root of the post-dominator tree
-        assert!(post_dom.dominates(blocks[3], blocks[0]));
-        assert!(post_dom.dominates(blocks[3], blocks[1]));
-        assert!(post_dom.dominates(blocks[3], blocks[2]));
-        assert!(post_dom.dominates(blocks[3], blocks[3]));
-        assert!(post_dom.dominates(blocks[3], blocks[4]));
-        assert!(post_dom.dominates(blocks[3], blocks[5]));
-
-        // Every block except for the loop header b1, the exit node b3, and the entry node b0,
-        // must pass through the loop exit, b5, to reach the exit node
-        assert!(!post_dom.dominates(blocks[5], blocks[0]));
-        assert!(!post_dom.dominates(blocks[5], blocks[1]));
-        assert!(post_dom.dominates(blocks[5], blocks[2]));
-        assert!(!post_dom.dominates(blocks[5], blocks[3]));
-        assert!(post_dom.dominates(blocks[5], blocks[4]));
-        assert!(post_dom.dominates(blocks[5], blocks[5]));
     }
 
     #[test]
