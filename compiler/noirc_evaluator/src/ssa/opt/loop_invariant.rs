@@ -181,6 +181,7 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
+            self.current_block_control_dependent = false;
             // The CFG will ultimately be entirely flattened in ACIR.
             // We can leave hoisting of instructions based upon predicates as part
             // of constant folding once we we have a flat CFG.
