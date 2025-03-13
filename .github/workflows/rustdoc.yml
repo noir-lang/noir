@@ -31,7 +31,7 @@ jobs:
         run: cargo doc --no-deps --workspace
 
       - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0;url=aoc/index.html">' > target/doc/index.html
+        run: echo '<meta http-equiv="refresh" content="0;url=nargo/index.html">' > target/doc/index.html
 
       - name: Remove lock file
         run: rm target/doc/.lock
@@ -59,8 +59,8 @@ jobs:
 
       - name: Configure git
         run: |
-          git config --global user.email "rustdoc"
-          git config --global user.name "github@users.noreply.github.com"
+          git config --global user.name "rustdoc"
+          git config --global user.email "github@users.noreply.github.com"
 
       - name: Commit new docs
         run: |
