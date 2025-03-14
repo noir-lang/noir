@@ -51,7 +51,7 @@ fn helper(mut x: i32) {
 
 ## Non-local mutability
 
-Non-local mutability can be achieved through the mutable reference type `&mut T`:
+Non-local mutability can be achieved through the [mutable reference type `&mut T`](./data_types/references.md):
 
 ```rust
 fn set_to_zero(x: &mut Field) {
