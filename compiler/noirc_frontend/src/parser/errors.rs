@@ -44,6 +44,8 @@ pub enum ParserErrorReason {
     InvalidPattern,
     #[error("Documentation comment does not document anything")]
     DocCommentDoesNotDocumentAnything,
+    #[error("Documentation comments cannot be applied to function parameters")]
+    DocCommentCannotBeAppliedToFunctionParameters,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
