@@ -214,8 +214,15 @@ fn run_async(
             }
 
             if let Some(witness_name) = witness_name {
-                let witness_path =
+                let mut witness_path =
                     save_witness_to_dir(&solved_witness_stack, witness_name, target_dir)?;
+
+                // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
+                if let Ok(current_dir) = std::env::current_dir() {
+                    if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
+                        witness_path = name_without_prefix.to_path_buf();
+                    }
+                }
 
                 println!("[{}] Witness saved to {}", package.name, witness_path.display());
             }
