@@ -193,6 +193,9 @@ mod reflection {
             let mut ns = self.namespace.clone();
             ns.push(name.to_string());
             let c = self.code.entry(ns).or_default();
+            if !c.is_empty() && code.contains('\n') {
+                c.push('\n');
+            }
             c.push_str(code);
             c.push('\n');
         }
@@ -241,40 +244,67 @@ mod reflection {
 
         /// Enums serialize as a single element map keyed by the variant type name.
         fn generate_enum(&mut self, name: &str, variants: &BTreeMap<u32, Named<VariantFormat>>) {
-            let cases = variants
-                .iter()
-                .map(|(i, v)| {
-                    format!(
-                        "
-        case {i}:
-            tag = \"{}\";
-            break;",
-                        v.name
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join("");
-
-            let body = format!(
-                "
-    string tag;
-    switch value.index() {{
-        {cases}
-        default:
-            throw_or_abort(\"unknown enum variant index: \" + std::to_string(value.index()));
-    }}
-    std::visit([](const auto& arg) {{ packer.pack(tag, arg); }}, value);"
-            );
-
-            self.msgpack_pack(name, &body);
-            // TODO: unpack
-
             // Recurse into the variants
             self.namespace.push(name.to_string());
             for (_, variant) in variants {
                 self.generate_variant(&variant.name, &variant.value);
             }
             self.namespace.pop();
+
+            // Pack the enum itself
+            let pack_body = {
+                let cases = variants
+                    .iter()
+                    .map(|(i, v)| {
+                        format!(
+                            r#"
+        case {i}:
+            tag = "{}";
+            break;"#,
+                            v.name
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                format!(
+                    r#"
+    string tag;
+    switch value.index() {{
+        {cases}
+        default:
+            throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+    }}
+    std::visit([](const auto& arg) {{ packer.pack(tag, arg); }}, value);"#
+                )
+            };
+            self.msgpack_pack(name, &pack_body);
+
+            // Unpack the enum
+            let unpack_body = {
+                let mut body = "
+    std::map<std::string, msgpack::type::variant> data = o.convert();
+    auto entry = data.begin();
+    string tag = entry->first;
+    auto o = entry->second;"
+                    .to_string();
+
+                for (i, v) in variants.iter() {
+                    let name = &v.name;
+                    body.push_str(&format!(
+                        r#"
+    {} (tag == "{name}") {{
+        {name} v;
+        v.msgpack_unpack(o);
+        value = v;
+    }}"#,
+                        if *i == 0 { "if" } else { "else if" }
+                    ))
+                }
+
+                body
+            };
+            self.msgpack_unpack(name, &unpack_body);
         }
 
         /// Generate msgpack code for nested enum variants.
@@ -311,17 +341,15 @@ mod reflection {
         }
 
         fn make_fn(header: &str, body: &str) -> String {
+            let body = body.trim_end();
             if body.is_empty() {
                 format!("{header} {{}}")
-            } else if !body.contains("\n") {
+            } else if !body.contains('\n') {
                 format!("{header} {{ {body} }}")
+            } else if body.starts_with('\n') {
+                format!("{header} {{{body}\n}}")
             } else {
-                format!(
-                    "{header}
-{{
-    {body}
-}}"
-                )
+                format!("{header} {{\n{body}\n}}")
             }
         }
     }
