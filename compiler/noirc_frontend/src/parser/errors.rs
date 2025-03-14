@@ -44,6 +44,8 @@ pub enum ParserErrorReason {
     InvalidPattern,
     #[error("Documentation comment does not document anything")]
     DocCommentDoesNotDocumentAnything,
+    #[error("Documentation comments cannot be applied to function parameters")]
+    DocCommentCannotBeAppliedToFunctionParameters,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
@@ -60,6 +62,8 @@ pub enum ParserErrorReason {
     ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
+    #[error("Expected a ; after `let` statement")]
+    MissingSemicolonAfterLet,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
     #[error(

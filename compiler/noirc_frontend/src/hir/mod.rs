@@ -137,12 +137,12 @@ impl Context<'_, '_> {
         let module = self.module(module_id);
 
         let parent =
-            def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
+            def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
 
         if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }
 
-    /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    /// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
     /// account for the crate names of dependencies.
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
@@ -250,5 +250,9 @@ impl Context<'_, '_> {
     /// Activates LSP mode, which will track references for all definitions.
     pub fn activate_lsp_mode(&mut self) {
         self.def_interner.lsp_mode = true;
+    }
+
+    pub fn disable_comptime_printing(&mut self) {
+        self.def_interner.disable_comptime_printing = true;
     }
 }

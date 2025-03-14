@@ -638,7 +638,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Add the given generics to scope.
-    /// Each generic will have a fresh Shared<TypeBinding> associated with it.
+    /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;
@@ -1544,12 +1544,12 @@ impl<'context> Elaborator<'context> {
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &self.def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+        &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
 
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
-        &mut def_maps.get_mut(&module.krate).expect(message).modules[module.local_id.0]
+        &mut def_maps.get_mut(&module.krate).expect(message)[module.local_id]
     }
 
     fn declare_methods_on_struct(

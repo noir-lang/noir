@@ -257,7 +257,7 @@ pub enum BrilligOpcode<F> {
         offset_address: MemoryAddress,
     },
     /// We don't support dynamic jumps or calls
-    /// See https://github.com/ethereum/aleth/issues/3404 for reasoning
+    /// See <https://github.com/ethereum/aleth/issues/3404> for reasoning
     Call {
         location: Label,
     },
