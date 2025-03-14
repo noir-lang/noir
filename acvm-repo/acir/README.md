@@ -214,7 +214,7 @@ The black box functions supported by ACIR are:
 
 Computes a recursive aggregation object internally when verifying a proof inside
 another circuit.
-This outputted aggregation object will then be either checked in a
+The outputted aggregation object will then be either checked in a
 top-level verifier or aggregated upon again.
 The aggregation object should be maintained by the backend implementer.
 
