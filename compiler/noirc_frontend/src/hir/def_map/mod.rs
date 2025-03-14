@@ -10,6 +10,7 @@ use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::ops::Deref;
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -26,11 +27,23 @@ pub const MAIN_FUNCTION: &str = "main";
 /// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-pub struct LocalModuleId(pub Index);
+pub struct LocalModuleId(Index);
 
 impl LocalModuleId {
+    pub fn new(index: Index) -> LocalModuleId {
+        LocalModuleId(index)
+    }
+
     pub fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
+    }
+}
+
+impl Deref for LocalModuleId {
+    type Target = Index;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -51,7 +64,7 @@ impl ModuleId {
 
     /// Returns this module's parent, if there's any.
     pub fn parent(self, def_maps: &DefMaps) -> Option<ModuleId> {
-        let module_data = &def_maps[&self.krate].modules()[self.local_id.0];
+        let module_data = &def_maps[&self.krate][self.local_id];
         module_data.parent.map(|local_id| ModuleId { krate: self.krate, local_id })
     }
 }
@@ -63,14 +76,27 @@ pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
+    pub(crate) krate: CrateId,
+
     pub(crate) root: LocalModuleId,
 
     pub(crate) modules: Arena<ModuleData>,
 
-    pub(crate) krate: CrateId,
-
     /// Maps an external dependency's name to its root module id.
     pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
+}
+
+impl std::ops::Index<LocalModuleId> for CrateDefMap {
+    type Output = ModuleData;
+    fn index(&self, local_module_id: LocalModuleId) -> &ModuleData {
+        &self.modules[local_module_id.0]
+    }
+}
+
+impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
+    fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
+        &mut self.modules[local_module_id.0]
+    }
 }
 
 impl CrateDefMap {
@@ -131,6 +157,7 @@ impl CrateDefMap {
     pub fn root(&self) -> LocalModuleId {
         self.root
     }
+
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
     }
@@ -250,7 +277,7 @@ impl CrateDefMap {
                         }
                     });
 
-                    let name = self.get_module_path(id, module.parent);
+                    let name = self.get_module_path(LocalModuleId::new(id), module.parent);
                     Some(Contract { name, location: module.location, functions, outputs })
                 } else {
                     None
@@ -261,11 +288,24 @@ impl CrateDefMap {
 
     /// Find a child module's name by inspecting its parent.
     /// Currently required as modules do not store their own names.
-    pub fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+    pub fn get_module_path(
+        &self,
+        child_id: LocalModuleId,
+        parent: Option<LocalModuleId>,
+    ) -> String {
         self.get_module_path_with_separator(child_id, parent, ".")
     }
 
     pub fn get_module_path_with_separator(
+        &self,
+        child_id: LocalModuleId,
+        parent: Option<LocalModuleId>,
+        separator: &str,
+    ) -> String {
+        self.get_module_path_with_separator_inner(child_id.0, parent, separator)
+    }
+
+    fn get_module_path_with_separator_inner(
         &self,
         child_id: Index,
         parent: Option<LocalModuleId>,
@@ -280,7 +320,8 @@ impl CrateDefMap {
                 .map(|(name, _)| name.as_str())
                 .expect("Child module was not a child of the given parent module");
 
-            let parent_name = self.get_module_path_with_separator(id.0, parent.parent, separator);
+            let parent_name =
+                self.get_module_path_with_separator_inner(id.0, parent.parent, separator);
             if parent_name.is_empty() {
                 name.to_string()
             } else {
@@ -321,7 +362,7 @@ pub fn fully_qualified_module_path(
     crate_id: &CrateId,
     module_id: ModuleId,
 ) -> String {
-    let child_id = module_id.local_id.0;
+    let child_id = module_id.local_id;
 
     let def_map =
         def_maps.get(&module_id.krate).expect("The local crate should be analyzed already");
@@ -371,18 +412,6 @@ pub struct Contract {
 pub fn parse_file(fm: &FileManager, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
     let file_source = fm.fetch_file(file_id).expect("File does not exist");
     parse_program(file_source, file_id)
-}
-
-impl std::ops::Index<LocalModuleId> for CrateDefMap {
-    type Output = ModuleData;
-    fn index(&self, local_module_id: LocalModuleId) -> &ModuleData {
-        &self.modules[local_module_id.0]
-    }
-}
-impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
-    fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
-        &mut self.modules[local_module_id.0]
-    }
 }
 
 pub struct TestFunction {

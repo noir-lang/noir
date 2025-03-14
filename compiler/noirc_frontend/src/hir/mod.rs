@@ -137,7 +137,7 @@ impl Context<'_, '_> {
         let module = self.module(module_id);
 
         let parent =
-            def_map.get_module_path_with_separator(module_id.local_id.0, module.parent, "::");
+            def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
 
         if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }

@@ -35,6 +35,7 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeMap;
 use std::fmt::Write;
+use std::ops::IndexMut;
 use std::path::PathBuf;
 use std::vec;
 
@@ -367,13 +368,14 @@ impl DefCollector {
             context,
         ));
 
-        let submodules = vecmap(def_collector.def_map.modules().iter(), |(index, _)| index);
+        let submodules =
+            vecmap(def_collector.def_map.modules().iter(), |(index, _)| LocalModuleId::new(index));
         // Add the current crate to the collection of DefMaps
         context.def_maps.insert(crate_id, def_collector.def_map);
 
         inject_prelude(crate_id, context, crate_root, &mut def_collector.imports);
         for submodule in submodules {
-            inject_prelude(crate_id, context, LocalModuleId(submodule), &mut def_collector.imports);
+            inject_prelude(crate_id, context, submodule, &mut def_collector.imports);
         }
 
         // Resolve unresolved imports collected from the crate, one by one.
@@ -417,7 +419,7 @@ impl DefCollector {
                         }
                         let visibility = visibility.min(item_visibility);
 
-                        let result = current_def_map.modules[local_module_id.0].import(
+                        let result = current_def_map.index_mut(local_module_id).import(
                             name.clone(),
                             visibility,
                             module_def_id,

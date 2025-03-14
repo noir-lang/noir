@@ -28,10 +28,10 @@ pub(crate) fn with_interpreter<T>(
     let file = FileId::default();
 
     // Can't use Index::test_new here for some reason, even with #[cfg(test)].
-    let module_id = LocalModuleId(Index::unsafe_zeroed());
+    let module_id = LocalModuleId::new(Index::unsafe_zeroed());
     let mut modules = noirc_arena::Arena::default();
     let location = Location::new(Default::default(), file);
-    let root = LocalModuleId(modules.insert(ModuleData::new(
+    let root = LocalModuleId::new(modules.insert(ModuleData::new(
         None,
         location,
         Vec::new(),

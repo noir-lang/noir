@@ -344,8 +344,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 errors.push(PathResolutionError::Private(last_ident.clone()));
             }
 
-            current_module =
-                &self.def_maps[&current_module_id.krate].modules[current_module_id.local_id.0];
+            current_module = &self.def_maps[&current_module_id.krate][current_module_id.local_id];
 
             // Check if namespace
             let found_ns = current_module.find_name(current_ident);
@@ -388,5 +387,5 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
 
 fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
-    &def_maps.get(&module.krate).expect(message).modules[module.local_id.0]
+    &def_maps.get(&module.krate).expect(message)[module.local_id]
 }
