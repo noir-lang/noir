@@ -23,7 +23,7 @@ mod reflection {
     //! and the [`WitnessMap`] structs. These get checked against the C++ files committed to the `codegen` folder
     //! to see if changes have been to the serialization format. These are almost always a breaking change!
     //!
-    //! If you want to make a breaking change to the ACIR serialization format, then just comment out the assertions
+    //! If you want to make a breaking change to the ACIR serialization format, then just comment out the gions
     //! that the file hashes must match and rerun the tests. This will overwrite the `codegen` folder with the new
     //! logic. Make sure to uncomment these lines afterwards and to commit the changes to the `codegen` folder.
 
@@ -39,7 +39,6 @@ mod reflection {
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
-    use prost::Message;
     use serde_generate::CustomCode;
     use serde_reflection::{
         ContainerFormat, Format, Named, Registry, Tracer, TracerConfig, VariantFormat,
@@ -105,10 +104,11 @@ mod reflection {
 
         let source = MsgPackCodeGenerator::add_preamble(source);
 
-        // Comment this out to write updated C++ code to file.
-        if let Some(old_hash) = old_hash {
-            let new_hash = fxhash::hash64(&source);
-            //assert_eq!(new_hash, old_hash, "Serialization format has changed");
+        if !should_overwrite() {
+            if let Some(old_hash) = old_hash {
+                let new_hash = fxhash::hash64(&source);
+                assert_eq!(new_hash, old_hash, "Serialization format has changed");
+            }
         }
 
         write_to_file(&source, &path);
@@ -144,10 +144,11 @@ mod reflection {
 
         let source = MsgPackCodeGenerator::add_preamble(source);
 
-        // Comment this out to write updated C++ code to file.
-        if let Some(old_hash) = old_hash {
-            let new_hash = fxhash::hash64(&source);
-            //assert_eq!(new_hash, old_hash, "Serialization format has changed");
+        if !should_overwrite() {
+            if let Some(old_hash) = old_hash {
+                let new_hash = fxhash::hash64(&source);
+                assert_eq!(new_hash, old_hash, "Serialization format has changed");
+            }
         }
 
         write_to_file(&source, &path);
@@ -373,5 +374,14 @@ mod reflection {
                 format!("{header} {{\n{body}\n}}")
             }
         }
+    }
+
+    /// Check if it's okay for the generated source to be overwritten with a new version.
+    /// Otherwise any changes causes a test failure.
+    fn should_overwrite() -> bool {
+        std::env::var("NOIR_CODEGEN_OVERWRITE")
+            .ok()
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or_default()
     }
 }
