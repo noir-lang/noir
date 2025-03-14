@@ -180,7 +180,7 @@ impl<'a> Files<'a> for DebugArtifact {
         let name = self.file_map.get(&file_id).ok_or(Error::FileMissing);
         let name: Self::Name = name.map(|file| file.path.clone().into())?;
 
-        // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
+        // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
         if let Ok(current_dir) = std::env::current_dir() {
             if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
             {
