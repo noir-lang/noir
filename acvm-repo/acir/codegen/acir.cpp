@@ -77,7 +77,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -219,7 +218,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -325,7 +323,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -374,11 +371,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Integer bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Field, Integer> value;
@@ -386,7 +380,6 @@ namespace Program {
         friend bool operator==(const BitSize&, const BitSize&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BitSize bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -416,11 +409,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Direct bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Relative {
@@ -430,11 +420,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Relative bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Direct, Relative> value;
@@ -442,7 +429,6 @@ namespace Program {
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
         std::vector<uint8_t> bincodeSerialize() const;
         static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -704,7 +690,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -780,11 +765,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Simple bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Array {
@@ -813,7 +795,6 @@ namespace Program {
         friend bool operator==(const HeapValueType&, const HeapValueType&);
         std::vector<uint8_t> bincodeSerialize() const;
         static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -846,11 +827,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct HeapArray {
@@ -860,11 +838,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static HeapArray bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct HeapVector {
@@ -874,11 +849,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static HeapVector bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<MemoryAddress, HeapArray, HeapVector> value;
@@ -886,7 +858,6 @@ namespace Program {
         friend bool operator==(const ValueOrArray&, const ValueOrArray&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1116,11 +1087,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static BlackBox bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Trap {
@@ -1148,7 +1116,6 @@ namespace Program {
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1230,11 +1197,8 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static Witness bincodeDeserialize(std::vector<uint8_t>);
 
-
-        void msgpack_pack(auto& packer) const
-        {
-            packer.pack(value);
-        }
+        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
     };
 
     struct ConstantOrWitnessEnum {
@@ -1246,11 +1210,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Constant bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Witness {
@@ -1260,11 +1221,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Witness bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Constant, Witness> value;
@@ -1272,7 +1230,6 @@ namespace Program {
         friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1553,7 +1510,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -1634,11 +1590,8 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlockId bincodeDeserialize(std::vector<uint8_t>);
 
-
-        void msgpack_pack(auto& packer) const
-        {
-            packer.pack(value);
-        }
+        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
     };
 
     struct BlockType {
@@ -1658,11 +1611,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static CallData bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct ReturnData {
@@ -1678,7 +1628,6 @@ namespace Program {
         friend bool operator==(const BlockType&, const BlockType&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BlockType bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1723,11 +1672,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Single bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Array {
@@ -1737,11 +1683,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Array bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct MemoryArray {
@@ -1751,11 +1694,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Single, Array, MemoryArray> value;
@@ -1763,7 +1703,6 @@ namespace Program {
         friend bool operator==(const BrilligInputs&, const BrilligInputs&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1796,11 +1735,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Simple bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Array {
@@ -1810,11 +1746,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Array bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Simple, Array> value;
@@ -1822,7 +1755,6 @@ namespace Program {
         friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -1864,11 +1796,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static AssertZero bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct BlackBoxFuncCall {
@@ -1878,11 +1807,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct MemoryOp {
@@ -1941,7 +1867,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static Opcode bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -1982,11 +1907,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Expression bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Memory {
@@ -1996,11 +1918,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Memory bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         std::variant<Expression, Memory> value;
@@ -2008,7 +1927,6 @@ namespace Program {
         friend bool operator==(const ExpressionOrMemory&, const ExpressionOrMemory&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionOrMemory bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -2066,7 +1984,6 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
 
-
         void msgpack_pack(auto& packer) const
         {
             
@@ -2095,11 +2012,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Acir bincodeDeserialize(std::vector<uint8_t>);
 
-
-            void msgpack_pack(auto& packer) const
-            {
-                packer.pack(value);
-            }
+            void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+            void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
         };
 
         struct Brillig {
@@ -2118,7 +2032,6 @@ namespace Program {
         friend bool operator==(const OpcodeLocation&, const OpcodeLocation&);
         std::vector<uint8_t> bincodeSerialize() const;
         static OpcodeLocation bincodeDeserialize(std::vector<uint8_t>);
-
 
         void msgpack_pack(auto& packer) const
         {
@@ -2146,11 +2059,8 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static PublicInputs bincodeDeserialize(std::vector<uint8_t>);
 
-
-        void msgpack_pack(auto& packer) const
-        {
-            packer.pack(value);
-        }
+        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
     };
 
     struct Circuit {

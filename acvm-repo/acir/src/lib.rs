@@ -230,8 +230,8 @@ mod reflection {
 
         /// Newtypes serialize as their underlying `value` that the C++ generator creates
         fn generate_newtype(&mut self, name: &str) {
-            self.msgpack_pack(name, "packer.pack(value);");
-            // TODO: unpack
+            self.msgpack_pack(name, "value.msgpack_pack(packer);");
+            self.msgpack_unpack(name, "value.msgpack_unpack(o);")
         }
 
         /// Tuples serialize as a vector of underlying data
@@ -300,19 +300,29 @@ mod reflection {
 
         /// Add a `msgpack_pack` implementation.
         fn msgpack_pack(&mut self, name: &str, body: &str) {
-            let header = "void msgpack_pack(auto& packer) const";
-            let code = if body.is_empty() {
-                format!("{header} {{ }}")
+            let code = Self::make_fn("void msgpack_pack(auto& packer) const", body);
+            self.add_code(name, &code);
+        }
+
+        /// Add a `msgpack_unpack` implementation.
+        fn msgpack_unpack(&mut self, name: &str, body: &str) {
+            let code = Self::make_fn("void msgpack_unpack(auto const& o)", body);
+            self.add_code(name, &code);
+        }
+
+        fn make_fn(header: &str, body: &str) -> String {
+            if body.is_empty() {
+                format!("{header} {{}}")
+            } else if !body.contains("\n") {
+                format!("{header} {{ {body} }}")
             } else {
                 format!(
-                    "
-{header}
+                    "{header}
 {{
     {body}
 }}"
                 )
-            };
-            self.add_code(name, &code);
+            }
         }
     }
 }
