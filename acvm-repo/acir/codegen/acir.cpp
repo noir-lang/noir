@@ -1,6 +1,7 @@
 #pragma once
 
 #include "serde.hpp"
+#include "msgpack.hpp"
 #include "bincode.hpp"
 
 namespace Program {

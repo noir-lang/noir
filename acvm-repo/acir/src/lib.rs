@@ -39,6 +39,7 @@ mod reflection {
         BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, IntegerBitSize,
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
+    use prost::Message;
     use serde_generate::CustomCode;
     use serde_reflection::{
         ContainerFormat, Format, Named, Registry, Tracer, TracerConfig, VariantFormat,
@@ -94,12 +95,6 @@ mod reflection {
 
         let module_name = "Program";
         let msgpack_code = MsgPackCodeGenerator::generate(module_name, &registry);
-
-        // for (ns, code) in &msgpack_code {
-        //     println!("{ns:?}:");
-        //     println!("{code}");
-        // }
-
         // Create C++ class definitions.
         let mut source = Vec::new();
         let config = serde_generate::CodeGeneratorConfig::new(module_name.to_string())
@@ -108,10 +103,12 @@ mod reflection {
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
 
+        let source = MsgPackCodeGenerator::add_preamble(source);
+
         // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
             let new_hash = fxhash::hash64(&source);
-            //assert_eq!(new_hash, old_hash, "Serialization format has changed");
+            assert_eq!(new_hash, old_hash, "Serialization format has changed");
         }
 
         write_to_file(&source, &path);
@@ -133,14 +130,19 @@ mod reflection {
         tracer.trace_simple_type::<WitnessMap<FieldElement>>().unwrap();
         tracer.trace_simple_type::<WitnessStack<FieldElement>>().unwrap();
 
+        let module_name = "WitnessStack";
         let registry = tracer.registry().unwrap();
+        let msgpack_code = MsgPackCodeGenerator::generate(module_name, &registry);
 
         // Create C++ class definitions.
         let mut source = Vec::new();
-        let config = serde_generate::CodeGeneratorConfig::new("WitnessStack".to_string())
-            .with_encodings(vec![serde_generate::Encoding::Bincode]);
+        let config = serde_generate::CodeGeneratorConfig::new(module_name.to_string())
+            .with_encodings(vec![serde_generate::Encoding::Bincode])
+            .with_custom_code(msgpack_code);
         let generator = serde_generate::cpp::CodeGenerator::new(&config);
         generator.output(&mut source, &registry).unwrap();
+
+        let source = MsgPackCodeGenerator::add_preamble(source);
 
         // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
@@ -179,6 +181,19 @@ mod reflection {
     }
 
     impl MsgPackCodeGenerator {
+        /// Add the import of the Barretenberg C++ header for msgpack
+        fn add_preamble(source: Vec<u8>) -> Vec<u8> {
+            match String::from_utf8(source) {
+                Ok(mut source) => {
+                    let inc = r#"#include "serde.hpp""#;
+                    let pos = source.find(inc).expect("serde.hpp missing");
+                    source.insert_str(pos + inc.len(), "\n#include \"msgpack.hpp\"");
+                    source.as_bytes().to_vec()
+                }
+                Err(e) => e.into_bytes(),
+            }
+        }
+
         fn generate(namespace: &str, registry: &Registry) -> CustomCode {
             let mut g = Self::default();
             g.namespace.push(namespace.to_string());
