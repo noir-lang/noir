@@ -205,7 +205,7 @@ pub enum BlackBoxFuncCall<F> {
     Keccakf1600 { inputs: Box<[FunctionInput<F>; 25]>, outputs: Box<[Witness; 25]> },
     /// Computes a recursive aggregation object when verifying a proof inside
     /// another circuit.
-    /// This outputted aggregation object will then be either checked in a
+    /// The outputted aggregation object will then be either checked in a
     /// top-level verifier or aggregated upon again.
     /// The aggregation object should be maintained by the backend implementer.
     ///
