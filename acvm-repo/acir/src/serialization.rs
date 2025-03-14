@@ -251,6 +251,6 @@ mod tests {
         let bz = msgpack_serialize(&value, false).unwrap();
         let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
 
-        assert!(matches!(msg, Value::Integer(_)))
+        assert!(matches!(msg, Value::Integer(_)));
     }
 }
