@@ -175,7 +175,12 @@ pub(crate) fn collect_lenses_for_package(
 
     if package.is_contract() {
         // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        for contract in context.get_all_contracts(&crate_id) {
+        let def_map =
+            context.def_map(&crate_id).expect("The local crate should be analyzed already");
+
+        for contract in
+            def_map.get_all_contracts().map(|(id, _)| def_map.modules().get(id).unwrap())
+        {
             let location = contract.location;
             let file_id = location.file;
 

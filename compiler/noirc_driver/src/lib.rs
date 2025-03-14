@@ -10,20 +10,21 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
-use noirc_errors::{CustomDiagnostic, DiagnosticKind};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::def_map::CrateDefMap;
-use noirc_frontend::hir::{Context, Contract};
+use noirc_frontend::hir::Context;
+use noirc_frontend::hir::def_map::{CrateDefMap, ModuleData, ModuleDefId};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::FuncId;
+use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttribute;
+use std::collections::HashMap;
 use std::path::Path;
 use tracing::info;
 
@@ -425,18 +426,11 @@ pub fn compile_contract(
     let (_, warnings) = check_crate(context, crate_id, options)?;
 
     // TODO: We probably want to error if contracts is empty
-    let contracts = context.get_all_contracts(&crate_id);
+    let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
 
-    let mut compiled_contracts = vec![];
-    let mut errors = warnings;
+    let mut contracts = def_map.get_all_contracts();
 
-    if contracts.len() > 1 {
-        let err = CustomDiagnostic::from_message(
-            "Packages are limited to a single contract",
-            FileId::default(),
-        );
-        return Err(vec![err]);
-    } else if contracts.is_empty() {
+    let Some((module_id, name)) = contracts.next() else {
         let err = CustomDiagnostic::from_message(
             "cannot compile crate into a contract as it does not contain any contracts",
             FileId::default(),
@@ -444,19 +438,34 @@ pub fn compile_contract(
         return Err(vec![err]);
     };
 
-    for contract in contracts {
-        match compile_contract_inner(context, contract, options) {
-            Ok(contract) => compiled_contracts.push(contract),
-            Err(mut more_errors) => errors.append(&mut more_errors),
-        }
+    if contracts.next().is_some() {
+        let err = CustomDiagnostic::from_message(
+            "Packages are limited to a single contract",
+            FileId::default(),
+        );
+        return Err(vec![err]);
     }
+    drop(contracts);
+
+    let contract = read_contract(
+        context,
+        context.def_map(&crate_id).unwrap().modules().get(module_id).unwrap(),
+        name,
+    );
+
+    let mut errors = warnings;
+
+    let compiled_contract = match compile_contract_inner(context, contract, options) {
+        Ok(contract) => contract,
+        Err(mut more_errors) => {
+            errors.append(&mut more_errors);
+            return Err(errors);
+        }
+    };
 
     if has_errors(&errors, options.deny_warnings) {
         Err(errors)
     } else {
-        assert_eq!(compiled_contracts.len(), 1);
-        let compiled_contract = compiled_contracts.remove(0);
-
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
                 if let Some(ref name) = options.show_contract_fn {
@@ -474,6 +483,50 @@ pub fn compile_contract(
         // errors here is either empty or contains only warnings
         Ok((compiled_contract, errors))
     }
+}
+
+/// Return a Vec of all `contract` declarations in the source code and the functions they contain
+pub fn read_contract(context: &Context, module: &ModuleData, name: String) -> Contract {
+    let functions = module
+        .value_definitions()
+        .filter_map(|id| {
+            id.as_function().map(|function_id| {
+                let attrs = context.def_interner.function_attributes(&function_id);
+                let is_entry_point = attrs.is_contract_entry_point();
+                ContractFunctionMeta { function_id, is_entry_point }
+            })
+        })
+        .collect();
+
+    let mut outputs = ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
+
+    context.def_interner.get_all_globals().iter().for_each(|global_info| {
+        context.def_interner.global_attributes(&global_info.id).iter().for_each(|attr| {
+            if let SecondaryAttribute::Abi(tag) = attr {
+                if let Some(tagged) = outputs.globals.get_mut(tag) {
+                    tagged.push(global_info.id);
+                } else {
+                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
+                }
+            }
+        });
+    });
+
+    module.type_definitions().for_each(|id| {
+        if let ModuleDefId::TypeId(struct_id) = id {
+            context.def_interner.type_attributes(&struct_id).iter().for_each(|attr| {
+                if let SecondaryAttribute::Abi(tag) = attr {
+                    if let Some(tagged) = outputs.structs.get_mut(tag) {
+                        tagged.push(struct_id);
+                    } else {
+                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
+                    }
+                }
+            });
+        }
+    });
+
+    Contract { name, location: module.location, functions, outputs }
 }
 
 /// True if there are (non-warning) errors present and we should halt compilation
@@ -716,4 +769,31 @@ pub fn compile_no_check(
         names,
         brillig_names,
     })
+}
+
+/// Specifies a contract function and extra metadata that
+/// one can use when processing a contract function.
+///
+/// One of these is whether the contract function is an entry point.
+/// The caller should only type-check these functions and not attempt
+/// to create a circuit for them.
+pub struct ContractFunctionMeta {
+    pub function_id: FuncId,
+    /// Indicates whether the function is an entry point
+    pub is_entry_point: bool,
+}
+
+pub struct ContractOutputs {
+    pub structs: HashMap<String, Vec<TypeId>>,
+    pub globals: HashMap<String, Vec<GlobalId>>,
+}
+
+/// A 'contract' in Noir source code with a given name, functions and events.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+pub struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    pub name: String,
+    pub location: Location,
+    pub functions: Vec<ContractFunctionMeta>,
+    pub outputs: ContractOutputs,
 }
