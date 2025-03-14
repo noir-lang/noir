@@ -179,7 +179,32 @@
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{ItemVisibility, UseTree},
     hir::resolution::errors::Span,
     parser::{Item, ItemKind},
@@ -359,5 +384,30 @@
     imports: Vec&lt;UseTree&gt;,
     visibility: ItemVisibility,
     span_end: u32,
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span><span class="kw">crate</span>::assert_format;
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>formats_item_with_mixed_attributes_and_doc_comments() {
+        <span class="kw">let </span>src = <span class="string">"
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn  foo( ) { }
+        "</span>;
+        <span class="kw">let </span>expected = <span class="string">"/// One
+#[one]
+/// Two
+#[two]
+/// Three
+fn foo() {}
+"</span>;
+        assert_format(src, expected);
+    }
 }
 </code></pre></div></section></main></body></html>

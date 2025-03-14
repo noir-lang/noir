@@ -331,7 +331,9 @@
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility};
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -377,6 +379,8 @@
     </span>InvalidPattern,
     <span class="attr">#[error(<span class="string">"Documentation comment does not document anything"</span>)]
     </span>DocCommentDoesNotDocumentAnything,
+    <span class="attr">#[error(<span class="string">"Documentation comments cannot be applied to function parameters"</span>)]
+    </span>DocCommentCannotBeAppliedToFunctionParameters,
 
     <span class="attr">#[error(<span class="string">"Missing type for function parameter"</span>)]
     </span>MissingTypeForFunctionParameter,

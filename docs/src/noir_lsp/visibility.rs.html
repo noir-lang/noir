@@ -112,7 +112,7 @@
         }
 
         target_module_id = std::mem::take(<span class="kw-2">&amp;mut </span>defining_module).or_else(|| {
-            <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>module_id.krate].modules()[module_id.local_id.<span class="number">0</span>];
+            <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span>module_id.krate][module_id.local_id];
             <span class="kw">let </span>parent_local_id = module_data.parent;
             parent_local_id.map(|local_id| ModuleId { krate: module_id.krate, local_id })
         });

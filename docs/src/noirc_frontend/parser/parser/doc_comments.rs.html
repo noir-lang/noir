@@ -71,7 +71,15 @@
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     parser::ParserErrorReason,
     token::{DocStyle, Token, TokenKind},
 };
@@ -92,12 +100,13 @@
         })
     }
 
-    <span class="doccomment">/// OuterDocComments = outer_doc_comments*
+    <span class="doccomment">/// OuterDocComments = OuterDocComment*
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;String&gt; {
         <span class="self">self</span>.parse_many(<span class="string">"outer doc comments"</span>, without_separator(), <span class="self">Self</span>::parse_outer_doc_comment)
     }
 
-    <span class="kw">fn </span>parse_outer_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+    <span class="doccomment">/// OuterDocComment = outer_doc_comment
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>parse_outer_doc_comment(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
         <span class="self">self</span>.eat_kind(TokenKind::OuterDocComment).map(|token| <span class="kw">match </span>token.into_token() {
             Token::LineComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer))
             | Token::BlockComment(comment, <span class="prelude-val">Some</span>(DocStyle::Outer)) =&gt; comment,
@@ -107,13 +116,20 @@
 
     <span class="doccomment">/// Skips any outer doc comments but produces a warning saying that they don't document anything.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>warn_on_outer_doc_comments(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.skip_doc_comments_with_reason(ParserErrorReason::DocCommentDoesNotDocumentAnything);
+    }
+
+    <span class="doccomment">/// Skips any outer doc comments but produces an error saying that they can't be applied to parameters
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>error_on_outer_doc_comments_on_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>reason = ParserErrorReason::DocCommentCannotBeAppliedToFunctionParameters;
+        <span class="self">self</span>.skip_doc_comments_with_reason(reason);
+    }
+
+    <span class="kw">fn </span>skip_doc_comments_with_reason(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reason: ParserErrorReason) {
         <span class="kw">let </span>location_before_doc_comments = <span class="self">self</span>.current_token_location;
         <span class="kw">let </span>doc_comments = <span class="self">self</span>.parse_outer_doc_comments();
         <span class="kw">if </span>!doc_comments.is_empty() {
-            <span class="self">self</span>.push_error(
-                ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                location_before_doc_comments,
-            );
+            <span class="self">self</span>.push_error(reason, <span class="self">self</span>.location_since(location_before_doc_comments));
         }
     }
 }

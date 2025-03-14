@@ -402,7 +402,7 @@
         <span class="kw">let </span>module = <span class="self">self</span>.module(module_id);
 
         <span class="kw">let </span>parent =
-            def_map.get_module_path_with_separator(module_id.local_id.<span class="number">0</span>, module.parent, <span class="string">"::"</span>);
+            def_map.get_module_path_with_separator(module_id.local_id, module.parent, <span class="string">"::"</span>);
 
         <span class="kw">if </span>parent.is_empty() { name.into() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{parent}::{name}"</span>) }
     }

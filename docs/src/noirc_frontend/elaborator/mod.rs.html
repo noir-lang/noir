@@ -3728,12 +3728,12 @@
 
     <span class="kw">pub fn </span>get_module(<span class="kw-2">&amp;</span><span class="self">self</span>, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
         <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
-        <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message).modules[module.local_id.<span class="number">0</span>]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
     }
 
     <span class="kw">fn </span>get_module_mut(def_maps: <span class="kw-2">&amp;mut </span>DefMaps, module: ModuleId) -&gt; <span class="kw-2">&amp;mut </span>ModuleData {
         <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
-        <span class="kw-2">&amp;mut </span>def_maps.get_mut(<span class="kw-2">&amp;</span>module.krate).expect(message).modules[module.local_id.<span class="number">0</span>]
+        <span class="kw-2">&amp;mut </span>def_maps.get_mut(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
     }
 
     <span class="kw">fn </span>declare_methods_on_struct(

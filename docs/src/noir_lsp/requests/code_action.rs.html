@@ -452,7 +452,7 @@
         <span class="kw">let </span>local_id = <span class="kw">if let </span><span class="prelude-val">Some</span>((module_index, <span class="kw">_</span>)) =
             def_map.modules().iter().find(|(<span class="kw">_</span>, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } <span class="kw">else </span>{
             def_map.root()
         };
@@ -582,7 +582,7 @@
         </span><span class="kw">let </span>previous_module_id = <span class="self">self</span>.module_id;
 
         <span class="kw">let </span>def_map = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.module_id.krate];
-        <span class="kw">let </span><span class="prelude-val">Some</span>(module_data) = def_map.modules().get(<span class="self">self</span>.module_id.local_id.<span class="number">0</span>) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(module_data) = def_map.get(<span class="self">self</span>.module_id.local_id) <span class="kw">else </span>{
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
         <span class="kw">if let </span><span class="prelude-val">Some</span>(child_module) = module_data.children.get(<span class="kw-2">&amp;</span>parsed_sub_module.name) {

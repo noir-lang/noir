@@ -340,7 +340,12 @@
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::token::{
     Attribute, Attributes, FunctionAttribute, MetaAttribute, SecondaryAttribute, TestScope, Token,
 };
 
@@ -357,9 +362,14 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>((function_attribute, index)) = attributes.function {
             all_attributes.insert(index, Attribute::Function(function_attribute));
         }
-        <span class="kw">for </span>attribute <span class="kw">in </span>all_attributes {
+
+        <span class="comment">// Attributes and doc comments can be mixed, so between each attribute
+        // we format potential doc comments
+        </span><span class="kw">for </span>attribute <span class="kw">in </span>all_attributes {
+            <span class="self">self</span>.format_outer_doc_comments();
             <span class="self">self</span>.format_attribute(attribute);
         }
+        <span class="self">self</span>.format_outer_doc_comments();
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>format_secondary_attributes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attributes: Vec&lt;SecondaryAttribute&gt;) {

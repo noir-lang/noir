@@ -424,7 +424,41 @@
 <a href="#423" id="423">423</a>
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, DefCollector};
@@ -452,9 +486,13 @@
 </span><span class="doccomment">/// Lets first check if this is offered by any external crate
 /// XXX: RA has made this a crate on crates.io
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
-</span><span class="kw">pub struct </span>LocalModuleId(<span class="kw">pub </span>Index);
+</span><span class="kw">pub struct </span>LocalModuleId(Index);
 
 <span class="kw">impl </span>LocalModuleId {
+    <span class="kw">pub fn </span>new(index: Index) -&gt; LocalModuleId {
+        LocalModuleId(index)
+    }
+
     <span class="kw">pub fn </span>dummy_id() -&gt; LocalModuleId {
         LocalModuleId(Index::dummy())
     }
@@ -477,7 +515,7 @@
 
     <span class="doccomment">/// Returns this module's parent, if there's any.
     </span><span class="kw">pub fn </span>parent(<span class="self">self</span>, def_maps: <span class="kw-2">&amp;</span>DefMaps) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
-        <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.krate].modules()[<span class="self">self</span>.local_id.<span class="number">0</span>];
+        <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span>def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.krate][<span class="self">self</span>.local_id];
         module_data.parent.map(|local_id| ModuleId { krate: <span class="self">self</span>.krate, local_id })
     }
 }
@@ -489,17 +527,42 @@
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>CrateDefMap {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) root: LocalModuleId,
+    krate: CrateId,
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) modules: Arena&lt;ModuleData&gt;,
+    root: LocalModuleId,
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) krate: CrateId,
+    modules: Arena&lt;ModuleData&gt;,
 
     <span class="doccomment">/// Maps an external dependency's name to its root module id.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) extern_prelude: BTreeMap&lt;String, ModuleId&gt;,
 }
 
+<span class="kw">impl </span>std::ops::Index&lt;LocalModuleId&gt; <span class="kw">for </span>CrateDefMap {
+    <span class="kw">type </span>Output = ModuleData;
+    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, local_module_id: LocalModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.modules[local_module_id.<span class="number">0</span>]
+    }
+}
+
+<span class="kw">impl </span>std::ops::IndexMut&lt;LocalModuleId&gt; <span class="kw">for </span>CrateDefMap {
+    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, local_module_id: LocalModuleId) -&gt; <span class="kw-2">&amp;mut </span>ModuleData {
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>.modules[local_module_id.<span class="number">0</span>]
+    }
+}
+
 <span class="kw">impl </span>CrateDefMap {
+    <span class="doccomment">/// Constructs a new `CrateDefMap`, containing only the crate's root module.
+    ///
+    /// # Arguments
+    ///
+    /// - `krate`: The [CrateId] of the crate for which this `CrateDefMap` refers to.
+    /// - `root_module`: The [ModuleData] for the root module of the crate.
+    </span><span class="kw">pub fn </span>new(krate: CrateId, root_module: ModuleData) -&gt; CrateDefMap {
+        <span class="kw">let </span><span class="kw-2">mut </span>modules = Arena::default();
+        <span class="kw">let </span>root = LocalModuleId::new(modules.insert(root_module));
+        CrateDefMap { krate, root, modules, extern_prelude: BTreeMap::default() }
+    }
+
     <span class="doccomment">/// Collect all definitions in the crate
     </span><span class="kw">pub fn </span>collect_defs(
         crate_id: CrateId,
@@ -521,24 +584,17 @@
         <span class="kw">let </span>(ast, parsing_errors) = context.parsed_file_results(root_file_id);
         <span class="kw">let </span>ast = ast.into_sorted();
 
-        <span class="comment">// Allocate a default Module for the root, giving it a ModuleId
-        </span><span class="kw">let </span><span class="kw-2">mut </span>modules: Arena&lt;ModuleData&gt; = Arena::default();
         <span class="kw">let </span>location = Location::new(Default::default(), root_file_id);
-        <span class="kw">let </span>root = modules.insert(ModuleData::new(
+
+        <span class="kw">let </span>root_module = ModuleData::new(
             <span class="prelude-val">None</span>,
             location,
             Vec::new(),
             ast.inner_attributes.clone(),
             <span class="bool-val">false</span>, <span class="comment">// is contract
             </span><span class="bool-val">false</span>, <span class="comment">// is struct
-        </span>));
-
-        <span class="kw">let </span>def_map = CrateDefMap {
-            root: LocalModuleId(root),
-            modules,
-            krate: crate_id,
-            extern_prelude: BTreeMap::new(),
-        };
+        </span>);
+        <span class="kw">let </span>def_map = CrateDefMap::new(crate_id, root_module);
 
         <span class="comment">// Now we want to populate the CrateDefMap using the DefCollector
         </span>errors.extend(DefCollector::collect_crate_and_dependencies(
@@ -557,12 +613,22 @@
     <span class="kw">pub fn </span>root(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LocalModuleId {
         <span class="self">self</span>.root
     }
+
+    <span class="doccomment">/// Returns a reference to the [ModuleData] stored at [LocalModuleId] `id` or `None` if none exists.
+    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleData&gt; {
+        <span class="self">self</span>.modules.get(id.<span class="number">0</span>)
+    }
+
     <span class="kw">pub fn </span>modules(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Arena&lt;ModuleData&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.modules
     }
 
     <span class="kw">pub fn </span>modules_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Arena&lt;ModuleData&gt; {
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.modules
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, module: ModuleData) -&gt; LocalModuleId {
+        LocalModuleId::new(<span class="self">self</span>.modules.insert(module))
     }
 
     <span class="kw">pub fn </span>krate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; CrateId {
@@ -676,7 +742,7 @@
                         }
                     });
 
-                    <span class="kw">let </span>name = <span class="self">self</span>.get_module_path(id, module.parent);
+                    <span class="kw">let </span>name = <span class="self">self</span>.get_module_path(LocalModuleId::new(id), module.parent);
                     <span class="prelude-val">Some</span>(Contract { name, location: module.location, functions, outputs })
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None
@@ -687,11 +753,24 @@
 
     <span class="doccomment">/// Find a child module's name by inspecting its parent.
     /// Currently required as modules do not store their own names.
-    </span><span class="kw">pub fn </span>get_module_path(<span class="kw-2">&amp;</span><span class="self">self</span>, child_id: Index, parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;) -&gt; String {
+    </span><span class="kw">pub fn </span>get_module_path(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        child_id: LocalModuleId,
+        parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
+    ) -&gt; String {
         <span class="self">self</span>.get_module_path_with_separator(child_id, parent, <span class="string">"."</span>)
     }
 
     <span class="kw">pub fn </span>get_module_path_with_separator(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        child_id: LocalModuleId,
+        parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
+        separator: <span class="kw-2">&amp;</span>str,
+    ) -&gt; String {
+        <span class="self">self</span>.get_module_path_with_separator_inner(child_id.<span class="number">0</span>, parent, separator)
+    }
+
+    <span class="kw">fn </span>get_module_path_with_separator_inner(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         child_id: Index,
         parent: <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt;,
@@ -706,7 +785,8 @@
                 .map(|(name, <span class="kw">_</span>)| name.as_str())
                 .expect(<span class="string">"Child module was not a child of the given parent module"</span>);
 
-            <span class="kw">let </span>parent_name = <span class="self">self</span>.get_module_path_with_separator(id.<span class="number">0</span>, parent.parent, separator);
+            <span class="kw">let </span>parent_name =
+                <span class="self">self</span>.get_module_path_with_separator_inner(id.<span class="number">0</span>, parent.parent, separator);
             <span class="kw">if </span>parent_name.is_empty() {
                 name.to_string()
             } <span class="kw">else </span>{
@@ -747,7 +827,7 @@
     crate_id: <span class="kw-2">&amp;</span>CrateId,
     module_id: ModuleId,
 ) -&gt; String {
-    <span class="kw">let </span>child_id = module_id.local_id.<span class="number">0</span>;
+    <span class="kw">let </span>child_id = module_id.local_id;
 
     <span class="kw">let </span>def_map =
         def_maps.get(<span class="kw-2">&amp;</span>module_id.krate).expect(<span class="string">"The local crate should be analyzed already"</span>);
@@ -797,18 +877,6 @@
 </span><span class="kw">pub fn </span>parse_file(fm: <span class="kw-2">&amp;</span>FileManager, file_id: FileId) -&gt; (ParsedModule, Vec&lt;ParserError&gt;) {
     <span class="kw">let </span>file_source = fm.fetch_file(file_id).expect(<span class="string">"File does not exist"</span>);
     parse_program(file_source, file_id)
-}
-
-<span class="kw">impl </span>std::ops::Index&lt;LocalModuleId&gt; <span class="kw">for </span>CrateDefMap {
-    <span class="kw">type </span>Output = ModuleData;
-    <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, local_module_id: LocalModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.modules[local_module_id.<span class="number">0</span>]
-    }
-}
-<span class="kw">impl </span>std::ops::IndexMut&lt;LocalModuleId&gt; <span class="kw">for </span>CrateDefMap {
-    <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, local_module_id: LocalModuleId) -&gt; <span class="kw-2">&amp;mut </span>ModuleData {
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>.modules[local_module_id.<span class="number">0</span>]
-    }
 }
 
 <span class="kw">pub struct </span>TestFunction {

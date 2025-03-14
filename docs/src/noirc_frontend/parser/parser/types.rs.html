@@ -757,7 +757,16 @@
 <a href="#756" id="756">756</a>
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use crate</span>::{
     QuotedType,
@@ -1073,7 +1082,6 @@
         <span class="kw">let </span>ret = <span class="kw">if </span><span class="self">self</span>.eat(Token::Arrow) {
             <span class="self">self</span>.parse_type_or_error()
         } <span class="kw">else </span>{
-            <span class="self">self</span>.expected_token(Token::Arrow);
             UnresolvedTypeData::Unit.with_location(<span class="self">self</span>.location_at_previous_token_end())
         };
 
@@ -1462,6 +1470,16 @@
             <span class="macro">panic!</span>(<span class="string">"Expected a function type"</span>)
         };
         <span class="macro">assert_eq!</span>(ret.typ.to_string(), <span class="string">"Field"</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_function_type_without_return_type() {
+        <span class="kw">let </span>src = <span class="string">"fn()"</span>;
+        <span class="kw">let </span>typ = parse_type_no_errors(src);
+        <span class="kw">let </span>UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected a function type"</span>)
+        };
+        <span class="macro">assert_eq!</span>(ret.typ.to_string(), <span class="string">"()"</span>);
     }
 
     <span class="attr">#[test]

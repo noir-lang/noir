@@ -604,7 +604,9 @@
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -641,6 +643,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::fmt::Write;
+<span class="kw">use </span>std::ops::IndexMut;
 <span class="kw">use </span>std::path::PathBuf;
 <span class="kw">use </span>std::vec;
 
@@ -919,7 +922,7 @@
         options: FrontendOptions,
     ) -&gt; Vec&lt;CompilationError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>errors: Vec&lt;CompilationError&gt; = <span class="macro">vec!</span>[];
-        <span class="kw">let </span>crate_id = def_map.krate;
+        <span class="kw">let </span>crate_id = def_map.krate();
 
         <span class="comment">// Recursively resolve the dependencies
         //
@@ -934,7 +937,7 @@
             <span class="kw">let </span>dep_def_map =
                 context.def_map(<span class="kw-2">&amp;</span>dep.crate_id).expect(<span class="string">"ice: def map was just created"</span>);
 
-            <span class="kw">let </span>dep_def_root = dep_def_map.root;
+            <span class="kw">let </span>dep_def_root = dep_def_map.root();
             <span class="kw">let </span>module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
             <span class="comment">// Add this crate as a dependency by linking it's root module
             </span>def_map.extern_prelude.insert(dep.as_name(), module_id);
@@ -952,7 +955,7 @@
         <span class="comment">// At this point, all dependencies are resolved and type checked.
         //
         // It is now possible to collect all of the definitions of this crate.
-        </span><span class="kw">let </span>crate_root = def_map.root;
+        </span><span class="kw">let </span>crate_root = def_map.root();
         <span class="kw">let </span><span class="kw-2">mut </span>def_collector = DefCollector::new(def_map);
 
         <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: crate_root };
@@ -973,13 +976,14 @@
             context,
         ));
 
-        <span class="kw">let </span>submodules = vecmap(def_collector.def_map.modules().iter(), |(index, <span class="kw">_</span>)| index);
+        <span class="kw">let </span>submodules =
+            vecmap(def_collector.def_map.modules().iter(), |(index, <span class="kw">_</span>)| LocalModuleId::new(index));
         <span class="comment">// Add the current crate to the collection of DefMaps
         </span>context.def_maps.insert(crate_id, def_collector.def_map);
 
         inject_prelude(crate_id, context, crate_root, <span class="kw-2">&amp;mut </span>def_collector.imports);
         <span class="kw">for </span>submodule <span class="kw">in </span>submodules {
-            inject_prelude(crate_id, context, LocalModuleId(submodule), <span class="kw-2">&amp;mut </span>def_collector.imports);
+            inject_prelude(crate_id, context, submodule, <span class="kw-2">&amp;mut </span>def_collector.imports);
         }
 
         <span class="comment">// Resolve unresolved imports collected from the crate, one by one.
@@ -1023,7 +1027,7 @@
                         }
                         <span class="kw">let </span>visibility = visibility.min(item_visibility);
 
-                        <span class="kw">let </span>result = current_def_map.modules[local_module_id.<span class="number">0</span>].import(
+                        <span class="kw">let </span>result = current_def_map.index_mut(local_module_id).import(
                             name.clone(),
                             visibility,
                             module_def_id,

@@ -1654,7 +1654,9 @@
 <a href="#1653" id="1653">1653</a>
 <a href="#1654" id="1654">1654</a>
 <a href="#1655" id="1655">1655</a>
-<a href="#1656" id="1656">1656</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2039,7 +2041,7 @@
             context.def_interner.set_doc_comments(ReferenceId::Alias(type_alias_id), doc_comments);
 
             <span class="comment">// Add the type alias to scope so its path can be looked up later
-            </span><span class="kw">let </span>result = <span class="self">self</span>.def_collector.def_map.modules[<span class="self">self</span>.module_id.<span class="number">0</span>].declare_type_alias(
+            </span><span class="kw">let </span>result = <span class="self">self</span>.def_collector.def_map[<span class="self">self</span>.module_id].declare_type_alias(
                 name.clone(),
                 visibility,
                 type_alias_id,
@@ -2117,7 +2119,7 @@
 
             <span class="comment">// Add the trait to scope so its path can be looked up later
             </span><span class="kw">let </span>visibility = trait_definition.visibility;
-            <span class="kw">let </span>result = <span class="self">self</span>.def_collector.def_map.modules[<span class="self">self</span>.module_id.<span class="number">0</span>].declare_trait(
+            <span class="kw">let </span>result = <span class="self">self</span>.def_collector.def_map[<span class="self">self</span>.module_id].declare_trait(
                 name.clone(),
                 visibility,
                 trait_id,
@@ -2198,9 +2200,11 @@
                             );
                         }
 
-                        <span class="kw">match </span><span class="self">self</span>.def_collector.def_map.modules[trait_id.<span class="number">0</span>.local_id.<span class="number">0</span>]
-                            .declare_function(name.clone(), ItemVisibility::Public, func_id)
-                        {
+                        <span class="kw">match </span><span class="self">self</span>.def_collector.def_map[trait_id.<span class="number">0</span>.local_id].declare_function(
+                            name.clone(),
+                            ItemVisibility::Public,
+                            func_id,
+                        ) {
                             <span class="prelude-val">Ok</span>(()) =&gt; {
                                 <span class="kw">if let </span><span class="prelude-val">Some</span>(body) = body {
                                     <span class="kw">let </span>impl_method =
@@ -2241,8 +2245,8 @@
                             <span class="bool-val">false</span>,
                         );
 
-                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = <span class="self">self</span>.def_collector.def_map.modules
-                            [trait_id.<span class="number">0</span>.local_id.<span class="number">0</span>]
+                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = <span class="self">self</span>.def_collector.def_map
+                            [trait_id.<span class="number">0</span>.local_id]
                             .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
@@ -2266,9 +2270,8 @@
                         }
                     }
                     TraitItem::Type { name } =&gt; {
-                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = <span class="self">self</span>.def_collector.def_map.modules
-                            [trait_id.<span class="number">0</span>.local_id.<span class="number">0</span>]
-                            .declare_type_alias(
+                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) =
+                            <span class="self">self</span>.def_collector.def_map[trait_id.<span class="number">0</span>.local_id].declare_type_alias(
                                 name.clone(),
                                 ItemVisibility::Public,
                                 TypeAliasId::dummy_id(),
@@ -2570,13 +2573,14 @@
         is_type,
     );
 
-    <span class="kw">let </span>module_id = def_map.modules.insert(new_module);
-    <span class="kw">let </span>modules = <span class="kw-2">&amp;mut </span>def_map.modules;
+    <span class="kw">let </span>krate = def_map.krate();
+    <span class="kw">let </span>module_id = def_map.insert_module(new_module);
+    <span class="kw">let </span>parent_module = <span class="kw-2">&amp;mut </span>def_map[parent];
 
     <span class="comment">// Update the parent module to reference the child
-    </span>modules[parent.<span class="number">0</span>].children.insert(mod_name.clone(), LocalModuleId(module_id));
+    </span>parent_module.children.insert(mod_name.clone(), module_id);
 
-    <span class="kw">let </span>mod_id = ModuleId { krate: def_map.krate, local_id: LocalModuleId(module_id) };
+    <span class="kw">let </span>mod_id = ModuleId { krate, local_id: module_id };
 
     <span class="comment">// Add this child module into the scope of the parent module as a module definition
     // module definitions are definitions which can only exist at the module level.
@@ -2587,7 +2591,7 @@
     // the struct name.
     </span><span class="kw">if </span>add_to_parent_scope {
         <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) =
-            modules[parent.<span class="number">0</span>].declare_child_module(mod_name.to_owned(), visibility, mod_id)
+            parent_module.declare_child_module(mod_name.to_owned(), visibility, mod_id)
         {
             <span class="kw">let </span>err = DefCollectorErrorKind::Duplicate {
                 typ: DuplicateType::Module,
@@ -2608,7 +2612,7 @@
         );
 
         <span class="kw">if </span>interner.is_in_lsp_mode() {
-            <span class="kw">let </span>parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            <span class="kw">let </span>parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
             interner.register_module(
                 mod_id,
                 location,
@@ -2638,7 +2642,7 @@
         }
     }
 
-    <span class="kw">let </span>module_data = <span class="kw-2">&amp;mut </span>def_map.modules[module.local_id.<span class="number">0</span>];
+    <span class="kw">let </span>module_data = <span class="kw-2">&amp;mut </span>def_map[module.local_id];
 
     <span class="kw">let </span>is_test = function.def.attributes.is_test_function();
     <span class="kw">let </span>is_entry_point_function = <span class="kw">if </span>module_data.is_contract {
@@ -2665,7 +2669,7 @@
     interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
 
     <span class="comment">// Add function to scope/ns of the module
-    </span><span class="kw">let </span>result = def_map.modules[module.local_id.<span class="number">0</span>].declare_function(name, visibility, func_id);
+    </span><span class="kw">let </span>result = module_data.declare_function(name, visibility, func_id);
     <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = result {
         <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
             typ: DuplicateType::Function,
@@ -2739,7 +2743,7 @@
 
     <span class="comment">// Add the struct to scope so its path can be looked up later
     </span><span class="kw">let </span>visibility = unresolved.struct_def.visibility;
-    <span class="kw">let </span>result = def_map.modules[module_id.<span class="number">0</span>].declare_type(name.clone(), visibility, id);
+    <span class="kw">let </span>result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -2830,7 +2834,7 @@
 
     <span class="comment">// Add the enum to scope so its path can be looked up later
     </span><span class="kw">let </span>visibility = unresolved.enum_def.visibility;
-    <span class="kw">let </span>result = def_map.modules[module_id.<span class="number">0</span>].declare_type(name.clone(), visibility, id);
+    <span class="kw">let </span>result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: module_id };
 
@@ -3056,7 +3060,7 @@
     );
 
     <span class="comment">// Add the statement to the scope so its path can be looked up later
-    </span><span class="kw">let </span>result = def_map.modules[module_id.<span class="number">0</span>].declare_global(name.clone(), visibility, global_id);
+    </span><span class="kw">let </span>result = def_map[module_id].declare_global(name.clone(), visibility, global_id);
 
     <span class="comment">// Globals marked as ABI don't have to be used.
     </span><span class="kw">if </span>!is_abi {

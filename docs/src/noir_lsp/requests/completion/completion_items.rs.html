@@ -703,8 +703,7 @@
 <a href="#702" id="702">702</a>
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::{
+<a href="#705" id="705">705</a></pre></div><pre class="rust"><code><span class="kw">use </span>lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
@@ -1106,8 +1105,7 @@
             trait_.name.clone()
         };
 
-        <span class="kw">let </span>module_data =
-            <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.module_id.krate].modules()[<span class="self">self</span>.module_id.local_id.<span class="number">0</span>];
+        <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.module_id.krate][<span class="self">self</span>.module_id.local_id];
         <span class="kw">if </span>!module_data.scope().find_name(<span class="kw-2">&amp;</span>trait_name).is_none() {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }

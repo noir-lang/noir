@@ -279,11 +279,57 @@
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     parser::{Item, ItemKind, ParserErrorReason, labels::ParsingRuleLabel},
-    token::{Keyword, Token},
+    token::{Attribute, Keyword, Token},
 };
 
 <span class="kw">use super</span>::{Parser, impls::Impl, parse_many::without_separator};
@@ -368,11 +414,24 @@
         }
     }
 
-    <span class="doccomment">/// Item = OuterDocComments ItemKind
+    <span class="doccomment">/// Item = ( Attribute | OuterDocComments )* ItemKind
     </span><span class="kw">fn </span>parse_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;Item&gt; {
         <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-        <span class="kw">let </span>doc_comments = <span class="self">self</span>.parse_outer_doc_comments();
-        <span class="kw">let </span>kinds = <span class="self">self</span>.parse_item_kind();
+
+        <span class="comment">// Attributes and doc comments can come in any order, and can even be interspersed
+        </span><span class="kw">let </span><span class="kw-2">mut </span>doc_comments = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>attributes = Vec::new();
+        <span class="kw">loop </span>{
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(doc_comment) = <span class="self">self</span>.parse_outer_doc_comment() {
+                doc_comments.push(doc_comment);
+            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.parse_attribute() {
+                attributes.push(attribute);
+            } <span class="kw">else </span>{
+                <span class="kw">break</span>;
+            }
+        }
+
+        <span class="kw">let </span>kinds = <span class="self">self</span>.parse_item_kind(attributes);
         <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
 
         <span class="kw">if </span>kinds.is_empty() &amp;&amp; !doc_comments.is_empty() {
@@ -399,13 +458,12 @@
     ///         | TypeAlias
     ///         | Function
     ///         )
-    </span><span class="kw">fn </span>parse_item_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;ItemKind&gt; {
+    </span><span class="kw">fn </span>parse_item_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attributes: Vec&lt;(Attribute, Location)&gt;) -&gt; Vec&lt;ItemKind&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(kind) = <span class="self">self</span>.parse_inner_attribute() {
             <span class="kw">return </span><span class="macro">vec!</span>[ItemKind::InnerAttribute(kind)];
         }
 
         <span class="kw">let </span>start_location = <span class="self">self</span>.current_token_location;
-        <span class="kw">let </span>attributes = <span class="self">self</span>.parse_attributes();
 
         <span class="kw">let </span>modifiers = <span class="self">self</span>.parse_modifiers(
             <span class="bool-val">true</span>, <span class="comment">// allow mut
@@ -517,7 +575,10 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         parse_program_with_dummy_file,
-        parser::parser::tests::{get_single_error, get_source_with_error_span},
+        parser::{
+            ItemKind,
+            parser::tests::{get_single_error, get_source_with_error_span},
+        },
     };
 
     <span class="attr">#[test]
@@ -558,6 +619,35 @@
         <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
         <span class="kw">let </span>error = get_single_error(<span class="kw-2">&amp;</span>errors, span);
         <span class="macro">assert!</span>(error.to_string().contains(<span class="string">"This doc comment doesn't document anything"</span>));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parse_item_with_mixed_attributes_and_doc_comments() {
+        <span class="kw">let </span>src = <span class="string">"
+        /// One
+        #[one]
+        /// Two
+        #[two]
+        /// Three
+        fn foo() {}
+        "</span>;
+
+        <span class="kw">let </span>(module, errors) = parse_program_with_dummy_file(src);
+        <span class="macro">assert!</span>(errors.is_empty());
+
+        <span class="macro">assert_eq!</span>(module.items.len(), <span class="number">1</span>);
+        <span class="kw">let </span>item = <span class="kw-2">&amp;</span>module.items[<span class="number">0</span>];
+        <span class="macro">assert_eq!</span>(
+            item.doc_comments,
+            <span class="macro">vec!</span>[<span class="string">" One"</span>.to_string(), <span class="string">" Two"</span>.to_string(), <span class="string">" Three"</span>.to_string(),]
+        );
+        <span class="kw">let </span>ItemKind::Function(func) = <span class="kw-2">&amp;</span>item.kind <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"Expected function"</span>);
+        };
+        <span class="kw">let </span>attributes = <span class="kw-2">&amp;</span>func.attributes().secondary;
+        <span class="macro">assert_eq!</span>(attributes.len(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(attributes[<span class="number">0</span>].to_string(), <span class="string">"#[one]"</span>);
+        <span class="macro">assert_eq!</span>(attributes[<span class="number">1</span>].to_string(), <span class="string">"#[two]"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
