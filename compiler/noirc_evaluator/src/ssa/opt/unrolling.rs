@@ -253,7 +253,7 @@ impl Loops {
 impl Loop {
     /// Return each block that is in a loop starting in the given header block.
     /// Expects back_edge_start -> header to be the back edge of the loop.
-    fn find_blocks_in_loop(
+    pub(crate) fn find_blocks_in_loop(
         header: BasicBlockId,
         back_edge_start: BasicBlockId,
         cfg: &ControlFlowGraph,

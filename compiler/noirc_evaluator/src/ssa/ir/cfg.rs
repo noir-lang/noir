@@ -89,10 +89,6 @@ impl ControlFlowGraph {
     /// Add a directed edge making `from` a predecessor of `to`.
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {
         let predecessor_node = self.data.entry(from).or_default();
-        assert!(
-            predecessor_node.successors.len() < 2,
-            "ICE: A cfg node cannot have more than two successors"
-        );
         predecessor_node.successors.insert(to);
         let successor_node = self.data.entry(to).or_default();
         successor_node.predecessors.insert(from);
@@ -125,7 +121,6 @@ impl ControlFlowGraph {
     }
 
     /// Reverse the control flow graph
-    #[cfg(test)]
     pub(crate) fn reverse(&self) -> Self {
         let mut reversed_cfg = ControlFlowGraph::default();
 
