@@ -25,6 +25,7 @@ dependencies = [
  "prost-build",
  "protoc-prebuilt",
  "rmp-serde",
+ "rmpv",
  "serde",
  "serde-big-array",
  "serde-generate",
@@ -4506,6 +4507,16 @@ dependencies = [
  "byteorder",
  "rmp",
  "serde",
+]
+
+[[package]]
+name = "rmpv"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58450723cd9ee93273ce44a20b6ec4efe17f8ed2e3631474387bfdecf18bb2a9"
+dependencies = [
+ "num-traits",
+ "rmp",
 ]
 
 [[package]]
