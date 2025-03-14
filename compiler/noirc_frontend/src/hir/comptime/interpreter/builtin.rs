@@ -248,6 +248,7 @@ impl Interpreter<'_, '_> {
             "unresolved_type_is_bool" => unresolved_type_is_bool(interner, arguments, location),
             "unresolved_type_is_field" => unresolved_type_is_field(interner, arguments, location),
             "unresolved_type_is_unit" => unresolved_type_is_unit(interner, arguments, location),
+            "warn" => warn(self.elaborator, arguments, location),
             "zeroed" => Ok(zeroed(return_type, location)),
             _ => {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
@@ -1401,6 +1402,18 @@ where
 
     let option_value = f(typ);
     Ok(option(return_type, option_value, location))
+}
+
+// fn warn<T, let N: u32>(message: fmtstr<N, T>) {}
+fn warn(
+    elaborator: &mut Elaborator,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let message = check_one_argument(arguments, location)?;
+    let (message, _) = get_format_string(elaborator.interner, message)?;
+    elaborator.push_err(InterpreterError::Warning { message: message.to_string(), location });
+    Ok(Value::Unit)
 }
 
 // fn zeroed<T>() -> T
