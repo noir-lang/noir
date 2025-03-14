@@ -17,7 +17,7 @@
 //! Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
 //! The program dependence graph and its use in optimization. ACM
 //! Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
-//! https://doi.org/10.1145/24039.24041
+//! <https://doi.org/10.1145/24039.24041>
 //!
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
@@ -181,7 +181,6 @@ impl<'f> LoopInvariantContext<'f> {
         self.set_values_defined_in_loop(loop_);
 
         for block in loop_.blocks.iter() {
-            self.current_block_control_dependent = false;
             self.is_control_dependent_post_pre_header(loop_, *block);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
@@ -226,18 +225,16 @@ impl<'f> LoopInvariantContext<'f> {
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
     fn is_control_dependent_post_pre_header(&mut self, loop_: &Loop, block: BasicBlockId) {
-        let mut all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
-
-        all_predecessors.remove(&block);
-        all_predecessors.remove(&loop_.header);
+        let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
 
         // Need to accurately determine whether the current block is dependent on any blocks between
-        // the current block and the loop header
-        for predecessor in all_predecessors {
-            if self.is_control_dependent(predecessor, block) {
-                self.current_block_control_dependent = true;
-                break;
-            }
+        // the current block and the loop header, exclusive of the current block and loop header themselves
+        if all_predecessors
+            .into_iter()
+            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
+            .any(|predecessor| self.is_control_dependent(predecessor, block))
+        {
+            self.current_block_control_dependent = true;
         }
     }
 
@@ -264,6 +261,10 @@ impl<'f> LoopInvariantContext<'f> {
         // set the new current induction variable.
         self.current_induction_variables.clear();
         self.set_induction_var_bounds(loop_, true);
+        // The previous loop may have set that the current block is control dependent.
+        // If we fail to reset for the next loop, a block may be misadvertently labelled
+        // as control dependent thus preventing optimizations.
+        self.current_block_control_dependent = false;
 
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -492,11 +493,15 @@ mod test {
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
         // From b3:
-        // `v6 = mul v0, v1`
-        // `constrain v6 == i32 6`
+        // ```
+        // v6 = mul v0, v1
+        // constrain v6 == i32 6
+        // ```
         // To b0:
-        // `v3 = mul v0, v1`
-        // `constrain v3 == i32 6`
+        // ```
+        // v3 = mul v0, v1
+        // constrain v3 == i32 6
+        // ```
         let expected = "
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
@@ -1148,7 +1153,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn hoist_safe_mul_that_is_not_control_dependent() {
+    fn hoist_safe_mul_that_is_non_control_dependent() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
@@ -1186,6 +1191,96 @@ mod control_dependence {
             return
         }
         ";
+
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn non_control_dependent_loop_follows_control_depenent_loop() {
+        // Test that we appropriately reset the control dependence status.
+        // This program first has a loop with a control dependent body, thus preventing hoisting instructions.
+        // There is then a separate second loop which is non control dependent for which
+        // we expect instructions to be hoisted.
+        let src = "
+      brillig(inline) fn main f0 {
+        b0(v0: u32, v1: u32):
+          v5 = eq v0, u32 5
+          jmp b1(u32 0)
+        b1(v2: u32):
+          v8 = lt v2, u32 4
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmpif v5 then: b4, else: b5
+        b3():
+          jmp b6(u32 0)
+        b4():
+          v15 = mul v0, v1
+          constrain v15 == u32 12
+          jmp b5()
+        b5():
+          v16 = unchecked_add v2, u32 1
+          jmp b1(v16)
+        b6(v3: u32):
+          v10 = lt v3, u32 4
+          jmpif v10 then: b7, else: b8
+        b7():
+          v9 = mul v0, v1
+          v11 = mul v9, v0
+          constrain v11 == u32 12
+          v14 = unchecked_add v3, u32 1
+          jmp b6(v14)
+        b8():
+          return
+      }
+      ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // From b7:
+        // ```
+        // v9 = mul v0, v1
+        // v11 = mul v9, v0
+        // constrain v11 == u32 12
+        // ```
+        // To b3:
+        // ```
+        // v9 = mul v0, v1
+        // v10 = mul v9, v0
+        // constrain v10 == u32 12
+        // ```
+        let expected = "
+      brillig(inline) fn main f0 {
+        b0(v0: u32, v1: u32):
+          v5 = eq v0, u32 5
+          jmp b1(u32 0)
+        b1(v2: u32):
+          v8 = lt v2, u32 4
+          jmpif v8 then: b2, else: b3
+        b2():
+          jmpif v5 then: b4, else: b5
+        b3():
+          v9 = mul v0, v1
+          v10 = mul v9, v0
+          constrain v10 == u32 12
+          jmp b6(u32 0)
+        b4():
+          v15 = mul v0, v1
+          constrain v15 == u32 12
+          jmp b5()
+        b5():
+          v16 = unchecked_add v2, u32 1
+          jmp b1(v16)
+        b6(v3: u32):
+          v12 = lt v3, u32 4
+          jmpif v12 then: b7, else: b8
+        b7():
+          v14 = unchecked_add v3, u32 1
+          jmp b6(v14)
+        b8():
+          return
+      }
+      ";
 
         assert_normalized_ssa_equals(ssa, expected);
     }

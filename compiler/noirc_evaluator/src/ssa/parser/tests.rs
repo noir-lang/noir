@@ -575,3 +575,26 @@ fn parses_globals() {
         ";
     assert_ssa_roundtrip(src);
 }
+
+#[test]
+fn parses_purity() {
+    let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            return
+        }
+        acir(inline) predicate_pure fn one f1 {
+          b0():
+            return
+        }
+        acir(inline) impure fn two f2 {
+          b0():
+            return
+        }
+        acir(inline) fn three f3 {
+          b0():
+            return
+        }
+    ";
+    assert_ssa_roundtrip(src);
+}

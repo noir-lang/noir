@@ -47,7 +47,7 @@ pub enum ACVMStatus<F> {
     /// Most commonly this will be due to an unsatisfied constraint due to invalid inputs to the circuit.
     Failure(OpcodeResolutionError<F>),
 
-    /// The ACVM has encountered a request for a Brillig [foreign call][acir::brillig_vm::Opcode::ForeignCall]
+    /// The ACVM has encountered a request for a Brillig [foreign call][brillig_vm::brillig::Opcode::ForeignCall]
     /// to retrieve information from outside of the ACVM. The result of the foreign call must be passed back
     /// to the ACVM using [`ACVM::resolve_pending_foreign_call`].
     ///
@@ -312,7 +312,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
-    /// Resolves a foreign call's [result][acir::brillig_vm::ForeignCallResult] using a result calculated outside of the ACVM.
+    /// Resolves a foreign call's [result][brillig_vm::brillig::ForeignCallResult] using a result calculated outside of the ACVM.
     ///
     /// The ACVM can then be restarted to solve the remaining Brillig VM process as well as the remaining ACIR opcodes.
     pub fn resolve_pending_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {

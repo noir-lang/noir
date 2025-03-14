@@ -749,24 +749,24 @@ mod tests {
     #[test]
     fn simplify_derive_generators_has_correct_type() {
         let src = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v0 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+            brillig(inline) fn main func {
+              block():
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                v2 = call derive_pedersen_generators(v0, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
 
-                return v2
+                return result
             }
             "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
         let expected = r#"
-            brillig(inline) fn main f0 {
-              b0():
-                v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-                v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-                return v19
+            brillig(inline) fn main func {
+              block():
+                separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
+                result = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
+                return result
             }
             "#;
         assert_normalized_ssa_equals(ssa, expected);
