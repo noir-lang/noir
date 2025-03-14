@@ -213,10 +213,7 @@ fn check_errors_with_options(
     //
     //   ~~~ error message
     let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
-    // Here we'll capture lines that are custom error spans, like:
-    //
-    //   --- error message
-    let mut custom_spans_with_errors: Vec<(Span, String)> = Vec::new();
+
     // The byte at the start of this line
     let mut byte = 0;
     // The length of the last line, needed to go back to the byte at the beginning of the last line
@@ -246,9 +243,6 @@ fn check_errors_with_options(
 
     let mut secondary_spans_with_errors: HashMap<Span, String> =
         secondary_spans_with_errors.into_iter().collect();
-
-    let mut custom_spans_with_errors: HashMap<Span, String> =
-        custom_spans_with_errors.into_iter().collect();
 
     let src = code_lines.join("\n");
     let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
@@ -284,10 +278,7 @@ fn check_errors_with_options(
             .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
         let span = secondary.location.span;
         let message = &error.message;
-        let Some(expected_message) = primary_spans_with_errors
-            .remove(&span)
-            .or_else(|| custom_spans_with_errors.remove(&span))
-        else {
+        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
