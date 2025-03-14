@@ -69,7 +69,7 @@ impl<T> [T] {
 
     // Apply a function to each element of the slice with its index, returning a
     // new slice containing the mapped elements.
-    pub fn imap<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
         let mut ret = &[];
         let mut index = 0;
         for elem in self {
@@ -172,8 +172,8 @@ mod test {
     }
 
     #[test]
-    fn imap_empty() {
-        assert_eq(&[].imap(|i, x| i * x + 1), &[]);
+    fn mapi_empty() {
+        assert_eq(&[].mapi(|i, x| i * x + 1), &[]);
     }
 
     #[test]
@@ -196,9 +196,9 @@ mod test {
     }
 
     #[test]
-    fn imap_example() {
+    fn mapi_example() {
         let a = &[1, 2, 3];
-        let b = a.imap(|i, a| i + a * 2);
+        let b = a.mapi(|i, a| i + a * 2);
         assert_eq(b, &[2, 5, 8]);
     }
 

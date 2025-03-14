@@ -449,12 +449,12 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// ```noir
     /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-    /// let result = vec.imap(|i, value| i + value * 2);
+    /// let result = vec.mapi(|i, value| i + value * 2);
     ///
     /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
     /// assert_eq(result, expected);
     /// ```
-    pub fn imap<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
 
@@ -689,15 +689,15 @@ mod bounded_vec_tests {
         }
     }
 
-    mod imap {
+    mod mapi {
         use crate::collections::bounded_vec::BoundedVec;
 
         #[test]
         fn applies_function_correctly() {
-            // docs:start:bounded-vec-imap-example
+            // docs:start:bounded-vec-mapi-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = vec.imap(|i, value| i + value * 2);
-            // docs:end:bounded-vec-imap-example
+            let result = vec.mapi(|i, value| i + value * 2);
+            // docs:end:bounded-vec-mapi-example
             let expected = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
@@ -706,7 +706,7 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = vec.imap(|i, value| (i + value * 2) as Field);
+            let result = vec.mapi(|i, value| (i + value * 2) as Field);
             let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
@@ -715,7 +715,7 @@ mod bounded_vec_tests {
         #[test]
         fn does_not_apply_function_past_len() {
             let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
-            let result = vec.imap(|_, value| if value == 0 { 5 } else { value });
+            let result = vec.mapi(|_, value| if value == 0 { 5 } else { value });
             let expected = BoundedVec::from_array([5, 1]);
 
             assert_eq(result, expected);
@@ -768,8 +768,8 @@ mod bounded_vec_tests {
     mod for_eachi {
         use crate::collections::bounded_vec::BoundedVec;
 
-        // imap in terms of for_eachi
-        fn for_eachi_imap<T, U, Env, let MaxLen: u32>(input: BoundedVec<T, MaxLen>, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+        // mapi in terms of for_eachi
+        fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(input: BoundedVec<T, MaxLen>, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
             let mut output = BoundedVec::<U, MaxLen>::new();
             let output_ref = &mut output;
             input.for_eachi(|i, x| output_ref.push(f(i, x)));
@@ -778,10 +778,10 @@ mod bounded_vec_tests {
 
         #[test]
         fn applies_function_correctly() {
-            // docs:start:bounded-vec-imap-example
+            // docs:start:bounded-vec-mapi-example
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = for_eachi_imap(vec, |i, value| i + value * 2);
-            // docs:end:bounded-vec-imap-example
+            let result = for_eachi_mapi(vec, |i, value| i + value * 2);
+            // docs:end:bounded-vec-mapi-example
             let expected = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
@@ -790,7 +790,7 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = for_eachi_imap(vec, |i, value| (i + value * 2) as Field);
+            let result = for_eachi_mapi(vec, |i, value| (i + value * 2) as Field);
             let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
@@ -799,7 +799,7 @@ mod bounded_vec_tests {
         #[test]
         fn does_not_apply_function_past_len() {
             let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
-            let result = for_eachi_imap(vec, |_, value| if value == 0 { 5 } else { value });
+            let result = for_eachi_mapi(vec, |_, value| if value == 0 { 5 } else { value });
             let expected = BoundedVec::from_array([5, 1]);
 
             assert_eq(result, expected);
