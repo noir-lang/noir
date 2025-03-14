@@ -51,7 +51,7 @@ test_cases.forEach((testInfo) => {
 
     // JS verification
 
-    const verified = await backend.verifyProof(proofData);
+    const verified = await backend.verifyProof(proofData, { keccak: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification
