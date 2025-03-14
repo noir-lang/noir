@@ -478,10 +478,10 @@ impl<'context> Elaborator<'context> {
 
         // Check arg and return-value visibility of standalone functions.
         if self.should_check_function_visibility(&func_meta, &modifiers) {
-            let name = Ident(Located::from(
-                func_meta.name.location,
+            let name = Ident::new(
                 self.interner.definition_name(func_meta.name.id).to_string(),
-            ));
+                func_meta.name.location,
+            );
             for (_, typ, _) in func_meta.parameters.iter() {
                 self.check_type_is_not_more_private_then_item(
                     &name,
@@ -688,7 +688,7 @@ impl<'context> Elaborator<'context> {
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
                 let ident = generic.ident();
-                let name = Rc::new(ident.0.contents.clone());
+                let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
             // An already-resolved generic is only possible if it is the result of a
@@ -842,7 +842,7 @@ impl<'context> Elaborator<'context> {
                     .trait_generics
                     .named_args
                     .iter()
-                    .any(|(name, _)| name.0.contents == *associated_type.name.as_ref())
+                    .any(|(name, _)| name.as_str() == *associated_type.name.as_ref())
                 {
                     // This generic isn't contained in the bound's named arguments,
                     // so add it by creating a fresh type variable.
@@ -1000,7 +1000,7 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(&generic.ident().0.contents).cloned())
+            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);

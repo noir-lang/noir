@@ -508,7 +508,7 @@ impl ModCollector<'_> {
                         is_comptime,
                     } => {
                         let func_id = context.def_interner.push_empty_fn();
-                        if !method_ids.contains_key(&name.0.contents) {
+                        if !method_ids.contains_key(name.as_str()) {
                             method_ids.insert(name.to_string(), func_id);
                         }
 
@@ -943,7 +943,7 @@ fn push_child_module(
         interner.add_module_attributes(
             mod_id,
             ModuleAttributes {
-                name: mod_name.0.contents.clone(),
+                name: mod_name.to_string(),
                 location: mod_location,
                 parent: Some(parent),
                 visibility,
@@ -956,7 +956,7 @@ fn push_child_module(
                 mod_id,
                 location,
                 visibility,
-                mod_name.0.contents.clone(),
+                mod_name.to_string(),
                 parent_module_id,
             );
         }
@@ -1257,7 +1257,7 @@ fn find_module(
 
     // Assuming anchor is called "anchor.nr" and we are looking up a module named "mod_name"...
     // This is "mod_name"
-    let mod_name_str = &mod_name.0.contents;
+    let mod_name_str = mod_name.as_str();
 
     // If we are in a special name like "main.nr", "lib.nr", "mod.nr" or "{mod_name}.nr",
     // the search starts at the same directory, otherwise it starts in a nested directory.

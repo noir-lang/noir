@@ -4247,3 +4247,20 @@ fn errors_on_invalid_integer_bit_size() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn mutable_reference_to_array_element_as_func_arg() {
+    let src = r#"
+    fn foo(x: &mut u32) {
+        *x += 1;
+    }
+    fn main() {
+        let mut state: [u32; 4] = [1, 2, 3, 4];
+        foo(&mut state[0]);
+                 ^^^^^^^^ Mutable references to array elements are currently unsupported
+                 ~~~~~~~~ Try storing the element in a fresh variable first
+        assert_eq(state[0], 2); // expect:2 got:1
+    }
+    "#;
+    check_errors(src);
+}

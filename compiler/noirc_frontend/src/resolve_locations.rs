@@ -172,9 +172,9 @@ impl NodeInterner {
         let struct_type = lhs_self_struct.borrow();
         let field_names = struct_type.field_names()?;
 
-        field_names.iter().find(|field_name| field_name.0 == expr_rhs.0).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
+        field_names.iter().find(|field_name| field_name.as_str() == expr_rhs.as_str()).map(
+            |found_field_name| Location::new(found_field_name.span(), struct_type.location.file),
+        )
     }
 
     /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
@@ -221,7 +221,7 @@ impl NodeInterner {
 
                 let mut methods = self.traits.get(&trait_id)?.methods.iter();
                 let method =
-                    methods.find(|method| method.name.0.contents == self.function_name(func_id));
+                    methods.find(|method| method.name.as_str() == self.function_name(func_id));
                 method.map(|method| method.location)
             })
     }

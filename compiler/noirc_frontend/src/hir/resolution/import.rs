@@ -234,7 +234,7 @@ impl PathResolutionTargetResolver<'_, '_> {
         let crate_name = &path.segments.first().unwrap().ident;
         let dep_module = current_def_map
             .extern_prelude
-            .get(&crate_name.0.contents)
+            .get(crate_name.as_str())
             .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
         if let Some(references_tracker) = &mut self.references_tracker {
