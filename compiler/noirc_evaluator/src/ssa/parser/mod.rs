@@ -407,8 +407,7 @@ impl<'a> Parser<'a> {
         }
 
         let value = self.parse_value_or_error()?;
-        let original = self.parse_value_or_error()?;
-        Ok(Some(ParsedInstruction::DecrementRc { value, original }))
+        Ok(Some(ParsedInstruction::DecrementRc { value }))
     }
 
     fn parse_enable_side_effects(&mut self) -> ParseResult<Option<ParsedInstruction>> {
