@@ -277,7 +277,7 @@ impl CrateDefMap {
                 .children
                 .iter()
                 .find(|(_, id)| id.0 == child_id)
-                .map(|(name, _)| &name.0.contents)
+                .map(|(name, _)| name.as_str())
                 .expect("Child module was not a child of the given parent module");
 
             let parent_name = self.get_module_path_with_separator(id.0, parent.parent, separator);

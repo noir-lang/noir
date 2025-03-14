@@ -6,7 +6,6 @@ use std::marker::Copy;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
-use noirc_errors::Located;
 use noirc_errors::{Location, Span};
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
@@ -1016,7 +1015,7 @@ impl NodeInterner {
     ) -> DefinitionId {
         let name_location = Location::new(function.name.span(), location.file);
         let modifiers = FunctionModifiers {
-            name: function.name.0.contents.clone(),
+            name: function.name.to_string(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
@@ -1107,7 +1106,7 @@ impl NodeInterner {
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
         let name = self.function_name(func_id).to_owned();
         let location = self.function_meta(func_id).name.location;
-        crate::ast::Ident(Located::from(location, name))
+        crate::ast::Ident::new(name, location)
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {
@@ -1398,7 +1397,7 @@ impl NodeInterner {
     pub fn trait_method_id(&self, trait_method: TraitMethodId) -> DefinitionId {
         let the_trait = self.get_trait(trait_method.trait_id);
         let method_name = &the_trait.methods[trait_method.method_index].name;
-        let function_id = the_trait.method_ids[&method_name.0.contents];
+        let function_id = the_trait.method_ids[method_name.as_str()];
         self.function_definition_id(function_id)
     }
 
@@ -1928,7 +1927,7 @@ impl NodeInterner {
     pub fn try_add_infix_operator_trait(&mut self, trait_id: TraitId) {
         let the_trait = self.get_trait(trait_id);
 
-        let operator = match the_trait.name.0.contents.as_str() {
+        let operator = match the_trait.name.as_str() {
             "Add" => BinaryOpKind::Add,
             "Sub" => BinaryOpKind::Subtract,
             "Mul" => BinaryOpKind::Multiply,
@@ -1974,7 +1973,7 @@ impl NodeInterner {
     pub fn try_add_prefix_operator_trait(&mut self, trait_id: TraitId) {
         let the_trait = self.get_trait(trait_id);
 
-        let operator = match the_trait.name.0.contents.as_str() {
+        let operator = match the_trait.name.as_str() {
             "Neg" => UnaryOp::Minus,
             "Not" => UnaryOp::Not,
             _ => return,
@@ -2123,9 +2122,7 @@ impl NodeInterner {
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
             }
-            DependencyId::Global(id) => {
-                Cow::Borrowed(self.get_global(id).ident.0.contents.as_ref())
-            }
+            DependencyId::Global(id) => Cow::Borrowed(self.get_global(id).ident.as_str()),
             DependencyId::Trait(id) => Cow::Owned(self.get_trait(id).name.to_string()),
             DependencyId::Variable(loc) => {
                 unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
@@ -2249,7 +2246,7 @@ impl NodeInterner {
         type_name: &str,
     ) -> Option<&Type> {
         let types = self.trait_impl_associated_types.get(&impl_id)?;
-        types.iter().find(|typ| typ.name.0.contents == type_name).map(|typ| &typ.typ)
+        types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

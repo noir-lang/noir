@@ -42,7 +42,7 @@ impl CodeActionFinder<'_> {
         };
 
         let trait_methods =
-            self.interner.lookup_trait_methods(typ, &method_call.method_name.0.contents, true);
+            self.interner.lookup_trait_methods(typ, method_call.method_name.as_str(), true);
         let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
 
         for trait_id in trait_ids {
@@ -108,7 +108,7 @@ impl CodeActionFinder<'_> {
 
         let Some(full_path) = module_def_id_relative_path(
             module_def_id,
-            &trait_name.0.contents,
+            trait_name.as_str(),
             self.module_id,
             current_module_parent_id,
             defining_module,
