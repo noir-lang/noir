@@ -18,7 +18,7 @@ use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir::def_map::{CrateDefMap, ModuleData, ModuleDefId, ModuleId};
+use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -446,7 +446,7 @@ pub fn compile_contract(
     drop(contracts);
 
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
-    let contract = read_contract(context, context.module(module_id), name);
+    let contract = read_contract(context, module_id, name);
 
     let mut errors = warnings;
 
@@ -481,7 +481,9 @@ pub fn compile_contract(
 }
 
 /// Return a Vec of all `contract` declarations in the source code and the functions they contain
-fn read_contract(context: &Context, module: &ModuleData, name: String) -> Contract {
+fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
+    let module = context.module(module_id);
+
     let functions = module
         .value_definitions()
         .filter_map(|id| {
