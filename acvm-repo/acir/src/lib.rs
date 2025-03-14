@@ -250,7 +250,7 @@ mod reflection {
         /// Newtypes serialize as their underlying `value` that the C++ generator creates
         fn generate_newtype(&mut self, name: &str) {
             self.msgpack_pack(name, "value.msgpack_pack(packer);");
-            self.msgpack_unpack(name, "value.msgpack_unpack(o);")
+            self.msgpack_unpack(name, "value.msgpack_unpack(o);");
         }
 
         /// Tuples serialize as a vector of underlying data
@@ -262,7 +262,7 @@ mod reflection {
         fn generate_enum(&mut self, name: &str, variants: &BTreeMap<u32, Named<VariantFormat>>) {
             // Recurse into the variants
             self.namespace.push(name.to_string());
-            for (_, variant) in variants {
+            for variant in variants.values() {
                 self.generate_variant(&variant.name, &variant.value);
             }
             self.namespace.pop();
@@ -315,7 +315,7 @@ mod reflection {
         value = v;
     }}"#,
                         if *i == 0 { "if" } else { "else if" }
-                    ))
+                    ));
                 }
                 body.push_str(
                     r#"
@@ -344,7 +344,7 @@ mod reflection {
 
         /// Use the `MSGPACK_FIELDS` macro with a list of fields.
         /// This one takes care of serializing and deserializing as well.
-        fn msgpack_fields<'a>(&mut self, name: &str, fields: impl Iterator<Item = String>) {
+        fn msgpack_fields(&mut self, name: &str, fields: impl Iterator<Item = String>) {
             let fields = fields.collect::<Vec<_>>().join(", ");
             let code = format!("MSGPACK_FIELDS({});", fields);
             self.add_code(name, &code);
