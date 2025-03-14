@@ -42,7 +42,7 @@ mod formatter;
 use formatter::Formatter;
 use noirc_frontend::ParsedModule;
 
-pub use config::Config;
+pub use config::{Config, ImportsGranularity};
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);

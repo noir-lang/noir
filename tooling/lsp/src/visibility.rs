@@ -7,10 +7,9 @@ use noirc_frontend::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         resolution::visibility::item_in_module_is_visible,
     },
+    modules::get_parent_module,
     node_interner::NodeInterner,
 };
-
-use crate::modules::get_parent_module;
 
 /// Returns true if the given ModuleDefId is visible from the current module, given its visibility.
 /// This will in turn check if the ModuleDefId parent modules are visible from the current module.
