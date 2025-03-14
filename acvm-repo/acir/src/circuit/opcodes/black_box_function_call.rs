@@ -82,6 +82,9 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+// woooo
+/// i like doc comments
+/// haha
 pub enum BlackBoxFuncCall<F> {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.
@@ -129,6 +132,14 @@ pub enum BlackBoxFuncCall<F> {
     ///     - x coordinate of public key as 32 bytes
     ///     - y coordinate of public key as 32 bytes
     ///     - the signature, as a 64 bytes array
+    ///       The signature internally will be represented as `(r, s)`,
+    ///       where `r` and `s` are fixed-sized big endian scalar values.
+    ///       As the `secp256k1` has a 256-bit modulus, we have a 64 byte signature
+    ///       while `r` and `s` will both be 32 bytes.
+    ///       We expect `s` to be normalized. This means given an the curve's order,
+    ///       `s` should be less than or equal to `order / 2`.
+    ///       This is done to prevent malleability.
+    ///       For more context regarding malleability you can reference BIP 0062.
     ///     - the hash of the message, as a vector of bytes
     /// - output: 0 for failure and 1 for success
     EcdsaSecp256k1 {

@@ -12,25 +12,45 @@ use strum_macros::EnumIter;
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug, Hash, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum BlackBoxFunc {
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AES128Encrypt]
     AES128Encrypt,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::AND]
     AND,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::XOR]
     XOR,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RANGE]
     RANGE,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2s]
     Blake2s,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake3]
     Blake3,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1]
     EcdsaSecp256k1,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256r1]
     EcdsaSecp256r1,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::MultiScalarMul]
     MultiScalarMul,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Keccakf1600]
     Keccakf1600,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::RecursiveAggregation]
     RecursiveAggregation,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EmbeddedCurveAdd]
     EmbeddedCurveAdd,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntAdd]
     BigIntAdd,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntSub]
     BigIntSub,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntMul]
     BigIntMul,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntDiv]
     BigIntDiv,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntFromLeBytes]
     BigIntFromLeBytes,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::BigIntToLeBytes]
     BigIntToLeBytes,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Poseidon2Permutation]
     Poseidon2Permutation,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Sha256Compression]
     Sha256Compression,
 }
 
