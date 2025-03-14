@@ -197,7 +197,7 @@ impl PathResolutionTargetResolver<'_, '_> {
     }
 
     fn resolve_crate_path(&mut self, path: Path) -> Result<(Path, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root;
+        let root_module = self.def_maps[&self.importing_module.krate].root();
         let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
         Ok((path, current_module))
     }

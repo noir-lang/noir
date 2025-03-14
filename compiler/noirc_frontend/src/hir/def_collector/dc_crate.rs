@@ -314,7 +314,7 @@ impl DefCollector {
         options: FrontendOptions,
     ) -> Vec<CompilationError> {
         let mut errors: Vec<CompilationError> = vec![];
-        let crate_id = def_map.krate;
+        let crate_id = def_map.krate();
 
         // Recursively resolve the dependencies
         //
@@ -329,7 +329,7 @@ impl DefCollector {
             let dep_def_map =
                 context.def_map(&dep.crate_id).expect("ice: def map was just created");
 
-            let dep_def_root = dep_def_map.root;
+            let dep_def_root = dep_def_map.root();
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
             // Add this crate as a dependency by linking it's root module
             def_map.extern_prelude.insert(dep.as_name(), module_id);
@@ -347,7 +347,7 @@ impl DefCollector {
         // At this point, all dependencies are resolved and type checked.
         //
         // It is now possible to collect all of the definitions of this crate.
-        let crate_root = def_map.root;
+        let crate_root = def_map.root();
         let mut def_collector = DefCollector::new(def_map);
 
         let module_id = ModuleId { krate: crate_id, local_id: crate_root };

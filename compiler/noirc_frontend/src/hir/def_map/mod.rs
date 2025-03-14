@@ -67,11 +67,11 @@ pub type DefMaps = BTreeMap<CrateId, CrateDefMap>;
 /// The definitions of the crate are accessible indirectly via the scopes of each module.
 #[derive(Debug)]
 pub struct CrateDefMap {
-    pub(crate) krate: CrateId,
+    krate: CrateId,
 
-    pub(crate) root: LocalModuleId,
+    root: LocalModuleId,
 
-    pub(crate) modules: Arena<ModuleData>,
+    modules: Arena<ModuleData>,
 
     /// Maps an external dependency's name to its root module id.
     pub(crate) extern_prelude: BTreeMap<String, ModuleId>,
@@ -160,6 +160,10 @@ impl CrateDefMap {
 
     pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
         &mut self.modules
+    }
+
+    pub(crate) fn insert_module(&mut self, module: ModuleData) -> LocalModuleId {
+        LocalModuleId::new(self.modules.insert(module))
     }
 
     pub fn krate(&self) -> CrateId {

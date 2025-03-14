@@ -915,8 +915,8 @@ fn push_child_module(
         is_type,
     );
 
-    let krate = def_map.krate;
-    let module_id = LocalModuleId::new(def_map.modules.insert(new_module));
+    let krate = def_map.krate();
+    let module_id = def_map.insert_module(new_module);
     let parent_module = &mut def_map[parent];
 
     // Update the parent module to reference the child
@@ -954,7 +954,7 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            let parent_module_id = ModuleId { krate: def_map.krate, local_id: parent };
+            let parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
             interner.register_module(
                 mod_id,
                 location,
