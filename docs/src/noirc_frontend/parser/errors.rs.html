@@ -329,7 +329,9 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility};
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, IntegerBitSize, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -391,6 +393,8 @@
     </span>ExpectedPatternButFoundType(Token),
     <span class="attr">#[error(<span class="string">"Expected a ; separating these two statements"</span>)]
     </span>MissingSeparatingSemi,
+    <span class="attr">#[error(<span class="string">"Expected a ; after `let` statement"</span>)]
+    </span>MissingSemicolonAfterLet,
     <span class="attr">#[error(<span class="string">"constrain keyword is deprecated"</span>)]
     </span>ConstrainDeprecated,
     <span class="attr">#[error(

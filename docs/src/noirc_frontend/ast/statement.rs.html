@@ -1039,7 +1039,14 @@
 <a href="#1038" id="1038">1038</a>
 <a href="#1039" id="1039">1039</a>
 <a href="#1040" id="1040">1040</a>
-<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1145,14 +1152,21 @@
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         <span class="kw">match </span><span class="self">self </span>{
-            StatementKind::Let(<span class="kw">_</span>)
-            | StatementKind::Assign(<span class="kw">_</span>)
+            StatementKind::Let(<span class="kw">_</span>) =&gt; {
+                <span class="comment">// To match rust, a let statement always requires a semicolon, even at the end of a block
+                </span><span class="kw">if </span>semi.is_none() {
+                    <span class="kw">let </span>reason = ParserErrorReason::MissingSemicolonAfterLet;
+                    emit_error(ParserError::with_reason(reason, location));
+                }
+                <span class="self">self
+            </span>}
+            StatementKind::Assign(<span class="kw">_</span>)
             | StatementKind::Semi(<span class="kw">_</span>)
             | StatementKind::Break
             | StatementKind::Continue
             | StatementKind::Error =&gt; {
-                <span class="comment">// To match rust, statements always require a semicolon, even at the end of a block
-                </span><span class="kw">if </span>semi.is_none() {
+                <span class="comment">// These statements can omit the semicolon if they are the last statement in a block
+                </span><span class="kw">if </span>!last_statement_in_block &amp;&amp; semi.is_none() {
                     emit_error(missing_semicolon);
                 }
                 <span class="self">self
