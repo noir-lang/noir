@@ -250,7 +250,7 @@ impl Visitor for CodeActionFinder<'_> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(*self.module_id.local_id) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {

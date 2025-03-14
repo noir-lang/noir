@@ -10,7 +10,6 @@ use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::ops::Deref;
 mod module_def;
 pub use module_def::*;
 mod item_scope;
@@ -36,14 +35,6 @@ impl LocalModuleId {
 
     pub fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
-    }
-}
-
-impl Deref for LocalModuleId {
-    type Target = Index;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -156,6 +147,11 @@ impl CrateDefMap {
 
     pub fn root(&self) -> LocalModuleId {
         self.root
+    }
+
+    /// Returns a reference to the [ModuleData] stored at [LocalModuleId] `id` or `None` if none exists.
+    pub fn get(&self, id: LocalModuleId) -> Option<&ModuleData> {
+        self.modules.get(id.0)
     }
 
     pub fn modules(&self) -> &Arena<ModuleData> {

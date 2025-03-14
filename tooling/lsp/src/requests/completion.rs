@@ -864,14 +864,14 @@ impl<'a> NodeFinder<'a> {
         requested_items: RequestedItems,
     ) {
         let def_map = &self.def_maps[&module_id.krate];
-        let Some(mut module_data) = def_map.modules().get(*module_id.local_id) else {
+        let Some(mut module_data) = def_map.get(module_id.local_id) else {
             return;
         };
 
         if at_root {
             match path_kind {
                 PathKind::Crate => {
-                    let Some(root_module_data) = def_map.modules().get(*def_map.root()) else {
+                    let Some(root_module_data) = def_map.get(def_map.root()) else {
                         return;
                     };
                     module_data = root_module_data;
@@ -880,7 +880,7 @@ impl<'a> NodeFinder<'a> {
                     let Some(parent) = module_data.parent else {
                         return;
                     };
-                    let Some(parent_module_data) = def_map.modules().get(*parent) else {
+                    let Some(parent_module_data) = def_map.get(parent) else {
                         return;
                     };
                     module_data = parent_module_data;
@@ -1229,7 +1229,7 @@ impl Visitor for NodeFinder<'_> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(*self.module_id.local_id) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
