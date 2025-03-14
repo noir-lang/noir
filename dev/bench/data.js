@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741996282020,
+  "lastUpdate": 1741996291303,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8169,70 +8169,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "ba5beb68945d5f0e4455cdb79513aad081ace318",
-          "message": "fix: Error on infinitely recursive types (#7579)",
-          "timestamp": "2025-03-07T16:21:07Z",
-          "tree_id": "52f7b7d8a9707cb2159befecdea22fb71b459230",
-          "url": "https://github.com/noir-lang/noir/commit/ba5beb68945d5f0e4455cdb79513aad081ace318"
-        },
-        "date": 1741365720138,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.293,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.757,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.504,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "e3f839854c81b4c44f1b420c182df04547340fc3",
           "message": "chore: Rename `StructDefinition` to `TypeDefinition` (#7614)",
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cae4216d70dbe04358eac4b29ea9719fff715bef",
+          "message": "chore: pull most logic from `get_all_contracts` up out of the `CrateDefMap` (#7715)",
+          "timestamp": "2025-03-14T23:32:25Z",
+          "tree_id": "5cc3e1c692741cbd6c223ddd829dac475a9cd4b5",
+          "url": "https://github.com/noir-lang/noir/commit/cae4216d70dbe04358eac4b29ea9719fff715bef"
+        },
+        "date": 1741996287747,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.734,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.483,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.1,
             "unit": "s"
           },
           {
