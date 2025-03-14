@@ -821,7 +821,7 @@ impl NodeInterner {
         type_id
     }
 
-    /// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    /// Adds [TypeAliasId] and [Location] to the type_alias_ref vector
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));

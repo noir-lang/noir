@@ -39,7 +39,7 @@ pub enum BlackBoxFunc {
     RANGE,
 
     /// Computes the Blake2s hash of the inputs, as specified in
-    /// https://tools.ietf.org/html/rfc7693
+    /// <https://tools.ietf.org/html/rfc7693>
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e. an array of 32
     ///   (witness, 8), constrained to be the blake2s of the inputs.
