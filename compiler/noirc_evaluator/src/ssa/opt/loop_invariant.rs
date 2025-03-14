@@ -475,12 +475,12 @@ mod test {
             v8 = lt v3, i32 4
             jmpif v8 then: b6, else: b5
           b5():
-            v10 = unchecked_add v2, i32 1
-            jmp b1(v10)
+            v12 = unchecked_add v2, i32 1
+            jmp b1(v12)
           b6():
             constrain v4 == i32 6
-            v12 = unchecked_add v3, i32 1
-            jmp b4(v12)
+            v11 = unchecked_add v3, i32 1
+            jmp b4(v11)
         }
         ";
 
@@ -566,16 +566,16 @@ mod test {
             v7 = lt v2, u32 4
             jmpif v7 then: b3, else: b2
           b2():
-            v8 = load v5 -> [u32; 5]
-            v10 = array_get v8, index u32 2 -> u32
-            constrain v10 == u32 3
+            v12 = load v5 -> [u32; 5]
+            v14 = array_get v12, index u32 2 -> u32
+            constrain v14 == u32 3
             return
           b3():
-            v12 = load v5 -> [u32; 5]
-            v13 = array_set v12, index v0, value v1
-            store v13 at v5
-            v15 = unchecked_add v2, u32 1
-            jmp b1(v15)
+            v8 = load v5 -> [u32; 5]
+            v9 = array_set v8, index v0, value v1
+            store v9 at v5
+            v11 = unchecked_add v2, u32 1
+            jmp b1(v11)
         }
         ";
 
@@ -670,23 +670,23 @@ mod test {
             v12 = lt v3, u32 4
             jmpif v12 then: b6, else: b5
           b5():
-            v14 = unchecked_add v2, u32 1
-            jmp b1(v14)
+            v19 = unchecked_add v2, u32 1
+            jmp b1(v19)
           b6():
-            v15 = array_get v6, index v3 -> u32
-            v16 = eq v15, v0
+            v13 = array_get v6, index v3 -> u32
+            v14 = eq v13, v0
             jmp b7(u32 0)
           b7(v4: u32):
-            v17 = lt v4, u32 4
-            jmpif v17 then: b9, else: b8
+            v15 = lt v4, u32 4
+            jmpif v15 then: b9, else: b8
           b8():
             v18 = unchecked_add v3, u32 1
             jmp b4(v18)
           b9():
             constrain v10 == v0
-            constrain v15 == v0
-            v19 = unchecked_add v4, u32 1
-            jmp b7(v19)
+            constrain v13 == v0
+            v17 = unchecked_add v4, u32 1
+            jmp b7(v17)
         }
         ";
 
@@ -762,17 +762,17 @@ mod test {
             v17 = lt v2, u32 5
             jmpif v17 then: b3, else: b2
           b2():
-            v18 = load v9 -> [Field; 5]
-            call f1(v18)
+            v24 = load v9 -> [Field; 5]
+            call f1(v24)
             return
           b3():
             inc_rc v14
-            v20 = allocate -> &mut [Field; 5]
-            v21 = add v1, v2
-            v23 = array_set v14, index v21, value Field 128
-            call f1(v23)
-            v24 = unchecked_add v2, u32 1
-            jmp b1(v24)
+            v18 = allocate -> &mut [Field; 5]
+            v19 = add v1, v2
+            v21 = array_set v14, index v19, value Field 128
+            call f1(v21)
+            v23 = unchecked_add v2, u32 1
+            jmp b1(v23)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -919,13 +919,13 @@ mod test {
             v5 = lt v1, i32 4
             jmpif v5 then: b6, else: b5
           b5():
-            v7 = unchecked_add v0, i32 1
-            jmp b1(v7)
+            v11 = unchecked_add v0, i32 1
+            jmp b1(v11)
           b6():
-            v9 = div i32 10, v0
-            constrain v9 == i32 6
-            v11 = unchecked_add v1, i32 1
-            jmp b4(v11)
+            v7 = div i32 10, v0
+            constrain v7 == i32 6
+            v10 = unchecked_add v1, i32 1
+            jmp b4(v10)
         }
         ";
 
@@ -983,12 +983,12 @@ mod test {
             v8 = lt v1, i32 4
             jmpif v8 then: b6, else: b5
           b5():
-            v9 = unchecked_add v0, i32 1
-            jmp b1(v9)
+            v11 = unchecked_add v0, i32 1
+            jmp b1(v11)
           b6():
             constrain v6 == i32 6
-            v11 = unchecked_add v1, i32 1
-            jmp b4(v11)
+            v10 = unchecked_add v1, i32 1
+            jmp b4(v10)
         }
         ";
 

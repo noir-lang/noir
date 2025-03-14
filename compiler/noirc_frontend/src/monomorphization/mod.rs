@@ -606,18 +606,10 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Lambda(lambda) => self.lambda(lambda, expr)?,
 
-            HirExpression::MethodCall(hir_method_call) => {
-                unreachable!(
-                    "Encountered HirExpression::MethodCall during monomorphization {hir_method_call:?}"
-                )
-            }
             HirExpression::Error => unreachable!("Encountered Error node during monomorphization"),
             HirExpression::Quote(_) => unreachable!("quote expression remaining in runtime code"),
             HirExpression::Unquote(_) => {
                 unreachable!("unquote expression remaining in runtime code")
-            }
-            HirExpression::Comptime(_) => {
-                unreachable!("comptime expression remaining in runtime code")
             }
             HirExpression::EnumConstructor(constructor) => {
                 self.enum_constructor(constructor, expr)?
