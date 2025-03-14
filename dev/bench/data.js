@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741986050937,
+  "lastUpdate": 1741986053157,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "37be49fd081f33dc7256d23cee8ccc0719c50a82",
-          "message": "chore!: convert `TraitMethodNotInScope` to error (#7427)",
-          "timestamp": "2025-03-07T00:29:01Z",
-          "tree_id": "f05c3883d43ab8654675dd849c36510d2dc6d302",
-          "url": "https://github.com/noir-lang/noir/commit/37be49fd081f33dc7256d23cee8ccc0719c50a82"
-        },
-        "date": 1741308764601,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.69,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.08,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.75,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mike@aztecprotocol.com",
             "name": "Michael Connor",
             "username": "iAmMichaelConnor"
@@ -14540,6 +14476,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 416.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.36,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bce7399455118a025b0a66b66ea7e5a2cdf06511",
+          "message": "fix: doc comments on functions warn unexpectedly (#7721)",
+          "timestamp": "2025-03-14T20:28:41Z",
+          "tree_id": "4f6db25df63c48e7c1b95324c07c5c470099f58d",
+          "url": "https://github.com/noir-lang/noir/commit/bce7399455118a025b0a66b66ea7e5a2cdf06511"
+        },
+        "date": 1741986049567,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.87,
             "unit": "MB"
           },
           {
