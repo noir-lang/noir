@@ -599,9 +599,11 @@ impl Elaborator<'_> {
 
     /// Solve any generics that are part of the path before the function, for example:
     ///
+    /// ```rust
     /// foo::Bar::<i32>::baz
     ///           ^^^^^
     ///         solve these
+    /// ```
     fn resolve_item_turbofish(&mut self, item: PathResolutionItem) -> Vec<Type> {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
