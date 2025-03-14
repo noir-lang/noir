@@ -258,4 +258,8 @@ impl Context<'_, '_> {
     pub fn activate_lsp_mode(&mut self) {
         self.def_interner.lsp_mode = true;
     }
+
+    pub fn disable_comptime_printing(&mut self) {
+        self.def_interner.disable_comptime_printing = true;
+    }
 }
