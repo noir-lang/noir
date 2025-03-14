@@ -1,6 +1,7 @@
 #pragma once
 
 #include "serde.hpp"
+#include "msgpack.hpp"
 #include "bincode.hpp"
 
 namespace WitnessStack {
@@ -11,6 +12,9 @@ namespace WitnessStack {
         friend bool operator==(const Witness&, const Witness&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Witness bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
     };
 
     struct WitnessMap {
@@ -19,6 +23,9 @@ namespace WitnessStack {
         friend bool operator==(const WitnessMap&, const WitnessMap&);
         std::vector<uint8_t> bincodeSerialize() const;
         static WitnessMap bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const { value.msgpack_pack(packer); }
+        void msgpack_unpack(auto const& o) { value.msgpack_unpack(o); }
     };
 
     struct StackItem {
@@ -28,6 +35,8 @@ namespace WitnessStack {
         friend bool operator==(const StackItem&, const StackItem&);
         std::vector<uint8_t> bincodeSerialize() const;
         static StackItem bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(index, witness);
     };
 
     struct WitnessStack {
@@ -36,6 +45,8 @@ namespace WitnessStack {
         friend bool operator==(const WitnessStack&, const WitnessStack&);
         std::vector<uint8_t> bincodeSerialize() const;
         static WitnessStack bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(stack);
     };
 
 } // end of namespace WitnessStack
