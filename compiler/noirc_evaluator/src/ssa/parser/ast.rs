@@ -3,7 +3,10 @@ use std::fmt::{self, Display, Formatter};
 use acvm::FieldElement;
 use noirc_errors::Span;
 
-use crate::ssa::ir::{function::RuntimeType, instruction::BinaryOp, types::Type};
+use crate::ssa::{
+    ir::{function::RuntimeType, instruction::BinaryOp, types::Type},
+    opt::pure::Purity,
+};
 
 #[derive(Debug)]
 pub(crate) struct ParsedSsa {
@@ -32,6 +35,7 @@ pub(crate) struct ParsedMakeArray {
 #[derive(Debug)]
 pub(crate) struct ParsedFunction {
     pub(crate) runtime_type: RuntimeType,
+    pub(crate) purity: Option<Purity>,
     pub(crate) external_name: String,
     pub(crate) internal_name: String,
     pub(crate) blocks: Vec<ParsedBlock>,

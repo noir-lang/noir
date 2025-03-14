@@ -512,7 +512,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.0.contents.clone());
+                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
