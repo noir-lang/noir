@@ -38,10 +38,7 @@ pub(crate) fn msgpack_serialize<T: Serialize>(
         // * `Serializer::with_struct_map` encodes structs with field names instead of positions, which is backwards compatible when new fields are added, or optional fields removed.
         // * consider using `Serializer::with_bytes` to force buffers to be compact, or use `serde_bytes` on the field.
         // * enums have their name encoded in `Serializer::serialize_newtype_variant`, but originally it was done by index instead
-        let mut buf = Vec::new();
-        let mut ser = rmp_serde::Serializer::new(&mut buf).with_struct_map();
-        value.serialize(&mut ser).map_err(std::io::Error::other)?;
-        Ok(buf)
+        rmp_serde::to_vec_named(value).map_err(std::io::Error::other)
     }
 }
 
@@ -78,7 +75,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::serialization::{msgpack_deserialize, msgpack_serialize};
+    use brillig::{HeapArray, ValueOrArray};
+
+    use crate::{
+        native_types::Witness,
+        serialization::{msgpack_deserialize, msgpack_serialize},
+    };
 
     mod version1 {
         use serde::{Deserialize, Serialize};
@@ -217,5 +219,38 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Test that we understand how different enums are serialized.
+    #[test]
+    fn msgpack_repr_enum_variant() {
+        use rmpv::Value;
+
+        let value = ValueOrArray::HeapArray(HeapArray {
+            pointer: brillig::MemoryAddress::Relative(0),
+            size: 3,
+        });
+        let bz = msgpack_serialize(&value, false).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+
+        let Value::Map(fields) = msg else {
+            panic!("expected Map: {msg:?}");
+        };
+        assert_eq!(fields.len(), 1);
+        let Value::String(key) = &fields[0].0 else {
+            panic!("expected String key: {fields:?}");
+        };
+        assert_eq!(key.as_str(), Some("HeapArray"));
+    }
+
+    #[test]
+    fn msgpack_repr_newtype() {
+        use rmpv::Value;
+
+        let value = Witness(1);
+        let bz = msgpack_serialize(&value, false).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+
+        assert!(matches!(msg, Value::Integer(_)))
     }
 }
