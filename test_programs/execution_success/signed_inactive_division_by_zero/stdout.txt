@@ -1,0 +1,1 @@
+[signed_inactive_division_by_zero] Circuit output: Field(0)

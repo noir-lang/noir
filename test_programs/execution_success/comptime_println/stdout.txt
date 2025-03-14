@@ -1,0 +1,3 @@
+hello from compile-time!
+hello from compile-time!
+0x03
