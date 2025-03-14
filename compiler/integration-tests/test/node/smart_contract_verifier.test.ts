@@ -46,7 +46,7 @@ test_cases.forEach((testInfo) => {
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, {}, { recursive: false });
+    const backend = new UltraHonkBackend(noir_program.bytecode, { keccak: true }, { recursive: false });
     const proofData = await backend.generateProof(witness);
 
     // JS verification
