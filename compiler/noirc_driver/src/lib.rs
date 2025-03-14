@@ -177,6 +177,10 @@ pub struct CompileOptions {
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
     #[clap(long, short = 'Z', value_delimiter = ',')]
     pub unstable_features: Vec<UnstableFeature>,
+
+    /// Used internally to avoid comptime println from producing output
+    #[arg(long, hide = true)]
+    pub disable_comptime_printing: bool,
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
