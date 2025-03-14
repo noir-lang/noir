@@ -104,14 +104,21 @@ impl StatementKind {
             ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         match self {
-            StatementKind::Let(_)
-            | StatementKind::Assign(_)
+            StatementKind::Let(_) => {
+                // To match rust, a let statement always requires a semicolon, even at the end of a block
+                if semi.is_none() {
+                    let reason = ParserErrorReason::MissingSemicolonAfterLet;
+                    emit_error(ParserError::with_reason(reason, location));
+                }
+                self
+            }
+            StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
             | StatementKind::Error => {
-                // To match rust, statements always require a semicolon, even at the end of a block
-                if semi.is_none() {
+                // These statements can omit the semicolon if they are the last statement in a block
+                if !last_statement_in_block && semi.is_none() {
                     emit_error(missing_semicolon);
                 }
                 self
