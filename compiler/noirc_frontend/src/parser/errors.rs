@@ -60,6 +60,8 @@ pub enum ParserErrorReason {
     ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
+    #[error("Expected a ; after `let` statement")]
+    MissingSemicolonAfterLet,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
     #[error(
