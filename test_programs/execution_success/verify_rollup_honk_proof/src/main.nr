@@ -1,5 +1,5 @@
 // This circuit aggregates a single Honk proof from `assert_statement`.
-global SIZE_OF_PROOF_IF_LOGN_IS_28: u32 = 469 + 69;
+global SIZE_OF_PROOF_IF_LOGN_IS_28: u32 = 466 + 69;
 global ROLLUP_HONK_IDENTIFIER: u32 = 5;
 fn main(
     verification_key: [Field; 139],
