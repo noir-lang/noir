@@ -198,7 +198,7 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                 .iter()
                 .map(|(ident, expr_id)| {
                     (
-                        ident.0.contents.to_string(),
+                        ident.to_string(),
                         value_from_hir_expression(
                             context,
                             context.def_interner.expression(expr_id),

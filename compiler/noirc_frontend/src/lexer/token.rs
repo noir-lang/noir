@@ -362,24 +362,24 @@ pub struct LocatedToken(Located<Token>);
 
 impl PartialEq<LocatedToken> for Token {
     fn eq(&self, other: &LocatedToken) -> bool {
-        self == &other.0.contents
+        self == other.token()
     }
 }
 impl PartialEq<Token> for LocatedToken {
     fn eq(&self, other: &Token) -> bool {
-        &self.0.contents == other
+        self.token() == other
     }
 }
 
 impl From<LocatedToken> for Token {
     fn from(spt: LocatedToken) -> Self {
-        spt.0.contents
+        spt.into_token()
     }
 }
 
 impl<'a> From<&'a LocatedToken> for &'a Token {
     fn from(spt: &'a LocatedToken) -> Self {
-        &spt.0.contents
+        spt.token()
     }
 }
 
@@ -419,24 +419,24 @@ pub struct SpannedToken(Spanned<Token>);
 
 impl PartialEq<SpannedToken> for Token {
     fn eq(&self, other: &SpannedToken) -> bool {
-        self == &other.0.contents
+        self == other.token()
     }
 }
 impl PartialEq<Token> for SpannedToken {
     fn eq(&self, other: &Token) -> bool {
-        &self.0.contents == other
+        self.token() == other
     }
 }
 
 impl From<SpannedToken> for Token {
     fn from(spt: SpannedToken) -> Self {
-        spt.0.contents
+        spt.into_token()
     }
 }
 
 impl<'a> From<&'a SpannedToken> for &'a Token {
     fn from(spt: &'a SpannedToken) -> Self {
-        &spt.0.contents
+        spt.token()
     }
 }
 

@@ -328,7 +328,7 @@ impl HirPattern {
                 let name = match typ.follow_bindings() {
                     Type::DataType(struct_def, _) => {
                         let struct_def = struct_def.borrow();
-                        struct_def.name.0.contents.clone()
+                        struct_def.name.to_string()
                     }
                     // This pass shouldn't error so if the type isn't a struct we just get a string
                     // representation of any other type and use that. We're relying on name
@@ -347,7 +347,7 @@ impl HirIdent {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> Ident {
         let name = interner.definition_name(self.id).to_owned();
-        Ident(Located::from(self.location, name))
+        Ident::new(name, self.location)
     }
 
     fn to_display_expr(

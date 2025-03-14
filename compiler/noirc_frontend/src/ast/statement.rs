@@ -173,17 +173,11 @@ impl StatementKind {
 }
 
 #[derive(Eq, Debug, Clone, Default)]
-pub struct Ident(pub Located<String>);
-
-impl Ident {
-    pub fn is_self_type_name(&self) -> bool {
-        self.0.contents == SELF_TYPE_NAME
-    }
-}
+pub struct Ident(Located<String>);
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
-        self.0.contents == other.0.contents
+        self.as_str() == other.as_str()
     }
 }
 
@@ -195,25 +189,25 @@ impl PartialOrd for Ident {
 
 impl Ord for Ident {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.contents.cmp(&other.0.contents)
+        self.as_str().cmp(other.as_str())
     }
 }
 
 impl PartialEq<str> for Ident {
     fn eq(&self, other: &str) -> bool {
-        self.0.contents == other
+        self.as_str() == other
     }
 }
 
 impl std::hash::Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.contents.hash(state);
+        self.as_str().hash(state);
     }
 }
 
 impl Display for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.contents.fmt(f)
+        self.as_str().fmt(f)
     }
 }
 
@@ -250,6 +244,18 @@ impl From<Ident> for Expression {
 }
 
 impl Ident {
+    pub fn new(text: String, location: Location) -> Ident {
+        Ident(Located::from(location, text))
+    }
+
+    pub fn is_self_type_name(&self) -> bool {
+        self.as_str() == SELF_TYPE_NAME
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
+    }
+
     pub fn location(&self) -> Location {
         self.0.location()
     }
@@ -258,8 +264,16 @@ impl Ident {
         self.0.span()
     }
 
-    pub fn new(text: String, location: Location) -> Ident {
-        Ident(Located::from(location, text))
+    pub fn as_str(&self) -> &str {
+        &self.0.contents
+    }
+
+    pub fn as_string(&self) -> &String {
+        &self.0.contents
+    }
+
+    pub fn into_string(self) -> String {
+        self.0.contents
     }
 }
 
@@ -344,7 +358,7 @@ impl UseTree {
         match self.kind {
             UseTreeKind::Path(name, alias) => {
                 // Desugar `use foo::{self}` to `use foo`
-                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                let path = if name.as_str() == "self" { prefix } else { prefix.join(name) };
                 vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
@@ -434,12 +448,12 @@ impl Path {
     }
 
     pub fn first_name(&self) -> Option<&str> {
-        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
+        self.segments.first().map(|segment| segment.ident.as_str())
     }
 
     pub fn last_name(&self) -> &str {
         assert!(!self.segments.is_empty());
-        &self.segments.last().unwrap().ident.0.contents
+        self.segments.last().unwrap().ident.as_str()
     }
 
     pub fn is_ident(&self) -> bool {
@@ -463,7 +477,7 @@ impl Path {
     }
 
     pub(crate) fn is_wildcard(&self) -> bool {
-        self.to_ident().map(|ident| ident.0.contents) == Some(WILDCARD_TYPE.to_string())
+        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -477,13 +491,13 @@ impl Path {
         match segments.next() {
             None => panic!("empty segment"),
             Some(seg) => {
-                string.push_str(&seg.ident.0.contents);
+                string.push_str(seg.ident.as_str());
             }
         }
 
         for segment in segments {
             string.push_str("::");
-            string.push_str(&segment.ident.0.contents);
+            string.push_str(segment.ident.as_str());
         }
 
         string
