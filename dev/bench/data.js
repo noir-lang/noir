@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741983997494,
+  "lastUpdate": 1741984090833,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9bdd7444e41c1b9001f77efd7977ea16a2f0b898",
-          "message": "chore: bump external pinned commits (#7618)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-03-07T00:02:53Z",
-          "tree_id": "98857e282e48679e0f699d924ac292969f93e033",
-          "url": "https://github.com/noir-lang/noir/commit/9bdd7444e41c1b9001f77efd7977ea16a2f0b898"
-        },
-        "date": 1741307278094,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.69,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.08,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.75,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/df20280233227b597a61bc84e6a3f919a12cbda9"
         },
         "date": 1741980622207,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.36,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e8644d0e180999cc8fed095a550ed1b16d21e723",
+          "message": "feat: allow `fn` returning `()` without having to write `-> ()` (#7717)",
+          "timestamp": "2025-03-14T19:05:30Z",
+          "tree_id": "ebdd5d63b77efb9f54f8ae5182dd74d003f913a8",
+          "url": "https://github.com/noir-lang/noir/commit/e8644d0e180999cc8fed095a550ed1b16d21e723"
+        },
+        "date": 1741984087325,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
