@@ -91,6 +91,12 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 }
 
 impl CrateDefMap {
+    pub fn new(krate: CrateId, root_module: ModuleData) -> CrateDefMap {
+        let mut modules = Arena::default();
+        let root = LocalModuleId::new(modules.insert(root_module));
+        CrateDefMap { krate, root, modules, extern_prelude: BTreeMap::default() }
+    }
+
     /// Collect all definitions in the crate
     pub fn collect_defs(
         crate_id: CrateId,
@@ -112,24 +118,17 @@ impl CrateDefMap {
         let (ast, parsing_errors) = context.parsed_file_results(root_file_id);
         let ast = ast.into_sorted();
 
-        // Allocate a default Module for the root, giving it a ModuleId
-        let mut modules: Arena<ModuleData> = Arena::default();
         let location = Location::new(Default::default(), root_file_id);
-        let root = modules.insert(ModuleData::new(
+
+        let root_module = ModuleData::new(
             None,
             location,
             Vec::new(),
             ast.inner_attributes.clone(),
             false, // is contract
             false, // is struct
-        ));
-
-        let def_map = CrateDefMap {
-            root: LocalModuleId(root),
-            modules,
-            krate: crate_id,
-            extern_prelude: BTreeMap::new(),
-        };
+        );
+        let def_map = CrateDefMap::new(crate_id, root_module);
 
         // Now we want to populate the CrateDefMap using the DefCollector
         errors.extend(DefCollector::collect_crate_and_dependencies(
