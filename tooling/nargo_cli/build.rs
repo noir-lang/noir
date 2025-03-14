@@ -782,7 +782,7 @@ mod nargo_expand_{test_type} {{
 
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("expand").arg("--force");
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
@@ -805,7 +805,7 @@ mod nargo_expand_{test_type} {{
         // Now we can run `nargo compile` on the expanded code
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
-        nargo.arg("compile").arg("--force");
+        nargo.arg("compile").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");

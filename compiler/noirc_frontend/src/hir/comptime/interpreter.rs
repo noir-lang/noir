@@ -1851,13 +1851,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);
-
-        // Always print to STDERR to avoid interfering with the output of the program,
-        // if for example the user is running `nargo execute`.
-        if print_newline {
-            eprintln!("{}", contents);
+        if self.elaborator.interner.is_in_lsp_mode() {
+            // If we `println!` in LSP it gets mixed with the protocol stream and leads to crashing
+            // the connection. If we use `eprintln!` not only it doesn't crash, but the output
+            // appears in the "Noir Language Server" output window in case you want to see it.
+            if print_newline {
+                eprintln!("{}", contents);
+            } else {
+                eprint!("{}", contents);
+            }
+        } else if print_newline {
+            println!("{}", contents);
         } else {
-            eprint!("{}", contents);
+            print!("{}", contents);
         }
 
         Ok(Value::Unit)
