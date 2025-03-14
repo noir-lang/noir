@@ -4,7 +4,7 @@ use async_lsp::{ErrorCode, ResponseError};
 
 use nargo::{package::Package, workspace::Workspace};
 use noirc_driver::check_crate;
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_frontend::hir::{FunctionNameMatch, def_map::ModuleId};
 
 use crate::{
     LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
@@ -178,8 +178,9 @@ pub(crate) fn collect_lenses_for_package(
         let def_map =
             context.def_map(&crate_id).expect("The local crate should be analyzed already");
 
-        for contract in
-            def_map.get_all_contracts().map(|(id, _)| def_map.modules().get(id).unwrap())
+        for contract in def_map
+            .get_all_contracts()
+            .map(|(local_id, _)| context.module(ModuleId { krate: crate_id, local_id }))
         {
             let location = contract.location;
             let file_id = location.file;

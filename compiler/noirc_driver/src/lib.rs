@@ -18,7 +18,7 @@ use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
-use noirc_frontend::hir::def_map::{CrateDefMap, ModuleData, ModuleDefId};
+use noirc_frontend::hir::def_map::{CrateDefMap, ModuleData, ModuleDefId, ModuleId};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -425,9 +425,7 @@ pub fn compile_contract(
 ) -> CompilationResult<CompiledContract> {
     let (_, warnings) = check_crate(context, crate_id, options)?;
 
-    // TODO: We probably want to error if contracts is empty
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
-
     let mut contracts = def_map.get_all_contracts();
 
     let Some((module_id, name)) = contracts.next() else {
@@ -447,11 +445,8 @@ pub fn compile_contract(
     }
     drop(contracts);
 
-    let contract = read_contract(
-        context,
-        context.def_map(&crate_id).unwrap().modules().get(module_id).unwrap(),
-        name,
-    );
+    let module_id = ModuleId { krate: crate_id, local_id: module_id };
+    let contract = read_contract(context, context.module(module_id), name);
 
     let mut errors = warnings;
 

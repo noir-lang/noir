@@ -203,11 +203,11 @@ impl CrateDefMap {
     }
 
     /// Returns an iterator over all contract modules within the crate.
-    pub fn get_all_contracts(&self) -> impl Iterator<Item = (Index, String)> {
+    pub fn get_all_contracts(&self) -> impl Iterator<Item = (LocalModuleId, String)> {
         self.modules.iter().filter_map(|(id, module)| {
             if module.is_contract {
                 let name = self.get_module_path(id, module.parent);
-                Some((id, name))
+                Some((LocalModuleId(id), name))
             } else {
                 None
             }
