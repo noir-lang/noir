@@ -294,7 +294,7 @@ mod reflection {
     switch value.index() {{
         {cases}
         default:
-            throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            throw_or_abort("unknown '{name}' enum variant index: " + std::to_string(value.index()));
     }}
     std::visit([](const auto& arg) {{ packer.pack(tag, arg); }}, value);"#
                 )
@@ -322,12 +322,12 @@ mod reflection {
                         if *i == 0 { "if" } else { "else if" }
                     ));
                 }
-                body.push_str(
+                body.push_str(&format!(
                     r#"
-    else {
-        throw_or_abort("unknown enum variant: " + tag);
-    }"#,
-                );
+    else {{
+        throw_or_abort("unknown '{name}' enum variant: " + tag);
+    }}"#
+                ));
 
                 body
             };
