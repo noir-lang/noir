@@ -645,7 +645,7 @@ impl Token {
     }
 
     /// These are all the operators allowed as part of
-    /// a short-hand assignment: a <op>= b
+    /// a short-hand assignment: `a <op>= b`
     pub fn assign_shorthand_operators() -> [Token; 10] {
         use Token::*;
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
@@ -955,10 +955,10 @@ pub enum SecondaryAttribute {
     Export,
     Field(String),
 
-    /// A custom tag attribute: #['foo]
+    /// A custom tag attribute: `#['foo]`
     Tag(CustomAttribute),
 
-    /// An attribute expected to run a comptime function of the same name: #[foo]
+    /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
     Abi(String),

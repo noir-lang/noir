@@ -313,7 +313,7 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     }
 }
 
-/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][acir::brillig_vm::Opcode::ForeignCall]
+/// Encapsulates a request from a Brillig VM process that encounters a [foreign call opcode][brillig_vm::brillig::Opcode::ForeignCall]
 /// where the result of the foreign call has not yet been provided.
 ///
 /// The caller must resolve this opcode externally based upon the information in the request.

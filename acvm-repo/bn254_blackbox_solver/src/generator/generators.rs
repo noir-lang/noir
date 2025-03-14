@@ -21,7 +21,7 @@ fn default_generators() -> &'static [Affine; NUM_DEFAULT_GENERATORS] {
     })
 }
 
-/// Derives generator points via [hash-to-curve][hash_to_curve].
+/// Derives generator points.
 ///
 /// # ALGORITHM DESCRIPTION
 ///
@@ -29,12 +29,10 @@ fn default_generators() -> &'static [Affine; NUM_DEFAULT_GENERATORS] {
 /// 2. a 64-byte preimage buffer is generated with the following structure:
 ///     - bytes 0-31: BLAKE3 hash of domain_separator
 ///     - bytes 32-63: generator index in big-endian form
-/// 3. The [hash-to-curve algorithm][hash_to_curve] is used to hash the above into a curve point.
+/// 3. The hash-to-curve algorithm is used to hash the above into a curve point.
 ///
 /// NOTE: The domain separator is included to ensure that it is possible to derive independent sets of
 /// index-addressable generators.
-///
-/// [hash_to_curve]: super::hash_to_curve::hash_to_curve
 pub fn derive_generators(
     domain_separator_bytes: &[u8],
     num_generators: u32,

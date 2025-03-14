@@ -142,7 +142,7 @@ impl Context<'_, '_> {
         if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
     }
 
-    /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    /// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
     /// account for the crate names of dependencies.
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
