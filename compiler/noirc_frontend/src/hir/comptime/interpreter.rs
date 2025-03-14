@@ -1845,6 +1845,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
+        if self.elaborator.interner.disable_comptime_printing {
+            return Ok(Value::Unit);
+        }
+
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);
         if self.elaborator.interner.is_in_lsp_mode() {

@@ -638,7 +638,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Add the given generics to scope.
-    /// Each generic will have a fresh Shared<TypeBinding> associated with it.
+    /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
     pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
         vecmap(generics, |generic| {
             let mut is_error = false;

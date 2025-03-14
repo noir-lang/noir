@@ -212,7 +212,7 @@ impl CrateDefMap {
     }
 
     /// Go through all modules in this crate, and find all functions in
-    /// each module with the #[export] attribute
+    /// each module with the `#[export]` attribute
     pub fn get_all_exported_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,

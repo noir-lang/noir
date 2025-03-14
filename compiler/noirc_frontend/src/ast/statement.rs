@@ -514,8 +514,10 @@ pub struct PathSegment {
 impl PathSegment {
     /// Returns the span where turbofish happen. For example:
     ///
+    /// ```noir
     ///    foo::<T>
     ///       ~^^^^
+    /// ```
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {

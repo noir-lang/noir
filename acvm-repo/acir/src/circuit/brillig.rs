@@ -24,7 +24,7 @@ pub enum BrilligOutputs {
 
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents
 /// a full Brillig function to be executed by the Brillig VM.
-/// This is stored separately on a program and accessed through a [BrilligPointer].
+/// This is stored separately on a program and accessed through a [BrilligFunctionId].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BrilligBytecode<F> {
