@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741958072459,
+  "lastUpdate": 1741958077734,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8160,70 +8160,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d148df67879995302978d689cc20d4dc092b34b7",
-          "message": "fix(experimental): Fix execution of match expressions with multiple branches (#7570)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-06T14:35:20Z",
-          "tree_id": "bd672786cba563a362171d99effee9b598345f01",
-          "url": "https://github.com/noir-lang/noir/commit/d148df67879995302978d689cc20d4dc092b34b7"
-        },
-        "date": 1741272807591,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.29,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.759,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.508,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11353,6 +11289,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 0.024,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1e391ac4022cb23b9406e11dbd4d66be1f41aa34",
+          "message": "chore(frontend): Regression test for creating a mutable reference to an array element (#7699)",
+          "timestamp": "2025-03-14T12:56:16Z",
+          "tree_id": "8524984eb5ff239cee82f0e9f714910800067c95",
+          "url": "https://github.com/noir-lang/noir/commit/1e391ac4022cb23b9406e11dbd4d66be1f41aa34"
+        },
+        "date": 1741958074492,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.068,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.745,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.486,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
             "unit": "s"
           }
         ]
