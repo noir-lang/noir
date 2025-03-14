@@ -35,7 +35,7 @@ pub struct BrilligSolver<'b, F, B: BlackBoxFunctionSolver<F>> {
 }
 
 impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
-    /// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
+    /// Assigns the zero value to all outputs of a given [brillig call][acir::circuit::opcodes::Opcode::BrilligCall].
     pub(super) fn zero_out_brillig_outputs(
         initial_witness: &mut WitnessMap<F>,
         outputs: &[BrilligOutputs],

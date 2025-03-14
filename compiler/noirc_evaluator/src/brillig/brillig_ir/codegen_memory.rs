@@ -260,7 +260,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(index_at_end_of_array);
     }
 
-    /// Converts a BrilligArray (pointer to [RC, ...items]) to a HeapArray (pointer to [items])
+    /// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
     pub(crate) fn codegen_brillig_array_to_heap_array(&mut self, array: BrilligArray) -> HeapArray {
         let heap_array = HeapArray { pointer: self.allocate_register(), size: array.size };
         self.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, 1);
