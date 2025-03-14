@@ -17,7 +17,7 @@
 //! Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
 //! The program dependence graph and its use in optimization. ACM
 //! Trans. Program. Lang. Syst. 9, 3 (July 1987), 319–349.
-//! https://doi.org/10.1145/24039.24041
+//! <https://doi.org/10.1145/24039.24041>
 //!
 //! ```text
 //! Let G be a control flow graph. Let X and Y be nodes in G. Y is
