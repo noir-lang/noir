@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741958361746,
+  "lastUpdate": 1741960460731,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8170,70 +8170,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "073625a9fd8b1081bd299a869c640f199a6e9692",
-          "message": "fix: TokensPrettyPrinter was missing some spaces between tokens (#7607)",
-          "timestamp": "2025-03-06T15:31:43Z",
-          "tree_id": "0f1606761fdbb1d757b83019be0fe664d7753d30",
-          "url": "https://github.com/noir-lang/noir/commit/073625a9fd8b1081bd299a869c640f199a6e9692"
-        },
-        "date": 1741276315247,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.071,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.289,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.751,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.506,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.007,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.025,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "1a1eb6f12f595d7b0f4a003351208a914ab5f385",
           "message": "fix: compare Quoted by expanding interned values (#7602)",
           "timestamp": "2025-03-06T17:45:28Z",
@@ -11343,6 +11279,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.025,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8b7f1123983517d1e3abecf7d2e59ee72281efcc",
+          "message": "chore: hide Ident fields (#7709)",
+          "timestamp": "2025-03-14T13:36:11Z",
+          "tree_id": "20dfac5b7587a6ca12aed6f2fb5b484b9a5ea29c",
+          "url": "https://github.com/noir-lang/noir/commit/8b7f1123983517d1e3abecf7d2e59ee72281efcc"
+        },
+        "date": 1741960457690,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.072,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.283,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.734,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.487,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 17.2,
             "unit": "s"
           },
           {
