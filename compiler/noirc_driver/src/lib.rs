@@ -17,8 +17,8 @@ use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
-use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
+use noirc_frontend::hir::def_map::CrateDefMap;
+use noirc_frontend::hir::{Context, Contract};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };

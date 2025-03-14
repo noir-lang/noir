@@ -9,12 +9,13 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, TypeId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
+use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{Contract, CrateDefMap, fully_qualified_module_path};
+use def_map::{CrateDefMap, ModuleDefId, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -211,9 +212,60 @@ impl Context<'_, '_> {
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
-        self.def_map(crate_id)
-            .expect("The local crate should be analyzed already")
-            .get_all_contracts(&self.def_interner)
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        let contracts = def_map.get_all_contracts();
+
+        contracts
+            .map(|(id, name)| {
+                let module = def_map
+                    .modules
+                    .get(id)
+                    .expect("Module must exist to be returned from `get_all_contracts`");
+
+                let functions = module
+                    .value_definitions()
+                    .filter_map(|id| {
+                        id.as_function().map(|function_id| {
+                            let attrs = self.def_interner.function_attributes(&function_id);
+                            let is_entry_point = attrs.is_contract_entry_point();
+                            ContractFunctionMeta { function_id, is_entry_point }
+                        })
+                    })
+                    .collect();
+
+                let mut outputs =
+                    ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
+
+                self.def_interner.get_all_globals().iter().for_each(|global_info| {
+                    self.def_interner.global_attributes(&global_info.id).iter().for_each(|attr| {
+                        if let SecondaryAttribute::Abi(tag) = attr {
+                            if let Some(tagged) = outputs.globals.get_mut(tag) {
+                                tagged.push(global_info.id);
+                            } else {
+                                outputs.globals.insert(tag.to_string(), vec![global_info.id]);
+                            }
+                        }
+                    });
+                });
+
+                module.type_definitions().for_each(|id| {
+                    if let ModuleDefId::TypeId(struct_id) = id {
+                        self.def_interner.type_attributes(&struct_id).iter().for_each(|attr| {
+                            if let SecondaryAttribute::Abi(tag) = attr {
+                                if let Some(tagged) = outputs.structs.get_mut(tag) {
+                                    tagged.push(struct_id);
+                                } else {
+                                    outputs.structs.insert(tag.to_string(), vec![struct_id]);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                Contract { name, location: module.location, functions, outputs }
+            })
+            .collect()
     }
 
     pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
@@ -258,4 +310,31 @@ impl Context<'_, '_> {
     pub fn activate_lsp_mode(&mut self) {
         self.def_interner.lsp_mode = true;
     }
+}
+
+/// Specifies a contract function and extra metadata that
+/// one can use when processing a contract function.
+///
+/// One of these is whether the contract function is an entry point.
+/// The caller should only type-check these functions and not attempt
+/// to create a circuit for them.
+pub struct ContractFunctionMeta {
+    pub function_id: FuncId,
+    /// Indicates whether the function is an entry point
+    pub is_entry_point: bool,
+}
+
+pub struct ContractOutputs {
+    pub structs: HashMap<String, Vec<TypeId>>,
+    pub globals: HashMap<String, Vec<GlobalId>>,
+}
+
+/// A 'contract' in Noir source code with a given name, functions and events.
+/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
+pub struct Contract {
+    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
+    pub name: String,
+    pub location: Location,
+    pub functions: Vec<ContractFunctionMeta>,
+    pub outputs: ContractOutputs,
 }
