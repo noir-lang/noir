@@ -19,12 +19,13 @@ impl Parser<'_> {
         })
     }
 
-    /// OuterDocComments = outer_doc_comments*
+    /// OuterDocComments = OuterDocComment*
     pub(super) fn parse_outer_doc_comments(&mut self) -> Vec<String> {
         self.parse_many("outer doc comments", without_separator(), Self::parse_outer_doc_comment)
     }
 
-    fn parse_outer_doc_comment(&mut self) -> Option<String> {
+    /// OuterDocComment = outer_doc_comment
+    pub(super) fn parse_outer_doc_comment(&mut self) -> Option<String> {
         self.eat_kind(TokenKind::OuterDocComment).map(|token| match token.into_token() {
             Token::LineComment(comment, Some(DocStyle::Outer))
             | Token::BlockComment(comment, Some(DocStyle::Outer)) => comment,
