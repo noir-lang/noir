@@ -10,7 +10,7 @@ use clap::Args;
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiParameter, AbiType, AbiValue};
-use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
@@ -486,7 +486,7 @@ pub fn compile_contract(
 }
 
 /// Return a Vec of all `contract` declarations in the source code and the functions they contain
-pub fn read_contract(context: &Context, module: &ModuleData, name: String) -> Contract {
+fn read_contract(context: &Context, module: &ModuleData, name: String) -> Contract {
     let functions = module
         .value_definitions()
         .filter_map(|id| {
@@ -526,7 +526,7 @@ pub fn read_contract(context: &Context, module: &ModuleData, name: String) -> Co
         }
     });
 
-    Contract { name, location: module.location, functions, outputs }
+    Contract { name, functions, outputs }
 }
 
 /// True if there are (non-warning) errors present and we should halt compilation
@@ -777,23 +777,22 @@ pub fn compile_no_check(
 /// One of these is whether the contract function is an entry point.
 /// The caller should only type-check these functions and not attempt
 /// to create a circuit for them.
-pub struct ContractFunctionMeta {
-    pub function_id: FuncId,
+struct ContractFunctionMeta {
+    function_id: FuncId,
     /// Indicates whether the function is an entry point
-    pub is_entry_point: bool,
+    is_entry_point: bool,
 }
 
-pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<TypeId>>,
-    pub globals: HashMap<String, Vec<GlobalId>>,
+struct ContractOutputs {
+    structs: HashMap<String, Vec<TypeId>>,
+    globals: HashMap<String, Vec<GlobalId>>,
 }
 
 /// A 'contract' in Noir source code with a given name, functions and events.
 /// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-pub struct Contract {
+struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-    pub name: String,
-    pub location: Location,
-    pub functions: Vec<ContractFunctionMeta>,
-    pub outputs: ContractOutputs,
+    name: String,
+    functions: Vec<ContractFunctionMeta>,
+    outputs: ContractOutputs,
 }
