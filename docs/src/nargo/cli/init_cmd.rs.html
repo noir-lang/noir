@@ -83,7 +83,8 @@
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
 <span class="kw">use </span><span class="kw">super</span>::NargoConfig;
 <span class="kw">use </span>clap::Args;
@@ -92,7 +93,8 @@
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::write_to_file;
 <span class="kw">use </span>std::path::PathBuf;
 
-<span class="doccomment">/// Create a Noir project in the current directory.
+<span class="attr">#[allow(rustdoc::broken_intra_doc_links)]
+</span><span class="doccomment">/// Create a Noir project in the current directory.
 </span><span class="attr">#[derive(Debug, Clone, Args)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>InitCommand {
     <span class="doccomment">/// Name of the package [default: current directory name]

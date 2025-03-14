@@ -36,7 +36,7 @@ successfully</p>
     &amp;self,
     crate_id: &amp;<a class="enum" href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>,
     id: <a class="struct" href="../node_interner/struct.TypeId.html" title="struct noirc_frontend::node_interner::TypeId">TypeId</a>,
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></h4></section></summary><div class="docblock"><p>Returns a fully-qualified path to the given [StructId] from the given <a href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>. This function also
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></h4></section></summary><div class="docblock"><p>Returns a fully-qualified path to the given <a href="../node_interner/struct.TypeId.html" title="struct noirc_frontend::node_interner::TypeId">TypeId</a> from the given <a href="../graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>. This function also
 account for the crate names of dependencies.</p>
 <p>For example, if you project contains a <code>main.nr</code> and <code>foo.nr</code> and you provide the <code>main_crate_id</code> and the
 <code>bar_struct_id</code> where the <code>Bar</code> struct is inside <code>foo.nr</code>, this function would return <code>foo::Bar</code> as a <a href="https://doc.rust-lang.org/1.85.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>.</p>

@@ -127,8 +127,7 @@
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
 <a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::circuit::Program};
+<a href="#129" id="129">129</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::circuit::Program};
 <span class="kw">use </span>noirc_abi::{Abi, AbiType, AbiValue};
 <span class="kw">use </span>noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -195,8 +194,7 @@
 </span><span class="kw">pub struct </span>ContractFunctionArtifact {
     <span class="kw">pub </span>name: String,
 
-    <span class="doccomment">/// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which the [`ContractFunction`]
-    /// was compiled.
+    <span class="doccomment">/// Hash of the monomorphized program from which the [`ContractFunction`] was compiled.
     </span><span class="attr">#[serde(default)] </span><span class="comment">// For backwards compatibility (it was missing).
     </span><span class="attr">#[serde(serialize_with = <span class="string">"serialize_hash"</span>, deserialize_with = <span class="string">"deserialize_hash"</span>)]
     </span><span class="kw">pub </span>hash: u64,

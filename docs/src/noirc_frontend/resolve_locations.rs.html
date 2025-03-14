@@ -259,7 +259,7 @@
     ///
     /// The [Location] may not necessarily point to the beginning of the item
     /// so we check if the location's span is contained within the start or end
-    /// of each items [Span]
+    /// of each items [Location]
     </span><span class="kw">pub fn </span>find_location_index(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>Into&lt;Index&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>location_candidate: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>Index, <span class="kw-2">&amp;</span>Location)&gt; = <span class="prelude-val">None</span>;
 
@@ -279,7 +279,7 @@
         location_candidate.map(|(index, _location)| <span class="kw-2">*</span>index)
     }
 
-    <span class="doccomment">/// Returns the Type of the expression that exists at the given location.
+    <span class="doccomment">/// Returns the [Type] of the expression that exists at the given location.
     </span><span class="kw">pub fn </span>type_at_location(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
         <span class="comment">// This is similar to `find_location_index` except that we skip indexes for which there is no type
         </span><span class="kw">let </span><span class="kw-2">mut </span>location_candidate: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>Index, <span class="kw-2">&amp;</span>Location, <span class="kw-2">&amp;</span>Type)&gt; = <span class="prelude-val">None</span>;
@@ -300,7 +300,7 @@
         location_candidate.map(|(_index, _location, typ)| typ)
     }
 
-    <span class="doccomment">/// Returns the [Location] of the definition of the given Ident found at [Span] of the given [FileId].
+    <span class="doccomment">/// Returns the [Location] of the definition of the given Ident found at `location`.
     /// Returns [None] when definition is not found.
     </span><span class="kw">pub fn </span>get_definition_location_from(
         <span class="kw-2">&amp;</span><span class="self">self</span>,

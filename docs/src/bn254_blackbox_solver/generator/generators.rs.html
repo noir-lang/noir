@@ -177,9 +177,7 @@
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a></pre></div><pre class="rust"><code><span class="comment">// Adapted from https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/affine_element.rshttps://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/group.rs
+<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="comment">// Adapted from https://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/affine_element.rshttps://github.com/laudiacay/barustenberg/blob/df6bc6f095fe7f288bf6a12e7317fd8eb33d68ae/barustenberg/src/ecc/groups/group.rs
 </span><span class="doccomment">//!
 //! Code is used under the MIT license
 
@@ -202,7 +200,7 @@
     })
 }
 
-<span class="doccomment">/// Derives generator points via [hash-to-curve][hash_to_curve].
+<span class="doccomment">/// Derives generator points.
 ///
 /// # ALGORITHM DESCRIPTION
 ///
@@ -210,12 +208,10 @@
 /// 2. a 64-byte preimage buffer is generated with the following structure:
 ///     - bytes 0-31: BLAKE3 hash of domain_separator
 ///     - bytes 32-63: generator index in big-endian form
-/// 3. The [hash-to-curve algorithm][hash_to_curve] is used to hash the above into a curve point.
+/// 3. The hash-to-curve algorithm is used to hash the above into a curve point.
 ///
 /// NOTE: The domain separator is included to ensure that it is possible to derive independent sets of
 /// index-addressable generators.
-///
-/// [hash_to_curve]: super::hash_to_curve::hash_to_curve
 </span><span class="kw">pub fn </span>derive_generators(
     domain_separator_bytes: <span class="kw-2">&amp;</span>[u8],
     num_generators: u32,

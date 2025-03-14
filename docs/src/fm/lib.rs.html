@@ -249,7 +249,8 @@
 <a href="#248" id="248">248</a>
 <a href="#249" id="249">249</a>
 <a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -385,8 +386,9 @@
 <span class="kw">pub trait </span>NormalizePath {
     <span class="doccomment">/// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
     ///
-    /// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-    /// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+    /// Plucked from &lt;https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61&gt;
+    ///
+    /// Advice from &lt;https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/&gt;
     </span><span class="kw">fn </span>normalize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PathBuf;
 }
 

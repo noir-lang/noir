@@ -1935,7 +1935,7 @@
     }
 
     <span class="doccomment">/// These are all the operators allowed as part of
-    /// a short-hand assignment: a &lt;op&gt;= b
+    /// a short-hand assignment: `a &lt;op&gt;= b`
     </span><span class="kw">pub fn </span>assign_shorthand_operators() -&gt; [Token; <span class="number">10</span>] {
         <span class="kw">use </span>Token::<span class="kw-2">*</span>;
         [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
@@ -2245,10 +2245,10 @@
     Export,
     Field(String),
 
-    <span class="doccomment">/// A custom tag attribute: #['foo]
+    <span class="doccomment">/// A custom tag attribute: `#['foo]`
     </span>Tag(CustomAttribute),
 
-    <span class="doccomment">/// An attribute expected to run a comptime function of the same name: #[foo]
+    <span class="doccomment">/// An attribute expected to run a comptime function of the same name: `#[foo]`
     </span>Meta(MetaAttribute),
 
     Abi(String),

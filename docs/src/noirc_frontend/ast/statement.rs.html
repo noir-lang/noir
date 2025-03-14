@@ -1037,7 +1037,9 @@
 <a href="#1036" id="1036">1036</a>
 <a href="#1037" id="1037">1037</a>
 <a href="#1038" id="1038">1038</a>
-<a href="#1039" id="1039">1039</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -1553,8 +1555,10 @@
 <span class="kw">impl </span>PathSegment {
     <span class="doccomment">/// Returns the span where turbofish happen. For example:
     ///
+    /// ```noir
     ///    foo::&lt;T&gt;
     ///       ~^^^^
+    /// ```
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     </span><span class="kw">pub fn </span>turbofish_span(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Span {

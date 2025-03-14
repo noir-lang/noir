@@ -1034,7 +1034,7 @@ all still-unsolved trait constraints in this context.</p>
 <code>fn foo&lt;T0_impl_Bar&gt;(x: T0_impl_Bar) where T0_impl_Bar: Bar</code>
 although the fresh type variable is not named internally.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.add_generics" class="method"><a class="src rightside" href="../../src/noirc_frontend/elaborator/mod.rs.html#642-678">Source</a><h4 class="code-header">pub fn <a href="#method.add_generics" class="fn">add_generics</a>(&amp;mut self, generics: &amp;<a class="type" href="../ast/type.UnresolvedGenerics.html" title="type noirc_frontend::ast::UnresolvedGenerics">UnresolvedGenerics</a>) -&gt; <a class="type" href="../hir_def/types/type.Generics.html" title="type noirc_frontend::hir_def::types::Generics">Generics</a></h4></section></summary><div class="docblock"><p>Add the given generics to scope.
-Each generic will have a fresh Shared<TypeBinding> associated with it.</p>
+Each generic will have a fresh <code>Shared&lt;TypeBinding&gt;</code> associated with it.</p>
 </div></details><section id="method.resolve_generic" class="method"><a class="src rightside" href="../../src/noirc_frontend/elaborator/mod.rs.html#680-706">Source</a><h4 class="code-header">fn <a href="#method.resolve_generic" class="fn">resolve_generic</a>(
     &amp;mut self,
     generic: &amp;<a class="enum" href="../ast/enum.UnresolvedGeneric.html" title="enum noirc_frontend::ast::UnresolvedGeneric">UnresolvedGeneric</a>,

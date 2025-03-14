@@ -11,6 +11,6 @@ pass before usage in proof generation; if it’s returned from cache these trans
 already been applied.</p>
 <p>The transformations are <em>not</em> covered by the check that decides whether we can use the cached artifact.
 That comparison is based on on <a href="struct.CompiledProgram.html#structfield.hash" title="field noirc_driver::CompiledProgram::hash">CompiledProgram::hash</a> which is a persisted version of the hash of the input
-<a href="../noirc_frontend/monomorphization/ast/struct.Program.html" title="struct noirc_frontend::monomorphization::ast::Program"><code>ast::Program</code></a>, whereas the output [<code>circuit::Program</code>][acir::circuit::Program]
+<a href="../noirc_frontend/monomorphization/ast/struct.Program.html" title="struct noirc_frontend::monomorphization::ast::Program"><code>ast::Program</code></a>, whereas the output <a href="../acir/circuit/struct.Program.html" title="struct acir::circuit::Program"><code>circuit::Program</code></a>
 contains the final optimized ACIR opcodes, including the transformation done after this compilation.</p>
 </div></details></section></div></main></body></html>

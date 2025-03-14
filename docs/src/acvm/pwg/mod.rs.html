@@ -839,7 +839,7 @@
     /// Most commonly this will be due to an unsatisfied constraint due to invalid inputs to the circuit.
     </span>Failure(OpcodeResolutionError&lt;F&gt;),
 
-    <span class="doccomment">/// The ACVM has encountered a request for a Brillig [foreign call][acir::brillig_vm::Opcode::ForeignCall]
+    <span class="doccomment">/// The ACVM has encountered a request for a Brillig [foreign call][brillig_vm::brillig::Opcode::ForeignCall]
     /// to retrieve information from outside of the ACVM. The result of the foreign call must be passed back
     /// to the ACVM using [`ACVM::resolve_pending_foreign_call`].
     ///
@@ -1104,7 +1104,7 @@
         </span>}
     }
 
-    <span class="doccomment">/// Resolves a foreign call's [result][acir::brillig_vm::ForeignCallResult] using a result calculated outside of the ACVM.
+    <span class="doccomment">/// Resolves a foreign call's [result][brillig_vm::brillig::ForeignCallResult] using a result calculated outside of the ACVM.
     ///
     /// The ACVM can then be restarted to solve the remaining Brillig VM process as well as the remaining ACIR opcodes.
     </span><span class="kw">pub fn </span>resolve_pending_foreign_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, foreign_call_result: ForeignCallResult&lt;F&gt;) {

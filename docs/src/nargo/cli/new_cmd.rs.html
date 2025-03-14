@@ -52,14 +52,16 @@
 <a href="#51" id="51">51</a>
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
-<a href="#54" id="54">54</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
+<a href="#54" id="54">54</a>
+<a href="#55" id="55">55</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
 <span class="kw">use super</span>::{NargoConfig, init_cmd::initialize_project};
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>nargo::package::{CrateName, PackageType};
 <span class="kw">use </span>std::path::PathBuf;
 
-<span class="doccomment">/// Create a Noir project in a new directory.
+<span class="attr">#[allow(rustdoc::broken_intra_doc_links)]
+</span><span class="doccomment">/// Create a Noir project in a new directory.
 </span><span class="attr">#[derive(Debug, Clone, Args)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>NewCommand {
     <span class="doccomment">/// The path to save the new project

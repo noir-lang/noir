@@ -407,7 +407,7 @@
         <span class="kw">if </span>parent.is_empty() { name.into() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{parent}::{name}"</span>) }
     }
 
-    <span class="doccomment">/// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    <span class="doccomment">/// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
     /// account for the crate names of dependencies.
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the

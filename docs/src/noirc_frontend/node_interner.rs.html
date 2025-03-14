@@ -3333,7 +3333,7 @@
         type_id
     }
 
-    <span class="doccomment">/// Adds [TypeLiasId] and [Location] to the type_alias_ref vector
+    <span class="doccomment">/// Adds [TypeAliasId] and [Location] to the type_alias_ref vector
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     </span><span class="kw">pub fn </span>add_type_alias_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeAliasId, location: Location) {
         <span class="self">self</span>.type_alias_ref.push((type_id, location));

@@ -73,8 +73,7 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::circuit::Program;
@@ -91,8 +90,7 @@
 </span><span class="kw">pub struct </span>ProgramArtifact {
     <span class="kw">pub </span>noir_version: String,
 
-    <span class="doccomment">/// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`ProgramArtifact`]
-    /// was compiled.
+    <span class="doccomment">/// Hash of the monomorphized program from which this [`ProgramArtifact`] was compiled.
     ///
     /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
     </span><span class="attr">#[serde(serialize_with = <span class="string">"serialize_hash"</span>, deserialize_with = <span class="string">"deserialize_hash"</span>)]

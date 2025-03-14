@@ -104,7 +104,7 @@
 
 <span class="kw">use super</span>::{AcirTransformationMap, transform_assert_messages};
 
-<span class="doccomment">/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
+<span class="doccomment">/// Applies backend independent optimizations to a [`Circuit`].
 </span><span class="kw">pub fn </span>optimize&lt;F: AcirField&gt;(acir: Circuit&lt;F&gt;) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
@@ -119,7 +119,7 @@
     (acir, transformation_map)
 }
 
-<span class="doccomment">/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] independent optimizations to a [`Circuit`].
+<span class="doccomment">/// Applies backend independent optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow optimizations to be applied in a loop.
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, name = <span class="string">"optimize_acir" </span>skip(acir, acir_opcode_positions))]

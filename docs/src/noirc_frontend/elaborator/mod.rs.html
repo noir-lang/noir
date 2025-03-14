@@ -2822,7 +2822,7 @@
     }
 
     <span class="doccomment">/// Add the given generics to scope.
-    /// Each generic will have a fresh Shared&lt;TypeBinding&gt; associated with it.
+    /// Each generic will have a fresh `Shared&lt;TypeBinding&gt;` associated with it.
     </span><span class="kw">pub fn </span>add_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: <span class="kw-2">&amp;</span>UnresolvedGenerics) -&gt; Generics {
         vecmap(generics, |generic| {
             <span class="kw">let </span><span class="kw-2">mut </span>is_error = <span class="bool-val">false</span>;

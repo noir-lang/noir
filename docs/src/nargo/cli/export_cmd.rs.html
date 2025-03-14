@@ -101,7 +101,8 @@
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::CompileError;
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::CompileError;
 <span class="kw">use </span>nargo::ops::report_errors;
 <span class="kw">use </span>noir_artifact_cli::fs::artifact::save_program_to_file;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
@@ -125,7 +126,8 @@
 
 <span class="kw">use super</span>::{LockType, PackageOptions, WorkspaceCommand};
 
-<span class="doccomment">/// Exports functions marked with #[export] attribute
+<span class="attr">#[allow(rustdoc::broken_intra_doc_links)]
+</span><span class="doccomment">/// Exports functions marked with #[export] attribute
 </span><span class="attr">#[derive(Debug, Clone, Args)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ExportCommand {
     <span class="attr">#[clap(flatten)]

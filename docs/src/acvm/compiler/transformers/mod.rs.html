@@ -513,7 +513,7 @@
 /// The value was determined by running tests.
 </span><span class="kw">const </span>MAX_TRANSFORMER_PASSES: usize = <span class="number">3</span>;
 
-<span class="doccomment">/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
 </span><span class="kw">pub fn </span>transform&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
@@ -532,7 +532,7 @@
     (acir, transformation_map)
 }
 
-<span class="doccomment">/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
@@ -575,7 +575,7 @@
     (acir, acir_opcode_positions)
 }
 
-<span class="doccomment">/// Applies [`ProofSystemCompiler`][crate::ProofSystemCompiler] specific optimizations to a [`Circuit`].
+<span class="doccomment">/// Applies backend specific optimizations to a [`Circuit`].
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
