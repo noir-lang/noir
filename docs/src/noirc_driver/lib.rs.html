@@ -717,7 +717,11 @@
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -896,6 +900,10 @@
     </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
     #[clap(long, short = <span class="string">'Z'</span>, value_delimiter = <span class="string">','</span>)]
     </span><span class="kw">pub </span>unstable_features: Vec&lt;UnstableFeature&gt;,
+
+    <span class="doccomment">/// Used internally to avoid comptime println from producing output
+    </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
+    </span><span class="kw">pub </span>disable_comptime_printing: bool,
 }
 
 <span class="kw">pub fn </span>parse_expression_width(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;ExpressionWidth, std::io::Error&gt; {

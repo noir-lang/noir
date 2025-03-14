@@ -259,7 +259,11 @@
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>resolution;
@@ -518,6 +522,10 @@
     <span class="doccomment">/// Activates LSP mode, which will track references for all definitions.
     </span><span class="kw">pub fn </span>activate_lsp_mode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.def_interner.lsp_mode = <span class="bool-val">true</span>;
+    }
+
+    <span class="kw">pub fn </span>disable_comptime_printing(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.def_interner.disable_comptime_printing = <span class="bool-val">true</span>;
     }
 }
 </code></pre></div></section></main></body></html>
