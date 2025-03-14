@@ -115,7 +115,7 @@ namespace Program {
                     tag = "LessThanEquals";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BinaryFieldOp' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -166,7 +166,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BinaryFieldOp' enum variant: " + tag);
             }
         }
     };
@@ -328,7 +328,7 @@ namespace Program {
                     tag = "Shr";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BinaryIntOp' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -399,7 +399,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BinaryIntOp' enum variant: " + tag);
             }
         }
     };
@@ -489,7 +489,7 @@ namespace Program {
                     tag = "U128";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'IntegerBitSize' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -530,7 +530,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'IntegerBitSize' enum variant: " + tag);
             }
         }
     };
@@ -574,7 +574,7 @@ namespace Program {
                     tag = "Integer";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BitSize' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -595,7 +595,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BitSize' enum variant: " + tag);
             }
         }
     };
@@ -641,7 +641,7 @@ namespace Program {
                     tag = "Relative";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'MemoryAddress' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -662,7 +662,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'MemoryAddress' enum variant: " + tag);
             }
         }
     };
@@ -964,7 +964,7 @@ namespace Program {
                     tag = "ToRadix";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BlackBoxOp' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -1060,7 +1060,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BlackBoxOp' enum variant: " + tag);
             }
         }
     };
@@ -1121,7 +1121,7 @@ namespace Program {
                     tag = "Vector";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'HeapValueType' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -1147,7 +1147,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'HeapValueType' enum variant: " + tag);
             }
         }
     };
@@ -1207,7 +1207,7 @@ namespace Program {
                     tag = "HeapVector";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'ValueOrArray' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -1233,7 +1233,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'ValueOrArray' enum variant: " + tag);
             }
         }
     };
@@ -1540,7 +1540,7 @@ namespace Program {
                     tag = "Stop";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BrilligOpcode' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -1651,7 +1651,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BrilligOpcode' enum variant: " + tag);
             }
         }
     };
@@ -1708,7 +1708,7 @@ namespace Program {
                     tag = "Witness";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -1729,7 +1729,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant: " + tag);
             }
         }
     };
@@ -2059,7 +2059,7 @@ namespace Program {
                     tag = "Sha256Compression";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BlackBoxFuncCall' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2170,7 +2170,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BlackBoxFuncCall' enum variant: " + tag);
             }
         }
     };
@@ -2237,7 +2237,7 @@ namespace Program {
                     tag = "ReturnData";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BlockType' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2263,7 +2263,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BlockType' enum variant: " + tag);
             }
         }
     };
@@ -2335,7 +2335,7 @@ namespace Program {
                     tag = "MemoryArray";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BrilligInputs' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2361,7 +2361,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BrilligInputs' enum variant: " + tag);
             }
         }
     };
@@ -2407,7 +2407,7 @@ namespace Program {
                     tag = "Array";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'BrilligOutputs' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2428,7 +2428,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'BrilligOutputs' enum variant: " + tag);
             }
         }
     };
@@ -2548,7 +2548,7 @@ namespace Program {
                     tag = "Call";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'Opcode' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2589,7 +2589,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'Opcode' enum variant: " + tag);
             }
         }
     };
@@ -2635,7 +2635,7 @@ namespace Program {
                     tag = "Memory";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'ExpressionOrMemory' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2656,7 +2656,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'ExpressionOrMemory' enum variant: " + tag);
             }
         }
     };
@@ -2710,7 +2710,7 @@ namespace Program {
                     tag = "Bounded";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'ExpressionWidth' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2731,7 +2731,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'ExpressionWidth' enum variant: " + tag);
             }
         }
     };
@@ -2777,7 +2777,7 @@ namespace Program {
                     tag = "Brillig";
                     break;
                 default:
-                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown 'OpcodeLocation' enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
@@ -2798,7 +2798,7 @@ namespace Program {
                 value = v;
             }
             else {
-                throw_or_abort("unknown enum variant: " + tag);
+                throw_or_abort("unknown 'OpcodeLocation' enum variant: " + tag);
             }
         }
     };
