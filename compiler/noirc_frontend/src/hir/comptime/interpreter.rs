@@ -427,10 +427,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let res = match argument {
                     Value::Struct(fields, struct_type) if fields.len() == pattern_fields.len() => {
                         for (field_name, field_pattern) in pattern_fields {
-                            let field = fields.get(&field_name.0.contents).ok_or_else(|| {
+                            let field = fields.get(field_name.as_string()).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
                                     typ: struct_type.clone(),
-                                    field_name: field_name.0.contents.clone(),
+                                    field_name: field_name.to_string(),
                                     location,
                                 }
                             })?;
@@ -1262,7 +1262,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .into_iter()
             .map(|(name, expr)| {
                 let field_value = self.evaluate(expr)?;
-                Ok((Rc::new(name.0.contents), field_value))
+                Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
 
@@ -1302,10 +1302,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        fields.get(&access.rhs.0.contents).cloned().ok_or_else(|| {
+        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.0.contents;
+            let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
@@ -1612,7 +1612,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.0.contents), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), rhs);
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1667,7 +1667,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[&field_name.0.contents].clone()),
+                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,
@@ -1844,6 +1844,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
+
+        if self.elaborator.interner.disable_comptime_printing {
+            return Ok(Value::Unit);
+        }
 
         let print_newline = arguments[0].0 == Value::Bool(true);
         let contents = arguments[1].0.display(self.elaborator.interner);

@@ -509,7 +509,7 @@ impl Elaborator<'_> {
 
         if let Some(existing) = variables_defined.iter().find(|elem| *elem == &name) {
             // Allow redefinition of `_` only, to ignore variables
-            if name.0.contents != WILDCARD_PATTERN {
+            if name.as_str() != WILDCARD_PATTERN {
                 self.push_err(ResolverError::VariableAlreadyDefinedInPattern {
                     existing: existing.clone(),
                     new_location: name.location(),
@@ -541,9 +541,9 @@ impl Elaborator<'_> {
         let mut fields = BTreeMap::default();
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
-                expected_field_types.iter().position(|(name, _)| *name == field_name.0.contents)
+                expected_field_types.iter().position(|(name, _)| *name == field_name.as_str())
             else {
-                let error = if fields.contains_key(&field_name.0.contents) {
+                let error = if fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
                 } else {
                     let struct_definition = struct_name.clone();

@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-use noirc_errors::{Located, Location};
+use noirc_errors::Location;
 
 pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
@@ -251,7 +251,7 @@ pub(crate) fn overflowing_int(
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {
-    Ident(Located::from(func.name.location, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 /// Check that a recursive function *can* return without endlessly calling itself.

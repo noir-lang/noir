@@ -723,7 +723,7 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    self.push_str(&name.0.contents);
+                    self.push_str(name.as_str());
                     self.push_str(": ");
                     self.show_pattern(pattern);
                 }
@@ -910,9 +910,9 @@ impl<'interner, 'def_map, 'string> ItemPrinter<'interner, 'def_map, 'string> {
             let use_import = false;
             let name = self.show_reference_to_module_def_id(import.id, use_import);
 
-            if name != import.name.0.contents {
+            if name != import.name.as_str() {
                 self.push_str(" as ");
-                self.push_str(&import.name.0.contents);
+                self.push_str(import.name.as_str());
             }
             self.push(';');
             self.push('\n');

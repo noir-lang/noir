@@ -97,7 +97,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_type(&constraint.typ);
                 self.string.push_str(": ");
                 let trait_ = self.interner.get_trait(constraint.trait_bound.trait_id);
-                self.string.push_str(&trait_.name.0.contents);
+                self.string.push_str(trait_.name.as_str());
                 self.append_trait_generics(&constraint.trait_bound.trait_generics);
             }
         }
@@ -146,7 +146,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     if index > 0 {
                         self.string.push_str(", ");
                     }
-                    self.string.push_str(&name.0.contents);
+                    self.string.push_str(name.as_str());
                 }
                 self.string.push_str(" }");
                 true
@@ -189,7 +189,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 let per_ns = current_module_data.find_name(&struct_type.name);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     if module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        self.string.push_str(&struct_type.name.0.contents);
+                        self.string.push_str(struct_type.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
@@ -211,7 +211,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&struct_type.name.0.contents);
+                self.string.push_str(struct_type.name.as_str());
                 self.append_generics(generics);
             }
             Type::Alias(type_alias, generics) => {
@@ -224,7 +224,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 let per_ns = current_module_data.find_name(&type_alias.name);
                 if let Some((module_def_id, _, _)) = per_ns.types {
                     if module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
-                        self.string.push_str(&type_alias.name.0.contents);
+                        self.string.push_str(type_alias.name.as_str());
                         self.append_generics(generics);
                         return;
                     }
@@ -248,23 +248,19 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&type_alias.name.0.contents);
+                self.string.push_str(type_alias.name.as_str());
                 self.append_generics(generics);
             }
             Type::TraitAsType(trait_id, _, trait_generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
 
+                // Check if the trait type is already imported/visible in this module
                 let current_module_data =
                     &self.def_maps[&self.module_id.krate].modules()[self.module_id.local_id.0];
-
-                // Check if the trait type is already imported/visible in this module
-                let per_ns = current_module_data.find_name(&trait_.name);
-                if let Some((module_def_id, _, _)) = per_ns.types {
-                    if module_def_id == ModuleDefId::TraitId(*trait_id) {
-                        self.string.push_str(&trait_.name.0.contents);
-                        self.append_trait_generics(trait_generics);
-                        return;
-                    }
+                if current_module_data.find_trait_in_scope(*trait_id).is_some() {
+                    self.string.push_str(trait_.name.as_str());
+                    self.append_trait_generics(trait_generics);
+                    return;
                 }
 
                 let parent_module_id =
@@ -285,7 +281,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     self.string.push_str(&relative_path);
                     self.string.push_str("::");
                 }
-                self.string.push_str(&trait_.name.0.contents);
+                self.string.push_str(trait_.name.as_str());
                 self.append_trait_generics(trait_generics);
             }
             Type::TypeVariable(typevar) => {
@@ -422,7 +418,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             if index > 0 {
                 self.string.push_str(", ");
             }
-            self.string.push_str(&named_type.name.0.contents);
+            self.string.push_str(named_type.name.as_str());
             self.string.push_str(" = ");
             self.append_type(&named_type.typ);
             index += 1;

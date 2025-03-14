@@ -52,7 +52,7 @@ impl CodeActionFinder<'_> {
                     if let UnresolvedTypeData::Unspecified = alias.typ {
                         continue;
                     }
-                    associated_types.remove(&name.0.contents);
+                    associated_types.remove(name.as_string());
                 }
             }
         }
@@ -60,7 +60,7 @@ impl CodeActionFinder<'_> {
         // Also remove default methods
         for trait_function in &trait_.methods {
             if trait_function.default_impl.is_some() {
-                method_ids.remove(&trait_function.name.0.contents);
+                method_ids.remove(trait_function.name.as_string());
             }
         }
 

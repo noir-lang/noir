@@ -96,7 +96,7 @@ impl ItemPrinter<'_, '_, '_> {
             Type::TraitAsType(trait_id, _, generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
                 self.push_str("impl ");
-                self.push_str(&trait_.name.0.contents);
+                self.push_str(trait_.name.as_str());
                 self.show_trait_generics(generics);
             }
             Type::NamedGeneric(_type_variable, name) => {
