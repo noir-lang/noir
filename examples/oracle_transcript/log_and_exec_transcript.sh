@@ -14,8 +14,8 @@ cat Oracle.test.jsonl \
 # Execute `main` with the Prover.toml and Oracle.jsonl files.
 nargo execute --skip-underconstrained-check --oracle-file Oracle.jsonl
 
-# Also execute through `noir-execute`
-noir-execute \
+# Also execute through `noir-executor`
+noir-executor execute \
     --artifact-path target/oracle_transcript.json \
     --oracle-file Oracle.jsonl \
     --prover-file Prover.toml \
