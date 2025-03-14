@@ -13,8 +13,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    TypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData,
+    Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
 };
 use crate::hir::resolution::errors::ResolverError;
 use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};

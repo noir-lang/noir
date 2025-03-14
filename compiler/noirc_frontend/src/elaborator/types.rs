@@ -528,7 +528,10 @@ impl Elaborator<'_> {
                         ab.ordered_args = generics.clone();
                     }
                 }
-                let typ = self.resolve_named_type(path, ab);
+                let mut typ = self.resolve_named_type(path, ab);
+                if let Type::Alias(alias, vec) = typ {
+                    typ = alias.borrow().get_type(&vec);
+                }
                 self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, _span) => {

@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::QuotedType;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
@@ -844,7 +845,7 @@ impl NodeInterner {
         type_id: TypeAliasId,
         typ: Type,
         generics: Generics,
-        num_expr: Option<ExpressionKind>,
+        num_expr: Option<UnresolvedTypeExpression>,
     ) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
         type_alias_type.borrow_mut().set_type_and_generics(typ, generics, num_expr);

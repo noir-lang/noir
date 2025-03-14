@@ -1561,6 +1561,27 @@ fn type_alias_to_numeric_generic() {
 }
 
 #[test]
+fn compose_type_alias_to_numeric() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
+    fn main() {
+        let b: [u32; 12] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let mut a = [0;Quadruple::<N>];
+        for i in 0..Quadruple::<N> {
+            a[i] = i;
+        }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn type_alias_to_numeric_as_generic() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;

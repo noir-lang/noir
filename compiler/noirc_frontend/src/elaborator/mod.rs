@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     DataType, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType, UnresolvedTypeExpression},
+    ast::{ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir_def::traits::ResolvedTraitBound,
     node_interner::GlobalValue,
@@ -1656,8 +1656,12 @@ impl<'context> Elaborator<'context> {
             let num_type = self.resolve_type(num_type);
             let kind = Kind::numeric(num_type);
             if let UnresolvedTypeData::Expression(expr) = alias.type_alias_def.typ.typ.clone() {
-                let expr_kind = UnresolvedTypeExpression::to_expression_kind(&expr);
-                num_expr = Some(expr_kind);
+                num_expr = Some(expr);
+            } else {
+                // We only support aliases to numeric generics expressions for now
+                self.errors.push(CompilationError::ResolverError(
+                    ResolverError::RecursiveTypeAlias { location },
+                ));
             }
             self.resolve_type_with_kind(alias.type_alias_def.typ, &kind)
         } else {

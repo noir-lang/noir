@@ -6,7 +6,7 @@ use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
-        UnresolvedType,
+        UnresolvedType, UnresolvedTypeExpression,
     },
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -546,6 +546,7 @@ impl Elaborator<'_> {
                 // In order to handle this, we retrieve the numeric generics expression that the type aliases to
                 let type_alias = self.interner.get_type_alias(alias);
                 if let Some(expr) = type_alias.borrow().numeric_expr.clone() {
+                    let expr = UnresolvedTypeExpression::to_expression_kind(&expr);
                     let expr = Expression::new(expr, type_alias.borrow().location);
                     return self.elaborate_expression(expr);
                 }

@@ -22,8 +22,8 @@ use crate::{
 
 use super::{
     ForBounds, FunctionReturnType, GenericTypeArgs, IntegerBitSize, ItemVisibility,
-    MatchExpression, NoirEnumeration, TypeAlias, Pattern, Signedness, TraitBound,
-    TraitImplItemKind, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    MatchExpression, NoirEnumeration, Pattern, Signedness, TraitBound, TraitImplItemKind,
+    TypeAlias, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
 };
 
