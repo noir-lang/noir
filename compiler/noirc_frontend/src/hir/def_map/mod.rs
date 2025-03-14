@@ -2,10 +2,10 @@ use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::Context;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
+use crate::node_interner::{FuncId, NodeInterner};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
-use crate::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+use crate::token::{FunctionAttribute, TestScope};
 use fm::{FileId, FileManager};
 use noirc_arena::{Arena, Index};
 use noirc_errors::Location;
@@ -234,61 +234,16 @@ impl CrateDefMap {
         })
     }
 
-    /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
-    /// and collect them all into a Vec.
-    pub fn get_all_contracts(&self, interner: &NodeInterner) -> Vec<Contract> {
-        self.modules
-            .iter()
-            .filter_map(|(id, module)| {
-                if module.is_contract {
-                    let functions = module
-                        .value_definitions()
-                        .filter_map(|id| {
-                            id.as_function().map(|function_id| {
-                                let is_entry_point = interner
-                                    .function_attributes(&function_id)
-                                    .is_contract_entry_point();
-                                ContractFunctionMeta { function_id, is_entry_point }
-                            })
-                        })
-                        .collect();
-
-                    let mut outputs =
-                        ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
-
-                    interner.get_all_globals().iter().for_each(|global_info| {
-                        interner.global_attributes(&global_info.id).iter().for_each(|attr| {
-                            if let SecondaryAttribute::Abi(tag) = attr {
-                                if let Some(tagged) = outputs.globals.get_mut(tag) {
-                                    tagged.push(global_info.id);
-                                } else {
-                                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
-                                }
-                            }
-                        });
-                    });
-
-                    module.type_definitions().for_each(|id| {
-                        if let ModuleDefId::TypeId(struct_id) = id {
-                            interner.type_attributes(&struct_id).iter().for_each(|attr| {
-                                if let SecondaryAttribute::Abi(tag) = attr {
-                                    if let Some(tagged) = outputs.structs.get_mut(tag) {
-                                        tagged.push(struct_id);
-                                    } else {
-                                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    let name = self.get_module_path(LocalModuleId::new(id), module.parent);
-                    Some(Contract { name, location: module.location, functions, outputs })
-                } else {
-                    None
-                }
-            })
-            .collect()
+    /// Returns an iterator over all contract modules within the crate.
+    pub fn get_all_contracts(&self) -> impl Iterator<Item = (LocalModuleId, String)> {
+        self.modules.iter().filter_map(|(id, module)| {
+            if module.is_contract {
+                let name = self.get_module_path(LocalModuleId::new(id), module.parent);
+                Some((LocalModuleId(id), name))
+            } else {
+                None
+            }
+        })
     }
 
     /// Find a child module's name by inspecting its parent.
@@ -384,33 +339,6 @@ pub fn fully_qualified_module_path(
             .expect("The module was supposed to be defined in a dependency");
         crates.join("::") + "::" + &module_path
     }
-}
-
-/// Specifies a contract function and extra metadata that
-/// one can use when processing a contract function.
-///
-/// One of these is whether the contract function is an entry point.
-/// The caller should only type-check these functions and not attempt
-/// to create a circuit for them.
-pub struct ContractFunctionMeta {
-    pub function_id: FuncId,
-    /// Indicates whether the function is an entry point
-    pub is_entry_point: bool,
-}
-
-pub struct ContractOutputs {
-    pub structs: HashMap<String, Vec<TypeId>>,
-    pub globals: HashMap<String, Vec<GlobalId>>,
-}
-
-/// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-pub struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-    pub name: String,
-    pub location: Location,
-    pub functions: Vec<ContractFunctionMeta>,
-    pub outputs: ContractOutputs,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content
