@@ -968,7 +968,7 @@
             LValue::Ident(ident) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>mutable = <span class="bool-val">true</span>;
                 <span class="kw">let </span>location = ident.location();
-                <span class="kw">let </span>path = Path::from_single(ident.<span class="number">0</span>.contents, location);
+                <span class="kw">let </span>path = Path::from_single(ident.to_string(), location);
                 <span class="kw">let </span>((ident, scope_index), <span class="kw">_</span>) = <span class="self">self</span>.get_ident_from_path(path);
 
                 <span class="self">self</span>.resolve_local_variable(ident.clone(), scope_index);
@@ -1016,7 +1016,7 @@
                     <span class="kw-2">*</span>mutable_ref = <span class="bool-val">true</span>;
                 };
 
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents;
+                <span class="kw">let </span>name = field_name.as_str();
                 <span class="kw">let </span>(object_type, field_index) = <span class="self">self
                     </span>.check_field_access(
                         <span class="kw-2">&amp;</span>lhs_type,

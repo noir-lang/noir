@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["execute_program","execute_program_inner","execute_program_with_profiling"],"struct":["ProgramExecutor"]};

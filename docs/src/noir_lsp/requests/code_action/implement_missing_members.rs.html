@@ -495,7 +495,7 @@
                     <span class="kw">if let </span>UnresolvedTypeData::Unspecified = alias.typ {
                         <span class="kw">continue</span>;
                     }
-                    associated_types.remove(<span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents);
+                    associated_types.remove(name.as_string());
                 }
             }
         }
@@ -503,7 +503,7 @@
         <span class="comment">// Also remove default methods
         </span><span class="kw">for </span>trait_function <span class="kw">in </span><span class="kw-2">&amp;</span>trait_.methods {
             <span class="kw">if </span>trait_function.default_impl.is_some() {
-                method_ids.remove(<span class="kw-2">&amp;</span>trait_function.name.<span class="number">0</span>.contents);
+                method_ids.remove(trait_function.name.as_string());
             }
         }
 

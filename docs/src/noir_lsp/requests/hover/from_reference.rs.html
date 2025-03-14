@@ -1039,12 +1039,12 @@
     }
     string.push_str(<span class="string">"    "</span>);
     string.push_str(<span class="string">"struct "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>typ.name.<span class="number">0</span>.contents);
+    string.push_str(typ.name.as_str());
     format_generics(<span class="kw-2">&amp;</span>typ.generics, <span class="kw-2">&amp;mut </span>string);
     string.push_str(<span class="string">" {\n"</span>);
     <span class="kw">for </span>field <span class="kw">in </span>fields {
         string.push_str(<span class="string">"        "</span>);
-        string.push_str(<span class="kw-2">&amp;</span>field.name.<span class="number">0</span>.contents);
+        string.push_str(field.name.as_str());
         string.push_str(<span class="string">": "</span>);
         string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, field.typ));
         string.push_str(<span class="string">",\n"</span>);
@@ -1067,12 +1067,12 @@
     }
     string.push_str(<span class="string">"    "</span>);
     string.push_str(<span class="string">"enum "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>typ.name.<span class="number">0</span>.contents);
+    string.push_str(typ.name.as_str());
     format_generics(<span class="kw-2">&amp;</span>typ.generics, <span class="kw-2">&amp;mut </span>string);
     string.push_str(<span class="string">" {\n"</span>);
     <span class="kw">for </span>field <span class="kw">in </span>variants {
         string.push_str(<span class="string">"        "</span>);
-        string.push_str(<span class="kw-2">&amp;</span>field.name.<span class="number">0</span>.contents);
+        string.push_str(field.name.as_str());
 
         <span class="kw">if </span>!field.params.is_empty() {
             <span class="kw">let </span>types = field.params.iter().map(ToString::to_string).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
@@ -1103,10 +1103,10 @@
     <span class="kw">if </span>format_parent_module(ReferenceId::Type(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push_str(<span class="string">"::"</span>);
     }
-    string.push_str(<span class="kw-2">&amp;</span>struct_type.name.<span class="number">0</span>.contents);
+    string.push_str(struct_type.name.as_str());
     string.push(<span class="string">'\n'</span>);
     string.push_str(<span class="string">"    "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>field.name.<span class="number">0</span>.contents);
+    string.push_str(field.name.as_str());
     string.push_str(<span class="string">": "</span>);
     string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, field.typ));
     string.push_str(<span class="kw-2">&amp;</span>go_to_type_links(<span class="kw-2">&amp;</span>field.typ, args.interner, args.files));
@@ -1129,10 +1129,10 @@
     <span class="kw">if </span>format_parent_module(ReferenceId::Type(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push_str(<span class="string">"::"</span>);
     }
-    string.push_str(<span class="kw-2">&amp;</span>enum_type.name.<span class="number">0</span>.contents);
+    string.push_str(enum_type.name.as_str());
     string.push(<span class="string">'\n'</span>);
     string.push_str(<span class="string">"    "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>variant.name.<span class="number">0</span>.contents);
+    string.push_str(variant.name.as_str());
     <span class="kw">if </span>!variant.params.is_empty() {
         <span class="kw">let </span>types = variant.params.iter().map(ToString::to_string).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         string.push(<span class="string">'('</span>);
@@ -1158,7 +1158,7 @@
     }
     string.push_str(<span class="string">"    "</span>);
     string.push_str(<span class="string">"trait "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>a_trait.name.<span class="number">0</span>.contents);
+    string.push_str(a_trait.name.as_str());
     format_generics(<span class="kw-2">&amp;</span>a_trait.generics, <span class="kw-2">&amp;mut </span>string);
 
     append_doc_comments(args.interner, ReferenceId::Trait(id), <span class="kw-2">&amp;mut </span>string);
@@ -1194,7 +1194,7 @@
         string.push_str(<span class="string">"mut "</span>);
     }
     string.push_str(<span class="string">"global "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>global_info.ident.<span class="number">0</span>.contents);
+    string.push_str(global_info.ident.as_str());
     string.push_str(<span class="string">": "</span>);
     string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
 
@@ -1315,7 +1315,7 @@
         }
 
         string.push(<span class="string">' '</span>);
-        string.push_str(<span class="kw-2">&amp;</span>trait_.name.<span class="number">0</span>.contents);
+        string.push_str(trait_.name.as_str());
         <span class="kw">if </span>!trait_impl.trait_generics.is_empty() {
             string.push(<span class="string">'&lt;'</span>);
             <span class="kw">for </span>(index, generic) <span class="kw">in </span>trait_impl.trait_generics.iter().enumerate() {
@@ -1335,7 +1335,7 @@
         <span class="kw">let </span>trait_ = args.interner.get_trait(trait_id);
         string.push(<span class="string">'\n'</span>);
         string.push_str(<span class="string">"    trait "</span>);
-        string.push_str(<span class="kw-2">&amp;</span>trait_.name.<span class="number">0</span>.contents);
+        string.push_str(trait_.name.as_str());
         format_generics(<span class="kw-2">&amp;</span>trait_.generics, <span class="kw-2">&amp;mut </span>string);
 
         <span class="bool-val">true
@@ -1345,7 +1345,7 @@
         <span class="kw">if </span>formatted_parent_module {
             string.push_str(<span class="string">"::"</span>);
         }
-        string.push_str(<span class="kw-2">&amp;</span>data_type.name.<span class="number">0</span>.contents);
+        string.push_str(data_type.name.as_str());
         <span class="kw">if </span>enum_variant.is_none() {
             string.push(<span class="string">'\n'</span>);
             string.push_str(<span class="string">"    "</span>);
@@ -1360,7 +1360,7 @@
             format_generics(<span class="kw-2">&amp;</span>impl_generics, <span class="kw-2">&amp;mut </span>string);
 
             string.push(<span class="string">' '</span>);
-            string.push_str(<span class="kw-2">&amp;</span>data_type.name.<span class="number">0</span>.contents);
+            string.push_str(data_type.name.as_str());
             format_generic_names(<span class="kw-2">&amp;</span>impl_generics, <span class="kw-2">&amp;mut </span>string);
         }
 
@@ -1495,7 +1495,7 @@
     string.push(<span class="string">'\n'</span>);
     string.push_str(<span class="string">"    "</span>);
     string.push_str(<span class="string">"type "</span>);
-    string.push_str(<span class="kw-2">&amp;</span>type_alias.name.<span class="number">0</span>.contents);
+    string.push_str(type_alias.name.as_str());
     string.push_str(<span class="string">" = "</span>);
     string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, <span class="kw-2">&amp;</span>type_alias.typ));
 

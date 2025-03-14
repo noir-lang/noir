@@ -804,18 +804,7 @@
 <a href="#803" id="803">803</a>
 <a href="#804" id="804">804</a>
 <a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a>
-<a href="#813" id="813">813</a>
-<a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a>
-<a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#806" id="806">806</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -1114,10 +1103,8 @@
                 diag
             }
             ResolverError::UnusedVariable { ident } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
-
                 <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
-                    <span class="macro">format!</span>(<span class="string">"unused variable {name}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"unused variable {ident}"</span>),
                     <span class="string">"unused variable"</span>.to_string(),
                     ident.location(),
                 );
@@ -1125,19 +1112,18 @@
                 diagnostic
             }
             ResolverError::UnusedItem { ident, item} =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
                 <span class="kw">let </span>item_type = item.item_type();
 
                 <span class="kw">let </span><span class="kw-2">mut </span>diagnostic =
                     <span class="kw">if let </span>UnusedItem::Struct(..) = item {
                         Diagnostic::simple_warning(
-                            <span class="macro">format!</span>(<span class="string">"{item_type} `{name}` is never constructed"</span>),
+                            <span class="macro">format!</span>(<span class="string">"{item_type} `{ident}` is never constructed"</span>),
                             <span class="macro">format!</span>(<span class="string">"{item_type} is never constructed"</span>),
                             ident.location(),
                         )
                     } <span class="kw">else </span>{
                         Diagnostic::simple_warning(
-                            <span class="macro">format!</span>(<span class="string">"unused {item_type} {name}"</span>),
+                            <span class="macro">format!</span>(<span class="string">"unused {item_type} {ident}"</span>),
                             <span class="macro">format!</span>(<span class="string">"unused {item_type}"</span>),
                             ident.location(),
                         )
@@ -1225,24 +1211,20 @@
                 error
             }
             ResolverError::UnnecessaryPub { ident, position } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
-
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"unnecessary pub keyword on {position} for function {name}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"unnecessary pub keyword on {position} for function {ident}"</span>),
                     <span class="macro">format!</span>(<span class="string">"unnecessary pub {position}"</span>),
-                    ident.<span class="number">0</span>.location(),
+                    ident.location(),
                 );
 
                 diag.add_note(<span class="string">"The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed"</span>.to_owned());
                 diag
             }
             ResolverError::NecessaryPub { ident } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
-
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"missing pub keyword on return type of function {name}"</span>),
+                    <span class="macro">format!</span>(<span class="string">"missing pub keyword on return type of function {ident}"</span>),
                     <span class="string">"missing pub on return type"</span>.to_string(),
-                    ident.<span class="number">0</span>.location(),
+                    ident.location(),
                 );
 
                 diag.add_note(<span class="string">"The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value"</span>.to_owned());
@@ -1427,24 +1409,20 @@
                 )
             },
             ResolverError::NoPredicatesAttributeOnUnconstrained { ident } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
-
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"misplaced #[no_predicates] attribute on unconstrained function {name}. Only allowed on constrained functions"</span>),
+                    <span class="macro">format!</span>(<span class="string">"misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
                     <span class="string">"misplaced #[no_predicates] attribute"</span>.to_string(),
-                    ident.<span class="number">0</span>.location(),
+                    ident.location(),
                 );
 
                 diag.add_note(<span class="string">"The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions"</span>.to_owned());
                 diag
             }
             ResolverError::FoldAttributeOnUnconstrained { ident } =&gt; {
-                <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
-
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-                    <span class="macro">format!</span>(<span class="string">"misplaced #[fold] attribute on unconstrained function {name}. Only allowed on constrained functions"</span>),
+                    <span class="macro">format!</span>(<span class="string">"misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
                     <span class="string">"misplaced #[fold] attribute"</span>.to_string(),
-                    ident.<span class="number">0</span>.location(),
+                    ident.location(),
                 );
 
                 diag.add_note(<span class="string">"The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point"</span>.to_owned());

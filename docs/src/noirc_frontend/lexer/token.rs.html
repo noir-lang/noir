@@ -1652,24 +1652,24 @@
 
 <span class="kw">impl </span>PartialEq&lt;LocatedToken&gt; <span class="kw">for </span>Token {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>LocatedToken) -&gt; bool {
-        <span class="self">self </span>== <span class="kw-2">&amp;</span>other.<span class="number">0</span>.contents
+        <span class="self">self </span>== other.token()
     }
 }
 <span class="kw">impl </span>PartialEq&lt;Token&gt; <span class="kw">for </span>LocatedToken {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>Token) -&gt; bool {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.contents == other
+        <span class="self">self</span>.token() == other
     }
 }
 
 <span class="kw">impl </span>From&lt;LocatedToken&gt; <span class="kw">for </span>Token {
     <span class="kw">fn </span>from(spt: LocatedToken) -&gt; <span class="self">Self </span>{
-        spt.<span class="number">0</span>.contents
+        spt.into_token()
     }
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>LocatedToken&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Token {
     <span class="kw">fn </span>from(spt: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>LocatedToken) -&gt; <span class="self">Self </span>{
-        <span class="kw-2">&amp;</span>spt.<span class="number">0</span>.contents
+        spt.token()
     }
 }
 
@@ -1709,24 +1709,24 @@
 
 <span class="kw">impl </span>PartialEq&lt;SpannedToken&gt; <span class="kw">for </span>Token {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>SpannedToken) -&gt; bool {
-        <span class="self">self </span>== <span class="kw-2">&amp;</span>other.<span class="number">0</span>.contents
+        <span class="self">self </span>== other.token()
     }
 }
 <span class="kw">impl </span>PartialEq&lt;Token&gt; <span class="kw">for </span>SpannedToken {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>Token) -&gt; bool {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.contents == other
+        <span class="self">self</span>.token() == other
     }
 }
 
 <span class="kw">impl </span>From&lt;SpannedToken&gt; <span class="kw">for </span>Token {
     <span class="kw">fn </span>from(spt: SpannedToken) -&gt; <span class="self">Self </span>{
-        spt.<span class="number">0</span>.contents
+        spt.into_token()
     }
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>SpannedToken&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Token {
     <span class="kw">fn </span>from(spt: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SpannedToken) -&gt; <span class="self">Self </span>{
-        <span class="kw-2">&amp;</span>spt.<span class="number">0</span>.contents
+        spt.token()
     }
 }
 

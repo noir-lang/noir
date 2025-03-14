@@ -3791,7 +3791,7 @@
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.generics.len(), generic_args.len());
 
         <span class="kw">let </span><span class="kw-2">mut </span>fields = <span class="self">self</span>.fields_raw()<span class="question-mark">?</span>.iter().enumerate();
-        fields.find(|(<span class="kw">_</span>, field)| field.name.<span class="number">0</span>.contents == field_name).map(|(i, field)| {
+        fields.find(|(<span class="kw">_</span>, field)| field.name.as_str() == field_name).map(|(i, field)| {
             <span class="kw">let </span>generics = <span class="self">self</span>.generics.iter().zip(generic_args);
             <span class="kw">let </span>substitutions = generics
                 .map(|(old, new)| {
@@ -3812,7 +3812,7 @@
         <span class="kw">let </span>substitutions = <span class="self">self</span>.get_fields_substitutions(generic_args);
 
         <span class="prelude-val">Some</span>(vecmap(<span class="self">self</span>.fields_raw()<span class="question-mark">?</span>, |field| {
-            <span class="kw">let </span>name = field.name.<span class="number">0</span>.contents.clone();
+            <span class="kw">let </span>name = field.name.to_string();
             (name, field.visibility, field.typ.substitute(<span class="kw-2">&amp;</span>substitutions))
         }))
     }
@@ -3822,7 +3822,7 @@
         <span class="kw">let </span>substitutions = <span class="self">self</span>.get_fields_substitutions(generic_args);
 
         <span class="prelude-val">Some</span>(vecmap(<span class="self">self</span>.fields_raw()<span class="question-mark">?</span>, |field| {
-            <span class="kw">let </span>name = field.name.<span class="number">0</span>.contents.clone();
+            <span class="kw">let </span>name = field.name.to_string();
             (name, field.typ.substitute(<span class="kw-2">&amp;</span>substitutions))
         }))
     }

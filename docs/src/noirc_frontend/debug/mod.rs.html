@@ -881,7 +881,7 @@
     }
 
     <span class="kw">fn </span>walk_fn(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>ast::FunctionDefinition) {
-        <span class="kw">let </span>func_name = func.name.<span class="number">0</span>.contents.clone();
+        <span class="kw">let </span>func_name = func.name.to_string();
         <span class="kw">let </span>func_args =
             func.parameters.iter().map(|param| pattern_to_string(<span class="kw-2">&amp;</span>param.pattern)).collect();
         <span class="kw">let </span>fn_id = <span class="self">self</span>.insert_function(func_name, func_args);
@@ -895,7 +895,7 @@
                 pattern_vars(<span class="kw-2">&amp;</span>param.pattern)
                     .iter()
                     .filter_map(|(id, _is_mut)| {
-                        <span class="kw">let </span>var_id = <span class="self">self</span>.insert_var(<span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>var_id = <span class="self">self</span>.insert_var(id.as_str())<span class="question-mark">?</span>;
                         <span class="prelude-val">Some</span>(build_assign_var_stmt(var_id, id_expr(id)))
                     })
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
@@ -1023,7 +1023,7 @@
                 <span class="comment">// We don't want to generate an expression to read from "_".
                 // And since this expression is going to be assigned to "_" so it doesn't matter
                 // what it is, we can use `()` for it.
-                </span><span class="kw">if </span>id.<span class="number">0</span>.contents == <span class="string">"_" </span>{
+                </span><span class="kw">if </span>id.as_str() == <span class="string">"_" </span>{
                     ast::Expression {
                         kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
                         location: id.location(),
@@ -1037,7 +1037,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>block_stmts =
             <span class="macro">vec!</span>[ast::Statement { kind: ast::StatementKind::Let(let_stmt.clone()), location }];
         block_stmts.extend(vars.iter().filter_map(|(id, <span class="kw">_</span>)| {
-            <span class="kw">let </span>var_id = <span class="self">self</span>.insert_var(<span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents)<span class="question-mark">?</span>;
+            <span class="kw">let </span>var_id = <span class="self">self</span>.insert_var(id.as_str())<span class="question-mark">?</span>;
             <span class="prelude-val">Some</span>(build_assign_var_stmt(var_id, id_expr(id)))
         }));
         block_stmts.push(ast::Statement {
@@ -1090,8 +1090,8 @@
         <span class="kw">let </span>new_assign_stmt = <span class="kw">match </span><span class="kw-2">&amp;</span>assign_stmt.lvalue {
             ast::LValue::Ident(id) =&gt; {
                 <span class="kw">let </span>var_id = <span class="self">self
-                    </span>.lookup_var(<span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents)
-                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, <span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents));
+                    </span>.lookup_var(id.as_str())
+                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, id.as_str()));
                 build_assign_var_stmt(var_id, id_expr(<span class="kw-2">&amp;</span>ident(<span class="string">"__debug_expr"</span>, id.location())))
             }
             ast::LValue::Dereference(_lv, location) =&gt; {
@@ -1110,14 +1110,14 @@
                 <span class="kw">loop </span>{
                     <span class="kw">match </span>cursor {
                         ast::LValue::Ident(id) =&gt; {
-                            var_id = <span class="self">self</span>.lookup_var(<span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents).unwrap_or_else(|| {
-                                <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, <span class="kw-2">&amp;</span>id.<span class="number">0</span>.contents)
+                            var_id = <span class="self">self</span>.lookup_var(id.as_str()).unwrap_or_else(|| {
+                                <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, id.as_str())
                             });
                             <span class="kw">break</span>;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } =&gt; {
                             cursor = object;
-                            <span class="kw">let </span>field_name_id = <span class="self">self</span>.insert_field_name(<span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents);
+                            <span class="kw">let </span>field_name_id = <span class="self">self</span>.insert_field_name(field_name.as_str());
                             indexes.push(sint_expr(-(field_name_id.<span class="number">0 </span><span class="kw">as </span>i128), <span class="kw-2">*</span>location));
                         }
                         ast::LValue::Index { index, array, location: <span class="kw">_ </span>} =&gt; {
@@ -1226,7 +1226,7 @@
     }
 
     <span class="kw">fn </span>walk_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, for_stmt: <span class="kw-2">&amp;mut </span>ast::ForLoopStatement) {
-        <span class="kw">let </span>var_name = <span class="kw-2">&amp;</span>for_stmt.identifier.<span class="number">0</span>.contents;
+        <span class="kw">let </span>var_name = for_stmt.identifier.as_str();
         <span class="kw">let </span>var_id = <span class="self">self</span>.insert_var(var_name);
 
         <span class="kw">let </span>set_and_drop_stmt = var_id.map(|var_id| {
@@ -1512,7 +1512,7 @@
 
 <span class="kw">fn </span>pattern_to_string(pattern: <span class="kw-2">&amp;</span>ast::Pattern) -&gt; String {
     <span class="kw">match </span>pattern {
-        ast::Pattern::Identifier(id) =&gt; id.<span class="number">0</span>.contents.clone(),
+        ast::Pattern::Identifier(id) =&gt; id.to_string(),
         ast::Pattern::Mutable(mpat, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(<span class="string">"mut {}"</span>, pattern_to_string(mpat.as_ref())),
         ast::Pattern::Tuple(elements, <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(
             <span class="string">"({})"</span>,
@@ -1525,7 +1525,7 @@
                 fields
                     .iter()
                     .map(|(field_ident, field_pattern)| {
-                        <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, <span class="kw-2">&amp;</span>field_ident.<span class="number">0</span>.contents, pattern_to_string(field_pattern))
+                        <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, field_ident, pattern_to_string(field_pattern))
                     })
                     .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
                     .join(<span class="string">", "</span>),

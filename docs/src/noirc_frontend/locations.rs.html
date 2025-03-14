@@ -805,7 +805,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>register_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, func_def: <span class="kw-2">&amp;</span>FunctionDefinition) {
-        <span class="kw">let </span>name = func_def.name.<span class="number">0</span>.contents.clone();
+        <span class="kw">let </span>name = func_def.name.to_string();
         <span class="kw">let </span>id = ModuleDefId::FunctionId(id);
         <span class="self">self</span>.register_name_for_auto_import(name, id, func_def.visibility, <span class="prelude-val">None</span>);
     }

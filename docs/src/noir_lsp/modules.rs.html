@@ -268,7 +268,9 @@
 <a href="#267" id="267">267</a>
 <a href="#268" id="268">268</a>
 <a href="#269" id="269">269</a>
-<a href="#270" id="270">270</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_frontend::{
     ast::{Ident, ItemVisibility},
@@ -487,8 +489,10 @@
 
     <span class="comment">// If we can find one we need to adjust the exported name a bit.
     </span><span class="kw">let </span>parent_module_name = <span class="kw-2">&amp;</span>interner.try_module_attributes(<span class="kw-2">&amp;</span>parent_module)<span class="question-mark">?</span>.name;
-    grandparent_module_reexport.name.<span class="number">0</span>.contents =
-        <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, grandparent_module_reexport.name.<span class="number">0</span>.contents, parent_module_name);
+    grandparent_module_reexport.name = Ident::new(
+        <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, grandparent_module_reexport.name, parent_module_name),
+        grandparent_module_reexport.name.location(),
+    );
 
     <span class="prelude-val">Some</span>(grandparent_module_reexport)
 }

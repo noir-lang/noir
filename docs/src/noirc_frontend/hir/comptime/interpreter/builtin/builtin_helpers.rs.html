@@ -1111,7 +1111,7 @@
                     tokens.push(Token::Comma);
                 }
 
-                <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents;
+                <span class="kw">let </span>field_name = field_name.as_str();
                 tokens.push(Token::Ident(field_name.to_string()));
 
                 <span class="comment">// If we have a pattern like `Foo { x }`, that's internally represented as `Foo { x: x }` so
@@ -1254,7 +1254,7 @@
 }
 
 <span class="kw">fn </span>ident_to_tokens(ident: <span class="kw-2">&amp;</span>Ident, location: Location) -&gt; Rc&lt;Vec&lt;LocatedToken&gt;&gt; {
-    <span class="kw">let </span>token = Token::Ident(ident.<span class="number">0</span>.contents.clone());
+    <span class="kw">let </span>token = Token::Ident(ident.to_string());
     <span class="kw">let </span>token = LocatedToken::new(token, location);
     Rc::new(<span class="macro">vec!</span>[token])
 }

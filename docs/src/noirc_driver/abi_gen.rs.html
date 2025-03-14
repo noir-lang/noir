@@ -434,7 +434,7 @@
                 .iter()
                 .map(|(ident, expr_id)| {
                     (
-                        ident.<span class="number">0</span>.contents.to_string(),
+                        ident.to_string(),
                         value_from_hir_expression(
                             context,
                             context.def_interner.expression(expr_id),

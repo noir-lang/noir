@@ -305,7 +305,7 @@
                 .methods
                 .functions
                 .iter()
-                .filter(|(<span class="kw">_</span>, <span class="kw">_</span>, f)| f.name() == method.name.<span class="number">0</span>.contents)
+                .filter(|(<span class="kw">_</span>, <span class="kw">_</span>, f)| f.name() == method.name.as_str())
                 .collect();
 
             <span class="kw">if </span>overrides.is_empty() {
@@ -458,10 +458,10 @@
                     <span class="self">self</span>.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 <span class="self">self</span>.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                     constraint_typ: override_trait_constraint.typ,
-                    constraint_name: the_trait.name.<span class="number">0</span>.contents.clone(),
+                    constraint_name: the_trait.name.to_string(),
                     constraint_generics: override_trait_constraint.trait_bound.trait_generics,
                     constraint_location: override_trait_constraint.trait_bound.location,
-                    trait_method_name: method.name.<span class="number">0</span>.contents.clone(),
+                    trait_method_name: method.name.to_string(),
                     trait_method_location: method.location,
                 });
             }

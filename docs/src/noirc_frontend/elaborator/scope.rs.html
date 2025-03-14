@@ -226,11 +226,7 @@
 <a href="#225" id="225">225</a>
 <a href="#226" id="226">226</a>
 <a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Located;
-
-<span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident, Path};
+<a href="#228" id="228">228</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{ERROR_IDENT, Ident, Path};
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{LocalModuleId, ModuleId};
 
 <span class="kw">use </span><span class="kw">crate</span>::hir::scope::{Scope <span class="kw">as </span>GenericScope, ScopeTree <span class="kw">as </span>GenericScopeTree};
@@ -351,7 +347,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(definition_info) = <span class="self">self</span>.interner.try_definition(unused_var.id) {
                 <span class="kw">let </span>name = <span class="kw-2">&amp;</span>definition_info.name;
                 <span class="kw">if </span>name != ERROR_IDENT &amp;&amp; !definition_info.is_global() {
-                    <span class="kw">let </span>ident = Ident(Located::from(unused_var.location, name.to_owned()));
+                    <span class="kw">let </span>ident = Ident::new(name.to_owned(), unused_var.location);
                     <span class="self">self</span>.push_err(ResolverError::UnusedVariable { ident });
                 }
             }

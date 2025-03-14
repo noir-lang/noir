@@ -909,7 +909,7 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = alias {
                     tree = tree.insert(Segment::Plain(<span class="macro">format!</span>(<span class="string">"{} as {}"</span>, ident, alias)));
                     tree.insert(Segment::SelfReference);
-                } <span class="kw">else if </span>ident.<span class="number">0</span>.contents == <span class="string">"self" </span>{
+                } <span class="kw">else if </span>ident.as_str() == <span class="string">"self" </span>{
                     tree.insert(Segment::SelfReference);
                 } <span class="kw">else </span>{
                     tree = tree.insert(Segment::Plain(ident.to_string()));

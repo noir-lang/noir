@@ -703,7 +703,7 @@
                 .children
                 .iter()
                 .find(|(<span class="kw">_</span>, id)| id.<span class="number">0 </span>== child_id)
-                .map(|(name, <span class="kw">_</span>)| <span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents)
+                .map(|(name, <span class="kw">_</span>)| name.as_str())
                 .expect(<span class="string">"Child module was not a child of the given parent module"</span>);
 
             <span class="kw">let </span>parent_name = <span class="self">self</span>.get_module_path_with_separator(id.<span class="number">0</span>, parent.parent, separator);

@@ -2233,13 +2233,13 @@
 
         <span class="comment">// Remove the ones that already exists in the constructor
         </span><span class="kw">for </span>(used_name, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>constructor_expression.fields {
-            fields.retain(|(<span class="kw">_</span>, field)| field.name.<span class="number">0</span>.contents != used_name.<span class="number">0</span>.contents);
+            fields.retain(|(<span class="kw">_</span>, field)| field.name.as_str() != used_name.as_str());
         }
 
         <span class="kw">let </span>self_prefix = <span class="bool-val">false</span>;
         <span class="kw">for </span>(field_index, field) <span class="kw">in </span><span class="kw-2">&amp;</span>fields {
             <span class="self">self</span>.completion_items.push(<span class="self">self</span>.struct_field_completion_item(
-                <span class="kw-2">&amp;</span>field.name.<span class="number">0</span>.contents,
+                field.name.as_str(),
                 <span class="kw-2">&amp;</span>field.typ,
                 data_type.id,
                 <span class="kw-2">*</span>field_index,
@@ -2282,7 +2282,7 @@
                 <span class="comment">// If so, take the substring and push that as the list of idents
                 // we'll do autocompletion for
                 </span><span class="kw">let </span>offset = <span class="self">self</span>.byte_index - ident.span().start() <span class="kw">as </span>usize;
-                <span class="kw">let </span>substring = ident.<span class="number">0</span>.contents[<span class="number">0</span>..offset].to_string();
+                <span class="kw">let </span>substring = ident.as_str()[<span class="number">0</span>..offset].to_string();
                 <span class="kw">let </span>ident = Ident::new(
                     substring,
                     Location::new(
@@ -2822,7 +2822,7 @@
 
         <span class="kw">for </span>(index, variant) <span class="kw">in </span>variants.iter().enumerate() {
             <span class="comment">// Variants with parameters are represented as functions and are suggested in `complete_type_methods`
-            </span><span class="kw">if </span>variant.is_function || !name_matches(<span class="kw-2">&amp;</span>variant.name.<span class="number">0</span>.contents, prefix) {
+            </span><span class="kw">if </span>variant.is_function || !name_matches(variant.name.as_str(), prefix) {
                 <span class="kw">continue</span>;
             }
 
@@ -2910,7 +2910,7 @@
         <span class="kw">let </span>function_kind = FunctionKind::Any;
 
         <span class="kw">for </span>ident <span class="kw">in </span>module_data.scope().names() {
-            <span class="kw">let </span>name = <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents;
+            <span class="kw">let </span>name = ident.as_str();
 
             <span class="kw">if </span>name_matches(name, prefix) {
                 <span class="kw">let </span>per_ns = module_data.find_name(ident);
@@ -2923,7 +2923,7 @@
                     ) {
                         <span class="kw">let </span>completion_items = <span class="self">self</span>.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -2944,7 +2944,7 @@
                     ) {
                         <span class="kw">let </span>completion_items = <span class="self">self</span>.module_def_id_completion_items(
                             module_def_id,
-                            name.clone(),
+                            name.to_string(),
                             function_completion_kind,
                             function_kind,
                             requested_items,
@@ -3106,7 +3106,7 @@
     <span class="kw">fn </span>try_set_self_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>Pattern) {
         <span class="kw">match </span>pattern {
             Pattern::Identifier(ident) =&gt; {
-                <span class="kw">if </span>ident.<span class="number">0</span>.contents == <span class="string">"self" </span>{
+                <span class="kw">if </span>ident.as_str() == <span class="string">"self" </span>{
                     <span class="kw">let </span>location = Location::new(ident.span(), <span class="self">self</span>.file);
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceId::Local(definition_id)) =
                         <span class="self">self</span>.interner.find_referenced(location)
@@ -3136,7 +3136,7 @@
             }
             LValue::MemberAccess { object, field_name, .. } =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.get_lvalue_type(object)<span class="question-mark">?</span>;
-                get_field_type(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents)
+                get_field_type(<span class="kw-2">&amp;</span>typ, field_name.as_str())
             }
             LValue::Index { array, .. } =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.get_lvalue_type(array)<span class="question-mark">?</span>;
@@ -3597,7 +3597,7 @@
         // then suggest methods of the resulting type.
         </span><span class="kw">if </span><span class="self">self</span>.byte == <span class="prelude-val">Some</span>(<span class="string">b'.'</span>) &amp;&amp; span.end() <span class="kw">as </span>usize == <span class="self">self</span>.byte_index - <span class="number">1 </span>{
             <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.get_lvalue_type(object) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = get_field_type(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents) {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = get_field_type(<span class="kw-2">&amp;</span>typ, field_name.as_str()) {
                     <span class="kw">let </span>prefix = <span class="string">""</span>;
                     <span class="kw">let </span>self_prefix = <span class="bool-val">false</span>;
                     <span class="self">self</span>.complete_type_fields_and_methods(
@@ -3839,7 +3839,7 @@
         };
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = typ {
-            <span class="kw">let </span>prefix = <span class="kw-2">&amp;</span>type_path.item.<span class="number">0</span>.contents;
+            <span class="kw">let </span>prefix = type_path.item.as_str();
             <span class="self">self</span>.complete_type_methods(
                 <span class="kw-2">&amp;</span>typ,
                 prefix,

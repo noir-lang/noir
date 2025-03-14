@@ -563,7 +563,7 @@
                         },
                     );
 
-                    <span class="kw">let </span>func_id = unresolved_trait.method_ids[<span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents];
+                    <span class="kw">let </span>func_id = unresolved_trait.method_ids[name.as_str()];
                     <span class="kw">let </span><span class="kw-2">mut </span>where_clause = where_clause.to_vec();
 
                     <span class="comment">// Attach any trait constraints on the trait to the function,
@@ -599,7 +599,7 @@
                         .fns_with_default_impl
                         .functions
                         .iter()
-                        .filter(|(<span class="kw">_</span>, <span class="kw">_</span>, q)| q.name() == name.<span class="number">0</span>.contents)
+                        .filter(|(<span class="kw">_</span>, <span class="kw">_</span>, q)| q.name() == name.as_str())
                         .collect();
 
                     <span class="kw">let </span>default_impl = <span class="kw">if </span>default_impl_list.len() == <span class="number">1 </span>{
@@ -788,7 +788,7 @@
             <span class="kw-2">&amp;</span>meta.return_type,
             noir_function,
             meta.name.location,
-            <span class="kw-2">&amp;</span>trait_info.name.<span class="number">0</span>.contents,
+            trait_info.name.as_str(),
             <span class="kw-2">&amp;mut </span>errors,
         );
     }

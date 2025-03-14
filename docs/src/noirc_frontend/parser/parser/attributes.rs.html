@@ -790,7 +790,7 @@
             <span class="self">self</span>.parse_meta_attribute(path, start_location)
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(path) = <span class="self">self</span>.parse_path_no_turbofish() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
-                <span class="kw">if </span>ident.<span class="number">0</span>.contents == <span class="string">"test" </span>{
+                <span class="kw">if </span>ident.as_str() == <span class="string">"test" </span>{
                     <span class="comment">// The test attribute is the only secondary attribute that has `a = b` in its syntax
                     // (`should_fail_with = "..."``) so we parse it differently.
                     </span><span class="self">self</span>.parse_test_attribute(start_location)
@@ -825,7 +825,7 @@
     ) -&gt; Attribute {
         <span class="kw">let </span>arguments = <span class="self">self</span>.parse_arguments().unwrap_or_default();
         <span class="self">self</span>.skip_until_right_bracket();
-        <span class="kw">match </span>ident.<span class="number">0</span>.contents.as_str() {
+        <span class="kw">match </span>ident.as_str() {
             <span class="string">"abi" </span>=&gt; <span class="self">self</span>.parse_single_name_attribute(ident, arguments, start_location, |name| {
                 Attribute::Secondary(SecondaryAttribute::Abi(name))
             }),
@@ -924,7 +924,7 @@
     <span class="kw">fn </span>parse_test_attribute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start_location: Location) -&gt; Attribute {
         <span class="kw">let </span>scope = <span class="kw">if </span><span class="self">self</span>.eat_left_paren() {
             <span class="kw">let </span>scope = <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
-                <span class="kw">match </span>ident.<span class="number">0</span>.contents.as_str() {
+                <span class="kw">match </span>ident.as_str() {
                     <span class="string">"should_fail" </span>=&gt; <span class="prelude-val">Some</span>(TestScope::ShouldFailWith { reason: <span class="prelude-val">None </span>}),
                     <span class="string">"should_fail_with" </span>=&gt; {
                         <span class="self">self</span>.eat_or_error(Token::Assign);

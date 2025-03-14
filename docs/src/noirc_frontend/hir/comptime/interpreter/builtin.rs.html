@@ -4876,7 +4876,7 @@
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             <span class="kw">if let </span>ForRange::Array(array) = for_statement.range {
-                <span class="kw">let </span>token = Token::Ident(for_statement.identifier.<span class="number">0</span>.contents);
+                <span class="kw">let </span>token = Token::Ident(for_statement.identifier.into_string());
                 <span class="kw">let </span>token = LocatedToken::new(token, location);
                 <span class="kw">let </span>identifier = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
                 <span class="kw">let </span>array = Value::expression(array.kind);
@@ -4902,7 +4902,7 @@
         <span class="kw">if let </span>ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             <span class="kw">if let </span>ForRange::Range(bounds) = for_statement.range {
                 <span class="kw">let </span>(from, to) = bounds.into_half_open();
-                <span class="kw">let </span>token = Token::Ident(for_statement.identifier.<span class="number">0</span>.contents);
+                <span class="kw">let </span>token = Token::Ident(for_statement.identifier.into_string());
                 <span class="kw">let </span>token = LocatedToken::new(token, location);
                 <span class="kw">let </span>identifier = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
                 <span class="kw">let </span>from = Value::expression(from.kind);
@@ -6095,7 +6095,7 @@
     };
 
     <span class="kw">let </span>struct_type = struct_type.borrow();
-    <span class="macro">assert_eq!</span>(struct_type.name.<span class="number">0</span>.contents, <span class="string">"Option"</span>);
+    <span class="macro">assert_eq!</span>(struct_type.name.as_str(), <span class="string">"Option"</span>);
 
     generics.pop().expect(<span class="string">"Expected Option to have a T generic type"</span>)
 }

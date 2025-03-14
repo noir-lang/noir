@@ -362,7 +362,7 @@
     },
 };
 
-<span class="kw">use </span>noirc_errors::{Located, Location};
+<span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>deprecated_function(interner: <span class="kw-2">&amp;</span>NodeInterner, expr: ExprId) -&gt; <span class="prelude-ty">Option</span>&lt;TypeCheckError&gt; {
     <span class="kw">let </span>HirExpression::Ident(HirIdent { location, id, impl_kind: <span class="kw">_ </span>}, <span class="kw">_</span>) =
@@ -597,7 +597,7 @@
 }
 
 <span class="kw">fn </span>func_meta_name_ident(func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) -&gt; Ident {
-    Ident(Located::from(func.name.location, modifiers.name.clone()))
+    Ident::new(modifiers.name.clone(), func.name.location)
 }
 
 <span class="doccomment">/// Check that a recursive function *can* return without endlessly calling itself.

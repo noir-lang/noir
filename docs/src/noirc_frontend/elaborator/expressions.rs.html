@@ -1929,7 +1929,7 @@
         object_type = object_type.follow_bindings();
 
         <span class="kw">let </span>method_name_location = method_call.method_name.location();
-        <span class="kw">let </span>method_name = method_call.method_name.<span class="number">0</span>.contents.as_str();
+        <span class="kw">let </span>method_name = method_call.method_name.as_str();
         <span class="kw">let </span>check_self_param = <span class="bool-val">true</span>;
         <span class="kw">match </span><span class="self">self</span>.lookup_method(<span class="kw-2">&amp;</span>object_type, method_name, location, check_self_param) {
             <span class="prelude-val">Some</span>(method_ref) =&gt; {
@@ -2266,7 +2266,7 @@
             <span class="kw">let </span>expected_field_with_index = field_types
                 .iter()
                 .enumerate()
-                .find(|(<span class="kw">_</span>, (name, <span class="kw">_</span>, <span class="kw">_</span>))| name == <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents);
+                .find(|(<span class="kw">_</span>, (name, <span class="kw">_</span>, <span class="kw">_</span>))| name == field_name.as_str());
             <span class="kw">let </span>expected_index_and_visibility =
                 expected_field_with_index.map(|(index, (<span class="kw">_</span>, visibility, <span class="kw">_</span>))| (index, visibility));
             <span class="kw">let </span>expected_type =
@@ -2304,7 +2304,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>((index, visibility)) = expected_index_and_visibility {
                 <span class="kw">let </span>struct_type = struct_type.borrow();
                 <span class="kw">let </span>field_location = field_name.location();
-                <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents;
+                <span class="kw">let </span>field_name = field_name.as_str();
                 <span class="self">self</span>.check_struct_field_visibility(
                     <span class="kw-2">&amp;</span>struct_type,
                     field_name,
@@ -2790,7 +2790,7 @@
         <span class="kw">let </span>constraint = TraitConstraint { typ, trait_bound };
 
         <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = the_trait.find_method(<span class="kw-2">&amp;</span>path.impl_item.<span class="number">0</span>.contents) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = the_trait.find_method(path.impl_item.as_str()) <span class="kw">else </span>{
             <span class="kw">let </span>trait_name = the_trait.name.to_string();
             <span class="kw">let </span>method_name = path.impl_item.to_string();
             <span class="kw">let </span>location = path.impl_item.location();

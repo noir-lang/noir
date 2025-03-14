@@ -829,7 +829,7 @@
     }
 
     <span class="kw">fn </span>collect_in_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, typ: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>UnresolvedType&gt;) {
-        <span class="kw">if </span>name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>name.is_empty() {
             <span class="kw">return</span>;
         }
 
@@ -866,7 +866,7 @@
         typ: <span class="kw-2">&amp;</span>UnresolvedType,
         default_value: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Expression&gt;,
     ) {
-        <span class="kw">if </span>name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>name.is_empty() {
             <span class="kw">return</span>;
         }
 
@@ -908,7 +908,7 @@
 
 <span class="kw">impl </span>Visitor <span class="kw">for </span>DocumentSymbolCollector&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>visit_noir_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_function: <span class="kw-2">&amp;</span>NoirFunction, span: Span) -&gt; bool {
-        <span class="kw">if </span>noir_function.def.name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>noir_function.def.name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -937,7 +937,7 @@
     </span>}
 
     <span class="kw">fn </span>visit_noir_struct(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_struct: <span class="kw-2">&amp;</span>NoirStruct, span: Span) -&gt; bool {
-        <span class="kw">if </span>noir_struct.name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>noir_struct.name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -992,7 +992,7 @@
     </span>}
 
     <span class="kw">fn </span>visit_noir_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, noir_trait: <span class="kw-2">&amp;</span>NoirTrait, span: Span) -&gt; bool {
-        <span class="kw">if </span>noir_trait.name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>noir_trait.name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -1038,7 +1038,7 @@
         _where_clause: <span class="kw-2">&amp;</span>[noirc_frontend::ast::UnresolvedTraitConstraint],
         body: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;noirc_frontend::ast::BlockExpression&gt;,
     ) -&gt; bool {
-        <span class="kw">if </span>name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -1095,7 +1095,7 @@
         typ: <span class="kw-2">&amp;</span>UnresolvedType,
         default_value: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&gt;,
     ) -&gt; bool {
-        <span class="kw">if </span>name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -1211,7 +1211,7 @@
     </span>}
 
     <span class="kw">fn </span>visit_parsed_submodule(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parsed_sub_module: <span class="kw-2">&amp;</span>ParsedSubModule, span: Span) -&gt; bool {
-        <span class="kw">if </span>parsed_sub_module.name.<span class="number">0</span>.contents.is_empty() {
+        <span class="kw">if </span>parsed_sub_module.name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 

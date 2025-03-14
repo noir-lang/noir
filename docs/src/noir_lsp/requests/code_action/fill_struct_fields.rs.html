@@ -345,7 +345,7 @@
 
         <span class="comment">// Remove the ones that already exists in the constructor
         </span><span class="kw">for </span>(constructor_field, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>constructor.fields {
-            fields.retain(|field| field.name.<span class="number">0</span>.contents != constructor_field.<span class="number">0</span>.contents);
+            fields.retain(|field| field.name.as_str() != constructor_field.as_str());
         }
 
         <span class="comment">// Some fields are missing. Let's suggest a quick fix that adds them.
@@ -412,7 +412,7 @@
                     new_text.push(<span class="string">' '</span>);
                 }
             }
-            new_text.push_str(<span class="kw-2">&amp;</span>field.name.<span class="number">0</span>.contents);
+            new_text.push_str(field.name.as_str());
             new_text.push_str(<span class="string">": ()"</span>);
         }
 

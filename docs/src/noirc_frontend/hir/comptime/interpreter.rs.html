@@ -2294,10 +2294,10 @@
                 <span class="kw">let </span>res = <span class="kw">match </span>argument {
                     Value::Struct(fields, struct_type) <span class="kw">if </span>fields.len() == pattern_fields.len() =&gt; {
                         <span class="kw">for </span>(field_name, field_pattern) <span class="kw">in </span>pattern_fields {
-                            <span class="kw">let </span>field = fields.get(<span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents).ok_or_else(|| {
+                            <span class="kw">let </span>field = fields.get(field_name.as_string()).ok_or_else(|| {
                                 InterpreterError::ExpectedStructToHaveField {
                                     typ: struct_type.clone(),
-                                    field_name: field_name.<span class="number">0</span>.contents.clone(),
+                                    field_name: field_name.to_string(),
                                     location,
                                 }
                             })<span class="question-mark">?</span>;
@@ -3129,7 +3129,7 @@
             .into_iter()
             .map(|(name, expr)| {
                 <span class="kw">let </span>field_value = <span class="self">self</span>.evaluate(expr)<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>((Rc::new(name.<span class="number">0</span>.contents), field_value))
+                <span class="prelude-val">Ok</span>((Rc::new(name.into_string()), field_value))
             })
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 
@@ -3169,10 +3169,10 @@
             }
         };
 
-        fields.get(<span class="kw-2">&amp;</span>access.rhs.<span class="number">0</span>.contents).cloned().ok_or_else(|| {
+        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
             <span class="kw">let </span>value = Value::Struct(fields, struct_type);
-            <span class="kw">let </span>field_name = access.rhs.<span class="number">0</span>.contents;
+            <span class="kw">let </span>field_name = access.rhs.into_string();
             <span class="kw">let </span>typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
         })
@@ -3479,7 +3479,7 @@
                         <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Tuple(fields))
                     }
                     Value::Struct(<span class="kw-2">mut </span>fields, typ) =&gt; {
-                        fields.insert(Rc::new(field_name.<span class="number">0</span>.contents), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), rhs);
                         <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value =&gt; {
@@ -3534,7 +3534,7 @@
 
                 <span class="kw">match </span>object_value {
                     Value::Tuple(<span class="kw-2">mut </span>values) =&gt; <span class="prelude-val">Ok</span>(values.swap_remove(index)),
-                    Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(fields[<span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents].clone()),
+                    Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(fields[field_name.as_string()].clone()),
                     value =&gt; <span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: <span class="kw-2">*</span>location,

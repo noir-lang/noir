@@ -1869,7 +1869,7 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = variables_defined.iter().find(|elem| <span class="kw-2">*</span>elem == <span class="kw-2">&amp;</span>name) {
             <span class="comment">// Allow redefinition of `_` only, to ignore variables
-            </span><span class="kw">if </span>name.<span class="number">0</span>.contents != WILDCARD_PATTERN {
+            </span><span class="kw">if </span>name.as_str() != WILDCARD_PATTERN {
                 <span class="self">self</span>.push_err(ResolverError::VariableAlreadyDefinedInPattern {
                     existing: existing.clone(),
                     new_location: name.location(),
@@ -1901,9 +1901,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>fields = BTreeMap::default();
         <span class="kw">for </span>(field_name, field) <span class="kw">in </span>constructor.fields {
             <span class="kw">let </span><span class="prelude-val">Some</span>(field_index) =
-                expected_field_types.iter().position(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name == field_name.<span class="number">0</span>.contents)
+                expected_field_types.iter().position(|(name, <span class="kw">_</span>)| <span class="kw-2">*</span>name == field_name.as_str())
             <span class="kw">else </span>{
-                <span class="kw">let </span>error = <span class="kw">if </span>fields.contains_key(<span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents) {
+                <span class="kw">let </span>error = <span class="kw">if </span>fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>struct_definition = struct_name.clone();

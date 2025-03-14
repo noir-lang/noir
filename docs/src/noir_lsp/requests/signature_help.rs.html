@@ -554,7 +554,7 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(enum_type_id) = enum_type_id {
             label.push_str(<span class="string">"enum "</span>);
-            label.push_str(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.get_type(enum_type_id).borrow().name.<span class="number">0</span>.contents);
+            label.push_str(<span class="self">self</span>.interner.get_type(enum_type_id).borrow().name.as_str());
             label.push_str(<span class="string">"::"</span>);
         } <span class="kw">else </span>{
             label.push_str(<span class="string">"fn "</span>);

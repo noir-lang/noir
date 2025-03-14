@@ -2426,8 +2426,7 @@
 <a href="#2425" id="2425">2425</a>
 <a href="#2426" id="2426">2426</a>
 <a href="#2427" id="2427">2427</a>
-<a href="#2428" id="2428">2428</a>
-<a href="#2429" id="2429">2429</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2428" id="2428">2428</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2879,8 +2878,7 @@
                 <span class="kw">let </span>struct_field_types = unwrap_struct_type(typ, <span class="kw-2">*</span>location)<span class="question-mark">?</span>;
                 <span class="macro">assert_eq!</span>(struct_field_types.len(), fields.len());
 
-                <span class="kw">let </span><span class="kw-2">mut </span>fields =
-                    btree_map(fields, |(name, field)| (name.<span class="number">0</span>.contents.clone(), field));
+                <span class="kw">let </span><span class="kw-2">mut </span>fields = btree_map(fields, |(name, field)| (name.to_string(), field));
 
                 <span class="comment">// Iterate over `struct_field_types` since `unwrap_struct_type` will always
                 // return the fields in the order defined by the struct type.
@@ -3179,17 +3177,17 @@
 
         <span class="kw">for </span>(field_name, expr_id) <span class="kw">in </span>constructor.fields {
             <span class="kw">let </span>new_id = <span class="self">self</span>.next_local_id();
-            <span class="kw">let </span>field_type = field_type_map.get(<span class="kw-2">&amp;</span>field_name.<span class="number">0</span>.contents).unwrap();
+            <span class="kw">let </span>field_type = field_type_map.get(field_name.as_str()).unwrap();
             <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
             <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(field_type, location)<span class="question-mark">?</span>;
 
-            field_vars.insert(field_name.<span class="number">0</span>.contents.clone(), (new_id, typ));
+            field_vars.insert(field_name.to_string(), (new_id, typ));
             <span class="kw">let </span>expression = Box::new(<span class="self">self</span>.expr(expr_id)<span class="question-mark">?</span>);
 
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
                 mutable: <span class="bool-val">false</span>,
-                name: field_name.<span class="number">0</span>.contents,
+                name: field_name.into_string(),
                 expression,
             }));
         }
@@ -3291,7 +3289,7 @@
                 <span class="macro">assert_eq!</span>(patterns.len(), fields.len());
 
                 <span class="kw">let </span><span class="kw-2">mut </span>patterns =
-                    btree_map(patterns, |(name, pattern)| (name.<span class="number">0</span>.contents, pattern));
+                    btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
 
                 <span class="comment">// We iterate through the type's fields to match the order defined in the struct type
                 </span><span class="kw">let </span>patterns_iter = fields.into_iter().map(|(field_name, field_type)| {
@@ -3929,7 +3927,7 @@
             definition: Definition::Function(func_id),
             mutable: <span class="bool-val">false</span>,
             location: <span class="prelude-val">None</span>,
-            name: the_trait.methods[method.method_index].name.<span class="number">0</span>.contents.clone(),
+            name: the_trait.methods[method.method_index].name.to_string(),
             typ: <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>function_type, location)<span class="question-mark">?</span>,
         }))
     }

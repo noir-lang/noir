@@ -1040,7 +1040,7 @@
 <span class="kw">impl </span>UnresolvedGeneric {
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
-            UnresolvedGeneric::Variable(ident) =&gt; ident.<span class="number">0</span>.location(),
+            UnresolvedGeneric::Variable(ident) =&gt; ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } =&gt; ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
         }

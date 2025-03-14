@@ -556,7 +556,7 @@
                 <span class="self">self</span>.append_type(<span class="kw-2">&amp;</span>constraint.typ);
                 <span class="self">self</span>.string.push_str(<span class="string">": "</span>);
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-                <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>trait_.name.<span class="number">0</span>.contents);
+                <span class="self">self</span>.string.push_str(trait_.name.as_str());
                 <span class="self">self</span>.append_trait_generics(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics);
             }
         }
@@ -605,7 +605,7 @@
                     <span class="kw">if </span>index &gt; <span class="number">0 </span>{
                         <span class="self">self</span>.string.push_str(<span class="string">", "</span>);
                     }
-                    <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents);
+                    <span class="self">self</span>.string.push_str(name.as_str());
                 }
                 <span class="self">self</span>.string.push_str(<span class="string">" }"</span>);
                 <span class="bool-val">true
@@ -648,7 +648,7 @@
                 </span><span class="kw">let </span>per_ns = current_module_data.find_name(<span class="kw-2">&amp;</span>struct_type.name);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>)) = per_ns.types {
                     <span class="kw">if </span>module_def_id == ModuleDefId::TypeId(struct_type.id) {
-                        <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>struct_type.name.<span class="number">0</span>.contents);
+                        <span class="self">self</span>.string.push_str(struct_type.name.as_str());
                         <span class="self">self</span>.append_generics(generics);
                         <span class="kw">return</span>;
                     }
@@ -670,7 +670,7 @@
                     <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>relative_path);
                     <span class="self">self</span>.string.push_str(<span class="string">"::"</span>);
                 }
-                <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>struct_type.name.<span class="number">0</span>.contents);
+                <span class="self">self</span>.string.push_str(struct_type.name.as_str());
                 <span class="self">self</span>.append_generics(generics);
             }
             Type::Alias(type_alias, generics) =&gt; {
@@ -683,7 +683,7 @@
                 </span><span class="kw">let </span>per_ns = current_module_data.find_name(<span class="kw-2">&amp;</span>type_alias.name);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>((module_def_id, <span class="kw">_</span>, <span class="kw">_</span>)) = per_ns.types {
                     <span class="kw">if </span>module_def_id == ModuleDefId::TypeAliasId(type_alias.id) {
-                        <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>type_alias.name.<span class="number">0</span>.contents);
+                        <span class="self">self</span>.string.push_str(type_alias.name.as_str());
                         <span class="self">self</span>.append_generics(generics);
                         <span class="kw">return</span>;
                     }
@@ -707,7 +707,7 @@
                     <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>relative_path);
                     <span class="self">self</span>.string.push_str(<span class="string">"::"</span>);
                 }
-                <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>type_alias.name.<span class="number">0</span>.contents);
+                <span class="self">self</span>.string.push_str(type_alias.name.as_str());
                 <span class="self">self</span>.append_generics(generics);
             }
             Type::TraitAsType(trait_id, <span class="kw">_</span>, trait_generics) =&gt; {
@@ -717,7 +717,7 @@
                 </span><span class="kw">let </span>current_module_data =
                     <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.module_id.krate].modules()[<span class="self">self</span>.module_id.local_id.<span class="number">0</span>];
                 <span class="kw">if </span>current_module_data.find_trait_in_scope(<span class="kw-2">*</span>trait_id).is_some() {
-                    <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>trait_.name.<span class="number">0</span>.contents);
+                    <span class="self">self</span>.string.push_str(trait_.name.as_str());
                     <span class="self">self</span>.append_trait_generics(trait_generics);
                     <span class="kw">return</span>;
                 }
@@ -740,7 +740,7 @@
                     <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>relative_path);
                     <span class="self">self</span>.string.push_str(<span class="string">"::"</span>);
                 }
-                <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>trait_.name.<span class="number">0</span>.contents);
+                <span class="self">self</span>.string.push_str(trait_.name.as_str());
                 <span class="self">self</span>.append_trait_generics(trait_generics);
             }
             Type::TypeVariable(typevar) =&gt; {
@@ -877,7 +877,7 @@
             <span class="kw">if </span>index &gt; <span class="number">0 </span>{
                 <span class="self">self</span>.string.push_str(<span class="string">", "</span>);
             }
-            <span class="self">self</span>.string.push_str(<span class="kw-2">&amp;</span>named_type.name.<span class="number">0</span>.contents);
+            <span class="self">self</span>.string.push_str(named_type.name.as_str());
             <span class="self">self</span>.string.push_str(<span class="string">" = "</span>);
             <span class="self">self</span>.append_type(<span class="kw-2">&amp;</span>named_type.typ);
             index += <span class="number">1</span>;

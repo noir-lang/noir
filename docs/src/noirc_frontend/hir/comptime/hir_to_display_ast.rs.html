@@ -874,7 +874,7 @@
                 <span class="kw">let </span>name = <span class="kw">match </span>typ.follow_bindings() {
                     Type::DataType(struct_def, <span class="kw">_</span>) =&gt; {
                         <span class="kw">let </span>struct_def = struct_def.borrow();
-                        struct_def.name.<span class="number">0</span>.contents.clone()
+                        struct_def.name.to_string()
                     }
                     <span class="comment">// This pass shouldn't error so if the type isn't a struct we just get a string
                     // representation of any other type and use that. We're relying on name
@@ -893,7 +893,7 @@
     <span class="doccomment">/// Convert to AST for display (some details lost)
     </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; Ident {
         <span class="kw">let </span>name = interner.definition_name(<span class="self">self</span>.id).to_owned();
-        Ident(Located::from(<span class="self">self</span>.location, name))
+        Ident::new(name, <span class="self">self</span>.location)
     }
 
     <span class="kw">fn </span>to_display_expr(

@@ -502,10 +502,10 @@
             });
             <span class="kw">let </span>type_var = TypeVariable::unbound(id, type_var_kind);
             <span class="kw">let </span>ident = generic.ident();
-            <span class="kw">let </span>location = ident.<span class="number">0</span>.location();
+            <span class="kw">let </span>location = ident.location();
 
             <span class="comment">// Check for name collisions of this generic
-            </span><span class="kw">let </span>name = Rc::new(ident.<span class="number">0</span>.contents.clone());
+            </span><span class="kw">let </span>name = Rc::new(ident.to_string());
 
             ResolvedGeneric { name, type_var, location }
         })

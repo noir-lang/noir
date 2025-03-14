@@ -439,7 +439,7 @@
         <span class="kw">let </span>Token::Ident(..) = <span class="self">self</span>.token <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected identifier, got {:?}"</span>, <span class="self">self</span>.token);
         };
-        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents);
+        <span class="self">self</span>.write(ident.as_str());
         <span class="self">self</span>.bump();
     }
 
@@ -449,7 +449,7 @@
         <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>.token, Token::Ident(..) | Token::Int(..)) {
             <span class="macro">panic!</span>(<span class="string">"Expected identifier or integer, got {:?}"</span>, <span class="self">self</span>.token);
         }
-        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents);
+        <span class="self">self</span>.write(ident.as_str());
         <span class="self">self</span>.bump();
     }
 

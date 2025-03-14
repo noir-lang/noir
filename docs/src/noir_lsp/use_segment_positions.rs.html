@@ -450,7 +450,7 @@
             <span class="kw">if </span>!prefix.is_empty() {
                 prefix.push_str(<span class="string">"::"</span>);
             };
-            prefix.push_str(<span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents);
+            prefix.push_str(ident.as_str());
 
             <span class="kw">if </span>index &lt; prefix_segments_len - <span class="number">1 </span>{
                 <span class="self">self</span>.insert_use_segment_position(
@@ -472,7 +472,7 @@
                 <span class="kw">if </span>!prefix.is_empty() {
                     prefix.push_str(<span class="string">"::"</span>);
                 }
-                prefix.push_str(<span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents);
+                prefix.push_str(ident.as_str());
 
                 <span class="kw">if </span>alias.is_none() {
                     <span class="self">self</span>.insert_use_segment_position(

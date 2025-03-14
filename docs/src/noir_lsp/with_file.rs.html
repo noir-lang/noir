@@ -1585,7 +1585,7 @@
 
 <span class="kw">fn </span>ident_with_file(ident: Ident, file: FileId) -&gt; Ident {
     <span class="kw">let </span>location = location_with_file(ident.location(), file);
-    Ident::new(ident.<span class="number">0</span>.contents, location)
+    Ident::new(ident.into_string(), location)
 }
 
 <span class="kw">fn </span>secondary_attributes_with_file(

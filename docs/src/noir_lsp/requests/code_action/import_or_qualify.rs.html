@@ -393,7 +393,7 @@
         <span class="comment">// The Path doesn't resolve to anything so it means it's an error and maybe we
         // can suggest an import or to fully-qualify the path.
         </span><span class="kw">for </span>(name, entries) <span class="kw">in </span><span class="self">self</span>.interner.get_auto_import_names() {
-            <span class="kw">if </span>name != <span class="kw-2">&amp;</span>ident.<span class="number">0</span>.contents {
+            <span class="kw">if </span>name != ident.as_str() {
                 <span class="kw">continue</span>;
             }
 

@@ -921,8 +921,7 @@
 <a href="#920" id="920">920</a>
 <a href="#921" id="921">921</a>
 <a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#923" id="923">923</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1196,7 +1195,7 @@
 
         <span class="kw">for </span>(field, pattern) <span class="kw">in </span>fields {
             <span class="kw">let </span>(field_type, visibility) = expected_type
-                .get_field_type_and_visibility(<span class="kw-2">&amp;</span>field.<span class="number">0</span>.contents)
+                .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             <span class="kw">let </span>resolved = <span class="self">self</span>.elaborate_pattern_mut(
                 pattern,
@@ -1213,7 +1212,7 @@
 
                 <span class="self">self</span>.check_struct_field_visibility(
                     <span class="kw-2">&amp;</span>struct_type.borrow(),
-                    <span class="kw-2">&amp;</span>field.<span class="number">0</span>.contents,
+                    field.as_str(),
                     visibility,
                     field.location(),
                 );
@@ -1255,7 +1254,7 @@
         }
 
         <span class="kw">let </span>location = name.location();
-        <span class="kw">let </span>name = name.<span class="number">0</span>.contents;
+        <span class="kw">let </span>name = name.into_string();
         <span class="kw">let </span>comptime = <span class="self">self</span>.in_comptime_context();
         <span class="kw">let </span>id =
             <span class="self">self</span>.interner.push_definition(name.clone(), mutable, comptime, definition, location);
@@ -1309,12 +1308,12 @@
         <span class="kw">let </span>resolver_meta =
             ResolverMeta { num_times_used: <span class="number">0</span>, ident: ident.clone(), warn_if_unused: <span class="bool-val">true </span>};
 
-        <span class="kw">let </span>old_global_value = scope.add_key_value(name.<span class="number">0</span>.contents.clone(), resolver_meta);
+        <span class="kw">let </span>old_global_value = scope.add_key_value(name.to_string(), resolver_meta);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(old_global_value) = old_global_value {
             <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
                 first_location: old_global_value.ident.location,
                 second_location: name.location(),
-                name: name.<span class="number">0</span>.contents,
+                name: name.into_string(),
             });
         }
         ident
@@ -1329,7 +1328,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(HirIdent, usize), ResolverError&gt; {
         <span class="comment">// Find the definition for this Ident
         </span><span class="kw">let </span>scope_tree = <span class="self">self</span>.scopes.current_scope_tree();
-        <span class="kw">let </span>variable = scope_tree.find(<span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents);
+        <span class="kw">let </span>variable = scope_tree.find(name.as_str());
 
         <span class="kw">let </span>location = name.location();
         <span class="kw">if let </span><span class="prelude-val">Some</span>((variable_found, scope)) = variable {
@@ -1338,8 +1337,8 @@
             <span class="prelude-val">Ok</span>((HirIdent::non_trait_method(id, location), scope))
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(ResolverError::VariableNotDeclared {
-                name: name.<span class="number">0</span>.contents.clone(),
-                location: name.<span class="number">0</span>.location(),
+                name: name.to_string(),
+                location: name.location(),
             })
         }
     }
@@ -1378,7 +1377,7 @@
         <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>struct_type.generics, |generic| generic.kind());
         <span class="self">self</span>.resolve_item_turbofish_generics(
             <span class="string">"struct"</span>,
-            <span class="kw-2">&amp;</span>struct_type.name.<span class="number">0</span>.contents,
+            struct_type.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -1414,7 +1413,7 @@
         <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| generic.kind());
         <span class="self">self</span>.resolve_item_turbofish_generics(
             <span class="string">"alias"</span>,
-            <span class="kw-2">&amp;</span>type_alias.name.<span class="number">0</span>.contents,
+            type_alias.name.as_str(),
             kinds,
             generics,
             unresolved_turbofish,
@@ -1799,8 +1798,7 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(path.typ);
         <span class="kw">let </span>check_self_param = <span class="bool-val">false</span>;
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(method) =
-            <span class="self">self</span>.lookup_method(<span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>path.item.<span class="number">0</span>.contents, location, check_self_param)
+        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.lookup_method(<span class="kw-2">&amp;</span>typ, path.item.as_str(), location, check_self_param)
         <span class="kw">else </span>{
             <span class="kw">let </span>error = Expression::new(ExpressionKind::Error, location);
             <span class="kw">return </span><span class="self">self</span>.elaborate_expression(error);

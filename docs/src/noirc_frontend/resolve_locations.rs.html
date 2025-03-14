@@ -420,9 +420,9 @@
         <span class="kw">let </span>struct_type = lhs_self_struct.borrow();
         <span class="kw">let </span>field_names = struct_type.field_names()<span class="question-mark">?</span>;
 
-        field_names.iter().find(|field_name| field_name.<span class="number">0 </span>== expr_rhs.<span class="number">0</span>).map(|found_field_name| {
-            Location::new(found_field_name.span(), struct_type.location.file)
-        })
+        field_names.iter().find(|field_name| field_name.as_str() == expr_rhs.as_str()).map(
+            |found_field_name| Location::new(found_field_name.span(), struct_type.location.file),
+        )
     }
 
     <span class="doccomment">/// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
@@ -469,7 +469,7 @@
 
                 <span class="kw">let </span><span class="kw-2">mut </span>methods = <span class="self">self</span>.traits.get(<span class="kw-2">&amp;</span>trait_id)<span class="question-mark">?</span>.methods.iter();
                 <span class="kw">let </span>method =
-                    methods.find(|method| method.name.<span class="number">0</span>.contents == <span class="self">self</span>.function_name(func_id));
+                    methods.find(|method| method.name.as_str() == <span class="self">self</span>.function_name(func_id));
                 method.map(|method| method.location)
             })
     }

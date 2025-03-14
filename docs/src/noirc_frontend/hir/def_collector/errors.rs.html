@@ -281,20 +281,7 @@
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
 <a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
+<a href="#283" id="283">283</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
 
@@ -411,7 +398,7 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>UnsupportedNumericGenericType&gt; <span class="kw">for </span>Diagnostic {
     <span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UnsupportedNumericGenericType) -&gt; Diagnostic {
-        <span class="kw">let </span>name = <span class="kw-2">&amp;</span>error.ident.<span class="number">0</span>.contents;
+        <span class="kw">let </span>name = error.ident.as_str();
         <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>error.typ;
 
         Diagnostic::simple_error(
@@ -419,7 +406,7 @@
                 <span class="string">"{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
             </span>),
             <span class="string">"Unsupported numeric generic type"</span>.to_string(),
-            error.ident.<span class="number">0</span>.location(),
+            error.ident.location(),
         )
     }
 }
@@ -449,38 +436,30 @@
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } =&gt; {
                 <span class="kw">let </span>primary_message = <span class="macro">format!</span>(
                     <span class="string">"Duplicate definitions of {} with name {} found"</span>,
-                    <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>first_def.<span class="number">0</span>.contents
+                    <span class="kw-2">&amp;</span>typ, first_def
                 );
                 {
-                    <span class="kw">let </span>first_location = first_def.<span class="number">0</span>.location();
-                    <span class="kw">let </span>second_location = second_def.<span class="number">0</span>.location();
                     <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
                         primary_message,
                         <span class="macro">format!</span>(<span class="string">"Second {} found here"</span>, <span class="kw-2">&amp;</span>typ),
-                        second_location,
+                        second_def.location(),
                     );
-                    diag.add_secondary(<span class="macro">format!</span>(<span class="string">"First {} found here"</span>, <span class="kw-2">&amp;</span>typ), first_location);
+                    diag.add_secondary(<span class="macro">format!</span>(<span class="string">"First {} found here"</span>, <span class="kw-2">&amp;</span>typ), first_def.location());
                     diag
                 }
             }
             DefCollectorErrorKind::UnresolvedModuleDecl { mod_name, expected_path, alternative_path } =&gt; {
-                <span class="kw">let </span>location = mod_name.<span class="number">0</span>.location();
-                <span class="kw">let </span>mod_name = <span class="kw-2">&amp;</span>mod_name.<span class="number">0</span>.contents;
-
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"No module `{mod_name}` at path `{expected_path}` or `{alternative_path}`"</span>),
                     String::new(),
-                    location,
+                    mod_name.location(),
                 )
             }
             DefCollectorErrorKind::OverlappingModuleDecls { mod_name, expected_path, alternative_path } =&gt; {
-                <span class="kw">let </span>location = mod_name.<span class="number">0</span>.location();
-                <span class="kw">let </span>mod_name = <span class="kw-2">&amp;</span>mod_name.<span class="number">0</span>.contents;
-
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Overlapping modules `{mod_name}` at  path `{expected_path}` and `{alternative_path}`"</span>),
                     String::new(),
-                    location,
+                    mod_name.location(),
                 )
             }
             DefCollectorErrorKind::PathResolutionError(error) =&gt; error.into(),
@@ -520,25 +499,20 @@
                 trait_path.location,
             ),
             DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method } =&gt; {
-                <span class="kw">let </span>trait_name = <span class="kw-2">&amp;</span>trait_name.<span class="number">0</span>.contents;
-                <span class="kw">let </span>impl_method_location = impl_method.location();
-                <span class="kw">let </span>impl_method_name = <span class="kw-2">&amp;</span>impl_method.<span class="number">0</span>.contents;
-                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(<span class="string">"Method with name `{impl_method_name}` is not part of trait `{trait_name}`, therefore it can't be implemented"</span>);
-                Diagnostic::simple_error(primary_message, <span class="string">""</span>.to_owned(), impl_method_location)
+                <span class="kw">let </span>primary_message = <span class="macro">format!</span>(<span class="string">"Method with name `{impl_method}` is not part of trait `{trait_name}`, therefore it can't be implemented"</span>);
+                Diagnostic::simple_error(primary_message, <span class="string">""</span>.to_owned(), impl_method.location())
             }
             DefCollectorErrorKind::TraitMissingMethod {
                 trait_name,
                 method_name,
                 trait_impl_location,
             } =&gt; {
-                <span class="kw">let </span>trait_name = <span class="kw-2">&amp;</span>trait_name.<span class="number">0</span>.contents;
-                <span class="kw">let </span>impl_method_name = <span class="kw-2">&amp;</span>method_name.<span class="number">0</span>.contents;
                 <span class="kw">let </span>primary_message = <span class="macro">format!</span>(
-                    <span class="string">"Method `{impl_method_name}` from trait `{trait_name}` is not implemented"
+                    <span class="string">"Method `{method_name}` from trait `{trait_name}` is not implemented"
                 </span>);
                 Diagnostic::simple_error(
                     primary_message,
-                    <span class="macro">format!</span>(<span class="string">"Please implement {impl_method_name} here"</span>),
+                    <span class="macro">format!</span>(<span class="string">"Please implement {method_name} here"</span>),
                     <span class="kw-2">*</span>trait_impl_location,
                 )
             }

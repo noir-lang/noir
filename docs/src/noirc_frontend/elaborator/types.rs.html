@@ -2135,9 +2135,7 @@
 <a href="#2134" id="2134">2134</a>
 <a href="#2135" id="2135">2135</a>
 <a href="#2136" id="2136">2136</a>
-<a href="#2137" id="2137">2137</a>
-<a href="#2138" id="2138">2138</a>
-<a href="#2139" id="2139">2139</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2137" id="2137">2137</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2531,11 +2529,10 @@
         <span class="comment">// Go through each argument to check if it is in our required_args list.
         // If it is remove it from the list, otherwise issue an error.
         </span><span class="kw">for </span>(name, typ) <span class="kw">in </span>args {
-            <span class="kw">let </span>index =
-                required_args.iter().position(|item| item.name.as_ref() == <span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents);
+            <span class="kw">let </span>index = required_args.iter().position(|item| item.name.as_ref() == name.as_str());
 
             <span class="kw">let </span><span class="prelude-val">Some</span>(index) = index <span class="kw">else </span>{
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(prev_location) = seen_args.get(<span class="kw-2">&amp;</span>name.<span class="number">0</span>.contents).copied() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(prev_location) = seen_args.get(name.as_str()).copied() {
                     <span class="self">self</span>.push_err(TypeCheckError::DuplicateNamedTypeArg { name, prev_location });
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>item = item.item_name(<span class="self">self</span>.interner);
@@ -2546,7 +2543,7 @@
 
             <span class="comment">// Remove the argument from the required list so we remember that we already have it
             </span><span class="kw">let </span>expected = required_args.remove(index);
-            seen_args.insert(name.<span class="number">0</span>.contents.clone(), name.location());
+            seen_args.insert(name.to_string(), name.location());
 
             <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>expected.kind());
             resolved.push(NamedType { name, typ });
@@ -2766,12 +2763,12 @@
         };
 
         <span class="kw">if </span>path.kind == PathKind::Plain &amp;&amp; path.segments.len() == <span class="number">2 </span>{
-            <span class="kw">let </span>name = <span class="kw-2">&amp;</span>path.segments[<span class="number">0</span>].ident.<span class="number">0</span>.contents;
+            <span class="kw">let </span>name = path.segments[<span class="number">0</span>].ident.as_str();
             <span class="kw">let </span>method = <span class="kw-2">&amp;</span>path.segments[<span class="number">1</span>].ident;
 
             <span class="kw">if </span>name == SELF_TYPE_NAME {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
-                <span class="kw">let </span>method = the_trait.find_method(method.<span class="number">0</span>.contents.as_str())<span class="question-mark">?</span>;
+                <span class="kw">let </span>method = the_trait.find_method(method.as_str())<span class="question-mark">?</span>;
                 <span class="kw">let </span>constraint = the_trait.as_constraint(path.location);
                 <span class="kw">return </span><span class="prelude-val">Some</span>(TraitPathResolution {
                     method: TraitMethod { method_id: method, constraint, assumed: <span class="bool-val">true </span>},
@@ -2817,7 +2814,7 @@
         <span class="kw">for </span>constraint <span class="kw">in </span><span class="self">self</span>.trait_bounds.clone() {
             <span class="kw">if let </span>Type::NamedGeneric(<span class="kw">_</span>, name) = <span class="kw-2">&amp;</span>constraint.typ {
                 <span class="comment">// if `path` is `T::method_name`, we're looking for constraint of the form `T: SomeTrait`
-                </span><span class="kw">if </span>path.segments[<span class="number">0</span>].ident.<span class="number">0</span>.contents != name.as_str() {
+                </span><span class="kw">if </span>path.segments[<span class="number">0</span>].ident.as_str() != name.as_str() {
                     <span class="kw">continue</span>;
                 }
 
@@ -2853,7 +2850,7 @@
         <span class="kw">let </span>datatype = <span class="self">self</span>.get_type(type_id);
         <span class="kw">let </span>generics = datatype.borrow().instantiate(<span class="self">self</span>.interner);
         <span class="kw">let </span>typ = Type::DataType(datatype, generics);
-        <span class="kw">let </span>method_name = <span class="kw-2">&amp;</span>last_segment.ident.<span class="number">0</span>.contents;
+        <span class="kw">let </span>method_name = last_segment.ident.as_str();
 
         <span class="comment">// If we can find a method on the type, this is definitely not a trait method
         </span><span class="kw">if </span><span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>).is_some() {
@@ -3556,8 +3553,7 @@
         <span class="comment">// If this access is just a field offset, we want to avoid dereferencing
         </span><span class="kw">let </span>dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
 
-        <span class="kw">match </span><span class="self">self</span>.check_field_access(<span class="kw-2">&amp;</span>lhs_type, <span class="kw-2">&amp;</span>access.rhs.<span class="number">0</span>.contents, location, dereference_lhs)
-        {
+        <span class="kw">match </span><span class="self">self</span>.check_field_access(<span class="kw-2">&amp;</span>lhs_type, access.rhs.as_str(), location, dereference_lhs) {
             <span class="prelude-val">Some</span>((element_type, index)) =&gt; {
                 <span class="self">self</span>.interner.set_field_index(expr_id, index);
                 <span class="comment">// We must update `access` in case we added any dereferences to it
@@ -3652,7 +3648,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(fields) = datatype.fields_raw() {
                 has_field_with_function_type = fields
                     .iter()
-                    .any(|field| field.name.<span class="number">0</span>.contents == method_name &amp;&amp; field.typ.is_function());
+                    .any(|field| field.name.as_str() == method_name &amp;&amp; field.typ.is_function());
             }
 
             <span class="kw">if </span>has_field_with_function_type {
@@ -4152,11 +4148,11 @@
         location: Location,
         resolved_generic: <span class="kw-2">&amp;</span>ResolvedGeneric,
     ) {
-        <span class="kw">let </span>name = <span class="kw-2">&amp;</span>unresolved_generic.ident().<span class="number">0</span>.contents;
+        <span class="kw">let </span>name = unresolved_generic.ident().as_str();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.find_generic(name) {
             <span class="self">self</span>.push_err(ResolverError::DuplicateDefinition {
-                name: name.clone(),
+                name: name.to_string(),
                 first_location: generic.location,
                 second_location: location,
             });
@@ -4258,7 +4254,7 @@
     <span class="kw">for </span>arg <span class="kw">in </span>args {
         <span class="kw">let </span>i = params
             .iter()
-            .position(|typ| <span class="kw-2">*</span>typ.name == arg.name.<span class="number">0</span>.contents)
+            .position(|typ| <span class="kw-2">*</span>typ.name == arg.name.as_str())
             .unwrap_or_else(|| <span class="macro">unreachable!</span>(<span class="string">"Expected to find associated type named {}"</span>, arg.name));
 
         <span class="kw">let </span>param = params.swap_remove(i);

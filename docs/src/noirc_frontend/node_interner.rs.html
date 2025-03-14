@@ -2502,10 +2502,7 @@
 <a href="#2501" id="2501">2501</a>
 <a href="#2502" id="2502">2502</a>
 <a href="#2503" id="2503">2503</a>
-<a href="#2504" id="2504">2504</a>
-<a href="#2505" id="2505">2505</a>
-<a href="#2506" id="2506">2506</a>
-<a href="#2507" id="2507">2507</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2504" id="2504">2504</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::marker::Copy;
@@ -2513,7 +2510,6 @@
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_arena::{Arena, Index};
-<span class="kw">use </span>noirc_errors::Located;
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>petgraph::algo::tarjan_scc;
 <span class="kw">use </span>petgraph::prelude::DiGraph;
@@ -3523,7 +3519,7 @@
     ) -&gt; DefinitionId {
         <span class="kw">let </span>name_location = Location::new(function.name.span(), location.file);
         <span class="kw">let </span>modifiers = FunctionModifiers {
-            name: function.name.<span class="number">0</span>.contents.clone(),
+            name: function.name.to_string(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
             is_unconstrained: function.is_unconstrained,
@@ -3614,7 +3610,7 @@
     <span class="kw">pub fn </span>function_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) -&gt; <span class="kw">crate</span>::ast::Ident {
         <span class="kw">let </span>name = <span class="self">self</span>.function_name(func_id).to_owned();
         <span class="kw">let </span>location = <span class="self">self</span>.function_meta(func_id).name.location;
-        <span class="kw">crate</span>::ast::Ident(Located::from(location, name))
+        <span class="kw">crate</span>::ast::Ident::new(name, location)
     }
 
     <span class="kw">pub fn </span>function_name(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) -&gt; <span class="kw-2">&amp;</span>str {
@@ -3905,7 +3901,7 @@
     </span><span class="kw">pub fn </span>trait_method_id(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_method: TraitMethodId) -&gt; DefinitionId {
         <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_method.trait_id);
         <span class="kw">let </span>method_name = <span class="kw-2">&amp;</span>the_trait.methods[trait_method.method_index].name;
-        <span class="kw">let </span>function_id = the_trait.method_ids[<span class="kw-2">&amp;</span>method_name.<span class="number">0</span>.contents];
+        <span class="kw">let </span>function_id = the_trait.method_ids[method_name.as_str()];
         <span class="self">self</span>.function_definition_id(function_id)
     }
 
@@ -4435,7 +4431,7 @@
     </span><span class="kw">pub fn </span>try_add_infix_operator_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
         <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
 
-        <span class="kw">let </span>operator = <span class="kw">match </span>the_trait.name.<span class="number">0</span>.contents.as_str() {
+        <span class="kw">let </span>operator = <span class="kw">match </span>the_trait.name.as_str() {
             <span class="string">"Add" </span>=&gt; BinaryOpKind::Add,
             <span class="string">"Sub" </span>=&gt; BinaryOpKind::Subtract,
             <span class="string">"Mul" </span>=&gt; BinaryOpKind::Multiply,
@@ -4481,7 +4477,7 @@
     </span><span class="kw">pub fn </span>try_add_prefix_operator_trait(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_id: TraitId) {
         <span class="kw">let </span>the_trait = <span class="self">self</span>.get_trait(trait_id);
 
-        <span class="kw">let </span>operator = <span class="kw">match </span>the_trait.name.<span class="number">0</span>.contents.as_str() {
+        <span class="kw">let </span>operator = <span class="kw">match </span>the_trait.name.as_str() {
             <span class="string">"Neg" </span>=&gt; UnaryOp::Minus,
             <span class="string">"Not" </span>=&gt; UnaryOp::Not,
             <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
@@ -4630,9 +4626,7 @@
             DependencyId::Alias(id) =&gt; {
                 Cow::Owned(<span class="self">self</span>.get_type_alias(id).borrow().name.to_string())
             }
-            DependencyId::Global(id) =&gt; {
-                Cow::Borrowed(<span class="self">self</span>.get_global(id).ident.<span class="number">0</span>.contents.as_ref())
-            }
+            DependencyId::Global(id) =&gt; Cow::Borrowed(<span class="self">self</span>.get_global(id).ident.as_str()),
             DependencyId::Trait(id) =&gt; Cow::Owned(<span class="self">self</span>.get_trait(id).name.to_string()),
             DependencyId::Variable(loc) =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Variable used at location {loc:?} caught in a dependency cycle"</span>)
@@ -4756,7 +4750,7 @@
         type_name: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt; {
         <span class="kw">let </span>types = <span class="self">self</span>.trait_impl_associated_types.get(<span class="kw-2">&amp;</span>impl_id)<span class="question-mark">?</span>;
-        types.iter().find(|typ| typ.name.<span class="number">0</span>.contents == type_name).map(|typ| <span class="kw-2">&amp;</span>typ.typ)
+        types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| <span class="kw-2">&amp;</span>typ.typ)
     }
 
     <span class="doccomment">/// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

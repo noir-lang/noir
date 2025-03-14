@@ -1151,7 +1151,7 @@
                 <span class="macro">vec!</span>[Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) =&gt; {
-                <span class="kw">let </span>name = Rc::new(interner.get_trait(trait_id).name.<span class="number">0</span>.contents.clone());
+                <span class="kw">let </span>name = Rc::new(interner.get_trait(trait_id).name.to_string());
                 <span class="kw">let </span>typ = Type::TraitAsType(trait_id, name, generics);
                 <span class="macro">vec!</span>[Token::QuotedType(interner.push_quoted_type(typ))]
             }
