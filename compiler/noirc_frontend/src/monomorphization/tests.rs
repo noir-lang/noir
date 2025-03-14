@@ -1,5 +1,8 @@
 #![cfg(test)]
-use crate::tests::get_program;
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{check_monomorphization_error_using_features, get_program},
+};
 
 use super::{ast::Program, errors::MonomorphizationError, monomorphize};
 
@@ -29,6 +32,8 @@ fn bounded_recursive_type_errors() {
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
+                                              ^^^^^^^^^^^^ Type `Tree<Tree<()>>` is recursive
+                                              ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
             );
@@ -37,10 +42,10 @@ fn bounded_recursive_type_errors() {
         enum Tree<T> {
             Branch(T, T),
             Leaf,
-        }";
-
-    let error = get_monomorphized(src).unwrap_err();
-    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
+        }
+        ";
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]
@@ -63,6 +68,8 @@ fn recursive_type_with_alias_errors() {
     let src = "
         fn main() {
             let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
+                                           ^^^^^^^^^ Type `Opt<()>` is recursive
+                                           ~~~~~~~~~ All types in Noir must have a known size at compile-time
         }
 
         type OptAlias<T> = Opt<T>;
@@ -70,10 +77,10 @@ fn recursive_type_with_alias_errors() {
         enum Opt<T> {
             Some(T),
             None,
-        }";
-
-    let error = get_monomorphized(src).unwrap_err();
-    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
+        }
+        ";
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]
@@ -85,16 +92,18 @@ fn mutually_recursive_types_error() {
 
         enum Even {
             Zero,
+            ^^^^ Type `Odd` is recursive
+            ~~~~ All types in Noir must have a known size at compile-time
             Succ(Odd),
         }
 
         enum Odd {
             One,
             Succ(Even),
-        }";
-
-    let error = get_monomorphized(src).unwrap_err();
-    assert!(matches!(error, MonomorphizationError::RecursiveType { .. }));
+        }
+        ";
+    let features = vec![UnstableFeature::Enums];
+    check_monomorphization_error_using_features(src, &features);
 }
 
 #[test]

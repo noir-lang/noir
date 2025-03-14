@@ -285,7 +285,6 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::RawStr(..)
             | Token::FmtStr(..)
             | Token::Whitespace(_)
-            | Token::LineComment(..)
             | Token::BlockComment(..)
             | Token::AttributeStart { .. }
             | Token::Invalid(_) => {
@@ -293,6 +292,10 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                     write!(f, " ")?;
                 }
                 write!(f, "{token}")
+            }
+            Token::LineComment(..) => {
+                writeln!(f, "{token}")?;
+                self.write_indent(f)
             }
             Token::EOF => Ok(()),
         }
