@@ -59,7 +59,7 @@ pub(crate) fn module_descendent_of_target(
         return true;
     }
 
-    def_map[target]
+    def_map[current]
         .parent
         .is_some_and(|parent| module_descendent_of_target(def_map, target, parent))
 }
