@@ -156,6 +156,7 @@ fn assert_no_errors(src: &str) {
 /// where:
 /// - lines with "^^^" are primary errors
 /// - lines with "~~~" are secondary errors
+/// - lines with "---" are custom errors
 ///
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
@@ -212,6 +213,7 @@ fn check_errors_with_options(
     //
     //   ~~~ error message
     let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
+
     // The byte at the start of this line
     let mut byte = 0;
     // The length of the last line, needed to go back to the byte at the beginning of the last line
@@ -236,7 +238,6 @@ fn check_errors_with_options(
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-
     let mut primary_spans_with_errors: HashMap<Span, String> =
         primary_spans_with_errors.into_iter().collect();
 
@@ -277,7 +278,6 @@ fn check_errors_with_options(
             .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
         let span = secondary.location.span;
         let message = &error.message;
-
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -1586,6 +1586,69 @@ fn numeric_generic_as_struct_field_type_fails() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn type_alias_to_numeric_generic() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    fn main() {
+        let b: [u32; 6] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Double::<N>] {
+        let mut a = [0;Double::<N>];
+        for i in 0..Double::<N> {
+            a[i] = i;
+        }
+        a
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn compose_type_alias_to_numeric() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
+    fn main() {
+        let b: [u32; 12] = foo();
+        assert(b[0] == 0);
+    }
+    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
+        let mut a = [0;Quadruple::<N>];
+        for i in 0..Quadruple::<N> {
+            a[i] = i;
+        }
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_alias_to_numeric_as_generic() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+
+    pub struct Foo<T, let N: u32> {
+        a: T,
+        b: [Field; N],
+    }
+    fn main(x: Field) {
+        let a = foo::<4>(x);
+        assert(a.a == x);
+    }
+    fn foo<let N:u32>(x: Field) -> Foo<Field, Double<N>> {
+        Foo {
+            a: x,
+            b: [1; Double::<N>]
+        }
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
