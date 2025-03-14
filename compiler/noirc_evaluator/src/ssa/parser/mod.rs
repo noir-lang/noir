@@ -10,6 +10,7 @@ use super::{
         instruction::BinaryOp,
         types::{NumericType, Type},
     },
+    opt::pure::Purity,
 };
 
 use acvm::{AcirField, FieldElement};
@@ -191,9 +192,7 @@ impl<'a> Parser<'a> {
 
     fn parse_function(&mut self) -> ParseResult<ParsedFunction> {
         let runtime_type = self.parse_runtime_type()?;
-
-        // Ignore function purity if it is in the input
-        self.eat_identifier().ok();
+        let purity = self.parse_purity()?;
 
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
@@ -206,7 +205,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, external_name, internal_name, blocks })
+        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, blocks })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -229,6 +228,18 @@ impl<'a> Parser<'a> {
             Ok(RuntimeType::Acir(inline_type))
         } else {
             Ok(RuntimeType::Brillig(inline_type))
+        }
+    }
+
+    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+        if self.eat_keyword(Keyword::Pure)? {
+            Ok(Some(Purity::Pure))
+        } else if self.eat_keyword(Keyword::PredicatePure)? {
+            Ok(Some(Purity::PureWithPredicate))
+        } else if self.eat_keyword(Keyword::Impure)? {
+            Ok(Some(Purity::Impure))
+        } else {
+            Ok(None)
         }
     }
 

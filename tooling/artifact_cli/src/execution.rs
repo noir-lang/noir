@@ -89,6 +89,9 @@ pub fn save_and_check_witness(
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
+    if let Some(ref return_value) = results.return_values.actual_return {
+        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+    }
     check_witness(circuit, results.return_values)
 }
 

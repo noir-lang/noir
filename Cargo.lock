@@ -103,7 +103,6 @@ dependencies = [
  "const_format",
  "nargo",
  "noir_artifact_cli",
- "paste",
  "proptest",
  "rand",
  "toml",
