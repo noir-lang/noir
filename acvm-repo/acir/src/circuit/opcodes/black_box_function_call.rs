@@ -82,9 +82,6 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-// woooo
-/// i like doc comments
-/// haha
 pub enum BlackBoxFuncCall<F> {
     /// Ciphers (encrypts) the provided plaintext using AES128 in CBC mode,
     /// padding the input using PKCS#7.
