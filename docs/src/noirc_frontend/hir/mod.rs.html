@@ -256,14 +256,7 @@
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#258" id="258">258</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>resolution;
@@ -279,7 +272,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::usage_tracker::UsageTracker;
 <span class="kw">use crate</span>::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 <span class="kw">use </span>def_collector::dc_crate::CompilationError;
-<span class="kw">use </span>def_map::{Contract, CrateDefMap, fully_qualified_module_path};
+<span class="kw">use </span>def_map::{CrateDefMap, fully_qualified_module_path};
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -472,13 +465,6 @@
                 (function_name, function_id)
             })
             .collect()
-    }
-
-    <span class="doccomment">/// Return a Vec of all `contract` declarations in the source code and the functions they contain
-    </span><span class="kw">pub fn </span>get_all_contracts(<span class="kw-2">&amp;</span><span class="self">self</span>, crate_id: <span class="kw-2">&amp;</span>CrateId) -&gt; Vec&lt;Contract&gt; {
-        <span class="self">self</span>.def_map(crate_id)
-            .expect(<span class="string">"The local crate should be analyzed already"</span>)
-            .get_all_contracts(<span class="kw-2">&amp;</span><span class="self">self</span>.def_interner)
     }
 
     <span class="kw">pub fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: def_map::ModuleId) -&gt; <span class="kw-2">&amp;</span>def_map::ModuleData {

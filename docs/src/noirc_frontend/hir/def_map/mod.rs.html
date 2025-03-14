@@ -386,86 +386,14 @@
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a>
-<a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a>
-<a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a>
-<a href="#406" id="406">406</a>
-<a href="#407" id="407">407</a>
-<a href="#408" id="408">408</a>
-<a href="#409" id="409">409</a>
-<a href="#410" id="410">410</a>
-<a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
-<a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a>
-<a href="#459" id="459">459</a>
-<a href="#460" id="460">460</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
+<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, DefCollector};
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner};
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParserError};
-<span class="kw">use </span><span class="kw">crate</span>::token::{FunctionAttribute, SecondaryAttribute, TestScope};
+<span class="kw">use </span><span class="kw">crate</span>::token::{FunctionAttribute, TestScope};
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>noirc_arena::{Arena, Index};
 <span class="kw">use </span>noirc_errors::Location;
@@ -694,61 +622,16 @@
         })
     }
 
-    <span class="doccomment">/// Go through all modules in this crate, find all `contract ... { ... }` declarations,
-    /// and collect them all into a Vec.
-    </span><span class="kw">pub fn </span>get_all_contracts(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; Vec&lt;Contract&gt; {
-        <span class="self">self</span>.modules
-            .iter()
-            .filter_map(|(id, module)| {
-                <span class="kw">if </span>module.is_contract {
-                    <span class="kw">let </span>functions = module
-                        .value_definitions()
-                        .filter_map(|id| {
-                            id.as_function().map(|function_id| {
-                                <span class="kw">let </span>is_entry_point = interner
-                                    .function_attributes(<span class="kw-2">&amp;</span>function_id)
-                                    .is_contract_entry_point();
-                                ContractFunctionMeta { function_id, is_entry_point }
-                            })
-                        })
-                        .collect();
-
-                    <span class="kw">let </span><span class="kw-2">mut </span>outputs =
-                        ContractOutputs { structs: HashMap::new(), globals: HashMap::new() };
-
-                    interner.get_all_globals().iter().for_each(|global_info| {
-                        interner.global_attributes(<span class="kw-2">&amp;</span>global_info.id).iter().for_each(|attr| {
-                            <span class="kw">if let </span>SecondaryAttribute::Abi(tag) = attr {
-                                <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.globals.get_mut(tag) {
-                                    tagged.push(global_info.id);
-                                } <span class="kw">else </span>{
-                                    outputs.globals.insert(tag.to_string(), <span class="macro">vec!</span>[global_info.id]);
-                                }
-                            }
-                        });
-                    });
-
-                    module.type_definitions().for_each(|id| {
-                        <span class="kw">if let </span>ModuleDefId::TypeId(struct_id) = id {
-                            interner.type_attributes(<span class="kw-2">&amp;</span>struct_id).iter().for_each(|attr| {
-                                <span class="kw">if let </span>SecondaryAttribute::Abi(tag) = attr {
-                                    <span class="kw">if let </span><span class="prelude-val">Some</span>(tagged) = outputs.structs.get_mut(tag) {
-                                        tagged.push(struct_id);
-                                    } <span class="kw">else </span>{
-                                        outputs.structs.insert(tag.to_string(), <span class="macro">vec!</span>[struct_id]);
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    <span class="kw">let </span>name = <span class="self">self</span>.get_module_path(LocalModuleId::new(id), module.parent);
-                    <span class="prelude-val">Some</span>(Contract { name, location: module.location, functions, outputs })
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">None
-                </span>}
-            })
-            .collect()
+    <span class="doccomment">/// Returns an iterator over all contract modules within the crate.
+    </span><span class="kw">pub fn </span>get_all_contracts(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (LocalModuleId, String)&gt; {
+        <span class="self">self</span>.modules.iter().filter_map(|(id, module)| {
+            <span class="kw">if </span>module.is_contract {
+                <span class="kw">let </span>name = <span class="self">self</span>.get_module_path(LocalModuleId::new(id), module.parent);
+                <span class="prelude-val">Some</span>((LocalModuleId(id), name))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">None
+            </span>}
+        })
     }
 
     <span class="doccomment">/// Find a child module's name by inspecting its parent.
@@ -844,33 +727,6 @@
             .expect(<span class="string">"The module was supposed to be defined in a dependency"</span>);
         crates.join(<span class="string">"::"</span>) + <span class="string">"::" </span>+ <span class="kw-2">&amp;</span>module_path
     }
-}
-
-<span class="doccomment">/// Specifies a contract function and extra metadata that
-/// one can use when processing a contract function.
-///
-/// One of these is whether the contract function is an entry point.
-/// The caller should only type-check these functions and not attempt
-/// to create a circuit for them.
-</span><span class="kw">pub struct </span>ContractFunctionMeta {
-    <span class="kw">pub </span>function_id: FuncId,
-    <span class="doccomment">/// Indicates whether the function is an entry point
-    </span><span class="kw">pub </span>is_entry_point: bool,
-}
-
-<span class="kw">pub struct </span>ContractOutputs {
-    <span class="kw">pub </span>structs: HashMap&lt;String, Vec&lt;TypeId&gt;&gt;,
-    <span class="kw">pub </span>globals: HashMap&lt;String, Vec&lt;GlobalId&gt;&gt;,
-}
-
-<span class="doccomment">/// A 'contract' in Noir source code with a given name, functions and events.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-</span><span class="kw">pub struct </span>Contract {
-    <span class="doccomment">/// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-    </span><span class="kw">pub </span>name: String,
-    <span class="kw">pub </span>location: Location,
-    <span class="kw">pub </span>functions: Vec&lt;ContractFunctionMeta&gt;,
-    <span class="kw">pub </span>outputs: ContractOutputs,
 }
 
 <span class="doccomment">/// Given a FileId, fetch the File, from the FileManager and parse it's content
