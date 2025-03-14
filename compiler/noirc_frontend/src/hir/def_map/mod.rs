@@ -91,6 +91,12 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 }
 
 impl CrateDefMap {
+    /// Constructs a new `CrateDefMap`, containing only the crate's root module.
+    ///
+    /// # Arguments
+    ///
+    /// - `krate`: The [CrateId] of the crate for which this `CrateDefMap` refers to.
+    /// - `root_module`: The [ModuleData] for the root module of the crate.
     pub fn new(krate: CrateId, root_module: ModuleData) -> CrateDefMap {
         let mut modules = Arena::default();
         let root = LocalModuleId::new(modules.insert(root_module));
