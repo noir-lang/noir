@@ -77,9 +77,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -111,6 +109,53 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Add") {
+                Add v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Sub") {
+                Sub v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Mul") {
+                Mul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Div") {
+                Div v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "IntegerDiv") {
+                IntegerDiv v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Equals") {
+                Equals v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "LessThan") {
+                LessThan v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "LessThanEquals") {
+                LessThanEquals v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -218,9 +263,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -264,6 +307,73 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Add") {
+                Add v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Sub") {
+                Sub v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Mul") {
+                Mul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Div") {
+                Div v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Equals") {
+                Equals v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "LessThan") {
+                LessThan v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "LessThanEquals") {
+                LessThanEquals v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "And") {
+                And v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Or") {
+                Or v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Xor") {
+                Xor v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Shl") {
+                Shl v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Shr") {
+                Shr v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -323,9 +433,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -351,6 +459,43 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "U1") {
+                U1 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "U8") {
+                U8 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "U16") {
+                U16 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "U32") {
+                U32 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "U64") {
+                U64 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "U128") {
+                U128 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -381,9 +526,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BitSize bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -397,6 +540,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Field") {
+                Field v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Integer") {
+                Integer v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -430,9 +590,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -446,6 +604,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Direct") {
+                Direct v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Relative") {
+                Relative v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -690,9 +865,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -752,6 +925,98 @@ namespace Program {
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "AES128Encrypt") {
+                AES128Encrypt v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Blake2s") {
+                Blake2s v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Blake3") {
+                Blake3 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Keccakf1600") {
+                Keccakf1600 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EcdsaSecp256k1") {
+                EcdsaSecp256k1 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EcdsaSecp256r1") {
+                EcdsaSecp256r1 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "MultiScalarMul") {
+                MultiScalarMul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EmbeddedCurveAdd") {
+                EmbeddedCurveAdd v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntAdd") {
+                BigIntAdd v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntSub") {
+                BigIntSub v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntMul") {
+                BigIntMul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntDiv") {
+                BigIntDiv v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntFromLeBytes") {
+                BigIntFromLeBytes v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntToLeBytes") {
+                BigIntToLeBytes v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Poseidon2Permutation") {
+                Poseidon2Permutation v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Sha256Compression") {
+                Sha256Compression v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "ToRadix") {
+                ToRadix v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+        }
     };
 
     struct HeapValueType;
@@ -796,9 +1061,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -815,6 +1078,28 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Simple") {
+                Simple v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Array") {
+                Array v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Vector") {
+                Vector v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -859,9 +1144,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -878,6 +1161,28 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "MemoryAddress") {
+                MemoryAddress v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "HeapArray") {
+                HeapArray v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "HeapVector") {
+                HeapVector v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1117,9 +1422,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1188,6 +1491,113 @@ namespace Program {
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "BinaryFieldOp") {
+                BinaryFieldOp v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BinaryIntOp") {
+                BinaryIntOp v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Not") {
+                Not v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Cast") {
+                Cast v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "JumpIfNot") {
+                JumpIfNot v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "JumpIf") {
+                JumpIf v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Jump") {
+                Jump v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "CalldataCopy") {
+                CalldataCopy v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Call") {
+                Call v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Const") {
+                Const v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "IndirectConst") {
+                IndirectConst v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Return") {
+                Return v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "ForeignCall") {
+                ForeignCall v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Mov") {
+                Mov v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "ConditionalMov") {
+                ConditionalMov v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Load") {
+                Load v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Store") {
+                Store v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BlackBox") {
+                BlackBox v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Trap") {
+                Trap v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Stop") {
+                Stop v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+        }
     };
 
     struct Witness {
@@ -1231,9 +1641,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1247,6 +1655,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Constant") {
+                Constant v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Witness") {
+                Witness v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1510,9 +1935,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1581,6 +2004,113 @@ namespace Program {
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
         }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "AES128Encrypt") {
+                AES128Encrypt v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "AND") {
+                AND v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "XOR") {
+                XOR v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "RANGE") {
+                RANGE v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Blake2s") {
+                Blake2s v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Blake3") {
+                Blake3 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EcdsaSecp256k1") {
+                EcdsaSecp256k1 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EcdsaSecp256r1") {
+                EcdsaSecp256r1 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "MultiScalarMul") {
+                MultiScalarMul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "EmbeddedCurveAdd") {
+                EmbeddedCurveAdd v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Keccakf1600") {
+                Keccakf1600 v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "RecursiveAggregation") {
+                RecursiveAggregation v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntAdd") {
+                BigIntAdd v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntSub") {
+                BigIntSub v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntMul") {
+                BigIntMul v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntDiv") {
+                BigIntDiv v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntFromLeBytes") {
+                BigIntFromLeBytes v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BigIntToLeBytes") {
+                BigIntToLeBytes v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Poseidon2Permutation") {
+                Poseidon2Permutation v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Sha256Compression") {
+                Sha256Compression v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+        }
     };
 
     struct BlockId {
@@ -1629,9 +2159,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BlockType bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1648,6 +2176,28 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Memory") {
+                Memory v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "CallData") {
+                CallData v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "ReturnData") {
+                ReturnData v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1704,9 +2254,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1723,6 +2271,28 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Single") {
+                Single v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Array") {
+                Array v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "MemoryArray") {
+                MemoryArray v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1756,9 +2326,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1772,6 +2340,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Simple") {
+                Simple v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Array") {
+                Array v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1867,9 +2452,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static Opcode bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1895,6 +2478,43 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "AssertZero") {
+                AssertZero v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BlackBoxFuncCall") {
+                BlackBoxFuncCall v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "MemoryOp") {
+                MemoryOp v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "MemoryInit") {
+                MemoryInit v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "BrilligCall") {
+                BrilligCall v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Call") {
+                Call v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1928,9 +2548,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionOrMemory bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -1944,6 +2562,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Expression") {
+                Expression v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Memory") {
+                Memory v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -1984,9 +2619,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -2000,6 +2633,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Unbounded") {
+                Unbounded v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Bounded") {
+                Bounded v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
@@ -2033,9 +2683,7 @@ namespace Program {
         std::vector<uint8_t> bincodeSerialize() const;
         static OpcodeLocation bincodeDeserialize(std::vector<uint8_t>);
 
-        void msgpack_pack(auto& packer) const
-        {
-            
+        void msgpack_pack(auto& packer) const {
             string tag;
             switch value.index() {
                 
@@ -2049,6 +2697,23 @@ namespace Program {
                     throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
             }
             std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
+
+        void msgpack_unpack(auto const& o) {
+            std::map<std::string, msgpack::type::variant> data = o.convert();
+            auto entry = data.begin();
+            string tag = entry->first;
+            auto o = entry->second;
+            if (tag == "Acir") {
+                Acir v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
+            else if (tag == "Brillig") {
+                Brillig v;
+                v.msgpack_unpack(o);
+                value = v;
+            }
         }
     };
 
