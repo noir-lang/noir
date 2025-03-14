@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741958119395,
+  "lastUpdate": 1741958358016,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,70 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jake@aztecprotocol.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d148df67879995302978d689cc20d4dc092b34b7",
-          "message": "fix(experimental): Fix execution of match expressions with multiple branches (#7570)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-03-06T14:35:20Z",
-          "tree_id": "bd672786cba563a362171d99effee9b598345f01",
-          "url": "https://github.com/noir-lang/noir/commit/d148df67879995302978d689cc20d4dc092b34b7"
-        },
-        "date": 1741273138260,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.68,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.73,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14525,6 +14461,70 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-reset",
             "value": 274.63,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.35,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1e391ac4022cb23b9406e11dbd4d66be1f41aa34",
+          "message": "chore(frontend): Regression test for creating a mutable reference to an array element (#7699)",
+          "timestamp": "2025-03-14T12:56:16Z",
+          "tree_id": "8524984eb5ff239cee82f0e9f714910800067c95",
+          "url": "https://github.com/noir-lang/noir/commit/1e391ac4022cb23b9406e11dbd4d66be1f41aa34"
+        },
+        "date": 1741958354767,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.23,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.64,
             "unit": "MB"
           },
           {
