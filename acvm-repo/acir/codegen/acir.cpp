@@ -13,7 +13,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Sub {
@@ -21,7 +22,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Mul {
@@ -29,7 +31,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Div {
@@ -37,7 +40,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct IntegerDiv {
@@ -45,7 +49,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Equals {
@@ -53,7 +58,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct LessThan {
@@ -61,7 +67,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct LessThanEquals {
@@ -69,7 +76,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
@@ -170,7 +178,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Add bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Sub {
@@ -178,7 +187,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Sub bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Mul {
@@ -186,7 +196,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Mul bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Div {
@@ -194,7 +205,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Div bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Equals {
@@ -202,7 +214,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Equals bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct LessThan {
@@ -210,7 +223,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct LessThanEquals {
@@ -218,7 +232,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct And {
@@ -226,7 +241,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static And bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Or {
@@ -234,7 +250,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Or bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Xor {
@@ -242,7 +259,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Xor bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Shl {
@@ -250,7 +268,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Shl bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Shr {
@@ -258,7 +277,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Shr bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
@@ -391,7 +411,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U1 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct U8 {
@@ -399,7 +420,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U8 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct U16 {
@@ -407,7 +429,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U16 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct U32 {
@@ -415,7 +438,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U32 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct U64 {
@@ -423,7 +447,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U64 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct U128 {
@@ -431,7 +456,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static U128 bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         std::variant<U1, U8, U16, U32, U64, U128> value;
@@ -516,7 +542,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Field bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Integer {
@@ -1347,7 +1374,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Return bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct ForeignCall {
@@ -2165,7 +2193,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Memory bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct CallData {
@@ -2184,7 +2213,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static ReturnData bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         std::variant<Memory, CallData, ReturnData> value;
@@ -2649,7 +2679,8 @@ namespace Program {
             std::vector<uint8_t> bincodeSerialize() const;
             static Unbounded bincodeDeserialize(std::vector<uint8_t>);
 
-            MSGPACK_FIELDS();
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(auto const& o) {}
         };
 
         struct Bounded {
