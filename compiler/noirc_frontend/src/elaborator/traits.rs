@@ -260,7 +260,7 @@ impl Elaborator<'_> {
 /// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
 ///
 /// We have to substitute:
-/// - Self for Bar<E>
+/// - Self for `Bar<E>`
 /// - A for D
 /// - B for F
 ///

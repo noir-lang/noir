@@ -798,6 +798,7 @@ impl ForRange {
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
+    /// ```text
     /// {
     ///     let fresh1 = array;
     ///     for fresh2 in 0 .. std::array::len(fresh1) {
@@ -805,6 +806,7 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
+    /// ````
     pub(crate) fn into_for(
         self,
         identifier: Ident,

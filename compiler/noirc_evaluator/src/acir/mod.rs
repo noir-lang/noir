@@ -2827,7 +2827,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
+    /// Convert a `Vec<AcirVar>` into a `Vec<AcirValue>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
     /// If the type of a result id is a slice, the slice length must precede it and we can

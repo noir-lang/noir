@@ -177,7 +177,7 @@ impl NodeInterner {
         )
     }
 
-    /// Attempts to resolve [Location] of [Trait] based on [Location] of [TraitImpl]
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [TraitImpl][crate::hir_def::traits::TraitImpl]
     /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
     ///
     /// Example:
@@ -195,7 +195,7 @@ impl NodeInterner {
             })
     }
 
-    /// Attempts to resolve [Location] of [Trait]'s [TraitFunction] declaration based on [Location] of [TraitFunction] call.
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [TraitFunction][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [TraitFunction][crate::hir_def::traits::TraitFunction] call.
     ///
     /// This is used by LSP to resolve the location.
     ///

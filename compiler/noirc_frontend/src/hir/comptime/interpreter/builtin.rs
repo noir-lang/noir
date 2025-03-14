@@ -471,7 +471,7 @@ fn type_def_as_type(
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-/// fn generics(self) -> [(Type, Option<Type>)]
+/// fn generics(self) -> [(Type, `Option<Type>`)]
 fn type_def_generics(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -3002,7 +3002,7 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     Value::Struct(fields, option_type)
 }
 
-/// Given a type, assert that it's an Option<T> and return the Type for T
+/// Given a type, assert that it's an `Option<T>` and return the Type for T
 pub(crate) fn extract_option_generic_type(typ: Type) -> Type {
     let Type::DataType(struct_type, mut generics) = typ else {
         panic!("Expected type to be a struct");
