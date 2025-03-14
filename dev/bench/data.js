@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741985251501,
+  "lastUpdate": 1741985481588,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11371,70 +11371,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "1b4dc1dd18b6ce68bf187477a03d0f5bd8f6c30e",
-          "message": "chore: bump ring to address advisory (#7619)",
-          "timestamp": "2025-03-07T00:26:47Z",
-          "tree_id": "9dad339220b16fab5f806226b8300ac3dc6872cb",
-          "url": "https://github.com/noir-lang/noir/commit/1b4dc1dd18b6ce68bf187477a03d0f5bd8f6c30e"
-        },
-        "date": 1741308718889,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.69,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 274.08,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 416.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 290.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 296.75,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "37be49fd081f33dc7256d23cee8ccc0719c50a82",
           "message": "chore!: convert `TraitMethodNotInScope` to error (#7427)",
@@ -14515,6 +14451,70 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e8644d0e180999cc8fed095a550ed1b16d21e723"
         },
         "date": 1741984087325,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 274.65,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.87,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 416.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 290.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 297.36,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d894fa4b1993af14833f830dbae6cfcb4c67c32e",
+          "message": "chore: update docusaurus config to correct trailing slash issue (#7720)",
+          "timestamp": "2025-03-14T19:57:29Z",
+          "tree_id": "1f38ded5e1bd3a4b0be17a85ca3fdd4e455fc37f",
+          "url": "https://github.com/noir-lang/noir/commit/d894fa4b1993af14833f830dbae6cfcb4c67c32e"
+        },
+        "date": 1741985478069,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
