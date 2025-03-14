@@ -513,11 +513,11 @@ mod tests {
               jmpif v4 then: b2, else: b1
             b1():
               constrain v0 == Field 3
-              v7 = call f3(v1) -> u32
-              jmp b3(v7)
-            b2():
-              v9 = call f2(v1) -> u32
+              v9 = call f3(v1) -> u32
               jmp b3(v9)
+            b2():
+              v6 = call f2(v1) -> u32
+              jmp b3(v6)
             b3(v2: u32):
               return v2
           }
