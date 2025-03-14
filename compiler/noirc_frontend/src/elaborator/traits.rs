@@ -260,9 +260,9 @@ impl Elaborator<'_> {
 /// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
 ///
 /// We have to substitute:
-/// - Self for `Bar<E>`
-/// - A for D
-/// - B for F
+/// - `Self` for `Bar<E>`
+/// - `A` for `D`
+/// - `B` for `F`
 ///
 /// Before we can type check. Finally, we must also check that the unification
 /// result does not introduce any new bindings. This can happen if the impl
