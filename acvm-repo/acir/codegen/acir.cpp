@@ -11,48 +11,64 @@ namespace Program {
             friend bool operator==(const Add&, const Add&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Add bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Sub bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Mul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Div bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct IntegerDiv {
             friend bool operator==(const IntegerDiv&, const IntegerDiv&);
             std::vector<uint8_t> bincodeSerialize() const;
             static IntegerDiv bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Equals bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         std::variant<Add, Sub, Mul, Div, IntegerDiv, Equals, LessThan, LessThanEquals> value;
@@ -60,6 +76,43 @@ namespace Program {
         friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Add";
+                    break;
+                case 1:
+                    tag = "Sub";
+                    break;
+                case 2:
+                    tag = "Mul";
+                    break;
+                case 3:
+                    tag = "Div";
+                    break;
+                case 4:
+                    tag = "IntegerDiv";
+                    break;
+                case 5:
+                    tag = "Equals";
+                    break;
+                case 6:
+                    tag = "LessThan";
+                    break;
+                case 7:
+                    tag = "LessThanEquals";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct BinaryIntOp {
@@ -68,72 +121,96 @@ namespace Program {
             friend bool operator==(const Add&, const Add&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Add bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Sub {
             friend bool operator==(const Sub&, const Sub&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Sub bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Mul {
             friend bool operator==(const Mul&, const Mul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Mul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Div {
             friend bool operator==(const Div&, const Div&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Div bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Equals {
             friend bool operator==(const Equals&, const Equals&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Equals bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct LessThan {
             friend bool operator==(const LessThan&, const LessThan&);
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThan bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct LessThanEquals {
             friend bool operator==(const LessThanEquals&, const LessThanEquals&);
             std::vector<uint8_t> bincodeSerialize() const;
             static LessThanEquals bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct And {
             friend bool operator==(const And&, const And&);
             std::vector<uint8_t> bincodeSerialize() const;
             static And bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Or {
             friend bool operator==(const Or&, const Or&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Or bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Xor {
             friend bool operator==(const Xor&, const Xor&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Xor bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Shl {
             friend bool operator==(const Shl&, const Shl&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Shl bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Shr {
             friend bool operator==(const Shr&, const Shr&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Shr bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         std::variant<Add, Sub, Mul, Div, Equals, LessThan, LessThanEquals, And, Or, Xor, Shl, Shr> value;
@@ -141,6 +218,55 @@ namespace Program {
         friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Add";
+                    break;
+                case 1:
+                    tag = "Sub";
+                    break;
+                case 2:
+                    tag = "Mul";
+                    break;
+                case 3:
+                    tag = "Div";
+                    break;
+                case 4:
+                    tag = "Equals";
+                    break;
+                case 5:
+                    tag = "LessThan";
+                    break;
+                case 6:
+                    tag = "LessThanEquals";
+                    break;
+                case 7:
+                    tag = "And";
+                    break;
+                case 8:
+                    tag = "Or";
+                    break;
+                case 9:
+                    tag = "Xor";
+                    break;
+                case 10:
+                    tag = "Shl";
+                    break;
+                case 11:
+                    tag = "Shr";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct IntegerBitSize {
@@ -149,36 +275,48 @@ namespace Program {
             friend bool operator==(const U1&, const U1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U1 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct U8 {
             friend bool operator==(const U8&, const U8&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U8 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct U16 {
             friend bool operator==(const U16&, const U16&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U16 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct U32 {
             friend bool operator==(const U32&, const U32&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U32 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct U64 {
             friend bool operator==(const U64&, const U64&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U64 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct U128 {
             friend bool operator==(const U128&, const U128&);
             std::vector<uint8_t> bincodeSerialize() const;
             static U128 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         std::variant<U1, U8, U16, U32, U64, U128> value;
@@ -186,6 +324,37 @@ namespace Program {
         friend bool operator==(const IntegerBitSize&, const IntegerBitSize&);
         std::vector<uint8_t> bincodeSerialize() const;
         static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "U1";
+                    break;
+                case 1:
+                    tag = "U8";
+                    break;
+                case 2:
+                    tag = "U16";
+                    break;
+                case 3:
+                    tag = "U32";
+                    break;
+                case 4:
+                    tag = "U64";
+                    break;
+                case 5:
+                    tag = "U128";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct BitSize {
@@ -194,6 +363,8 @@ namespace Program {
             friend bool operator==(const Field&, const Field&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Field bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Integer {
@@ -202,6 +373,12 @@ namespace Program {
             friend bool operator==(const Integer&, const Integer&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Integer bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Field, Integer> value;
@@ -209,6 +386,25 @@ namespace Program {
         friend bool operator==(const BitSize&, const BitSize&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BitSize bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Field";
+                    break;
+                case 1:
+                    tag = "Integer";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct MemoryAddress {
@@ -219,6 +415,12 @@ namespace Program {
             friend bool operator==(const Direct&, const Direct&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Direct bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Relative {
@@ -227,6 +429,12 @@ namespace Program {
             friend bool operator==(const Relative&, const Relative&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Relative bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Direct, Relative> value;
@@ -234,6 +442,25 @@ namespace Program {
         friend bool operator==(const MemoryAddress&, const MemoryAddress&);
         std::vector<uint8_t> bincodeSerialize() const;
         static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Direct";
+                    break;
+                case 1:
+                    tag = "Relative";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct HeapArray {
@@ -243,6 +470,8 @@ namespace Program {
         friend bool operator==(const HeapArray&, const HeapArray&);
         std::vector<uint8_t> bincodeSerialize() const;
         static HeapArray bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(pointer, size);
     };
 
     struct HeapVector {
@@ -252,6 +481,8 @@ namespace Program {
         friend bool operator==(const HeapVector&, const HeapVector&);
         std::vector<uint8_t> bincodeSerialize() const;
         static HeapVector bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(pointer, size);
     };
 
     struct BlackBoxOp {
@@ -265,6 +496,8 @@ namespace Program {
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
             std::vector<uint8_t> bincodeSerialize() const;
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, iv, key, outputs);
         };
 
         struct Blake2s {
@@ -274,6 +507,8 @@ namespace Program {
             friend bool operator==(const Blake2s&, const Blake2s&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Blake2s bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(message, output);
         };
 
         struct Blake3 {
@@ -283,6 +518,8 @@ namespace Program {
             friend bool operator==(const Blake3&, const Blake3&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Blake3 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(message, output);
         };
 
         struct Keccakf1600 {
@@ -292,6 +529,8 @@ namespace Program {
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input, output);
         };
 
         struct EcdsaSecp256k1 {
@@ -304,6 +543,8 @@ namespace Program {
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(hashed_msg, public_key_x, public_key_y, signature, result);
         };
 
         struct EcdsaSecp256r1 {
@@ -316,6 +557,8 @@ namespace Program {
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(hashed_msg, public_key_x, public_key_y, signature, result);
         };
 
         struct MultiScalarMul {
@@ -326,6 +569,8 @@ namespace Program {
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(points, scalars, outputs);
         };
 
         struct EmbeddedCurveAdd {
@@ -340,6 +585,8 @@ namespace Program {
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input1_x, input1_y, input1_infinite, input2_x, input2_y, input2_infinite, result);
         };
 
         struct BigIntAdd {
@@ -350,6 +597,8 @@ namespace Program {
             friend bool operator==(const BigIntAdd&, const BigIntAdd&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntSub {
@@ -360,6 +609,8 @@ namespace Program {
             friend bool operator==(const BigIntSub&, const BigIntSub&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntMul {
@@ -370,6 +621,8 @@ namespace Program {
             friend bool operator==(const BigIntMul&, const BigIntMul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntDiv {
@@ -380,6 +633,8 @@ namespace Program {
             friend bool operator==(const BigIntDiv&, const BigIntDiv&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntFromLeBytes {
@@ -390,6 +645,8 @@ namespace Program {
             friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, modulus, output);
         };
 
         struct BigIntToLeBytes {
@@ -399,6 +656,8 @@ namespace Program {
             friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input, output);
         };
 
         struct Poseidon2Permutation {
@@ -409,6 +668,8 @@ namespace Program {
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(message, output, len);
         };
 
         struct Sha256Compression {
@@ -419,6 +680,8 @@ namespace Program {
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input, hash_values, output);
         };
 
         struct ToRadix {
@@ -431,6 +694,8 @@ namespace Program {
             friend bool operator==(const ToRadix&, const ToRadix&);
             std::vector<uint8_t> bincodeSerialize() const;
             static ToRadix bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input, radix, output_pointer, num_limbs, output_bits);
         };
 
         std::variant<AES128Encrypt, Blake2s, Blake3, Keccakf1600, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression, ToRadix> value;
@@ -438,6 +703,70 @@ namespace Program {
         friend bool operator==(const BlackBoxOp&, const BlackBoxOp&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "AES128Encrypt";
+                    break;
+                case 1:
+                    tag = "Blake2s";
+                    break;
+                case 2:
+                    tag = "Blake3";
+                    break;
+                case 3:
+                    tag = "Keccakf1600";
+                    break;
+                case 4:
+                    tag = "EcdsaSecp256k1";
+                    break;
+                case 5:
+                    tag = "EcdsaSecp256r1";
+                    break;
+                case 6:
+                    tag = "MultiScalarMul";
+                    break;
+                case 7:
+                    tag = "EmbeddedCurveAdd";
+                    break;
+                case 8:
+                    tag = "BigIntAdd";
+                    break;
+                case 9:
+                    tag = "BigIntSub";
+                    break;
+                case 10:
+                    tag = "BigIntMul";
+                    break;
+                case 11:
+                    tag = "BigIntDiv";
+                    break;
+                case 12:
+                    tag = "BigIntFromLeBytes";
+                    break;
+                case 13:
+                    tag = "BigIntToLeBytes";
+                    break;
+                case 14:
+                    tag = "Poseidon2Permutation";
+                    break;
+                case 15:
+                    tag = "Sha256Compression";
+                    break;
+                case 16:
+                    tag = "ToRadix";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct HeapValueType;
@@ -450,6 +779,12 @@ namespace Program {
             friend bool operator==(const Simple&, const Simple&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Simple bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Array {
@@ -459,6 +794,8 @@ namespace Program {
             friend bool operator==(const Array&, const Array&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Array bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(value_types, size);
         };
 
         struct Vector {
@@ -467,6 +804,8 @@ namespace Program {
             friend bool operator==(const Vector&, const Vector&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Vector bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(value_types);
         };
 
         std::variant<Simple, Array, Vector> value;
@@ -474,6 +813,28 @@ namespace Program {
         friend bool operator==(const HeapValueType&, const HeapValueType&);
         std::vector<uint8_t> bincodeSerialize() const;
         static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Simple";
+                    break;
+                case 1:
+                    tag = "Array";
+                    break;
+                case 2:
+                    tag = "Vector";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct ValueOrArray {
@@ -484,6 +845,12 @@ namespace Program {
             friend bool operator==(const MemoryAddress&, const MemoryAddress&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct HeapArray {
@@ -492,6 +859,12 @@ namespace Program {
             friend bool operator==(const HeapArray&, const HeapArray&);
             std::vector<uint8_t> bincodeSerialize() const;
             static HeapArray bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct HeapVector {
@@ -500,6 +873,12 @@ namespace Program {
             friend bool operator==(const HeapVector&, const HeapVector&);
             std::vector<uint8_t> bincodeSerialize() const;
             static HeapVector bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<MemoryAddress, HeapArray, HeapVector> value;
@@ -507,6 +886,28 @@ namespace Program {
         friend bool operator==(const ValueOrArray&, const ValueOrArray&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "MemoryAddress";
+                    break;
+                case 1:
+                    tag = "HeapArray";
+                    break;
+                case 2:
+                    tag = "HeapVector";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct BrilligOpcode {
@@ -520,6 +921,8 @@ namespace Program {
             friend bool operator==(const BinaryFieldOp&, const BinaryFieldOp&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, op, lhs, rhs);
         };
 
         struct BinaryIntOp {
@@ -532,6 +935,8 @@ namespace Program {
             friend bool operator==(const BinaryIntOp&, const BinaryIntOp&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, op, bit_size, lhs, rhs);
         };
 
         struct Not {
@@ -542,6 +947,8 @@ namespace Program {
             friend bool operator==(const Not&, const Not&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Not bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, source, bit_size);
         };
 
         struct Cast {
@@ -552,6 +959,8 @@ namespace Program {
             friend bool operator==(const Cast&, const Cast&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Cast bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, source, bit_size);
         };
 
         struct JumpIfNot {
@@ -561,6 +970,8 @@ namespace Program {
             friend bool operator==(const JumpIfNot&, const JumpIfNot&);
             std::vector<uint8_t> bincodeSerialize() const;
             static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(condition, location);
         };
 
         struct JumpIf {
@@ -570,6 +981,8 @@ namespace Program {
             friend bool operator==(const JumpIf&, const JumpIf&);
             std::vector<uint8_t> bincodeSerialize() const;
             static JumpIf bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(condition, location);
         };
 
         struct Jump {
@@ -578,6 +991,8 @@ namespace Program {
             friend bool operator==(const Jump&, const Jump&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Jump bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(location);
         };
 
         struct CalldataCopy {
@@ -588,6 +1003,8 @@ namespace Program {
             friend bool operator==(const CalldataCopy&, const CalldataCopy&);
             std::vector<uint8_t> bincodeSerialize() const;
             static CalldataCopy bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination_address, size_address, offset_address);
         };
 
         struct Call {
@@ -596,6 +1013,8 @@ namespace Program {
             friend bool operator==(const Call&, const Call&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Call bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(location);
         };
 
         struct Const {
@@ -606,6 +1025,8 @@ namespace Program {
             friend bool operator==(const Const&, const Const&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Const bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, bit_size, value);
         };
 
         struct IndirectConst {
@@ -616,12 +1037,16 @@ namespace Program {
             friend bool operator==(const IndirectConst&, const IndirectConst&);
             std::vector<uint8_t> bincodeSerialize() const;
             static IndirectConst bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination_pointer, bit_size, value);
         };
 
         struct Return {
             friend bool operator==(const Return&, const Return&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Return bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct ForeignCall {
@@ -634,6 +1059,8 @@ namespace Program {
             friend bool operator==(const ForeignCall&, const ForeignCall&);
             std::vector<uint8_t> bincodeSerialize() const;
             static ForeignCall bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(function, destinations, destination_value_types, inputs, input_value_types);
         };
 
         struct Mov {
@@ -643,6 +1070,8 @@ namespace Program {
             friend bool operator==(const Mov&, const Mov&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Mov bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, source);
         };
 
         struct ConditionalMov {
@@ -654,6 +1083,8 @@ namespace Program {
             friend bool operator==(const ConditionalMov&, const ConditionalMov&);
             std::vector<uint8_t> bincodeSerialize() const;
             static ConditionalMov bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, source_a, source_b, condition);
         };
 
         struct Load {
@@ -663,6 +1094,8 @@ namespace Program {
             friend bool operator==(const Load&, const Load&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Load bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination, source_pointer);
         };
 
         struct Store {
@@ -672,6 +1105,8 @@ namespace Program {
             friend bool operator==(const Store&, const Store&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Store bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(destination_pointer, source);
         };
 
         struct BlackBox {
@@ -680,6 +1115,12 @@ namespace Program {
             friend bool operator==(const BlackBox&, const BlackBox&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BlackBox bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Trap {
@@ -688,6 +1129,8 @@ namespace Program {
             friend bool operator==(const Trap&, const Trap&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Trap bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(revert_data);
         };
 
         struct Stop {
@@ -696,6 +1139,8 @@ namespace Program {
             friend bool operator==(const Stop&, const Stop&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Stop bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(return_data);
         };
 
         std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
@@ -703,6 +1148,79 @@ namespace Program {
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "BinaryFieldOp";
+                    break;
+                case 1:
+                    tag = "BinaryIntOp";
+                    break;
+                case 2:
+                    tag = "Not";
+                    break;
+                case 3:
+                    tag = "Cast";
+                    break;
+                case 4:
+                    tag = "JumpIfNot";
+                    break;
+                case 5:
+                    tag = "JumpIf";
+                    break;
+                case 6:
+                    tag = "Jump";
+                    break;
+                case 7:
+                    tag = "CalldataCopy";
+                    break;
+                case 8:
+                    tag = "Call";
+                    break;
+                case 9:
+                    tag = "Const";
+                    break;
+                case 10:
+                    tag = "IndirectConst";
+                    break;
+                case 11:
+                    tag = "Return";
+                    break;
+                case 12:
+                    tag = "ForeignCall";
+                    break;
+                case 13:
+                    tag = "Mov";
+                    break;
+                case 14:
+                    tag = "ConditionalMov";
+                    break;
+                case 15:
+                    tag = "Load";
+                    break;
+                case 16:
+                    tag = "Store";
+                    break;
+                case 17:
+                    tag = "BlackBox";
+                    break;
+                case 18:
+                    tag = "Trap";
+                    break;
+                case 19:
+                    tag = "Stop";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct Witness {
@@ -711,6 +1229,12 @@ namespace Program {
         friend bool operator==(const Witness&, const Witness&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Witness bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            packer.pack(value);
+        }
     };
 
     struct ConstantOrWitnessEnum {
@@ -721,6 +1245,12 @@ namespace Program {
             friend bool operator==(const Constant&, const Constant&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Constant bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Witness {
@@ -729,6 +1259,12 @@ namespace Program {
             friend bool operator==(const Witness&, const Witness&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Witness bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Constant, Witness> value;
@@ -736,6 +1272,25 @@ namespace Program {
         friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Constant";
+                    break;
+                case 1:
+                    tag = "Witness";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct FunctionInput {
@@ -745,6 +1300,8 @@ namespace Program {
         friend bool operator==(const FunctionInput&, const FunctionInput&);
         std::vector<uint8_t> bincodeSerialize() const;
         static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(input, num_bits);
     };
 
     struct BlackBoxFuncCall {
@@ -758,6 +1315,8 @@ namespace Program {
             friend bool operator==(const AES128Encrypt&, const AES128Encrypt&);
             std::vector<uint8_t> bincodeSerialize() const;
             static AES128Encrypt bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, iv, key, outputs);
         };
 
         struct AND {
@@ -768,6 +1327,8 @@ namespace Program {
             friend bool operator==(const AND&, const AND&);
             std::vector<uint8_t> bincodeSerialize() const;
             static AND bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct XOR {
@@ -778,6 +1339,8 @@ namespace Program {
             friend bool operator==(const XOR&, const XOR&);
             std::vector<uint8_t> bincodeSerialize() const;
             static XOR bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct RANGE {
@@ -786,6 +1349,8 @@ namespace Program {
             friend bool operator==(const RANGE&, const RANGE&);
             std::vector<uint8_t> bincodeSerialize() const;
             static RANGE bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input);
         };
 
         struct Blake2s {
@@ -795,6 +1360,8 @@ namespace Program {
             friend bool operator==(const Blake2s&, const Blake2s&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Blake2s bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, outputs);
         };
 
         struct Blake3 {
@@ -804,6 +1371,8 @@ namespace Program {
             friend bool operator==(const Blake3&, const Blake3&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Blake3 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, outputs);
         };
 
         struct EcdsaSecp256k1 {
@@ -816,6 +1385,8 @@ namespace Program {
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(public_key_x, public_key_y, signature, hashed_message, output);
         };
 
         struct EcdsaSecp256r1 {
@@ -828,6 +1399,8 @@ namespace Program {
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(public_key_x, public_key_y, signature, hashed_message, output);
         };
 
         struct MultiScalarMul {
@@ -838,6 +1411,8 @@ namespace Program {
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(points, scalars, outputs);
         };
 
         struct EmbeddedCurveAdd {
@@ -848,6 +1423,8 @@ namespace Program {
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input1, input2, outputs);
         };
 
         struct Keccakf1600 {
@@ -857,6 +1434,8 @@ namespace Program {
             friend bool operator==(const Keccakf1600&, const Keccakf1600&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Keccakf1600 bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, outputs);
         };
 
         struct RecursiveAggregation {
@@ -869,6 +1448,8 @@ namespace Program {
             friend bool operator==(const RecursiveAggregation&, const RecursiveAggregation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static RecursiveAggregation bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(verification_key, proof, public_inputs, key_hash, proof_type);
         };
 
         struct BigIntAdd {
@@ -879,6 +1460,8 @@ namespace Program {
             friend bool operator==(const BigIntAdd&, const BigIntAdd&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntAdd bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntSub {
@@ -889,6 +1472,8 @@ namespace Program {
             friend bool operator==(const BigIntSub&, const BigIntSub&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntSub bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntMul {
@@ -899,6 +1484,8 @@ namespace Program {
             friend bool operator==(const BigIntMul&, const BigIntMul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntMul bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntDiv {
@@ -909,6 +1496,8 @@ namespace Program {
             friend bool operator==(const BigIntDiv&, const BigIntDiv&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntDiv bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(lhs, rhs, output);
         };
 
         struct BigIntFromLeBytes {
@@ -919,6 +1508,8 @@ namespace Program {
             friend bool operator==(const BigIntFromLeBytes&, const BigIntFromLeBytes&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntFromLeBytes bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, modulus, output);
         };
 
         struct BigIntToLeBytes {
@@ -928,6 +1519,8 @@ namespace Program {
             friend bool operator==(const BigIntToLeBytes&, const BigIntToLeBytes&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BigIntToLeBytes bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(input, outputs);
         };
 
         struct Poseidon2Permutation {
@@ -938,6 +1531,8 @@ namespace Program {
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, outputs, len);
         };
 
         struct Sha256Compression {
@@ -948,6 +1543,8 @@ namespace Program {
             friend bool operator==(const Sha256Compression&, const Sha256Compression&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Sha256Compression bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(inputs, hash_values, outputs);
         };
 
         std::variant<AES128Encrypt, AND, XOR, RANGE, Blake2s, Blake3, EcdsaSecp256k1, EcdsaSecp256r1, MultiScalarMul, EmbeddedCurveAdd, Keccakf1600, RecursiveAggregation, BigIntAdd, BigIntSub, BigIntMul, BigIntDiv, BigIntFromLeBytes, BigIntToLeBytes, Poseidon2Permutation, Sha256Compression> value;
@@ -955,6 +1552,79 @@ namespace Program {
         friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "AES128Encrypt";
+                    break;
+                case 1:
+                    tag = "AND";
+                    break;
+                case 2:
+                    tag = "XOR";
+                    break;
+                case 3:
+                    tag = "RANGE";
+                    break;
+                case 4:
+                    tag = "Blake2s";
+                    break;
+                case 5:
+                    tag = "Blake3";
+                    break;
+                case 6:
+                    tag = "EcdsaSecp256k1";
+                    break;
+                case 7:
+                    tag = "EcdsaSecp256r1";
+                    break;
+                case 8:
+                    tag = "MultiScalarMul";
+                    break;
+                case 9:
+                    tag = "EmbeddedCurveAdd";
+                    break;
+                case 10:
+                    tag = "Keccakf1600";
+                    break;
+                case 11:
+                    tag = "RecursiveAggregation";
+                    break;
+                case 12:
+                    tag = "BigIntAdd";
+                    break;
+                case 13:
+                    tag = "BigIntSub";
+                    break;
+                case 14:
+                    tag = "BigIntMul";
+                    break;
+                case 15:
+                    tag = "BigIntDiv";
+                    break;
+                case 16:
+                    tag = "BigIntFromLeBytes";
+                    break;
+                case 17:
+                    tag = "BigIntToLeBytes";
+                    break;
+                case 18:
+                    tag = "Poseidon2Permutation";
+                    break;
+                case 19:
+                    tag = "Sha256Compression";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct BlockId {
@@ -963,6 +1633,12 @@ namespace Program {
         friend bool operator==(const BlockId&, const BlockId&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BlockId bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            packer.pack(value);
+        }
     };
 
     struct BlockType {
@@ -971,6 +1647,8 @@ namespace Program {
             friend bool operator==(const Memory&, const Memory&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Memory bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct CallData {
@@ -979,12 +1657,20 @@ namespace Program {
             friend bool operator==(const CallData&, const CallData&);
             std::vector<uint8_t> bincodeSerialize() const;
             static CallData bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct ReturnData {
             friend bool operator==(const ReturnData&, const ReturnData&);
             std::vector<uint8_t> bincodeSerialize() const;
             static ReturnData bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         std::variant<Memory, CallData, ReturnData> value;
@@ -992,6 +1678,28 @@ namespace Program {
         friend bool operator==(const BlockType&, const BlockType&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BlockType bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Memory";
+                    break;
+                case 1:
+                    tag = "CallData";
+                    break;
+                case 2:
+                    tag = "ReturnData";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct Expression {
@@ -1002,6 +1710,8 @@ namespace Program {
         friend bool operator==(const Expression&, const Expression&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Expression bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(mul_terms, linear_combinations, q_c);
     };
 
     struct BrilligInputs {
@@ -1012,6 +1722,12 @@ namespace Program {
             friend bool operator==(const Single&, const Single&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Single bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Array {
@@ -1020,6 +1736,12 @@ namespace Program {
             friend bool operator==(const Array&, const Array&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Array bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct MemoryArray {
@@ -1028,6 +1750,12 @@ namespace Program {
             friend bool operator==(const MemoryArray&, const MemoryArray&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryArray bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Single, Array, MemoryArray> value;
@@ -1035,6 +1763,28 @@ namespace Program {
         friend bool operator==(const BrilligInputs&, const BrilligInputs&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Single";
+                    break;
+                case 1:
+                    tag = "Array";
+                    break;
+                case 2:
+                    tag = "MemoryArray";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct BrilligOutputs {
@@ -1045,6 +1795,12 @@ namespace Program {
             friend bool operator==(const Simple&, const Simple&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Simple bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Array {
@@ -1053,6 +1809,12 @@ namespace Program {
             friend bool operator==(const Array&, const Array&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Array bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Simple, Array> value;
@@ -1060,6 +1822,25 @@ namespace Program {
         friend bool operator==(const BrilligOutputs&, const BrilligOutputs&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Simple";
+                    break;
+                case 1:
+                    tag = "Array";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct MemOp {
@@ -1070,6 +1851,8 @@ namespace Program {
         friend bool operator==(const MemOp&, const MemOp&);
         std::vector<uint8_t> bincodeSerialize() const;
         static MemOp bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(operation, index, value);
     };
 
     struct Opcode {
@@ -1080,6 +1863,12 @@ namespace Program {
             friend bool operator==(const AssertZero&, const AssertZero&);
             std::vector<uint8_t> bincodeSerialize() const;
             static AssertZero bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct BlackBoxFuncCall {
@@ -1088,6 +1877,12 @@ namespace Program {
             friend bool operator==(const BlackBoxFuncCall&, const BlackBoxFuncCall&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct MemoryOp {
@@ -1098,6 +1893,8 @@ namespace Program {
             friend bool operator==(const MemoryOp&, const MemoryOp&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(block_id, op, predicate);
         };
 
         struct MemoryInit {
@@ -1108,6 +1905,8 @@ namespace Program {
             friend bool operator==(const MemoryInit&, const MemoryInit&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryInit bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(block_id, init, block_type);
         };
 
         struct BrilligCall {
@@ -1119,6 +1918,8 @@ namespace Program {
             friend bool operator==(const BrilligCall&, const BrilligCall&);
             std::vector<uint8_t> bincodeSerialize() const;
             static BrilligCall bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(id, inputs, outputs, predicate);
         };
 
         struct Call {
@@ -1130,6 +1931,8 @@ namespace Program {
             friend bool operator==(const Call&, const Call&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Call bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(id, inputs, outputs, predicate);
         };
 
         std::variant<AssertZero, BlackBoxFuncCall, MemoryOp, MemoryInit, BrilligCall, Call> value;
@@ -1137,6 +1940,37 @@ namespace Program {
         friend bool operator==(const Opcode&, const Opcode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Opcode bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "AssertZero";
+                    break;
+                case 1:
+                    tag = "BlackBoxFuncCall";
+                    break;
+                case 2:
+                    tag = "MemoryOp";
+                    break;
+                case 3:
+                    tag = "MemoryInit";
+                    break;
+                case 4:
+                    tag = "BrilligCall";
+                    break;
+                case 5:
+                    tag = "Call";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct ExpressionOrMemory {
@@ -1147,6 +1981,12 @@ namespace Program {
             friend bool operator==(const Expression&, const Expression&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Expression bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Memory {
@@ -1155,6 +1995,12 @@ namespace Program {
             friend bool operator==(const Memory&, const Memory&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Memory bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         std::variant<Expression, Memory> value;
@@ -1162,6 +2008,25 @@ namespace Program {
         friend bool operator==(const ExpressionOrMemory&, const ExpressionOrMemory&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionOrMemory bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Expression";
+                    break;
+                case 1:
+                    tag = "Memory";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct AssertionPayload {
@@ -1171,6 +2036,8 @@ namespace Program {
         friend bool operator==(const AssertionPayload&, const AssertionPayload&);
         std::vector<uint8_t> bincodeSerialize() const;
         static AssertionPayload bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(error_selector, payload);
     };
 
     struct ExpressionWidth {
@@ -1179,6 +2046,8 @@ namespace Program {
             friend bool operator==(const Unbounded&, const Unbounded&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Unbounded bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS();
         };
 
         struct Bounded {
@@ -1187,6 +2056,8 @@ namespace Program {
             friend bool operator==(const Bounded&, const Bounded&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Bounded bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(width);
         };
 
         std::variant<Unbounded, Bounded> value;
@@ -1194,6 +2065,25 @@ namespace Program {
         friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
         std::vector<uint8_t> bincodeSerialize() const;
         static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Unbounded";
+                    break;
+                case 1:
+                    tag = "Bounded";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct OpcodeLocation {
@@ -1204,6 +2094,12 @@ namespace Program {
             friend bool operator==(const Acir&, const Acir&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Acir bincodeDeserialize(std::vector<uint8_t>);
+
+
+            void msgpack_pack(auto& packer) const
+            {
+                packer.pack(value);
+            }
         };
 
         struct Brillig {
@@ -1213,6 +2109,8 @@ namespace Program {
             friend bool operator==(const Brillig&, const Brillig&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Brillig bincodeDeserialize(std::vector<uint8_t>);
+
+            MSGPACK_FIELDS(acir_index, brillig_index);
         };
 
         std::variant<Acir, Brillig> value;
@@ -1220,6 +2118,25 @@ namespace Program {
         friend bool operator==(const OpcodeLocation&, const OpcodeLocation&);
         std::vector<uint8_t> bincodeSerialize() const;
         static OpcodeLocation bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            
+            string tag;
+            switch value.index() {
+                
+                case 0:
+                    tag = "Acir";
+                    break;
+                case 1:
+                    tag = "Brillig";
+                    break;
+                default:
+                    throw_or_abort("unknown enum variant index: " + std::to_string(value.index()));
+            }
+            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+        }
     };
 
     struct PublicInputs {
@@ -1228,6 +2145,12 @@ namespace Program {
         friend bool operator==(const PublicInputs&, const PublicInputs&);
         std::vector<uint8_t> bincodeSerialize() const;
         static PublicInputs bincodeDeserialize(std::vector<uint8_t>);
+
+
+        void msgpack_pack(auto& packer) const
+        {
+            packer.pack(value);
+        }
     };
 
     struct Circuit {
@@ -1242,6 +2165,8 @@ namespace Program {
         friend bool operator==(const Circuit&, const Circuit&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Circuit bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(current_witness_index, opcodes, expression_width, private_parameters, public_parameters, return_values, assert_messages);
     };
 
     struct BrilligBytecode {
@@ -1250,6 +2175,8 @@ namespace Program {
         friend bool operator==(const BrilligBytecode&, const BrilligBytecode&);
         std::vector<uint8_t> bincodeSerialize() const;
         static BrilligBytecode bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(bytecode);
     };
 
     struct Program {
@@ -1259,6 +2186,8 @@ namespace Program {
         friend bool operator==(const Program&, const Program&);
         std::vector<uint8_t> bincodeSerialize() const;
         static Program bincodeDeserialize(std::vector<uint8_t>);
+
+        MSGPACK_FIELDS(functions, unconstrained_functions);
     };
 
 } // end of namespace Program
