@@ -1146,7 +1146,9 @@
 <a href="#1145" id="1145">1145</a>
 <a href="#1146" id="1146">1146</a>
 <a href="#1147" id="1147">1147</a>
-<a href="#1148" id="1148">1148</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1148" id="1148">1148</a>
+<a href="#1149" id="1149">1149</a>
+<a href="#1150" id="1150">1150</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1745,7 +1747,7 @@
     <span class="doccomment">/// Inserts a call instruction at the end of the current block and returns the results
     /// of the call.
     ///
-    /// Compared to self.builder.insert_call, this version will reshape the returned Vec&lt;ValueId&gt;
+    /// Compared to self.builder.insert_call, this version will reshape the returned `Vec&lt;ValueId&gt;`
     /// back into a Values tree of the proper shape.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>insert_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1876,10 +1878,12 @@
     /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
     ///         value contained:
     ///
+    /// ```text
     /// v0 = foo.bar                 ; allocate instruction for bar
     /// v1 = load v0                 ; loading the bar array
     /// v2 = add i1, baz_index       ; field offset for index i1, field baz
     /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
+    /// ```
     ///
     /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
     ///                  construct the larger value as needed until we can `store` to the nearest
@@ -1938,7 +1942,7 @@
     }
 
     <span class="doccomment">/// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option&lt;length&gt;) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, `Option&lt;length&gt;`) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).

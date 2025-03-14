@@ -10,9 +10,9 @@ of the corresponding function declaration in the trait itself.</p>
 <code>impl&lt;C&gt; Foo&lt;D&gt; for Bar&lt;E&gt; { fn foo&lt;F&gt;(...); } </code></p>
 <p>We have to substitute:</p>
 <ul>
-<li>Self for Bar<E></li>
-<li>A for D</li>
-<li>B for F</li>
+<li><code>Self</code> for <code>Bar&lt;E&gt;</code></li>
+<li><code>A</code> for <code>D</code></li>
+<li><code>B</code> for <code>F</code></li>
 </ul>
 <p>Before we can type check. Finally, we must also check that the unification
 result does not introduce any new bindings. This can happen if the impl

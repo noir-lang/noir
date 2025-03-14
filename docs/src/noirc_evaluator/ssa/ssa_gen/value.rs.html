@@ -279,7 +279,7 @@
 
     <span class="doccomment">/// Calls the given function on each leaf node, mapping this tree into a new one.
     ///
-    /// Because the given function returns a Tree&lt;U&gt; rather than a U, it is possible
+    /// Because the given function returns a `Tree&lt;U&gt;` rather than a U, it is possible
     /// to use this function to turn Leaf nodes into either other Leaf nodes or even Branch nodes.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>map&lt;U&gt;(<span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(T) -&gt; Tree&lt;U&gt;) -&gt; Tree&lt;U&gt; {
         <span class="self">self</span>.map_helper(<span class="kw-2">&amp;mut </span>f)
@@ -354,7 +354,7 @@
 }
 
 <span class="kw">impl </span>Tree&lt;Value&gt; {
-    <span class="doccomment">/// Flattens and evaluates this Tree&lt;Value&gt; into a list of ir values
+    <span class="doccomment">/// Flattens and evaluates this `Tree&lt;Value&gt;` into a list of ir values
     /// for return statements, branching instructions, or function parameters.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>into_value_list(<span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>FunctionContext) -&gt; Vec&lt;IrValueId&gt; {
         vecmap(<span class="self">self</span>.flatten(), |value| value.eval(ctx))

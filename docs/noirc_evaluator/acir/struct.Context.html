@@ -316,7 +316,7 @@ TODO nothing and a 0.</p>
     vars: <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="acir_variable/struct.AcirVar.html" title="struct noirc_evaluator::acir::acir_variable::AcirVar">AcirVar</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     result_ids: &amp;[<a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/value/enum.Value.html" title="enum noirc_evaluator::ssa::ir::value::Value">Value</a>&gt;],
-) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.AcirValue.html" title="enum noirc_evaluator::acir::AcirValue">AcirValue</a>&gt;</h4></section></summary><div class="docblock"><p>Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="enum.AcirValue.html" title="enum noirc_evaluator::acir::AcirValue">AcirValue</a>&gt;</h4></section></summary><div class="docblock"><p>Convert a <code>Vec&lt;AcirVar&gt;</code> into a <code>Vec&lt;AcirValue&gt;</code> using the given result ids.
 If the type of a result id is an array, several acir vars are collected into
 a single AcirValue::Array of the same length.
 If the type of a result id is a slice, the slice length must precede it and we can

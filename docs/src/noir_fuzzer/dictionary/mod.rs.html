@@ -156,7 +156,7 @@
     brillig_vm::brillig::Opcode <span class="kw">as </span>BrilligOpcode,
 };
 
-<span class="doccomment">/// Constructs a [HashSet&lt;F&gt;] of values pulled from a [Program&lt;F&gt;] which are likely to be correspond
+<span class="doccomment">/// Constructs a [`HashSet&lt;F&gt;`] of values pulled from a [`Program&lt;F&gt;`] which are likely to be correspond
 /// to significant inputs during fuzzing.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>build_dictionary_from_program&lt;F: AcirField&gt;(program: <span class="kw-2">&amp;</span>Program&lt;F&gt;) -&gt; HashSet&lt;F&gt; {
     <span class="kw">let </span>constrained_dictionaries = program.functions.iter().map(build_dictionary_from_circuit);

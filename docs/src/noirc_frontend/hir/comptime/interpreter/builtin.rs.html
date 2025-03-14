@@ -3557,7 +3557,7 @@
     <span class="prelude-val">Ok</span>(Value::Type(Type::DataType(type_def_rc, generics)))
 }
 
-<span class="doccomment">/// fn generics(self) -&gt; [(Type, Option&lt;Type&gt;)]
+<span class="doccomment">/// fn generics(self) -&gt; [(Type, `Option&lt;Type&gt;`)]
 </span><span class="kw">fn </span>type_def_generics(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,
@@ -6088,7 +6088,7 @@
     Value::Struct(fields, option_type)
 }
 
-<span class="doccomment">/// Given a type, assert that it's an Option&lt;T&gt; and return the Type for T
+<span class="doccomment">/// Given a type, assert that it's an `Option&lt;T&gt;` and return the Type for T
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extract_option_generic_type(typ: Type) -&gt; Type {
     <span class="kw">let </span>Type::DataType(struct_type, <span class="kw-2">mut </span>generics) = typ <span class="kw">else </span>{
         <span class="macro">panic!</span>(<span class="string">"Expected type to be a struct"</span>);

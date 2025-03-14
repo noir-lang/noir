@@ -695,9 +695,9 @@
 /// `impl&lt;C&gt; Foo&lt;D&gt; for Bar&lt;E&gt; { fn foo&lt;F&gt;(...); } `
 ///
 /// We have to substitute:
-/// - Self for Bar&lt;E&gt;
-/// - A for D
-/// - B for F
+/// - `Self` for `Bar&lt;E&gt;`
+/// - `A` for `D`
+/// - `B` for `F`
 ///
 /// Before we can type check. Finally, we must also check that the unification
 /// result does not introduce any new bindings. This can happen if the impl

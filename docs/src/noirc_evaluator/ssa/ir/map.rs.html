@@ -306,7 +306,7 @@
 
 <span class="doccomment">/// A unique ID corresponding to a value of type T.
 /// This type can be used to retrieve a value of type T from
-/// either a DenseMap&lt;T&gt; or SparseMap&lt;T&gt;.
+/// either a `DenseMap&lt;T&gt;` or `SparseMap&lt;T&gt;`.
 ///
 /// Note that there is nothing in an Id binding it to a particular
 /// DenseMap or SparseMap. If an Id was created to correspond to one
@@ -420,7 +420,7 @@
     </span>InvalidId(String),
 }
 
-<span class="doccomment">/// The implementation of display and FromStr allows serializing and deserializing an Id&lt;T&gt; to a string.
+<span class="doccomment">/// The implementation of display and FromStr allows serializing and deserializing an `Id&lt;T&gt;` to a string.
 /// This is useful when used as key in a map that has to be serialized to JSON/TOML.
 </span><span class="kw">impl </span>FromStr <span class="kw">for </span>Id&lt;<span class="kw">super</span>::basic_block::BasicBlock&gt; {
     <span class="kw">type </span><span class="prelude-val">Err </span>= IdDisplayFromStrErr;

@@ -361,7 +361,7 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'b</span>, B: BlackBoxFunctionSolver&lt;F&gt;, F: AcirField&gt; BrilligSolver&lt;<span class="lifetime">'b</span>, F, B&gt; {
-    <span class="doccomment">/// Assigns the zero value to all outputs of the given [`Brillig`] bytecode.
+    <span class="doccomment">/// Assigns the zero value to all outputs of a given [brillig call][acir::circuit::opcodes::Opcode::BrilligCall].
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>zero_out_brillig_outputs(
         initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
         outputs: <span class="kw-2">&amp;</span>[BrilligOutputs],

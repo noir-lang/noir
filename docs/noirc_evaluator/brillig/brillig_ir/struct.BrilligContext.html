@@ -229,7 +229,7 @@ After the address pointed by destination</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_brillig_array_to_heap_array" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#264-268">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_brillig_array_to_heap_array" class="fn">codegen_brillig_array_to_heap_array</a>(
     &amp;mut self,
     array: <a class="struct" href="brillig_variable/struct.BrilligArray.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligArray">BrilligArray</a>,
-) -&gt; <a class="struct" href="../../../brillig/opcodes/struct.HeapArray.html" title="struct brillig::opcodes::HeapArray">HeapArray</a></h4></section></summary><div class="docblock"><p>Converts a BrilligArray (pointer to [RC, …items]) to a HeapArray (pointer to [items])</p>
+) -&gt; <a class="struct" href="../../../brillig/opcodes/struct.HeapArray.html" title="struct brillig::opcodes::HeapArray">HeapArray</a></h4></section></summary><div class="docblock"><p>Converts a BrilligArray (pointer to <code>[RC, ...items]</code>) to a HeapArray (pointer to <code>[items]</code>)</p>
 </div></details><section id="method.codegen_brillig_vector_to_heap_vector" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#270-286">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_brillig_vector_to_heap_vector" class="fn">codegen_brillig_vector_to_heap_vector</a>(
     &amp;mut self,
     vector: <a class="struct" href="brillig_variable/struct.BrilligVector.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVector">BrilligVector</a>,
@@ -351,7 +351,7 @@ Printed using debug_slow</p>
     result: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
     operation: <a class="enum" href="instructions/enum.BrilligBinaryOp.html" title="enum noirc_evaluator::brillig::brillig_ir::instructions::BrilligBinaryOp">BrilligBinaryOp</a>,
 )</h4></section></summary><div class="docblock"><p>Processes a binary instruction according <code>operation</code>.</p>
-<p>This method will compute lhs <operation> rhs
+<p>This method will compute lhs <code>&lt;operation&gt;</code> rhs
 and store the result in the <code>result</code> register.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.not_instruction" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/instructions.rs.html#45-57">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.not_instruction" class="fn">not_instruction</a>(
     &amp;mut self,

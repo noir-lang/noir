@@ -775,7 +775,7 @@
         <span class="self">self</span>.deallocate_register(index_at_end_of_array);
     }
 
-    <span class="doccomment">/// Converts a BrilligArray (pointer to [RC, ...items]) to a HeapArray (pointer to [items])
+    <span class="doccomment">/// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_brillig_array_to_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: BrilligArray) -&gt; HeapArray {
         <span class="kw">let </span>heap_array = HeapArray { pointer: <span class="self">self</span>.allocate_register(), size: array.size };
         <span class="self">self</span>.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, <span class="number">1</span>);

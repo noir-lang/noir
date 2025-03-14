@@ -450,7 +450,7 @@
         Type::unsigned(<span class="number">8</span>)
     }
 
-    <span class="doccomment">/// Creates the str&lt;N&gt; type, of the given length N
+    <span class="doccomment">/// Creates the `str&lt;N&gt;` type, of the given length N
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>str(length: u32) -&gt; Type {
         Type::Array(Arc::new(<span class="macro">vec!</span>[Type::char()]), length)
     }

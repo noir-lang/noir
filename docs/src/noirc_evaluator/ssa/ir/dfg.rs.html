@@ -974,7 +974,7 @@
 </span><span class="attr">#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DataFlowGraph {
-    <span class="doccomment">/// Runtime of the [Function] that owns this [DataFlowGraph].
+    <span class="doccomment">/// Runtime of the [function][super::function::Function] that owns this [DataFlowGraph].
     /// This might change during the `runtime_separation` pass where
     /// ACIR functions are cloned as Brillig functions.
     </span>runtime: RuntimeType,

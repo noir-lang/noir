@@ -1843,8 +1843,7 @@
 <a href="#1842" id="1842">1842</a>
 <a href="#1843" id="1843">1843</a>
 <a href="#1844" id="1844">1844</a>
-<a href="#1845" id="1845">1845</a>
-<a href="#1846" id="1846">1846</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#1845" id="1845">1845</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][Instruction::simplify()].
 //!
 //! The pass works as follows:
@@ -1859,9 +1858,8 @@
 //! without the need for multiple passes.
 //!
 //! Other passes perform a certain amount of constant folding automatically as they insert instructions
-//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value`] or
-//! [`DataFlowGraph::set_value_from_id`] are used on a value which enables instructions dependent on the value to
-//! now be simplified.
+//! into the [`DataFlowGraph`] but this pass can become needed if [`DataFlowGraph::set_value_from_id`]
+//! is used on a value which enables instructions dependent on the value to now be simplified.
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
