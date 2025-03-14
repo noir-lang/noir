@@ -236,7 +236,6 @@ fn check_errors_with_options(
             continue;
         }
 
-
         code_lines.push(line);
 
         byte += line.len() + 1; // For '\n'
