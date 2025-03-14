@@ -239,7 +239,11 @@ mod reflection {
 
         /// Unit structs don't have fields to put into the data.
         fn generate_unit_struct(&mut self, name: &str) {
-            self.msgpack_fields(name, std::iter::empty());
+            // Ostensibly we could use `MSGPACK_FIELDS();`, but because of how enum unpacking
+            // expects each variant to have `msgpack_unpack`, we generate two empty methods.
+            // self.msgpack_fields(name, std::iter::empty());
+            self.msgpack_pack(name, "");
+            self.msgpack_unpack(name, "");
         }
 
         /// Regular structs pack into a map.
