@@ -653,7 +653,7 @@ mod nargo_expand_{test_type} {{
         // First run `nargo execute` on the original code to get the output
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("execute").arg("--force");
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
@@ -665,7 +665,7 @@ mod nargo_expand_{test_type} {{
 
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
-        nargo.arg("expand").arg("--force");
+        nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
@@ -688,7 +688,7 @@ mod nargo_expand_{test_type} {{
         // Now we can run `nargo execute` on the expanded code
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
-        nargo.arg("execute").arg("--force");
+        nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
@@ -805,7 +805,7 @@ mod nargo_expand_{test_type} {{
         // Now we can run `nargo compile` on the expanded code
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(temp_dir);
-        nargo.arg("compile").arg("--force").arg("--disable-comptime-printing");
+        nargo.arg("compile").arg("--force");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
