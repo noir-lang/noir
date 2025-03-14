@@ -157,6 +157,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -375,6 +378,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -497,6 +503,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -557,6 +566,9 @@ namespace Program {
                 Integer v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -621,6 +633,9 @@ namespace Program {
                 Relative v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -1017,6 +1032,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -1101,6 +1119,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -1183,6 +1204,9 @@ namespace Program {
                 HeapVector v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -1598,6 +1622,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -1672,6 +1699,9 @@ namespace Program {
                 Witness v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -2111,6 +2141,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -2198,6 +2231,9 @@ namespace Program {
                 ReturnData v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -2294,6 +2330,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -2357,6 +2396,9 @@ namespace Program {
                 Array v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -2516,6 +2558,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -2579,6 +2624,9 @@ namespace Program {
                 Memory v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };
@@ -2651,6 +2699,9 @@ namespace Program {
                 v.msgpack_unpack(o);
                 value = v;
             }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
+            }
         }
     };
 
@@ -2714,6 +2765,9 @@ namespace Program {
                 Brillig v;
                 v.msgpack_unpack(o);
                 value = v;
+            }
+            else {
+                throw_or_abort("unknown enum variant: " + tag);
             }
         }
     };

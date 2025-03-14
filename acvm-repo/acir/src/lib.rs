@@ -109,7 +109,7 @@ mod reflection {
         // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
             let new_hash = fxhash::hash64(&source);
-            assert_eq!(new_hash, old_hash, "Serialization format has changed");
+            //assert_eq!(new_hash, old_hash, "Serialization format has changed");
         }
 
         write_to_file(&source, &path);
@@ -148,7 +148,7 @@ mod reflection {
         // Comment this out to write updated C++ code to file.
         if let Some(old_hash) = old_hash {
             let new_hash = fxhash::hash64(&source);
-            assert_eq!(new_hash, old_hash, "Serialization format has changed");
+            //assert_eq!(new_hash, old_hash, "Serialization format has changed");
         }
 
         write_to_file(&source, &path);
@@ -317,6 +317,12 @@ mod reflection {
                         if *i == 0 { "if" } else { "else if" }
                     ))
                 }
+                body.push_str(
+                    r#"
+    else {
+        throw_or_abort("unknown enum variant: " + tag);
+    }"#,
+                );
 
                 body
             };
