@@ -236,12 +236,6 @@ fn check_errors_with_options(
             continue;
         }
 
-        if let Some((span, message)) =
-            get_error_line_span_and_message(line, '-', byte, last_line_length)
-        {
-            custom_spans_with_errors.push((span, message));
-            continue;
-        }
 
         code_lines.push(line);
 
