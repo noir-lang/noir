@@ -1,3 +1,21 @@
 hello from compile-time!
+quote {
+    struct Foo {
+        fn foo() {
+            // Some comment
+            [[1, 2, 3]]
+        }
+    }
+    
+}
 hello from compile-time!
+quote {
+    struct Foo {
+        fn foo() {
+            // Some comment
+            [[1, 2, 3]]
+        }
+    }
+    
+}
 0x03

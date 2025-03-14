@@ -262,7 +262,8 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             };
 
             if stdout != expected_stdout {
-                panic!("stdout does not match expected output. Expected:\n{}\n\nActual:\n{}", expected_stdout, stdout);
+                println!("stdout does not match expected output. Expected:\n{}\n\nActual:\n{}", stdout, expected_stdout);
+                assert_eq!(stdout, expected_stdout);
             }
             "#
         };
