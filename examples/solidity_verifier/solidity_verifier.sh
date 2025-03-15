@@ -23,17 +23,14 @@ PROOF_HEX=$(cat $PROOF_PATH | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//'
 
 NUM_PUBLIC_INPUTS=2
 PUBLIC_INPUT_HEX_CHARS=$((32 * $NUM_PUBLIC_INPUTS * 2)) # Each public input is 32 bytes, 2 chars per byte
-PUBLIC_INPUT_OFFSET_CHARS=$((96 * 2)) # First 96 bytes are the proof header
 
-# Extract public inputs from proof - from 96th byte to 96 + 32 * NUM_PUBLIC_INPUTS bytes
-HEX_PUBLIC_INPUTS=${PROOF_HEX:$PUBLIC_INPUT_OFFSET_CHARS:$PUBLIC_INPUT_HEX_CHARS}
+# Extract public inputs from proof - first 32 * NUM_PUBLIC_INPUTS bytes
+HEX_PUBLIC_INPUTS=${PROOF_HEX:0:$PUBLIC_INPUT_HEX_CHARS}
 # Split public inputs into strings where each string represents a `bytes32`.
 SPLIT_HEX_PUBLIC_INPUTS=$(sed -e 's/.\{64\}/0x&,/g' <<<$HEX_PUBLIC_INPUTS)
 
-# Extract proof without public inputs - from 0 to 96 bytes + the part after public inputs
-PROOF_WITHOUT_PUBLIC_INPUTS_START=${PROOF_HEX:0:$PUBLIC_INPUT_OFFSET_CHARS} 
-PROOF_WITHOUT_PUBLIC_INPUTS_END=${PROOF_HEX:$(($PUBLIC_INPUT_OFFSET_CHARS + $PUBLIC_INPUT_HEX_CHARS))}
-PROOF_WITHOUT_PUBLIC_INPUTS="${PROOF_WITHOUT_PUBLIC_INPUTS_START}${PROOF_WITHOUT_PUBLIC_INPUTS_END}"
+# Extract proof without public inputs
+PROOF_WITHOUT_PUBLIC_INPUTS=${PROOF_HEX:$PUBLIC_INPUT_HEX_CHARS}
 
 # Spin up an anvil node to deploy the contract to
 anvil &

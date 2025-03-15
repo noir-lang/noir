@@ -16,8 +16,8 @@ FULL_PROOF_AS_FIELDS="$($BACKEND prove -b ./target/sum.json -w ./target/sum_witn
 
 echo $FULL_PROOF_AS_FIELDS | jq 'length'
 # sum has 3 public inputs
-PUBLIC_INPUTS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[3:6]')
-PROOF_AS_FIELDS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[:3] + .[6:]')
+PUBLIC_INPUTS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[:3]')
+PROOF_AS_FIELDS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[3:]')
 
 RECURSE_LEAF_PROVER_TOML=./recurse_leaf/Prover.toml
 echo -n "" > $RECURSE_LEAF_PROVER_TOML
@@ -46,8 +46,8 @@ VK_AS_FIELDS=$(jq -r '.[0:]' ./target/recurse_leaf_vk_as_fields)
 
 FULL_PROOF_AS_FIELDS="$($BACKEND prove -b ./target/recurse_leaf.json -w ./target/recurse_leaf_witness.gz --honk_recursion 1 --init_kzg_accumulator --output_format fields -o -)"
 # recurse_leaf has 4 public inputs (excluding aggregation object)
-PUBLIC_INPUTS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[3:7]')
-PROOF_AS_FIELDS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[:3] + .[7:]')
+PUBLIC_INPUTS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[:4]')
+PROOF_AS_FIELDS=$(echo $FULL_PROOF_AS_FIELDS | jq -r '.[4:]')
 
 RECURSE_NODE_PROVER_TOML=./recurse_node/Prover.toml
 echo -n "" > $RECURSE_NODE_PROVER_TOML
