@@ -87,8 +87,8 @@ namespace Program {
         static BinaryFieldOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Add";
@@ -117,13 +117,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BinaryFieldOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Add") {
                 Add v;
@@ -288,8 +288,8 @@ namespace Program {
         static BinaryIntOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Add";
@@ -330,13 +330,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BinaryIntOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Add") {
                 Add v;
@@ -467,8 +467,8 @@ namespace Program {
         static IntegerBitSize bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "U1";
@@ -491,13 +491,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'IntegerBitSize' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "U1") {
                 U1 v;
@@ -564,8 +564,8 @@ namespace Program {
         static BitSize bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Field";
@@ -576,13 +576,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BitSize' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Field") {
                 Field v;
@@ -631,8 +631,8 @@ namespace Program {
         static MemoryAddress bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Direct";
@@ -643,13 +643,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'MemoryAddress' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Direct") {
                 Direct v;
@@ -909,8 +909,8 @@ namespace Program {
         static BlackBoxOp bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "AES128Encrypt";
@@ -966,13 +966,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BlackBoxOp' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
@@ -1108,8 +1108,8 @@ namespace Program {
         static HeapValueType bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Simple";
@@ -1123,13 +1123,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'HeapValueType' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Simple") {
                 Simple v;
@@ -1194,8 +1194,8 @@ namespace Program {
         static ValueOrArray bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "MemoryAddress";
@@ -1209,13 +1209,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'ValueOrArray' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "MemoryAddress") {
                 MemoryAddress v;
@@ -1476,8 +1476,8 @@ namespace Program {
         static BrilligOpcode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "BinaryFieldOp";
@@ -1542,13 +1542,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BrilligOpcode' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "BinaryFieldOp") {
                 BinaryFieldOp v;
@@ -1698,8 +1698,8 @@ namespace Program {
         static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Constant";
@@ -1710,13 +1710,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Constant") {
                 Constant v;
@@ -1995,8 +1995,8 @@ namespace Program {
         static BlackBoxFuncCall bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "AES128Encrypt";
@@ -2061,13 +2061,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BlackBoxFuncCall' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "AES128Encrypt") {
                 AES128Encrypt v;
@@ -2224,8 +2224,8 @@ namespace Program {
         static BlockType bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Memory";
@@ -2239,13 +2239,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BlockType' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Memory") {
                 Memory v;
@@ -2322,8 +2322,8 @@ namespace Program {
         static BrilligInputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Single";
@@ -2337,13 +2337,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BrilligInputs' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Single") {
                 Single v;
@@ -2397,8 +2397,8 @@ namespace Program {
         static BrilligOutputs bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Simple";
@@ -2409,13 +2409,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'BrilligOutputs' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Simple") {
                 Simple v;
@@ -2526,8 +2526,8 @@ namespace Program {
         static Opcode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "AssertZero";
@@ -2550,13 +2550,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'Opcode' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "AssertZero") {
                 AssertZero v;
@@ -2625,8 +2625,8 @@ namespace Program {
         static ExpressionOrMemory bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Expression";
@@ -2637,13 +2637,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'ExpressionOrMemory' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Expression") {
                 Expression v;
@@ -2700,8 +2700,8 @@ namespace Program {
         static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Unbounded";
@@ -2712,13 +2712,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'ExpressionWidth' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Unbounded") {
                 Unbounded v;
@@ -2767,8 +2767,8 @@ namespace Program {
         static OpcodeLocation bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            string tag;
-            switch value.index() {
+            std::string tag;
+            switch (value.index()) {
                 
                 case 0:
                     tag = "Acir";
@@ -2779,13 +2779,13 @@ namespace Program {
                 default:
                     throw_or_abort("unknown 'OpcodeLocation' enum variant index: " + std::to_string(value.index()));
             }
-            std::visit([](const auto& arg) { packer.pack(tag, arg); }, value);
+            std::visit([&packer, tag](const auto& arg) { packer.pack(tag, arg); }, value);
         }
 
         void msgpack_unpack(auto const& o) {
             std::map<std::string, msgpack::type::variant> data = o.convert();
             auto entry = data.begin();
-            string tag = entry->first;
+            auto tag = entry->first;
             auto o = entry->second;
             if (tag == "Acir") {
                 Acir v;

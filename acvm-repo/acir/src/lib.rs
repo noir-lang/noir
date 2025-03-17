@@ -292,13 +292,13 @@ mod reflection {
 
                 format!(
                     r#"
-    string tag;
-    switch value.index() {{
+    std::string tag;
+    switch (value.index()) {{
         {cases}
         default:
             throw_or_abort("unknown '{name}' enum variant index: " + std::to_string(value.index()));
     }}
-    std::visit([](const auto& arg) {{ packer.pack(tag, arg); }}, value);"#
+    std::visit([&packer, tag](const auto& arg) {{ packer.pack(tag, arg); }}, value);"#
                 )
             };
             self.msgpack_pack(name, &pack_body);
@@ -308,7 +308,7 @@ mod reflection {
                 let mut body = "
     std::map<std::string, msgpack::type::variant> data = o.convert();
     auto entry = data.begin();
-    string tag = entry->first;
+    auto tag = entry->first;
     auto o = entry->second;"
                     .to_string();
 
