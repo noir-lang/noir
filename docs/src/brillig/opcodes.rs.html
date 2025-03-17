@@ -392,21 +392,48 @@
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::black_box::BlackBoxOp;
 <span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">pub type </span>Label = usize;
 
-<span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+<span class="doccomment">/// Represents an address in the VM's memory.
+/// Supports both direct and relative addressing.
+</span><span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>MemoryAddress {
-    Direct(usize),
-    Relative(usize),
+    <span class="doccomment">/// Specifies an exact index in the VM's memory
+    </span>Direct(usize),
+    <span class="doccomment">/// Specifies an index relative to the stack pointer.
+    ///
+    /// It is resolved as the current stack pointer plus the offset stored here.
+    </span>Relative(usize),
 }
 
-<span class="doccomment">/// `MemoryAddress` refers to the index in VM memory.
-</span><span class="kw">impl </span>MemoryAddress {
+<span class="kw">impl </span>MemoryAddress {
     <span class="kw">pub fn </span>direct(address: usize) -&gt; <span class="self">Self </span>{
         MemoryAddress::Direct(address)
     }
@@ -603,7 +630,7 @@
 </span><span class="kw">pub enum </span>BrilligOpcode&lt;F&gt; {
     <span class="doccomment">/// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.
+    /// and stores the value in the `destination` address.
     </span>BinaryFieldOp {
         destination: MemoryAddress,
         op: BinaryFieldOp,
@@ -612,7 +639,7 @@
     },
     <span class="doccomment">/// Takes the `bit_size` size integers in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.
+    /// and stores the value in the `destination` address.
     </span>BinaryIntOp {
         destination: MemoryAddress,
         op: BinaryIntOp,
@@ -630,17 +657,19 @@
         source: MemoryAddress,
         bit_size: BitSize,
     },
-    JumpIfNot {
+    <span class="doccomment">/// Sets the program counter to the value of `location` if
+    /// the value at the `condition` address is zero.
+    </span>JumpIfNot {
         condition: MemoryAddress,
         location: Label,
     },
-    <span class="doccomment">/// Sets the program counter to the value located at `destination`
+    <span class="doccomment">/// Sets the program counter to the value of `location`
     /// If the value at `condition` is non-zero
     </span>JumpIf {
         condition: MemoryAddress,
         location: Label,
     },
-    <span class="doccomment">/// Sets the program counter to the label.
+    <span class="doccomment">/// Sets the program counter to the value of `location`.
     </span>Jump {
         location: Label,
     },
@@ -652,20 +681,28 @@
     },
     <span class="doccomment">/// We don't support dynamic jumps or calls
     /// See &lt;https://github.com/ethereum/aleth/issues/3404&gt; for reasoning
+    ///
+    /// Pushes the current program counter to the call stack as to set a return location.
+    /// Sets the program counter to the value of `location`.
     </span>Call {
         location: Label,
     },
-    Const {
+    <span class="doccomment">/// Stores a constant `value` with a `bit_size` in the `destination` address.
+    </span>Const {
         destination: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },
-    IndirectConst {
+    <span class="doccomment">/// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
+    </span>IndirectConst {
         destination_pointer: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },
-    Return,
+    <span class="doccomment">/// Pops the top element from the call stack, which represents the return location,
+    /// and sets the program counter to that value. This operation is used to return
+    /// from a function call.
+    </span>Return,
     <span class="doccomment">/// Used to get data from an outside source.
     /// Also referred to as an Oracle. However, we don't use that name as
     /// this is intended for things like state tree reads, and shouldn't be confused
@@ -684,7 +721,8 @@
         /// retrieve the elements)
         </span>input_value_types: Vec&lt;HeapValueType&gt;,
     },
-    Mov {
+    <span class="doccomment">/// Moves the content in the `source` address to the `destination` address.
+    </span>Mov {
         destination: MemoryAddress,
         source: MemoryAddress,
     },
@@ -695,20 +733,26 @@
         source_b: MemoryAddress,
         condition: MemoryAddress,
     },
-    Load {
+    <span class="doccomment">/// Reads the `source_pointer` to obtain a memory address, then retrieves the data
+    /// stored at that address and writes it to the `destination` address.
+    </span>Load {
         destination: MemoryAddress,
         source_pointer: MemoryAddress,
     },
-    Store {
+    <span class="doccomment">/// Reads the `destination_pointer` to obtain a memory address, then stores the value
+    /// from the `source` address at that location.
+    </span>Store {
         destination_pointer: MemoryAddress,
         source: MemoryAddress,
     },
-    BlackBox(BlackBoxOp),
-    <span class="doccomment">/// Used to denote execution failure, returning data after the offset
+    <span class="doccomment">/// Native functions in the VM.
+    /// These are equivalent to the black box functions in ACIR.
+    </span>BlackBox(BlackBoxOp),
+    <span class="doccomment">/// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
     </span>Trap {
         revert_data: HeapVector,
     },
-    <span class="doccomment">/// Stop execution, returning data after the offset
+    <span class="doccomment">/// Halts execution and returns data specified by a dynamically-sized vector.
     </span>Stop {
         return_data: HeapVector,
     },

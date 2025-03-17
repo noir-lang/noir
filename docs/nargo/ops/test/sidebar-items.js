@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["TestStatus"],"fn":["check_expected_failure_message","run_test","test_status_program_compile_fail","test_status_program_compile_pass"],"struct":["TestForeignCallExecutor"]};

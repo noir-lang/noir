@@ -76,39 +76,7 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress, opcodes::HeapVector};
+<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{HeapArray, MemoryAddress, opcodes::HeapVector};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// These opcodes provide an equivalent of ACIR blackbox functions.
@@ -117,27 +85,13 @@
 #[cfg_attr(feature = <span class="string">"arb"</span>, derive(proptest_derive::Arbitrary))]
 </span><span class="kw">pub enum </span>BlackBoxOp {
     <span class="doccomment">/// Encrypts a message using AES128.
-    </span>AES128Encrypt {
-        inputs: HeapVector,
-        iv: HeapArray,
-        key: HeapArray,
-        outputs: HeapVector,
-    },
+    </span>AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
     <span class="doccomment">/// Calculates the Blake2s hash of the inputs.
-    </span>Blake2s {
-        message: HeapVector,
-        output: HeapArray,
-    },
+    </span>Blake2s { message: HeapVector, output: HeapArray },
     <span class="doccomment">/// Calculates the Blake3 hash of the inputs.
-    </span>Blake3 {
-        message: HeapVector,
-        output: HeapArray,
-    },
+    </span>Blake3 { message: HeapVector, output: HeapArray },
     <span class="doccomment">/// Keccak Permutation function of 1600 width
-    </span>Keccakf1600 {
-        input: HeapArray,
-        output: HeapArray,
-    },
+    </span>Keccakf1600 { input: HeapArray, output: HeapArray },
     <span class="doccomment">/// Verifies a ECDSA signature over the secp256k1 curve.
     </span>EcdsaSecp256k1 {
         hashed_msg: HeapVector,
@@ -154,13 +108,8 @@
         signature: HeapArray,
         result: MemoryAddress,
     },
-
     <span class="doccomment">/// Performs multi scalar multiplication over the embedded curve.
-    </span>MultiScalarMul {
-        points: HeapVector,
-        scalars: HeapVector,
-        outputs: HeapArray,
-    },
+    </span>MultiScalarMul { points: HeapVector, scalars: HeapVector, outputs: HeapArray },
     <span class="doccomment">/// Performs addition over the embedded curve.
     </span>EmbeddedCurveAdd {
         input1_x: MemoryAddress,
@@ -171,46 +120,33 @@
         input2_infinite: MemoryAddress,
         result: HeapArray,
     },
-    BigIntAdd {
-        lhs: MemoryAddress,
-        rhs: MemoryAddress,
-        output: MemoryAddress,
-    },
-    BigIntSub {
-        lhs: MemoryAddress,
-        rhs: MemoryAddress,
-        output: MemoryAddress,
-    },
-    BigIntMul {
-        lhs: MemoryAddress,
-        rhs: MemoryAddress,
-        output: MemoryAddress,
-    },
-    BigIntDiv {
-        lhs: MemoryAddress,
-        rhs: MemoryAddress,
-        output: MemoryAddress,
-    },
-    BigIntFromLeBytes {
-        inputs: HeapVector,
-        modulus: HeapVector,
-        output: MemoryAddress,
-    },
-    BigIntToLeBytes {
-        input: MemoryAddress,
-        output: HeapVector,
-    },
-    Poseidon2Permutation {
-        message: HeapVector,
-        output: HeapArray,
-        len: MemoryAddress,
-    },
-    Sha256Compression {
-        input: HeapArray,
-        hash_values: HeapArray,
-        output: HeapArray,
-    },
-    ToRadix {
+    <span class="doccomment">/// BigInt addition
+    </span>BigIntAdd { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
+    <span class="doccomment">/// BigInt subtraction
+    </span>BigIntSub { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
+    <span class="doccomment">/// BigInt multiplication
+    </span>BigIntMul { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
+    <span class="doccomment">/// BigInt division
+    </span>BigIntDiv { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
+    <span class="doccomment">/// BigInt from le bytes
+    </span>BigIntFromLeBytes { inputs: HeapVector, modulus: HeapVector, output: MemoryAddress },
+    <span class="doccomment">/// BigInt to le bytes
+    </span>BigIntToLeBytes { input: MemoryAddress, output: HeapVector },
+    <span class="doccomment">/// Applies the Poseidon2 permutation function to the given state,
+    /// outputting the permuted state.
+    </span>Poseidon2Permutation { message: HeapVector, output: HeapArray, len: MemoryAddress },
+    <span class="doccomment">/// Applies the SHA-256 compression function to the input message
+    </span>Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
+    <span class="doccomment">/// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.
+    ///
+    /// - The value stored in `radix` must be in the range [2, 256]
+    /// - `num_limbs` must be at least one if the value stored in `input` is not zero.
+    /// - The value stored in `output_bits` must have a `bit_size` of one.
+    ///   That value specifies whether we should decompose into bits. The value stored in
+    ///   the `radix` address must be two if the value stored in `output_bits` is equal to one.
+    ///
+    /// Native to the Brillig VM and not supported as an ACIR black box function.
+    </span>ToRadix {
         input: MemoryAddress,
         radix: MemoryAddress,
         output_pointer: MemoryAddress,

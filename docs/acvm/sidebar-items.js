@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BlackBoxResolutionError"],"mod":["compiler","pwg"],"trait":["AcirField","BlackBoxFunctionSolver"],"type":["FieldElement"]};
+window.SIDEBAR_ITEMS = {"fn":["main"],"mod":["cli","fs"]};
